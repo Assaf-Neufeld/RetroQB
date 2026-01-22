@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "MtaMOCIFD1s=",
+  "success": true,
+  "projectFilePath": "C:\\repos\\Football2DQB\\RetroQB\\RetroQB.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\assafn\\.nuget\\packages\\raylib-cs\\7.0.2\\raylib-cs.7.0.2.nupkg.sha512"
+  ],
+  "logs": []
+}
