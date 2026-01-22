@@ -153,7 +153,7 @@ public sealed class HudRenderer
         y += 15;
         Raylib.DrawText("Throw: Space", x, y, 12, Palette.White);
         y += 15;
-        Raylib.DrawText("Cycle WR: Tab", x, y, 12, Palette.White);
+        Raylib.DrawText("Target: Auto", x, y, 12, Palette.White);
         y += 15;
         Raylib.DrawText("Restart: R  Pause: Esc", x, y, 12, Palette.White);
     }

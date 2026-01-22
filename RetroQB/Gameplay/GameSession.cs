@@ -73,19 +73,19 @@ public sealed class GameSession
     private void SpawnDefenders(float los)
     {
         // Defensive formation: 4-3 with 4 DB
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, los + 2.8f)) { IsRusher = true });
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.46f, los + 2.8f)) { IsRusher = true });
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.54f, los + 2.8f)) { IsRusher = true });
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, los + 2.8f)) { IsRusher = true });
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, los + 2.8f)) { IsRusher = true, ZoneRole = CoverageRole.None });
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.46f, los + 2.8f)) { IsRusher = true, ZoneRole = CoverageRole.None });
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.54f, los + 2.8f)) { IsRusher = true, ZoneRole = CoverageRole.None });
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, los + 2.8f)) { IsRusher = true, ZoneRole = CoverageRole.None });
 
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.38f, los + 6.2f)) { CoverageReceiverIndex = 1 }); // LB
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.50f, los + 6.2f)) { CoverageReceiverIndex = 3 }); // MLB (TE)
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.62f, los + 6.2f)) { CoverageReceiverIndex = 2 }); // LB
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.38f, los + 6.2f)) { CoverageReceiverIndex = 1, ZoneRole = CoverageRole.HookLeft }); // LB
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.50f, los + 6.2f)) { CoverageReceiverIndex = 3, ZoneRole = CoverageRole.HookMiddle }); // MLB (TE)
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.62f, los + 6.2f)) { CoverageReceiverIndex = 2, ZoneRole = CoverageRole.HookRight }); // LB
 
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.20f, los + 10.5f)) { CoverageReceiverIndex = 0 }); // CB
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.80f, los + 10.5f)) { CoverageReceiverIndex = 2 }); // CB
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, los + 12.5f)) { CoverageReceiverIndex = 1 }); // S
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, los + 12.5f)) { CoverageReceiverIndex = 3 }); // S
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.20f, los + 10.5f)) { CoverageReceiverIndex = 0, ZoneRole = CoverageRole.FlatLeft }); // CB
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.80f, los + 10.5f)) { CoverageReceiverIndex = 2, ZoneRole = CoverageRole.FlatRight }); // CB
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, los + 12.5f)) { CoverageReceiverIndex = 1, ZoneRole = CoverageRole.DeepLeft }); // S
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, los + 12.5f)) { CoverageReceiverIndex = 3, ZoneRole = CoverageRole.DeepRight }); // S
     }
 
     public void Update(float dt)
@@ -174,9 +174,9 @@ public sealed class GameSession
     {
         _qbPastLos = _qb.Position.Y > _playManager.LineOfScrimmage + 0.1f && _ball.State == BallState.HeldByQB;
 
-        if (Raylib.IsKeyPressed(KeyboardKey.Tab))
+        if (_ball.State == BallState.HeldByQB && !_qbPastLos)
         {
-            SelectNextEligibleReceiver();
+            AutoSelectReceiver();
         }
 
         Vector2 inputDir = _input.GetMovementDirection();
@@ -225,7 +225,8 @@ public sealed class GameSession
 
         foreach (var defender in _defenders)
         {
-            DefenderAI.UpdateDefender(defender, _qb, _receivers, _ball, _playManager.DefenderSpeedMultiplier, dt, _qbPastLos);
+            bool useZone = _playManager.Distance > Constants.ManCoverageDistanceThreshold;
+            DefenderAI.UpdateDefender(defender, _qb, _receivers, _ball, _playManager.DefenderSpeedMultiplier, dt, _qbPastLos, useZone, _playManager.LineOfScrimmage);
             ClampToField(defender);
         }
 
@@ -586,6 +587,57 @@ public sealed class GameSession
         SelectNextEligibleReceiver();
     }
 
+    private void AutoSelectReceiver()
+    {
+        if (_receivers.Count == 0) return;
+
+        const float maxTargetRange = 28f;
+        const float openWeight = 1.35f;
+        const float distanceWeight = 0.35f;
+
+        int bestIndex = -1;
+        float bestScore = float.MinValue;
+        float bestOpen = float.MinValue;
+        float bestDist = float.MaxValue;
+
+        foreach (var receiver in _receivers)
+        {
+            if (!receiver.Eligible) continue;
+
+            float distToQb = Vector2.Distance(receiver.Position, _qb.Position);
+            if (distToQb > maxTargetRange) continue;
+
+            float openDist = GetNearestDefenderDistance(receiver.Position);
+            float score = openDist * openWeight - distToQb * distanceWeight;
+
+            bool isBetter = score > bestScore;
+            if (MathF.Abs(score - bestScore) < 0.001f)
+            {
+                if (openDist > bestOpen + 0.01f)
+                {
+                    isBetter = true;
+                }
+                else if (MathF.Abs(openDist - bestOpen) < 0.01f && distToQb < bestDist)
+                {
+                    isBetter = true;
+                }
+            }
+
+            if (isBetter)
+            {
+                bestScore = score;
+                bestOpen = openDist;
+                bestDist = distToQb;
+                bestIndex = receiver.Index;
+            }
+        }
+
+        if (bestIndex >= 0 && bestIndex < _receivers.Count)
+        {
+            _playManager.SelectedReceiver = bestIndex;
+        }
+    }
+
     private void DrawRouteOverlay()
     {
         foreach (var receiver in _receivers)
@@ -646,5 +698,20 @@ public sealed class GameSession
         }
 
         return closest;
+    }
+
+    private float GetNearestDefenderDistance(Vector2 position)
+    {
+        float best = float.MaxValue;
+        foreach (var defender in _defenders)
+        {
+            float dist = Vector2.Distance(defender.Position, position);
+            if (dist < best)
+            {
+                best = dist;
+            }
+        }
+
+        return best;
     }
 }

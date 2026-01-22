@@ -75,6 +75,10 @@ public static class Constants
     public const float BlockEngageRadius = 3.8f;
     public const float BlockHoldStrength = 4.2f;
 
+    // Defensive coverage tuning
+    public const float ManCoverageDistanceThreshold = 5f;
+    public const float ZoneCoverageDepth = 14f;
+
     public static Vector2 WorldToScreen(Vector2 worldPos)
     {
         float x = FieldRect.X + (worldPos.X / FieldWidth) * FieldRect.Width;
