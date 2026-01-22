@@ -15,6 +15,11 @@ public static class DefenderAI
         {
             target = qb.Position;
         }
+        else if (ball.State == BallState.HeldByReceiver && ball.Holder != null)
+        {
+            // Chase the receiver carrying the ball - all defenders pursue
+            target = ball.Holder.Position;
+        }
         else if (ball.State == BallState.InAir)
         {
             // Only break on ball if defender is close enough to make a play

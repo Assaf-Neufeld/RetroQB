@@ -76,10 +76,20 @@ public sealed class HudRenderer
         }
         else if (state == GameState.PlayOver)
         {
-            Raylib.DrawText("PLAY OVER", x, y, 18, Palette.Yellow);
-            y += 24;
+            // Show prominent result box
+            Raylib.DrawRectangle(x - 5, y - 5, PanelWidth - 20, 70, new Color(40, 40, 50, 255));
+            Raylib.DrawRectangleLines(x - 5, y - 5, PanelWidth - 20, 70, Palette.Gold);
+            
+            // Determine result color
+            Color resultColor = resultText.Contains("TD") || resultText.Contains("1ST") ? Palette.Gold :
+                               resultText.Contains("INT") || resultText.Contains("TURN") ? Palette.Red :
+                               resultText.Contains("Incomplete") ? Palette.Orange :
+                               Palette.White;
+            
+            Raylib.DrawText(resultText, x, y, 20, resultColor);
+            y += 32;
             Raylib.DrawText("ENTER to continue", x, y, 16, Palette.Lime);
-            y += 30;
+            y += 40;
         }
         else if (!string.IsNullOrWhiteSpace(resultText))
         {

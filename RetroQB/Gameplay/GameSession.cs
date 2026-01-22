@@ -51,9 +51,10 @@ public sealed class GameSession
         _ball.SetHeld(_qb, BallState.HeldByQB);
 
         // Offensive formation: Singleback with TE, 3WR (2 wide + slot), RB
-        _receivers.Add(new Receiver(0, new Vector2(Constants.FieldWidth * 0.20f, los + 1.6f))); // X WR (left)
-        _receivers.Add(new Receiver(1, new Vector2(Constants.FieldWidth * 0.38f, los + 1.2f))); // Slot (left)
-        _receivers.Add(new Receiver(2, new Vector2(Constants.FieldWidth * 0.80f, los + 1.6f))); // Z WR (right)
+        // All receivers must be on or behind the LOS (los - offset means behind)
+        _receivers.Add(new Receiver(0, new Vector2(Constants.FieldWidth * 0.15f, los - 0.3f))); // X WR (left)
+        _receivers.Add(new Receiver(1, new Vector2(Constants.FieldWidth * 0.32f, los - 1.0f))); // Slot (left)
+        _receivers.Add(new Receiver(2, new Vector2(Constants.FieldWidth * 0.85f, los - 0.3f))); // Z WR (right)
         _receivers.Add(new Receiver(3, new Vector2(Constants.FieldWidth * 0.66f, los - 0.1f))); // TE (right)
 
         // Offensive line: LT, LG, C, RG, RT
@@ -384,6 +385,14 @@ public sealed class GameSession
 
     private void ResolvePlayerOverlaps()
     {
+        // Determine who is carrying the ball - they should NOT be pushed away from defenders
+        Entity? ballCarrier = _ball.State switch
+        {
+            BallState.HeldByQB => _qb,
+            BallState.HeldByReceiver => _ball.Holder,
+            _ => null
+        };
+
         var entities = new List<Entity>(_receivers.Count + _defenders.Count + _blockers.Count + 1)
         {
             _qb
@@ -398,6 +407,17 @@ public sealed class GameSession
             {
                 Entity a = entities[i];
                 Entity b = entities[j];
+
+                // Skip overlap resolution between ball carrier and defenders (allows tackles)
+                bool aIsDefender = a is Defender;
+                bool bIsDefender = b is Defender;
+                if (ballCarrier != null)
+                {
+                    if ((a == ballCarrier && bIsDefender) || (b == ballCarrier && aIsDefender))
+                    {
+                        continue;
+                    }
+                }
 
                 Vector2 delta = b.Position - a.Position;
                 float minDist = a.Radius + b.Radius + 0.05f;
