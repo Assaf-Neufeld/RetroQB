@@ -15,6 +15,7 @@ public sealed class FieldRenderer
         Raylib.DrawRectangleRec(rect, Palette.Field);
         DrawEndZones();
         DrawYardLines();
+        DrawHashMarks();
         DrawMarkers(lineOfScrimmage, firstDownLine);
         Raylib.DrawRectangleLinesEx(rect, 2, Palette.DarkGreen);
     }
@@ -44,6 +45,25 @@ public sealed class FieldRenderer
             float y = Constants.WorldToScreenY(worldY);
             Raylib.DrawLine((int)rect.X, (int)y, (int)right, (int)y, Palette.YardLine);
             Raylib.DrawText(yard.ToString(), (int)rect.X + 6, (int)y - 10, 12, Palette.YardLine);
+        }
+    }
+
+    private void DrawHashMarks()
+    {
+        Rectangle rect = Constants.FieldRect;
+        float left = rect.X;
+        float right = rect.X + rect.Width;
+        float hashInset = rect.Width * 0.18f;
+        float hashLength = rect.Width * 0.03f;
+
+        for (int yard = 5; yard < 100; yard += 5)
+        {
+            if (yard % 10 == 0) continue;
+            float worldY = Constants.EndZoneDepth + yard;
+            float y = Constants.WorldToScreenY(worldY);
+
+            Raylib.DrawLine((int)(left + hashInset), (int)y, (int)(left + hashInset + hashLength), (int)y, Palette.DarkGreen);
+            Raylib.DrawLine((int)(right - hashInset - hashLength), (int)y, (int)(right - hashInset), (int)y, Palette.DarkGreen);
         }
     }
 

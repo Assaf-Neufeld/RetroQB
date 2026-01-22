@@ -27,19 +27,4 @@ public sealed class InputManager
     {
         return Raylib.IsKeyDown(KeyboardKey.LeftShift);
     }
-
-    public bool IsAimHeld()
-    {
-        return Raylib.IsKeyDown(KeyboardKey.Space);
-    }
-
-    public bool IsAimReleased()
-    {
-        return Raylib.IsKeyReleased(KeyboardKey.Space);
-    }
-
-    public bool IsAimPressed()
-    {
-        return Raylib.IsKeyPressed(KeyboardKey.Space);
-    }
 }

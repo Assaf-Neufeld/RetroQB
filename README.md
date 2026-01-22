@@ -12,8 +12,7 @@ dotnet run
 
 - Move: WASD or Arrow keys
 - Sprint: Left Shift
-- Aim pass: Hold Space
-- Throw: Release Space
+- Throw: Space
 - Cycle receiver: Tab
 - Restart drive: R
 - Pause: Esc
@@ -22,4 +21,4 @@ dotnet run
 
 ## Passing mechanic
 
-Hold Space to enter aim mode. An aim line shows the direction (based on mouse position) and a power meter fills up over about one second. Release Space to throw; the ball speed is based on the current power. Receivers can catch if the ball comes within catch radius; defenders can intercept if they are close to the catch point.
+Press Tab to select a receiver, then press Space to throw directly to that receiver. Receivers can catch if the ball comes within catch radius; defenders can intercept if they are close to the catch point.

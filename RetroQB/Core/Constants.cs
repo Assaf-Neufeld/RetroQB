@@ -23,19 +23,23 @@ public static class Constants
     public const float CatchRadius = 1.5f;
     public const float InterceptRadius = 1.6f;
 
-    public const float QbMaxSpeed = 10f;
-    public const float QbSprintSpeed = 14f;
-    public const float QbAcceleration = 35f;
-    public const float QbFriction = 20f;
+    public const float QbMaxSpeed = 8f;
+    public const float QbSprintSpeed = 11f;
+    public const float QbAcceleration = 28f;
+    public const float QbFriction = 16f;
 
-    public const float ReceiverSpeed = 9.5f;
-    public const float DefenderSpeed = 9.2f;
+    public const float ReceiverSpeed = 7.2f;
+    public const float DefenderSpeed = 7.0f;
 
-    public const float BallMinSpeed = 18f;
-    public const float BallMaxSpeed = 30f;
+    public const float BallMinSpeed = 14f;
+    public const float BallMaxSpeed = 22f;
     public const float BallMaxAirTime = 3.0f;
 
     public const float AimChargeSeconds = 1.0f;
+
+    public const float BlockerSpeed = 6.0f;
+    public const float BlockEngageRadius = 3.8f;
+    public const float BlockHoldStrength = 4.2f;
 
     public static Vector2 WorldToScreen(Vector2 worldPos)
     {

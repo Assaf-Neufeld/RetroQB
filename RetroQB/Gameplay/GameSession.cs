@@ -23,10 +23,6 @@ public sealed class GameSession
     private readonly List<Blocker> _blockers = new();
     private Quarterback _qb = null!;
     private Ball _ball = null!;
-
-    private bool _aiming;
-    private float _aimPower;
-    private Vector2 _aimDirection = Vector2.UnitY;
     private string _lastPlayText = string.Empty;
 
     public GameSession()
@@ -49,17 +45,25 @@ public sealed class GameSession
         _blockers.Clear();
 
         float los = _playManager.LineOfScrimmage;
-        _qb = new Quarterback(new Vector2(Constants.FieldWidth / 2f, los - 2f));
+        _qb = new Quarterback(new Vector2(Constants.FieldWidth / 2f, los - 1.0f));
         _ball = new Ball(_qb.Position);
         _ball.SetHeld(_qb, BallState.HeldByQB);
 
-        _receivers.Add(new Receiver(0, new Vector2(Constants.FieldWidth * 0.25f, los + 2f)));
-        _receivers.Add(new Receiver(1, new Vector2(Constants.FieldWidth * 0.5f, los + 2f)));
-        _receivers.Add(new Receiver(2, new Vector2(Constants.FieldWidth * 0.75f, los + 2f)));
+        // Offensive formation: Singleback with TE, 3WR (2 wide + slot), RB
+        _receivers.Add(new Receiver(0, new Vector2(Constants.FieldWidth * 0.20f, los + 1.6f))); // X WR (left)
+        _receivers.Add(new Receiver(1, new Vector2(Constants.FieldWidth * 0.38f, los + 1.2f))); // Slot (left)
+        _receivers.Add(new Receiver(2, new Vector2(Constants.FieldWidth * 0.80f, los + 1.6f))); // Z WR (right)
+        _receivers.Add(new Receiver(3, new Vector2(Constants.FieldWidth * 0.66f, los - 0.1f))); // TE (right)
 
-        _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.35f, los + 1f)));
-        _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.5f, los + 1f)));
-        _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.65f, los + 1f)));
+        // Offensive line: LT, LG, C, RG, RT
+        _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.42f, los - 0.1f)));
+        _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.47f, los - 0.1f)));
+        _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.50f, los - 0.1f)));
+        _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.53f, los - 0.1f)));
+        _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.58f, los - 0.1f)));
+
+        // Running back
+        _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.5f, los - 3.5f)));
 
         SpawnDefenders(los);
         ReceiverAI.AssignRoutes(_receivers, _playManager.SelectedPlayType, _rng);
@@ -67,15 +71,20 @@ public sealed class GameSession
 
     private void SpawnDefenders(float los)
     {
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.4f, los + 6f)) { IsRusher = true });
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.6f, los + 6f)) { IsRusher = true });
+        // Defensive formation: 4-3 with 4 DB
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, los + 2.8f)) { IsRusher = true });
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.46f, los + 2.8f)) { IsRusher = true });
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.54f, los + 2.8f)) { IsRusher = true });
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, los + 2.8f)) { IsRusher = true });
 
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.2f, los + 10f)) { CoverageReceiverIndex = 0 });
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.5f, los + 12f)) { CoverageReceiverIndex = 1 });
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.8f, los + 10f)) { CoverageReceiverIndex = 2 });
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.38f, los + 6.2f)) { CoverageReceiverIndex = 1 }); // LB
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.50f, los + 6.2f)) { CoverageReceiverIndex = 3 }); // MLB (TE)
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.62f, los + 6.2f)) { CoverageReceiverIndex = 2 }); // LB
 
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.35f, los + 14f)) { CoverageReceiverIndex = 0 });
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.65f, los + 14f)) { CoverageReceiverIndex = 2 });
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.20f, los + 10.5f)) { CoverageReceiverIndex = 0 }); // CB
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.80f, los + 10.5f)) { CoverageReceiverIndex = 2 }); // CB
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, los + 12.5f)) { CoverageReceiverIndex = 1 }); // S
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, los + 12.5f)) { CoverageReceiverIndex = 3 }); // S
     }
 
     public void Update(float dt)
@@ -146,25 +155,7 @@ public sealed class GameSession
         Vector2 inputDir = _input.GetMovementDirection();
         bool sprint = _input.IsSprintHeld();
 
-        if (_input.IsAimPressed())
-        {
-            _aiming = true;
-            _aimPower = 0f;
-        }
-
-        if (_aiming)
-        {
-            _aimPower = MathF.Min(1f, _aimPower + dt / Constants.AimChargeSeconds);
-            Vector2 mouse = Raylib.GetMousePosition();
-            Vector2 qbScreen = Constants.WorldToScreen(_qb.Position);
-            _aimDirection = mouse - qbScreen;
-            if (_aimDirection.LengthSquared() > 0.001f)
-            {
-                _aimDirection = Vector2.Normalize(_aimDirection);
-            }
-        }
-
-        _qb.ApplyInput(inputDir, sprint, _aiming, dt);
+        _qb.ApplyInput(inputDir, sprint, false, dt);
         _qb.Update(dt);
         ClampToField(_qb);
 
@@ -175,18 +166,13 @@ public sealed class GameSession
             ClampToField(receiver);
         }
 
-        foreach (var blocker in _blockers)
-        {
-            blocker.Velocity = new Vector2(0f, 2.2f);
-            blocker.Update(dt);
-            ClampToField(blocker);
-        }
-
         foreach (var defender in _defenders)
         {
             DefenderAI.UpdateDefender(defender, _qb, _receivers, _ball, _playManager.DefenderSpeedMultiplier, dt);
             ClampToField(defender);
         }
+
+        UpdateBlockers(dt);
 
         HandleBall(dt);
         CheckTackleOrScore();
@@ -231,12 +217,19 @@ public sealed class GameSession
             }
         }
 
-        if (_aiming && _input.IsAimReleased() && _ball.State == BallState.HeldByQB)
+        if (_ball.State == BallState.HeldByQB && Raylib.IsKeyPressed(KeyboardKey.Space))
         {
-            float speed = Constants.BallMinSpeed + (Constants.BallMaxSpeed - Constants.BallMinSpeed) * _aimPower;
-            Vector2 velocity = _aimDirection * speed;
-            _ball.SetInAir(_qb.Position, velocity);
-            _aiming = false;
+            if (_playManager.SelectedReceiver >= 0 && _playManager.SelectedReceiver < _receivers.Count)
+            {
+                Vector2 target = _receivers[_playManager.SelectedReceiver].Position;
+                Vector2 dir = target - _qb.Position;
+                if (dir.LengthSquared() > 0.001f)
+                {
+                    dir = Vector2.Normalize(dir);
+                }
+                float speed = Constants.BallMaxSpeed;
+                _ball.SetInAir(_qb.Position, dir * speed);
+            }
         }
     }
 
@@ -280,8 +273,6 @@ public sealed class GameSession
         }
 
         _lastPlayText = _playManager.ResolvePlay(spot, incomplete, intercepted, touchdown);
-        _aiming = false;
-        _aimPower = 0f;
         _stateManager.SetState(GameState.PlayOver);
     }
 
@@ -307,16 +298,8 @@ public sealed class GameSession
         _qb.Draw();
         _ball.Draw();
 
-        if (_aiming)
-        {
-            Vector2 qbScreen = Constants.WorldToScreen(_qb.Position);
-            Vector2 aimEnd = qbScreen + _aimDirection * 80f;
-            Raylib.DrawLine((int)qbScreen.X, (int)qbScreen.Y, (int)aimEnd.X, (int)aimEnd.Y, Palette.Yellow);
-            DrawSelectedReceiverHighlight();
-        }
-
-        float aimPower = _aiming ? _aimPower : -1f;
-        _hudRenderer.DrawHud(_playManager, _lastPlayText, _playManager.SelectedReceiver, aimPower);
+        DrawSelectedReceiverHighlight();
+        _hudRenderer.DrawHud(_playManager, _lastPlayText, _playManager.SelectedReceiver);
 
         if (_stateManager.State == GameState.MainMenu)
         {
@@ -350,5 +333,72 @@ public sealed class GameSession
         float x = MathF.Max(0.5f, MathF.Min(Constants.FieldWidth - 0.5f, entity.Position.X));
         float y = MathF.Max(0.5f, MathF.Min(Constants.FieldLength - 0.5f, entity.Position.Y));
         entity.Position = new Vector2(x, y);
+    }
+
+    private void UpdateBlockers(float dt)
+    {
+        foreach (var blocker in _blockers)
+        {
+            Defender? target = GetClosestDefender(blocker.Position, Constants.BlockEngageRadius, preferRushers: true);
+            if (target != null)
+            {
+                Vector2 toTarget = target.Position - blocker.Position;
+                if (toTarget.LengthSquared() > 0.001f)
+                {
+                    toTarget = Vector2.Normalize(toTarget);
+                }
+                blocker.Velocity = toTarget * Constants.BlockerSpeed;
+
+                float contactRange = blocker.Radius + target.Radius + 0.6f;
+                float distance = Vector2.Distance(blocker.Position, target.Position);
+                if (distance <= contactRange)
+                {
+                    Vector2 pushDir = target.Position - blocker.Position;
+                    if (pushDir.LengthSquared() > 0.001f)
+                    {
+                        pushDir = Vector2.Normalize(pushDir);
+                    }
+                    float overlap = contactRange - distance;
+                    target.Position += pushDir * (Constants.BlockHoldStrength + overlap * 6f) * dt;
+                    target.Velocity *= 0.15f;
+                    blocker.Velocity *= 0.25f;
+                }
+            }
+            else
+            {
+                blocker.Velocity = new Vector2(0f, Constants.BlockerSpeed * 0.4f);
+            }
+
+            blocker.Update(dt);
+            ClampToField(blocker);
+        }
+    }
+
+    private Defender? GetClosestDefender(Vector2 position, float maxDistance, bool preferRushers)
+    {
+        Defender? closest = null;
+        float bestDistSq = maxDistance * maxDistance;
+
+        IEnumerable<Defender> candidates = _defenders;
+        if (preferRushers)
+        {
+            var rushers = _defenders.Where(d => d.IsRusher).ToList();
+            if (rushers.Count > 0)
+            {
+                candidates = rushers;
+            }
+        }
+
+        foreach (var defender in candidates)
+        {
+            float distSq = Vector2.DistanceSquared(position, defender.Position);
+            if (distSq < bestDistSq)
+            {
+                bestDistSq = distSq;
+                closest = defender;
+            }
+        }
+
+        return closest;
     }
 }
