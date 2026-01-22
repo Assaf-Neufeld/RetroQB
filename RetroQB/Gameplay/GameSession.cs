@@ -56,6 +56,7 @@ public sealed class GameSession
         _receivers.Add(new Receiver(1, new Vector2(Constants.FieldWidth * 0.32f, los - 1.0f))); // Slot (left)
         _receivers.Add(new Receiver(2, new Vector2(Constants.FieldWidth * 0.85f, los - 0.3f))); // Z WR (right)
         _receivers.Add(new Receiver(3, new Vector2(Constants.FieldWidth * 0.66f, los - 0.1f))); // TE (right)
+        _receivers.Add(new Receiver(4, new Vector2(Constants.FieldWidth * 0.50f, los - 3.5f), isRunningBack: true)); // RB
 
         // Offensive line: LT, LG, C, RG, RT
         _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.42f, los - 0.1f)));
@@ -64,11 +65,9 @@ public sealed class GameSession
         _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.53f, los - 0.1f)));
         _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.58f, los - 0.1f)));
 
-        // Running back
-        _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.5f, los - 3.5f)));
-
         SpawnDefenders(los);
-        ReceiverAI.AssignRoutes(_receivers, _playManager.SelectedPlayType, _rng);
+        ReceiverAI.AssignRoutes(_receivers, _playManager.SelectedPlay, _rng);
+        SelectFirstEligibleReceiver();
     }
 
     private void SpawnDefenders(float los)
@@ -138,9 +137,30 @@ public sealed class GameSession
 
     private void HandlePreSnap()
     {
-        if (Raylib.IsKeyPressed(KeyboardKey.One)) _playManager.SelectedPlayType = PlayType.QuickPass;
-        if (Raylib.IsKeyPressed(KeyboardKey.Two)) _playManager.SelectedPlayType = PlayType.LongPass;
-        if (Raylib.IsKeyPressed(KeyboardKey.Three)) _playManager.SelectedPlayType = PlayType.QbRunFocus;
+        bool playChanged = false;
+        int? selection = null;
+
+        if (Raylib.IsKeyPressed(KeyboardKey.One)) selection = 1;
+        if (Raylib.IsKeyPressed(KeyboardKey.Two)) selection = 2;
+        if (Raylib.IsKeyPressed(KeyboardKey.Three)) selection = 3;
+        if (Raylib.IsKeyPressed(KeyboardKey.Four)) selection = 4;
+        if (Raylib.IsKeyPressed(KeyboardKey.Five)) selection = 5;
+        if (Raylib.IsKeyPressed(KeyboardKey.Six)) selection = 6;
+        if (Raylib.IsKeyPressed(KeyboardKey.Seven)) selection = 7;
+        if (Raylib.IsKeyPressed(KeyboardKey.Eight)) selection = 8;
+        if (Raylib.IsKeyPressed(KeyboardKey.Nine)) selection = 9;
+        if (Raylib.IsKeyPressed(KeyboardKey.Zero)) selection = 10;
+
+        if (selection.HasValue)
+        {
+            playChanged = _playManager.SelectPlayByGlobalIndex(selection.Value - 1);
+        }
+
+        if (playChanged)
+        {
+            ReceiverAI.AssignRoutes(_receivers, _playManager.SelectedPlay, _rng);
+            SelectFirstEligibleReceiver();
+        }
 
         if (Raylib.IsKeyPressed(KeyboardKey.Space))
         {
@@ -156,7 +176,7 @@ public sealed class GameSession
 
         if (Raylib.IsKeyPressed(KeyboardKey.Tab))
         {
-            _playManager.SelectedReceiver = (_playManager.SelectedReceiver + 1) % _receivers.Count;
+            SelectNextEligibleReceiver();
         }
 
         Vector2 inputDir = _input.GetMovementDirection();
@@ -168,6 +188,14 @@ public sealed class GameSession
 
         foreach (var receiver in _receivers)
         {
+            if (receiver.IsBlocking)
+            {
+                UpdateBlockingReceiver(receiver, dt);
+                receiver.Update(dt);
+                ClampToField(receiver);
+                continue;
+            }
+
             ReceiverAI.UpdateRoute(receiver, dt);
             if (_qbPastLos)
             {
@@ -268,9 +296,11 @@ public sealed class GameSession
 
         if (_ball.State == BallState.HeldByQB && !_qbPastLos && Raylib.IsKeyPressed(KeyboardKey.Space))
         {
+            EnsureSelectedReceiverEligible();
             if (_playManager.SelectedReceiver >= 0 && _playManager.SelectedReceiver < _receivers.Count)
             {
                 var receiver = _receivers[_playManager.SelectedReceiver];
+                if (!receiver.Eligible) return;
                 // Lead the receiver - predict where they'll be
                 float distance = Vector2.Distance(_qb.Position, receiver.Position);
                 float flightTime = distance / Constants.BallMaxSpeed;
@@ -334,6 +364,11 @@ public sealed class GameSession
     {
         _fieldRenderer.DrawField(_playManager.LineOfScrimmage, _playManager.FirstDownLine);
 
+        if (_stateManager.State == GameState.PreSnap)
+        {
+            DrawRouteOverlay();
+        }
+
         foreach (var receiver in _receivers)
         {
             receiver.Draw();
@@ -355,7 +390,7 @@ public sealed class GameSession
         DrawSelectedReceiverHighlight();
         
         // Draw side panel with all HUD info
-        _hudRenderer.DrawSidePanel(_playManager, _lastPlayText, _playManager.SelectedReceiver, _stateManager.State, _playManager.SelectedPlayType);
+        _hudRenderer.DrawSidePanel(_playManager, _lastPlayText, _playManager.SelectedReceiver, _stateManager.State);
 
         if (_stateManager.State == GameState.MainMenu)
         {
@@ -372,6 +407,7 @@ public sealed class GameSession
     {
         if (_playManager.SelectedReceiver < 0 || _playManager.SelectedReceiver >= _receivers.Count) return;
         var receiver = _receivers[_playManager.SelectedReceiver];
+        if (!receiver.Eligible) return;
         Vector2 screen = Constants.WorldToScreen(receiver.Position);
         Raylib.DrawCircleLines((int)screen.X, (int)screen.Y, 12, Palette.Yellow);
     }
@@ -475,6 +511,113 @@ public sealed class GameSession
             blocker.Update(dt);
             ClampToField(blocker);
         }
+    }
+
+    private void UpdateBlockingReceiver(Receiver receiver, float dt)
+    {
+        Defender? target = GetClosestDefender(receiver.Position, Constants.BlockEngageRadius, preferRushers: true);
+        if (target != null)
+        {
+            Vector2 toTarget = target.Position - receiver.Position;
+            if (toTarget.LengthSquared() > 0.001f)
+            {
+                toTarget = Vector2.Normalize(toTarget);
+            }
+            receiver.Velocity = toTarget * Constants.BlockerSpeed;
+
+            float contactRange = receiver.Radius + target.Radius + 0.6f;
+            float distance = Vector2.Distance(receiver.Position, target.Position);
+            if (distance <= contactRange)
+            {
+                Vector2 pushDir = target.Position - receiver.Position;
+                if (pushDir.LengthSquared() > 0.001f)
+                {
+                    pushDir = Vector2.Normalize(pushDir);
+                }
+                float overlap = contactRange - distance;
+                target.Position += pushDir * (Constants.BlockHoldStrength + overlap * 6f) * dt;
+                target.Velocity *= 0.15f;
+                receiver.Velocity *= 0.25f;
+            }
+        }
+        else
+        {
+            receiver.Velocity = new Vector2(0f, Constants.BlockerSpeed * 0.4f);
+        }
+    }
+
+    private void SelectFirstEligibleReceiver()
+    {
+        for (int i = 0; i < _receivers.Count; i++)
+        {
+            if (_receivers[i].Eligible)
+            {
+                _playManager.SelectedReceiver = i;
+                return;
+            }
+        }
+
+        _playManager.SelectedReceiver = 0;
+    }
+
+    private void SelectNextEligibleReceiver()
+    {
+        if (_receivers.Count == 0) return;
+
+        int start = _playManager.SelectedReceiver;
+        for (int i = 1; i <= _receivers.Count; i++)
+        {
+            int index = (start + i) % _receivers.Count;
+            if (_receivers[index].Eligible)
+            {
+                _playManager.SelectedReceiver = index;
+                return;
+            }
+        }
+    }
+
+    private void EnsureSelectedReceiverEligible()
+    {
+        if (_playManager.SelectedReceiver >= 0 && _playManager.SelectedReceiver < _receivers.Count)
+        {
+            if (_receivers[_playManager.SelectedReceiver].Eligible) return;
+        }
+
+        SelectNextEligibleReceiver();
+    }
+
+    private void DrawRouteOverlay()
+    {
+        foreach (var receiver in _receivers)
+        {
+            if (!receiver.Eligible) continue;
+
+            var points = ReceiverAI.GetRouteWaypoints(receiver);
+            if (points.Count < 2) continue;
+
+            Color routeColor = GetRouteColor(receiver.Index);
+            for (int i = 0; i < points.Count - 1; i++)
+            {
+                Vector2 a = Constants.WorldToScreen(points[i]);
+                Vector2 b = Constants.WorldToScreen(points[i + 1]);
+                Raylib.DrawLineEx(a, b, 2.0f, routeColor);
+            }
+
+            Vector2 labelPos = Constants.WorldToScreen(points[0] + new Vector2(0.6f, 0.4f));
+            Raylib.DrawText(ReceiverAI.GetRouteLabel(receiver.Route), (int)labelPos.X, (int)labelPos.Y, 12, routeColor);
+        }
+    }
+
+    private static Color GetRouteColor(int receiverIndex)
+    {
+        return receiverIndex switch
+        {
+            0 => Palette.Gold,
+            1 => Palette.Lime,
+            2 => Palette.Blue,
+            3 => Palette.Orange,
+            _ => Palette.Yellow
+        };
     }
 
     private Defender? GetClosestDefender(Vector2 position, float maxDistance, bool preferRushers)

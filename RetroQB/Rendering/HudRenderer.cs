@@ -10,7 +10,7 @@ public sealed class HudRenderer
     private const int PanelX = 10;
     private const int PanelWidth = 260;
     
-    public void DrawSidePanel(PlayManager play, string resultText, int selectedReceiver, GameState state, PlayType playType)
+    public void DrawSidePanel(PlayManager play, string resultText, int selectedReceiver, GameState state)
     {
         int screenH = Raylib.GetScreenHeight();
         
@@ -65,13 +65,26 @@ public sealed class HudRenderer
         {
             Raylib.DrawText("SELECT PLAY:", x, y, 16, Palette.Yellow);
             y += 22;
-            Raylib.DrawText("1) Quick Pass", x, y, 16, playType == PlayType.QuickPass ? Palette.Gold : Palette.White);
-            y += 20;
-            Raylib.DrawText("2) Long Pass", x, y, 16, playType == PlayType.LongPass ? Palette.Gold : Palette.White);
-            y += 20;
-            Raylib.DrawText("3) QB Run", x, y, 16, playType == PlayType.QbRunFocus ? Palette.Gold : Palette.White);
-            y += 28;
-            Raylib.DrawText("SPACE to snap", x, y, 16, Palette.Lime);
+            var options = play.PlayOptions;
+            for (int i = 0; i < options.Count; i++)
+            {
+                int displayNum = i == 9 ? 0 : i + 1;
+                var option = options[i];
+                bool isSelected = option.Family == play.SelectedPlayFamily && option.Index == play.SelectedPlayIndex;
+                string familyName = option.Family switch
+                {
+                    PlayType.QuickPass => "Quick",
+                    PlayType.LongPass => "Long",
+                    PlayType.QbRunFocus => "Run",
+                    _ => "Play"
+                };
+
+                Raylib.DrawText($"{displayNum}) {familyName}: {option.Name}", x, y, 16, isSelected ? Palette.Gold : Palette.White);
+                y += 18;
+            }
+
+            y += 10;
+            Raylib.DrawText("1-9,0 select | SPACE snap", x, y, 16, Palette.Lime);
             y += 30;
         }
         else if (state == GameState.PlayOver)
