@@ -44,7 +44,19 @@ public sealed class FieldRenderer
             float worldY = Constants.EndZoneDepth + yard;
             float y = Constants.WorldToScreenY(worldY);
             Raylib.DrawLine((int)rect.X, (int)y, (int)right, (int)y, Palette.YardLine);
-            Raylib.DrawText(yard.ToString(), (int)rect.X + 6, (int)y - 10, 12, Palette.YardLine);
+            
+            // Display yard line numbers on both sides of the field
+            // Convert to standard football yard line display (0-50-0)
+            int displayYard = yard <= 50 ? yard : 100 - yard;
+            if (displayYard > 0) // Don't show 0 at goal lines
+            {
+                string yardText = displayYard.ToString();
+                // Left side yard marker
+                Raylib.DrawText(yardText, (int)rect.X + 8, (int)y - 8, 16, Palette.White);
+                // Right side yard marker  
+                int textWidth = Raylib.MeasureText(yardText, 16);
+                Raylib.DrawText(yardText, (int)right - textWidth - 8, (int)y - 8, 16, Palette.White);
+            }
         }
     }
 

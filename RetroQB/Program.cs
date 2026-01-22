@@ -2,6 +2,7 @@
 using RetroQB.Core;
 using RetroQB.Gameplay;
 
+Raylib.SetConfigFlags(ConfigFlags.ResizableWindow);
 Raylib.InitWindow(Constants.ScreenWidth, Constants.ScreenHeight, "RetroQB");
 Raylib.SetTargetFPS(Constants.TargetFps);
 

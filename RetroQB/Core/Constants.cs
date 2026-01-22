@@ -13,15 +13,49 @@ public static class Constants
     public const float FieldLength = 120f;
     public const float EndZoneDepth = 10f;
 
-    public static readonly Rectangle FieldRect = new(80, 40, 1120, 640);
+    // Side panel width for HUD
+    public const float SidePanelWidth = 280f;
+
+    // Dynamic field rect - call UpdateFieldRect each frame
+    private static Rectangle _fieldRect = new(300, 40, 284, 640);
+    public static Rectangle FieldRect => _fieldRect;
+
+    public static void UpdateFieldRect()
+    {
+        int screenW = Raylib.GetScreenWidth();
+        int screenH = Raylib.GetScreenHeight();
+        
+        // Field on the right side, leaving space for side panel on left
+        float availableWidth = screenW - SidePanelWidth - 40; // 40 for margins
+        float availableHeight = screenH - 80; // 40 margin top and bottom
+        
+        // Calculate field size maintaining proper aspect ratio (53.3:120)
+        float aspectRatio = FieldWidth / FieldLength;
+        float fieldHeight = availableHeight;
+        float fieldWidth = fieldHeight * aspectRatio;
+        
+        // If too wide, scale down
+        if (fieldWidth > availableWidth)
+        {
+            fieldWidth = availableWidth;
+            fieldHeight = fieldWidth / aspectRatio;
+        }
+        
+        // Center the field in the available area (right of side panel)
+        float fieldX = SidePanelWidth + (availableWidth - fieldWidth) / 2 + 20;
+        float fieldY = (screenH - fieldHeight) / 2;
+        
+        _fieldRect = new Rectangle(fieldX, fieldY, fieldWidth, fieldHeight);
+    }
 
     public const float QbRadius = 1.0f;
     public const float ReceiverRadius = 1.0f;
     public const float DefenderRadius = 1.1f;
     public const float BallRadius = 0.4f;
 
-    public const float CatchRadius = 1.5f;
-    public const float InterceptRadius = 1.6f;
+    public const float CatchRadius = 1.8f;
+    public const float InterceptRadius = 1.2f;
+    public const float ContestedCatchRadius = 2.5f;
 
     public const float QbMaxSpeed = 8f;
     public const float QbSprintSpeed = 11f;

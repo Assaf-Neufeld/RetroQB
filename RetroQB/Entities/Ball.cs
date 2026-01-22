@@ -67,7 +67,15 @@ public sealed class Ball : Entity
 
     public override void Draw()
     {
-        Vector2 screen = Constants.WorldToScreen(Position);
+        Vector2 drawPos = Position;
+        
+        // When held, offset the ball slightly so it's visible next to the holder
+        if ((State == BallState.HeldByQB || State == BallState.HeldByReceiver) && Holder != null)
+        {
+            drawPos = Holder.Position + new Vector2(0.8f, 0f); // Offset to the right of holder
+        }
+        
+        Vector2 screen = Constants.WorldToScreen(drawPos);
         Raylib.DrawText(Glyph, (int)screen.X - 4, (int)screen.Y - 6, 16, Color);
     }
 }

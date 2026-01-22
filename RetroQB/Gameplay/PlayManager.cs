@@ -29,6 +29,10 @@ public sealed class PlayManager
     public int SelectedReceiver { get; set; }
     public PlayType SelectedPlayType { get; set; } = PlayType.QuickPass;
     public float DefenderSpeedMultiplier { get; private set; } = 1.0f;
+    
+    // Drive history - stores play results for the current drive
+    public List<string> DriveHistory { get; } = new();
+    public int PlayNumber { get; private set; } = 1;
 
     public void StartNewDrive()
     {
@@ -36,6 +40,8 @@ public sealed class PlayManager
         Distance = 10f;
         LineOfScrimmage = Constants.EndZoneDepth + 20f;
         FirstDownLine = LineOfScrimmage + Distance;
+        DriveHistory.Clear();
+        PlayNumber = 1;
     }
 
     public void StartPlay()
@@ -45,24 +51,34 @@ public sealed class PlayManager
 
     public string ResolvePlay(float newBallY, bool incomplete, bool intercepted, bool touchdown)
     {
+        string result;
+        int playNum = PlayNumber;
+        PlayNumber++;
+        
         if (touchdown)
         {
             Score += 7;
+            result = "TOUCHDOWN! +7";
+            DriveHistory.Add($"#{playNum}: {result}");
             StartNewDrive();
             DefenderSpeedMultiplier += 0.03f;
-            return "Touchdown! +7";
+            return result;
         }
 
         if (intercepted)
         {
+            result = "INTERCEPTION!";
+            DriveHistory.Add($"#{playNum}: {result}");
             StartNewDrive();
-            return "Intercepted! Drive resets.";
+            return result;
         }
 
         if (incomplete)
         {
             Down++;
-            return HandleDowns(0f, true);
+            result = HandleDowns(0f, true);
+            DriveHistory.Add($"#{playNum}: {result}");
+            return result;
         }
 
         float gain = newBallY - LineOfScrimmage;
@@ -78,29 +94,34 @@ public sealed class PlayManager
             Distance = 10f;
             FirstDownLine = MathF.Min(LineOfScrimmage + Distance, Constants.EndZoneDepth + 100f);
             DefenderSpeedMultiplier += 0.02f;
-            return "First down!";
+            result = $"+{gain:F0} yds, 1ST DOWN!";
+            DriveHistory.Add($"#{playNum}: {result}");
+            return result;
         }
 
         Down++;
         Distance -= gain;
         FirstDownLine = MathF.Min(LineOfScrimmage + Distance, Constants.EndZoneDepth + 100f);
-        return HandleDowns(gain, false);
+        result = HandleDowns(gain, false);
+        DriveHistory.Add($"#{playNum}: {result}");
+        return result;
     }
 
     private string HandleDowns(float gain, bool incomplete)
     {
         if (Down > 4)
         {
+            string tod = "TURNOVER ON DOWNS";
             StartNewDrive();
-            return "Turnover on downs! Drive resets.";
+            return tod;
         }
 
         if (incomplete)
         {
-            return "Incomplete pass.";
+            return "Incomplete";
         }
 
-        return $"Gain {gain:F1} yards.";
+        return $"+{gain:F0} yds";
     }
 
     public float GetYardLineDisplay(float worldY)

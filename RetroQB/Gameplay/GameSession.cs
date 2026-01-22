@@ -24,6 +24,7 @@ public sealed class GameSession
     private Quarterback _qb = null!;
     private Ball _ball = null!;
     private string _lastPlayText = string.Empty;
+    private bool _qbPastLos;
 
     public GameSession()
     {
@@ -89,6 +90,9 @@ public sealed class GameSession
 
     public void Update(float dt)
     {
+        // Update field rect for window resizing
+        Constants.UpdateFieldRect();
+        
         if (Raylib.IsKeyPressed(KeyboardKey.Escape))
         {
             _stateManager.TogglePause();
@@ -147,6 +151,8 @@ public sealed class GameSession
 
     private void HandlePlayActive(float dt)
     {
+        _qbPastLos = _qb.Position.Y > _playManager.LineOfScrimmage + 0.1f && _ball.State == BallState.HeldByQB;
+
         if (Raylib.IsKeyPressed(KeyboardKey.Tab))
         {
             _playManager.SelectedReceiver = (_playManager.SelectedReceiver + 1) % _receivers.Count;
@@ -162,17 +168,40 @@ public sealed class GameSession
         foreach (var receiver in _receivers)
         {
             ReceiverAI.UpdateRoute(receiver, dt);
+            if (_qbPastLos)
+            {
+                Defender? target = GetClosestDefender(receiver.Position, Constants.BlockEngageRadius, preferRushers: true);
+                if (target != null)
+                {
+                    Vector2 toTarget = target.Position - receiver.Position;
+                    if (toTarget.LengthSquared() > 0.001f)
+                    {
+                        toTarget = Vector2.Normalize(toTarget);
+                    }
+                    receiver.Velocity = toTarget * (Constants.BlockerSpeed * 0.9f);
+                }
+            }
+            else if (_ball.State == BallState.InAir && receiver.Eligible)
+            {
+                Vector2 toBall = _ball.Position - receiver.Position;
+                if (toBall.LengthSquared() > 0.001f)
+                {
+                    toBall = Vector2.Normalize(toBall);
+                }
+                receiver.Velocity = toBall * Constants.ReceiverSpeed;
+            }
             receiver.Update(dt);
             ClampToField(receiver);
         }
 
         foreach (var defender in _defenders)
         {
-            DefenderAI.UpdateDefender(defender, _qb, _receivers, _ball, _playManager.DefenderSpeedMultiplier, dt);
+            DefenderAI.UpdateDefender(defender, _qb, _receivers, _ball, _playManager.DefenderSpeedMultiplier, dt, _qbPastLos);
             ClampToField(defender);
         }
 
         UpdateBlockers(dt);
+        ResolvePlayerOverlaps();
 
         HandleBall(dt);
         CheckTackleOrScore();
@@ -201,13 +230,32 @@ public sealed class GameSession
             foreach (var receiver in _receivers)
             {
                 if (!receiver.Eligible) continue;
-                if (Vector2.Distance(receiver.Position, _ball.Position) <= Constants.CatchRadius)
+                float receiverDist = Vector2.Distance(receiver.Position, _ball.Position);
+                if (receiverDist <= Constants.CatchRadius)
                 {
-                    bool intercepted = _defenders.Any(d => Vector2.Distance(d.Position, _ball.Position) <= Constants.InterceptRadius);
-                    if (intercepted)
+                    // Find closest defender to the ball
+                    float closestDefenderDist = float.MaxValue;
+                    foreach (var d in _defenders)
+                    {
+                        float dist = Vector2.Distance(d.Position, _ball.Position);
+                        if (dist < closestDefenderDist) closestDefenderDist = dist;
+                    }
+                    
+                    // Interception only if defender is closer than receiver AND within intercept radius
+                    if (closestDefenderDist <= Constants.InterceptRadius && closestDefenderDist < receiverDist)
                     {
                         EndPlay(intercepted: true);
                         return;
+                    }
+                    
+                    // Contested catch - if defender is close but not closer, 70% catch rate
+                    if (closestDefenderDist <= Constants.ContestedCatchRadius)
+                    {
+                        if (_rng.NextDouble() < 0.3) // 30% drop rate on contested
+                        {
+                            EndPlay(incomplete: true);
+                            return;
+                        }
                     }
 
                     receiver.HasBall = true;
@@ -217,12 +265,17 @@ public sealed class GameSession
             }
         }
 
-        if (_ball.State == BallState.HeldByQB && Raylib.IsKeyPressed(KeyboardKey.Space))
+        if (_ball.State == BallState.HeldByQB && !_qbPastLos && Raylib.IsKeyPressed(KeyboardKey.Space))
         {
             if (_playManager.SelectedReceiver >= 0 && _playManager.SelectedReceiver < _receivers.Count)
             {
-                Vector2 target = _receivers[_playManager.SelectedReceiver].Position;
-                Vector2 dir = target - _qb.Position;
+                var receiver = _receivers[_playManager.SelectedReceiver];
+                // Lead the receiver - predict where they'll be
+                float distance = Vector2.Distance(_qb.Position, receiver.Position);
+                float flightTime = distance / Constants.BallMaxSpeed;
+                Vector2 leadTarget = receiver.Position + receiver.Velocity * flightTime * 1.2f;
+                
+                Vector2 dir = leadTarget - _qb.Position;
                 if (dir.LengthSquared() > 0.001f)
                 {
                     dir = Vector2.Normalize(dir);
@@ -299,19 +352,13 @@ public sealed class GameSession
         _ball.Draw();
 
         DrawSelectedReceiverHighlight();
-        _hudRenderer.DrawHud(_playManager, _lastPlayText, _playManager.SelectedReceiver);
+        
+        // Draw side panel with all HUD info
+        _hudRenderer.DrawSidePanel(_playManager, _lastPlayText, _playManager.SelectedReceiver, _stateManager.State, _playManager.SelectedPlayType);
 
         if (_stateManager.State == GameState.MainMenu)
         {
             _hudRenderer.DrawMainMenu();
-        }
-        else if (_stateManager.State == GameState.PreSnap)
-        {
-            _hudRenderer.DrawPreSnap(_playManager.SelectedPlayType);
-        }
-        else if (_stateManager.State == GameState.PlayOver)
-        {
-            _hudRenderer.DrawPlayOver();
         }
 
         if (_stateManager.IsPaused)
@@ -333,6 +380,42 @@ public sealed class GameSession
         float x = MathF.Max(0.5f, MathF.Min(Constants.FieldWidth - 0.5f, entity.Position.X));
         float y = MathF.Max(0.5f, MathF.Min(Constants.FieldLength - 0.5f, entity.Position.Y));
         entity.Position = new Vector2(x, y);
+    }
+
+    private void ResolvePlayerOverlaps()
+    {
+        var entities = new List<Entity>(_receivers.Count + _defenders.Count + _blockers.Count + 1)
+        {
+            _qb
+        };
+        entities.AddRange(_receivers);
+        entities.AddRange(_blockers);
+        entities.AddRange(_defenders);
+
+        for (int i = 0; i < entities.Count; i++)
+        {
+            for (int j = i + 1; j < entities.Count; j++)
+            {
+                Entity a = entities[i];
+                Entity b = entities[j];
+
+                Vector2 delta = b.Position - a.Position;
+                float minDist = a.Radius + b.Radius + 0.05f;
+                float distSq = delta.LengthSquared();
+                if (distSq <= 0.0001f) continue;
+
+                float dist = MathF.Sqrt(distSq);
+                if (dist < minDist)
+                {
+                    Vector2 pushDir = delta / dist;
+                    float push = (minDist - dist) * 0.5f;
+                    a.Position -= pushDir * push;
+                    b.Position += pushDir * push;
+                    ClampToField(a);
+                    ClampToField(b);
+                }
+            }
+        }
     }
 
     private void UpdateBlockers(float dt)
