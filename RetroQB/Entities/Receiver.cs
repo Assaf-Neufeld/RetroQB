@@ -47,9 +47,7 @@ public sealed class Receiver : Entity
 
     private static Color ResolveColor(bool isRunningBack, bool isTightEnd)
     {
-        if (isRunningBack) return Palette.Lime;
-        if (isTightEnd) return Palette.Orange;
-        return Palette.Blue;
+        return Palette.Receiver;
     }
 
     public override void Update(float dt)

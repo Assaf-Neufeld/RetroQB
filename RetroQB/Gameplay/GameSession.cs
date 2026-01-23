@@ -52,7 +52,7 @@ public sealed class GameSession
         _blockers.Clear();
 
         float los = _playManager.LineOfScrimmage;
-        _qb = new Quarterback(new Vector2(Constants.FieldWidth / 2f, los - 1.0f));
+        _qb = new Quarterback(new Vector2(Constants.FieldWidth / 2f, los - 1.6f));
         _ball = new Ball(_qb.Position);
         _ball.SetHeld(_qb, BallState.HeldByQB);
 
@@ -64,7 +64,7 @@ public sealed class GameSession
         SelectFirstEligibleReceiver();
     }
 
-    private static readonly float[] BaseLineX = { 0.42f, 0.47f, 0.50f, 0.53f, 0.58f };
+    private static readonly float[] BaseLineX = { 0.38f, 0.44f, 0.50f, 0.56f, 0.62f };
 
     private void AddFormation(FormationType formation, float los)
     {
@@ -72,33 +72,33 @@ public sealed class GameSession
         switch (formation)
         {
             case FormationType.SpreadFour:
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.12f, los - 0.3f)); // X WR
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.30f, los - 1.0f)); // Slot L
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.70f, los - 1.0f)); // Slot R
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.88f, los - 0.3f)); // Z WR
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 5.0f), isRunningBack: true); // RB
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.10f, los - 0.3f)); // X WR
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.28f, los - 1.0f)); // Slot L
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.72f, los - 1.0f)); // Slot R
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.90f, los - 0.3f)); // Z WR
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 5.4f), isRunningBack: true); // RB
                 AddBaseLine(los, addExtra: false);
                 break;
             case FormationType.Twins:
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.18f, los - 0.3f)); // X WR
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.82f, los - 0.3f)); // Z WR
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.62f, los - 0.05f), isTightEnd: true); // TE inline
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 4.8f), isRunningBack: true); // RB
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.14f, los - 0.3f)); // X WR
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.86f, los - 0.3f)); // Z WR
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.66f, los - 0.05f), isTightEnd: true); // TE inline
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 5.2f), isRunningBack: true); // RB
                 AddBaseLine(los, addExtra: false);
                 break;
             case FormationType.Heavy:
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.20f, los - 0.3f)); // X WR
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.64f, los - 0.05f), isTightEnd: true); // TE inline
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.52f, los - 5.1f), isRunningBack: true); // RB
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.16f, los - 0.3f)); // X WR
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.68f, los - 0.05f), isTightEnd: true); // TE inline
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.52f, los - 5.4f), isRunningBack: true); // RB
                 AddBaseLine(los, addExtra: true);
                 break;
             default:
                 // SinglebackTrips
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.15f, los - 0.3f)); // X WR (left)
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.32f, los - 1.0f)); // Slot (left)
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.85f, los - 0.3f)); // Z WR (right)
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.66f, los - 0.05f), isTightEnd: true); // TE (right)
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 4.7f), isRunningBack: true); // RB
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.12f, los - 0.3f)); // X WR (left)
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.30f, los - 1.0f)); // Slot (left)
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.88f, los - 0.3f)); // Z WR (right)
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.70f, los - 0.05f), isTightEnd: true); // TE (right)
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 5.2f), isRunningBack: true); // RB
                 AddBaseLine(los, addExtra: false);
                 break;
         }
@@ -663,6 +663,13 @@ public sealed class GameSession
                     }
                 }
 
+                // Don't let a blocking RB shove the QB around in the pocket
+                if ((a == _qb && b is Receiver rbB && rbB.IsRunningBack && rbB.IsBlocking) ||
+                    (b == _qb && a is Receiver rbA && rbA.IsRunningBack && rbA.IsBlocking))
+                {
+                    continue;
+                }
+
                 Vector2 delta = b.Position - a.Position;
                 float minDist = a.Radius + b.Radius + 0.05f;
                 float distSq = delta.LengthSquared();
@@ -684,10 +691,23 @@ public sealed class GameSession
 
     private void UpdateBlockers(float dt, bool runBlockingBoost)
     {
+        bool isRunPlay = _playManager.SelectedPlayFamily == PlayType.QbRunFocus;
+        float los = _playManager.LineOfScrimmage;
+        int runSide = Math.Sign(_playManager.SelectedPlay.RunningBackSide);
+        float lateralPush = isRunPlay && runSide != 0 ? runSide * 2.2f : 0f;
+        float targetY = isRunPlay ? los + 1.6f : los - 1.4f;
+
         foreach (var blocker in _blockers)
         {
+            Vector2 targetAnchor = new Vector2(
+                Math.Clamp(blocker.HomeX + lateralPush, 1.5f, Constants.FieldWidth - 1.5f),
+                targetY);
+
             Defender? target = GetClosestDefender(blocker.Position, Constants.BlockEngageRadius, preferRushers: true);
-            if (target != null)
+            float anchorDistSq = Vector2.DistanceSquared(blocker.Position, targetAnchor);
+            bool closeToAnchor = anchorDistSq <= 0.75f * 0.75f;
+
+            if (target != null && (closeToAnchor || Vector2.DistanceSquared(blocker.Position, target.Position) <= Constants.BlockEngageRadius * Constants.BlockEngageRadius))
             {
                 Vector2 toTarget = target.Position - blocker.Position;
                 if (toTarget.LengthSquared() > 0.001f)
@@ -720,8 +740,20 @@ public sealed class GameSession
             }
             else
             {
-                float forwardSpeed = runBlockingBoost ? blocker.Speed * 0.95f : blocker.Speed * 0.4f;
-                blocker.Velocity = new Vector2(0f, forwardSpeed);
+                Vector2 toAnchor = targetAnchor - blocker.Position;
+                if (toAnchor.LengthSquared() > 0.001f)
+                {
+                    toAnchor = Vector2.Normalize(toAnchor);
+                }
+
+                float anchorSpeed = isRunPlay ? blocker.Speed * 0.85f : blocker.Speed * 0.7f;
+                blocker.Velocity = toAnchor * anchorSpeed;
+
+                if (closeToAnchor)
+                {
+                    float settleSpeed = isRunPlay ? blocker.Speed * 0.45f : blocker.Speed * 0.1f;
+                    blocker.Velocity = new Vector2(0f, settleSpeed * (isRunPlay ? 1f : -1f));
+                }
             }
 
             blocker.Update(dt);
@@ -785,6 +817,54 @@ public sealed class GameSession
 
     private void UpdateBlockingReceiver(Receiver receiver, float dt)
     {
+        if (receiver.IsRunningBack && receiver.IsBlocking)
+        {
+            int side = receiver.RouteSide == 0 ? (receiver.Position.X <= _qb.Position.X ? -1 : 1) : receiver.RouteSide;
+            Vector2 pocketSpot = _qb.Position + new Vector2(1.7f * side, -0.4f);
+
+            Defender? rbTarget = GetClosestDefender(_qb.Position, Constants.BlockEngageRadius + 1.8f, preferRushers: true);
+            if (rbTarget != null && Vector2.Distance(rbTarget.Position, _qb.Position) <= 4.8f)
+            {
+                Vector2 toTarget = rbTarget.Position - receiver.Position;
+                if (toTarget.LengthSquared() > 0.001f)
+                {
+                    toTarget = Vector2.Normalize(toTarget);
+                }
+                receiver.Velocity = toTarget * receiver.Speed;
+
+                float contactRange = receiver.Radius + rbTarget.Radius + 0.8f;
+                float distance = Vector2.Distance(receiver.Position, rbTarget.Position);
+                if (distance <= contactRange)
+                {
+                    Vector2 pushDir = rbTarget.Position - receiver.Position;
+                    if (pushDir.LengthSquared() > 0.001f)
+                    {
+                        pushDir = Vector2.Normalize(pushDir);
+                    }
+                    float overlap = contactRange - distance;
+                    rbTarget.Position += pushDir * (Constants.BlockHoldStrength * 1.1f + overlap * 6f) * dt;
+                    rbTarget.Velocity *= 0.12f;
+                    receiver.Velocity *= 0.25f;
+                }
+            }
+            else
+            {
+                Vector2 toPocket = pocketSpot - receiver.Position;
+                if (toPocket.LengthSquared() > 0.001f)
+                {
+                    toPocket = Vector2.Normalize(toPocket);
+                }
+                receiver.Velocity = toPocket * (receiver.Speed * 0.6f);
+
+                if (Vector2.DistanceSquared(receiver.Position, pocketSpot) <= 0.8f * 0.8f)
+                {
+                    receiver.Velocity = Vector2.Zero;
+                }
+            }
+
+            return;
+        }
+
         Defender? target = GetClosestDefender(receiver.Position, Constants.BlockEngageRadius, preferRushers: true);
         if (target != null)
         {
@@ -927,21 +1007,52 @@ public sealed class GameSession
                 Raylib.DrawLineEx(a, b, 2.0f, routeColor);
             }
 
-            Vector2 labelPos = Constants.WorldToScreen(points[0] + new Vector2(0.6f, 0.4f));
+            int side = receiver.RouteSide == 0 ? 1 : receiver.RouteSide;
+            Vector2 labelPos = Constants.WorldToScreen(points[0] + new Vector2(0.9f * side, 0.7f));
             Raylib.DrawText(ReceiverAI.GetRouteLabel(receiver.Route), (int)labelPos.X, (int)labelPos.Y, 12, routeColor);
+        }
+
+        DrawBlockerRoutes();
+    }
+
+    private void DrawBlockerRoutes()
+    {
+        if (_blockers.Count == 0) return;
+
+        bool isRunPlay = _playManager.SelectedPlayFamily == PlayType.QbRunFocus;
+        float los = _playManager.LineOfScrimmage;
+        int runSide = Math.Sign(_playManager.SelectedPlay.RunningBackSide);
+        float lateralPush = isRunPlay && runSide != 0 ? runSide * 2.2f : 0f;
+        float targetY = isRunPlay ? los + 1.6f : los - 1.4f;
+
+        foreach (var blocker in _blockers)
+        {
+            Vector2 start = blocker.Position;
+            Vector2 end = new Vector2(
+                Math.Clamp(blocker.HomeX + lateralPush, 1.5f, Constants.FieldWidth - 1.5f),
+                targetY);
+
+            Vector2 a = Constants.WorldToScreen(start);
+            Vector2 b = Constants.WorldToScreen(end);
+            Raylib.DrawLineEx(a, b, 2.0f, Palette.RouteBlocking);
+
+            Vector2 dir = end - start;
+            if (dir.LengthSquared() > 0.001f)
+            {
+                dir = Vector2.Normalize(dir);
+                Vector2 perp = new Vector2(-dir.Y, dir.X);
+                Vector2 orthoStart = end - perp * 0.8f;
+                Vector2 orthoEnd = end + perp * 0.8f;
+                Vector2 oA = Constants.WorldToScreen(orthoStart);
+                Vector2 oB = Constants.WorldToScreen(orthoEnd);
+                Raylib.DrawLineEx(oA, oB, 2.0f, Palette.RouteBlocking);
+            }
         }
     }
 
     private static Color GetRouteColor(int receiverIndex)
     {
-        return receiverIndex switch
-        {
-            0 => Palette.Gold,
-            1 => Palette.Lime,
-            2 => Palette.Blue,
-            3 => Palette.Orange,
-            _ => Palette.Yellow
-        };
+        return Palette.RouteReceiving;
     }
 
     private Defender? GetClosestDefender(Vector2 position, float maxDistance, bool preferRushers)

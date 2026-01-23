@@ -8,7 +8,7 @@ public sealed class Quarterback : Entity
 {
     public bool HasBall { get; set; } = true;
 
-    public Quarterback(Vector2 position) : base(position, Constants.QbRadius, "QB", Palette.Lime)
+    public Quarterback(Vector2 position) : base(position, Constants.QbRadius, "QB", Palette.QB)
     {
     }
 
