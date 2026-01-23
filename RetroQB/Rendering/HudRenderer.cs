@@ -193,4 +193,31 @@ public sealed class HudRenderer
         int screenW = Raylib.GetScreenWidth();
         Raylib.DrawText("PAUSED", screenW / 2 - 60, 40, 24, Palette.Yellow);
     }
+
+    public void DrawTouchdownPopup()
+    {
+        int screenW = Raylib.GetScreenWidth();
+        int screenH = Raylib.GetScreenHeight();
+
+        int bannerWidth = Math.Min(720, screenW - 120);
+        int bannerHeight = 120;
+        int x = (screenW - bannerWidth) / 2;
+        int y = (screenH - bannerHeight) / 2;
+
+        Raylib.DrawRectangle(x, y, bannerWidth, bannerHeight, new Color(10, 10, 14, 235));
+        Raylib.DrawRectangleLinesEx(new Rectangle(x, y, bannerWidth, bannerHeight), 3, Palette.Gold);
+        Raylib.DrawRectangle(x + 6, y + 6, bannerWidth - 12, bannerHeight - 12, new Color(20, 20, 28, 235));
+
+        string text = "TOUCHDOWN!";
+        int fontSize = 52;
+        int textWidth = Raylib.MeasureText(text, fontSize);
+        int textX = x + (bannerWidth - textWidth) / 2;
+        int textY = y + (bannerHeight - fontSize) / 2 - 4;
+        Raylib.DrawText(text, textX, textY, fontSize, Palette.Gold);
+
+        string subText = "7 POINTS";
+        int subSize = 20;
+        int subWidth = Raylib.MeasureText(subText, subSize);
+        Raylib.DrawText(subText, x + (bannerWidth - subWidth) / 2, y + bannerHeight - subSize - 12, subSize, Palette.White);
+    }
 }

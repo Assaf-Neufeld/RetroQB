@@ -16,6 +16,7 @@ public sealed class GameSession
     private readonly InputManager _input = new();
     private readonly FieldRenderer _fieldRenderer = new();
     private readonly HudRenderer _hudRenderer = new();
+    private readonly FireworksEffect _fireworks = new();
     private readonly Random _rng = new();
 
     private readonly List<Receiver> _receivers = new();
@@ -28,6 +29,7 @@ public sealed class GameSession
     private string _lastPlayText = string.Empty;
     private bool _qbPastLos;
     private float _playOverTimer;
+    private float _playOverDuration = 1.25f;
     private bool _manualPlaySelection;
     private bool _autoPlaySelectionDone;
 
@@ -43,8 +45,10 @@ public sealed class GameSession
         SetupEntities();
         _lastPlayText = string.Empty;
         _playOverTimer = 0f;
+        _playOverDuration = 1.25f;
         _manualPlaySelection = false;
         _autoPlaySelectionDone = false;
+        _fireworks.Clear();
     }
 
     private void SetupEntities()
@@ -286,6 +290,8 @@ public sealed class GameSession
             return;
         }
 
+        _fireworks.Update(dt);
+
         if (_stateManager.State == GameState.PlayOver)
         {
             _playOverTimer += dt;
@@ -315,7 +321,7 @@ public sealed class GameSession
                 HandlePlayActive(dt);
                 break;
             case GameState.PlayOver:
-                if (_playOverTimer >= 1.25f)
+                if (_playOverTimer >= _playOverDuration)
                 {
                     _stateManager.SetState(GameState.PreSnap);
                     SetupEntities();
@@ -504,7 +510,15 @@ public sealed class GameSession
         }
 
         bool runBlockingBoost = IsRunPlayActiveWithRunningBack();
-        UpdateBlockers(dt, runBlockingBoost);
+        OffensiveLinemanAI.UpdateBlockers(
+            _blockers,
+            _defenders,
+            _playManager.SelectedPlayFamily,
+            _playManager.LineOfScrimmage,
+            _playManager.SelectedPlay.RunningBackSide,
+            dt,
+            runBlockingBoost,
+            ClampToField);
         ResolvePlayerOverlaps();
 
         HandleBall(dt);
@@ -624,6 +638,16 @@ public sealed class GameSession
             spot = Constants.EndZoneDepth + 100f;
         }
 
+        if (touchdown)
+        {
+            _fireworks.Trigger();
+            _playOverDuration = 2.6f;
+        }
+        else
+        {
+            _playOverDuration = 1.25f;
+        }
+
         _lastPlayText = _playManager.ResolvePlay(spot, incomplete, intercepted, touchdown);
         _playOverTimer = 0f;
         _stateManager.SetState(GameState.PlayOver);
@@ -632,6 +656,8 @@ public sealed class GameSession
     public void Draw()
     {
         _fieldRenderer.DrawField(_playManager.LineOfScrimmage, _playManager.FirstDownLine);
+
+        _fireworks.Draw();
 
         if (_stateManager.State == GameState.PreSnap)
         {
@@ -662,6 +688,11 @@ public sealed class GameSession
         string targetLabel = GetSelectedReceiverPriorityLabel();
         _hudRenderer.DrawScoreboard(_playManager, _lastPlayText, _stateManager.State);
         _hudRenderer.DrawSidePanel(_playManager, _lastPlayText, targetLabel, _stateManager.State);
+
+        if (_stateManager.State == GameState.PlayOver && _lastPlayText.Contains("TOUCHDOWN"))
+        {
+            _hudRenderer.DrawTouchdownPopup();
+        }
 
         if (_stateManager.State == GameState.MainMenu)
         {
@@ -757,105 +788,6 @@ public sealed class GameSession
                     ClampToField(b);
                 }
             }
-        }
-    }
-
-    private void UpdateBlockers(float dt, bool runBlockingBoost)
-    {
-        bool isRunPlay = _playManager.SelectedPlayFamily == PlayType.QbRunFocus;
-        float los = _playManager.LineOfScrimmage;
-        int runSide = Math.Sign(_playManager.SelectedPlay.RunningBackSide);
-        // Increased lateral push for run plays to create better blocking angles
-        float lateralPush = isRunPlay && runSide != 0 ? runSide * 3.5f : 0f;
-        float targetY = isRunPlay ? los + 2.4f : los - 1.4f;
-
-        foreach (var blocker in _blockers)
-        {
-            Vector2 targetAnchor = new Vector2(
-                Math.Clamp(blocker.HomeX + lateralPush, 1.5f, Constants.FieldWidth - 1.5f),
-                targetY);
-
-            Defender? target = GetClosestDefender(blocker.Position, Constants.BlockEngageRadius, preferRushers: true);
-            float anchorDistSq = Vector2.DistanceSquared(blocker.Position, targetAnchor);
-            bool closeToAnchor = anchorDistSq <= 0.75f * 0.75f;
-
-            if (target != null && (closeToAnchor || Vector2.DistanceSquared(blocker.Position, target.Position) <= Constants.BlockEngageRadius * Constants.BlockEngageRadius))
-            {
-                Vector2 toTarget = target.Position - blocker.Position;
-                if (toTarget.LengthSquared() > 0.001f)
-                {
-                    toTarget = Vector2.Normalize(toTarget);
-                }
-                Vector2 baseVelocity = toTarget * blocker.Speed;
-                if (runBlockingBoost)
-                {
-                    baseVelocity += new Vector2(0f, blocker.Speed * 0.45f);
-                }
-                if (isRunPlay)
-                {
-                    // Drive direction based on play side: Power Right pushes right, Power Left pushes left
-                    Vector2 driveDir = new Vector2(runSide * 0.7f, 1f);
-                    if (driveDir.LengthSquared() > 0.001f)
-                    {
-                        driveDir = Vector2.Normalize(driveDir);
-                    }
-                    baseVelocity += driveDir * (blocker.Speed * 0.35f);
-                }
-                blocker.Velocity = baseVelocity;
-
-                float contactRange = blocker.Radius + target.Radius + (runBlockingBoost ? 1.0f : 0.6f);
-                float distance = Vector2.Distance(blocker.Position, target.Position);
-                if (distance <= contactRange)
-                {
-                    Vector2 pushDir = target.Position - blocker.Position;
-                    if (pushDir.LengthSquared() > 0.001f)
-                    {
-                        pushDir = Vector2.Normalize(pushDir);
-                    }
-                    float overlap = contactRange - distance;
-                    float holdStrength = runBlockingBoost ? Constants.BlockHoldStrength * 1.6f : Constants.BlockHoldStrength;
-                    float overlapBoost = runBlockingBoost ? 9f : 6f;
-                    target.Position += pushDir * (holdStrength + overlap * overlapBoost) * dt;
-                    if (isRunPlay)
-                    {
-                        // Push defenders in the direction of the run play
-                        Vector2 driveDir = new Vector2(runSide * 0.7f, 1f);
-                        if (driveDir.LengthSquared() > 0.001f)
-                        {
-                            driveDir = Vector2.Normalize(driveDir);
-                        }
-                        target.Position += driveDir * (runBlockingBoost ? 1.2f : 0.8f) * dt;
-                    }
-                    target.Velocity *= runBlockingBoost ? 0.05f : 0.15f;
-                    blocker.Velocity *= 0.25f;
-                }
-            }
-            else
-            {
-                Vector2 toAnchor = targetAnchor - blocker.Position;
-                if (toAnchor.LengthSquared() > 0.001f)
-                {
-                    toAnchor = Vector2.Normalize(toAnchor);
-                }
-
-                float anchorSpeed = isRunPlay ? blocker.Speed * 0.85f : blocker.Speed * 0.7f;
-                blocker.Velocity = toAnchor * anchorSpeed;
-                if (isRunPlay)
-                {
-                    // Add velocity in run direction, not just forward
-                    blocker.Velocity += new Vector2(runSide * blocker.Speed * 0.15f, blocker.Speed * 0.2f);
-                }
-
-                if (closeToAnchor)
-                {
-                    float settleSpeed = isRunPlay ? blocker.Speed * 0.45f : blocker.Speed * 0.1f;
-                    // When settling, continue pushing in run direction
-                    blocker.Velocity = new Vector2(runSide * settleSpeed * 0.3f, settleSpeed * (isRunPlay ? 1f : -1f));
-                }
-            }
-
-            blocker.Update(dt);
-            ClampToField(blocker);
         }
     }
 
@@ -1112,42 +1044,11 @@ public sealed class GameSession
 
         }
 
-        DrawBlockerRoutes();
-    }
-
-    private void DrawBlockerRoutes()
-    {
-        if (_blockers.Count == 0) return;
-
-        bool isRunPlay = _playManager.SelectedPlayFamily == PlayType.QbRunFocus;
-        float los = _playManager.LineOfScrimmage;
-        int runSide = Math.Sign(_playManager.SelectedPlay.RunningBackSide);
-        float lateralPush = isRunPlay && runSide != 0 ? runSide * 2.8f : 0f;
-        float targetY = isRunPlay ? los + 1.6f : los - 1.4f;
-
-        foreach (var blocker in _blockers)
-        {
-            Vector2 start = blocker.Position;
-            Vector2 end = new Vector2(
-                Math.Clamp(blocker.HomeX + lateralPush, 1.5f, Constants.FieldWidth - 1.5f),
-                targetY);
-
-            Vector2 a = Constants.WorldToScreen(start);
-            Vector2 b = Constants.WorldToScreen(end);
-            Raylib.DrawLineEx(a, b, 2.0f, Palette.RouteBlocking);
-
-            Vector2 dir = end - start;
-            if (dir.LengthSquared() > 0.001f)
-            {
-                dir = Vector2.Normalize(dir);
-                Vector2 perp = new Vector2(-dir.Y, dir.X);
-                Vector2 orthoStart = end - perp * 0.8f;
-                Vector2 orthoEnd = end + perp * 0.8f;
-                Vector2 oA = Constants.WorldToScreen(orthoStart);
-                Vector2 oB = Constants.WorldToScreen(orthoEnd);
-                Raylib.DrawLineEx(oA, oB, 2.0f, Palette.RouteBlocking);
-            }
-        }
+        OffensiveLinemanAI.DrawRoutes(
+            _blockers,
+            _playManager.SelectedPlayFamily,
+            _playManager.LineOfScrimmage,
+            _playManager.SelectedPlay.RunningBackSide);
     }
 
     private void DrawReceiverPriorityLabels()
