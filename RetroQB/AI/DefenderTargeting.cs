@@ -93,7 +93,22 @@ public static class DefenderTargeting
 
         if (defender.CoverageReceiverIndex >= 0 && defender.CoverageReceiverIndex < receivers.Count)
         {
-            return receivers[defender.CoverageReceiverIndex].Position;
+            var receiver = receivers[defender.CoverageReceiverIndex];
+            
+            // Off coverage DBs maintain cushion until receiver approaches
+            if (!defender.IsPressCoverage && defender.PositionRole == DefensivePosition.DB)
+            {
+                float distToReceiver = Vector2.Distance(defender.Position, receiver.Position);
+                // Only pursue if receiver is within 8 yards or receiver is past the defender
+                if (distToReceiver > 8f && receiver.Position.Y < defender.Position.Y)
+                {
+                    // Stay in current position with slight drift toward receiver's X
+                    float targetX = defender.Position.X * 0.7f + receiver.Position.X * 0.3f;
+                    return new Vector2(targetX, defender.Position.Y);
+                }
+            }
+            
+            return receiver.Position;
         }
 
         return qb.Position;

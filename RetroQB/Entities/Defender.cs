@@ -32,6 +32,12 @@ public sealed class Defender : Entity
     public bool HasBall { get; set; }
     public CoverageRole ZoneRole { get; set; } = CoverageRole.None;
     public float RushLaneOffsetX { get; set; }
+    
+    /// <summary>
+    /// If true, DB plays press coverage close to the line of scrimmage.
+    /// If false, DB plays off coverage and maintains cushion before pursuing.
+    /// </summary>
+    public bool IsPressCoverage { get; set; }
 
     public Defender(Vector2 position, DefensivePosition role) : base(position, Constants.DefenderRadius, role.ToString(), Palette.Red)
     {

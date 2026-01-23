@@ -277,14 +277,24 @@ public sealed class GameSession
         _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.54f, los + 2.8f), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 2.0f });
         _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, los + 2.8f), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 5.0f });
 
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.38f, los + 6.2f), DefensivePosition.LB) { CoverageReceiverIndex = leftSlot, ZoneRole = CoverageRole.HookLeft }); // LB
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.50f, los + 6.2f), DefensivePosition.LB) { CoverageReceiverIndex = middle, ZoneRole = CoverageRole.HookMiddle }); // MLB
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.62f, los + 6.2f), DefensivePosition.LB) { CoverageReceiverIndex = rightSlot, ZoneRole = CoverageRole.HookRight }); // LB
+        // Linebackers - each has 10% chance to blitz
+        bool lblBlitz = _rng.NextDouble() < 0.10;
+        bool mlbBlitz = _rng.NextDouble() < 0.10;
+        bool lbrBlitz = _rng.NextDouble() < 0.10;
+        
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.38f, los + 6.2f), DefensivePosition.LB) { IsRusher = lblBlitz, CoverageReceiverIndex = leftSlot, ZoneRole = CoverageRole.HookLeft, RushLaneOffsetX = -7.0f }); // LB
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.50f, los + 6.2f), DefensivePosition.LB) { IsRusher = mlbBlitz, CoverageReceiverIndex = middle, ZoneRole = CoverageRole.HookMiddle, RushLaneOffsetX = 0f }); // MLB
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.62f, los + 6.2f), DefensivePosition.LB) { IsRusher = lbrBlitz, CoverageReceiverIndex = rightSlot, ZoneRole = CoverageRole.HookRight, RushLaneOffsetX = 7.0f }); // LB
 
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.18f, los + 10.5f), DefensivePosition.DB) { CoverageReceiverIndex = left, ZoneRole = CoverageRole.FlatLeft }); // CB (flat)
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.82f, los + 10.5f), DefensivePosition.DB) { CoverageReceiverIndex = right, ZoneRole = CoverageRole.FlatRight }); // CB (flat)
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, los + 13.5f), DefensivePosition.DB) { CoverageReceiverIndex = leftSlot, ZoneRole = CoverageRole.DeepLeft }); // S (deep half)
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, los + 13.5f), DefensivePosition.DB) { CoverageReceiverIndex = rightSlot, ZoneRole = CoverageRole.DeepRight }); // S (deep half)
+        // Press coverage CBs - start close to line of scrimmage, 5% chance to blitz
+        bool leftCbBlitz = _rng.NextDouble() < 0.05;
+        bool rightCbBlitz = _rng.NextDouble() < 0.05;
+        
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.18f, los + 3.5f), DefensivePosition.DB) { IsRusher = leftCbBlitz, CoverageReceiverIndex = left, ZoneRole = CoverageRole.FlatLeft, IsPressCoverage = true, RushLaneOffsetX = -10.0f }); // CB (press)
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.82f, los + 3.5f), DefensivePosition.DB) { IsRusher = rightCbBlitz, CoverageReceiverIndex = right, ZoneRole = CoverageRole.FlatRight, IsPressCoverage = true, RushLaneOffsetX = 10.0f }); // CB (press)
+        // Off coverage safeties - start deeper, don't sprint forward immediately
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, los + 13.5f), DefensivePosition.DB) { CoverageReceiverIndex = leftSlot, ZoneRole = CoverageRole.DeepLeft, IsPressCoverage = false }); // S (off)
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, los + 13.5f), DefensivePosition.DB) { CoverageReceiverIndex = rightSlot, ZoneRole = CoverageRole.DeepRight, IsPressCoverage = false }); // S (off)
     }
 
     private void ResolveCoverageIndices(out int left, out int leftSlot, out int middle, out int rightSlot, out int right)
@@ -402,7 +412,6 @@ public sealed class GameSession
         if (Raylib.IsKeyPressed(KeyboardKey.Space))
         {
             _playManager.StartPlay();
-            SetupEntities();
             _stateManager.SetState(GameState.PlayActive);
         }
     }

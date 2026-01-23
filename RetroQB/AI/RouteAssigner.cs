@@ -180,10 +180,14 @@ public static class RouteAssigner
     }
 
     private static RouteType PickQuickPassRoute(int roll) =>
-        roll < 30 ? RouteType.Slant :
-        roll < 55 ? RouteType.OutShallow :
-        roll < 80 ? RouteType.InShallow :
-        RouteType.Curl;
+        roll < 20 ? RouteType.Slant :
+        roll < 35 ? RouteType.OutShallow :
+        roll < 50 ? RouteType.InShallow :
+        roll < 62 ? RouteType.Curl :
+        roll < 74 ? RouteType.Go :
+        roll < 84 ? RouteType.PostShallow :
+        roll < 92 ? RouteType.OutDeep :
+        RouteType.InDeep;
 
     private static RouteType PickLongPassRoute(int roll) =>
         roll < 35 ? RouteType.Go :
