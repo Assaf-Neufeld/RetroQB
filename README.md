@@ -70,6 +70,8 @@ cd RetroQB
 dotnet run
 ```
 
+**Workspace Tip**: Open the repo root folder (`Football2DQB`) in VS Code. This repo includes a `.vscode/settings.json` that limits Git auto-detection so the nested `RetroQB/` folder doesn't show as a separate repo.
+
 **Requirements**: .NET 9.0 SDK
 
 ---
