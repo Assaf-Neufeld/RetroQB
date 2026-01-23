@@ -324,7 +324,22 @@ public sealed class GameSession
             if (receiver == controlledReceiver)
             {
                 float carrierSpeed = sprint ? controlledReceiver.Speed * 1.15f : controlledReceiver.Speed;
+                if (IsRunPlayActiveWithRunningBack() && controlledReceiver.IsRunningBack)
+                {
+                    carrierSpeed *= 1.08f;
+                }
                 receiver.Velocity = inputDir * carrierSpeed;
+                if (IsRunPlayActiveWithRunningBack() && controlledReceiver.IsRunningBack && inputDir.LengthSquared() > 0.001f)
+                {
+                    Vector2 currentDir = receiver.Velocity.LengthSquared() > 0.001f
+                        ? Vector2.Normalize(receiver.Velocity)
+                        : inputDir;
+                    float turnDot = Vector2.Dot(currentDir, inputDir);
+                    if (turnDot < 0.45f)
+                    {
+                        receiver.Velocity += inputDir * (carrierSpeed * 0.35f);
+                    }
+                }
                 receiver.Update(dt);
                 ClampToField(receiver);
                 continue;
@@ -379,7 +394,9 @@ public sealed class GameSession
         foreach (var defender in _defenders)
         {
             bool useZone = _playManager.Distance > Constants.ManCoverageDistanceThreshold;
-            DefenderAI.UpdateDefender(defender, _qb, _receivers, _ball, _playManager.DefenderSpeedMultiplier, dt, _qbPastLos, useZone, _playManager.LineOfScrimmage);
+            float runDefenseAdjust = IsRunPlayActiveWithRunningBack() ? 0.9f : 1f;
+            float speedMultiplier = _playManager.DefenderSpeedMultiplier * runDefenseAdjust;
+            DefenderAI.UpdateDefender(defender, _qb, _receivers, _ball, speedMultiplier, dt, _qbPastLos, useZone, _playManager.LineOfScrimmage);
             ClampToField(defender);
         }
 
@@ -684,7 +701,7 @@ public sealed class GameSession
                 }
                 blocker.Velocity = baseVelocity;
 
-                float contactRange = blocker.Radius + target.Radius + 0.6f;
+                float contactRange = blocker.Radius + target.Radius + (runBlockingBoost ? 1.0f : 0.6f);
                 float distance = Vector2.Distance(blocker.Position, target.Position);
                 if (distance <= contactRange)
                 {
@@ -694,14 +711,16 @@ public sealed class GameSession
                         pushDir = Vector2.Normalize(pushDir);
                     }
                     float overlap = contactRange - distance;
-                    target.Position += pushDir * (Constants.BlockHoldStrength + overlap * 6f) * dt;
-                    target.Velocity *= 0.15f;
+                    float holdStrength = runBlockingBoost ? Constants.BlockHoldStrength * 1.6f : Constants.BlockHoldStrength;
+                    float overlapBoost = runBlockingBoost ? 9f : 6f;
+                    target.Position += pushDir * (holdStrength + overlap * overlapBoost) * dt;
+                    target.Velocity *= runBlockingBoost ? 0.05f : 0.15f;
                     blocker.Velocity *= 0.25f;
                 }
             }
             else
             {
-                float forwardSpeed = runBlockingBoost ? blocker.Speed * 0.75f : blocker.Speed * 0.4f;
+                float forwardSpeed = runBlockingBoost ? blocker.Speed * 0.95f : blocker.Speed * 0.4f;
                 blocker.Velocity = new Vector2(0f, forwardSpeed);
             }
 
@@ -769,6 +788,7 @@ public sealed class GameSession
         Defender? target = GetClosestDefender(receiver.Position, Constants.BlockEngageRadius, preferRushers: true);
         if (target != null)
         {
+            bool runBlockingBoost = IsRunPlayActiveWithRunningBack();
             Vector2 toTarget = target.Position - receiver.Position;
             if (toTarget.LengthSquared() > 0.001f)
             {
@@ -776,7 +796,7 @@ public sealed class GameSession
             }
             receiver.Velocity = toTarget * receiver.Speed;
 
-            float contactRange = receiver.Radius + target.Radius + 0.6f;
+            float contactRange = receiver.Radius + target.Radius + (runBlockingBoost ? 0.9f : 0.6f);
             float distance = Vector2.Distance(receiver.Position, target.Position);
             if (distance <= contactRange)
             {
@@ -786,8 +806,10 @@ public sealed class GameSession
                     pushDir = Vector2.Normalize(pushDir);
                 }
                 float overlap = contactRange - distance;
-                target.Position += pushDir * (Constants.BlockHoldStrength + overlap * 6f) * dt;
-                target.Velocity *= 0.15f;
+                float holdStrength = runBlockingBoost ? Constants.BlockHoldStrength * 1.4f : Constants.BlockHoldStrength;
+                float overlapBoost = runBlockingBoost ? 8f : 6f;
+                target.Position += pushDir * (holdStrength + overlap * overlapBoost) * dt;
+                target.Velocity *= runBlockingBoost ? 0.08f : 0.15f;
                 receiver.Velocity *= 0.25f;
             }
         }
