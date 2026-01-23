@@ -65,9 +65,10 @@ public sealed class PlayManager
         SelectedPlayFamily = PlayType.QuickPass;
     }
 
-    public void StartPlay()
+    public void StartPlay(Random rng)
     {
         SelectedReceiver = 0;
+        MaybeRegenerateWildcardPlay(rng);
     }
 
     public void SelectPlayFamily(PlayType family)
@@ -264,24 +265,14 @@ public sealed class PlayManager
         {
             [PlayType.QuickPass] = new List<PlayDefinition>
             {
-                // Play 1: Quick Slant - Base formation, quick developing slant routes
+                // Play 0: Wildcard - randomized every snap
                 new(
-                    "Quick Slant",
+                    "Wildcard",
                     PlayType.QuickPass,
                     FormationType.BaseTripsRight,
-                    RunningBackRole.Block,
+                    RunningBackRole.Route,
                     TightEndRole.Route,
-                    new Dictionary<int, RouteType>
-                    {
-                        [0] = RouteType.Slant,      // WR1 - primary slant
-                        [1] = RouteType.OutShallow, // WR2 - out route
-                        [2] = RouteType.Curl,       // WR3 - curl
-                        [3] = RouteType.Flat        // TE - flat
-                    },
-                    slantDirections: new Dictionary<int, bool>
-                    {
-                        [0] = true  // slant inside
-                    }),
+                    new Dictionary<int, RouteType>()),
                 // Play 2: Mesh Concept - Pass formation, crossing routes
                 new(
                     "Mesh",
@@ -446,6 +437,46 @@ public sealed class PlayManager
         }
 
         return list;
+    }
+
+    private void MaybeRegenerateWildcardPlay(Random rng)
+    {
+        if (SelectedPlayFamily != PlayType.QuickPass)
+        {
+            return;
+        }
+
+        if (!_playbook.TryGetValue(PlayType.QuickPass, out var plays) || plays.Count == 0)
+        {
+            return;
+        }
+
+        if (_selectedPlayIndexByFamily[PlayType.QuickPass] != 0)
+        {
+            return;
+        }
+
+        var formations = new List<FormationType>
+        {
+            FormationType.BaseTripsRight,
+            FormationType.BaseTripsLeft,
+            FormationType.BaseSplit,
+            FormationType.PassSpread,
+            FormationType.PassBunch,
+            FormationType.PassEmpty
+        };
+
+        var formation = formations[rng.Next(formations.Count)];
+        var rbRole = rng.Next(2) == 0 ? RunningBackRole.Block : RunningBackRole.Route;
+        var teRole = rng.Next(2) == 0 ? TightEndRole.Block : TightEndRole.Route;
+
+        plays[0] = new PlayDefinition(
+            "Wildcard",
+            PlayType.QuickPass,
+            formation,
+            rbRole,
+            teRole,
+            new Dictionary<int, RouteType>());
     }
 
     public readonly record struct PlayOption(PlayType Family, int Index, string Name);

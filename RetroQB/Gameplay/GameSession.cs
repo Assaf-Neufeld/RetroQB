@@ -401,7 +401,7 @@ public sealed class GameSession
 
         if (Raylib.IsKeyPressed(KeyboardKey.Space))
         {
-            _playManager.StartPlay();
+            _playManager.StartPlay(_rng);
             SetupEntities();
             _stateManager.SetState(GameState.PlayActive);
         }

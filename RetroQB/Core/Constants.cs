@@ -13,8 +13,11 @@ public static class Constants
     public const float FieldLength = 120f;
     public const float EndZoneDepth = 10f;
 
-    // Side panel width for HUD
-    public const float SidePanelWidth = 340f;
+    // UI column layout
+    public const float SidePanelWidth = 320f;
+    public const float ScoreboardPanelWidth = 320f;
+    public const float ColumnGap = 10f;
+    public const float OuterMargin = 10f;
 
     // Dynamic field rect - call UpdateFieldRect each frame
     private static Rectangle _fieldRect = new(300, 40, 284, 640);
@@ -25,9 +28,9 @@ public static class Constants
         int screenW = Raylib.GetScreenWidth();
         int screenH = Raylib.GetScreenHeight();
         
-        // Field on the right side, leaving space for side panel on left
-        float availableWidth = screenW - SidePanelWidth - 40; // 40 for margins
-        float availableHeight = screenH - 80; // 40 margin top and bottom
+        // Field centered between left HUD and right scoreboard columns
+        float availableWidth = screenW - SidePanelWidth - ScoreboardPanelWidth - (OuterMargin * 2) - (ColumnGap * 2);
+        float availableHeight = screenH - (OuterMargin * 2);
         
         // Calculate field size maintaining proper aspect ratio (53.3:120)
         float aspectRatio = FieldWidth / FieldLength;
@@ -41,9 +44,9 @@ public static class Constants
             fieldHeight = fieldWidth / aspectRatio;
         }
         
-        // Center the field in the available area (right of side panel)
-        float fieldX = SidePanelWidth + (availableWidth - fieldWidth) / 2 + 20;
-        float fieldY = (screenH - fieldHeight) / 2;
+        // Center the field in the available area (between side panel and scoreboard)
+        float fieldX = OuterMargin + SidePanelWidth + ColumnGap + (availableWidth - fieldWidth) / 2;
+        float fieldY = OuterMargin + (availableHeight - fieldHeight) / 2;
         
         _fieldRect = new Rectangle(fieldX, fieldY, fieldWidth, fieldHeight);
     }

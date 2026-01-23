@@ -8,11 +8,11 @@ namespace RetroQB.Rendering;
 
 public sealed class HudRenderer
 {
-    private const int PanelX = 10;
-    private const int PanelWidth = 320;
-    private const int ScoreboardY = 10;
-    private const int ScoreboardWidth = 520;
-    private const int ScoreboardHeight = 320;
+    private static int PanelX => (int)Constants.OuterMargin;
+    private static int PanelWidth => (int)Constants.SidePanelWidth;
+    private static int ScoreboardY => (int)Constants.OuterMargin;
+    private static int ScoreboardWidth => (int)Constants.ScoreboardPanelWidth;
+    private static int ScoreboardHeight => Raylib.GetScreenHeight() - (int)(Constants.OuterMargin * 2);
     private GameStatsSnapshot _stats = new(
         new QbStatsSnapshot(0, 0, 0, 0, 0),
         Array.Empty<ReceiverStatsSnapshot>(),
@@ -26,24 +26,31 @@ public sealed class HudRenderer
     public void DrawScoreboard(PlayManager play, string resultText, GameState state)
     {
         GameStatsSnapshot stats = _stats;
-        int x = Raylib.GetScreenWidth() - ScoreboardWidth - 10;
+        int x = Raylib.GetScreenWidth() - ScoreboardWidth - (int)Constants.OuterMargin;
         int y = ScoreboardY;
 
+        Color panelBg = new(10, 16, 28, 235);
+        Color panelBorder = new(36, 90, 150, 255);
+        Color panelHeader = new(20, 28, 45, 255);
+        Color panelAccent = new(30, 110, 170, 255);
+        Color panelText = Palette.EndZoneText;
+
         // Outer shell
-        Raylib.DrawRectangle(x, y, ScoreboardWidth, ScoreboardHeight, new Color(12, 12, 14, 235));
-        Raylib.DrawRectangleLines(x, y, ScoreboardWidth, ScoreboardHeight, Palette.Gold);
+        Raylib.DrawRectangle(x, y, ScoreboardWidth, ScoreboardHeight, panelBg);
+        Raylib.DrawRectangleLines(x, y, ScoreboardWidth, ScoreboardHeight, panelBorder);
 
         // Header bar
-        Raylib.DrawRectangle(x + 2, y + 2, ScoreboardWidth - 4, 22, new Color(30, 30, 36, 255));
-        Raylib.DrawText("RETRO STADIUM", x + 10, y + 5, 14, Palette.Gold);
+        Raylib.DrawRectangle(x + 2, y + 2, ScoreboardWidth - 4, 22, panelHeader);
+        Raylib.DrawText("STATS BOARD", x + 10, y + 5, 14, Palette.Blue);
 
         int contentX = x + 12;
         int contentY = y + 30;
+        int innerWidth = ScoreboardWidth - 24;
 
         // Score block
-        Raylib.DrawRectangleLines(contentX - 4, contentY - 4, ScoreboardWidth - 24, 32, Palette.DarkGreen);
-        Raylib.DrawText("HOME", contentX + 6, contentY + 2, 14, Palette.White);
-        Raylib.DrawText($"{play.Score}", x + ScoreboardWidth - 50, contentY - 1, 26, Palette.White);
+        Raylib.DrawRectangleLines(contentX - 4, contentY - 4, ScoreboardWidth - 24, 32, panelAccent);
+        Raylib.DrawText("HOME", contentX + 6, contentY + 2, 14, panelText);
+        Raylib.DrawText($"{play.Score}", x + ScoreboardWidth - 50, contentY - 1, 26, Palette.Blue);
         contentY += 38;
 
         // Down & Distance block
@@ -60,61 +67,72 @@ public sealed class HudRenderer
         float toGoal = 100f - yardLine;
         string distanceText = toGoal <= play.Distance ? "Goal" : $"{play.Distance:F0}";
 
-        Raylib.DrawRectangleLines(contentX - 4, contentY - 4, ScoreboardWidth - 24, 28, Palette.DarkGreen);
-        Raylib.DrawText($"{downOrdinal} & {distanceText}", contentX + 6, contentY, 18, Palette.Gold);
+        Raylib.DrawRectangleLines(contentX - 4, contentY - 4, ScoreboardWidth - 24, 28, panelAccent);
+        Raylib.DrawText($"{downOrdinal} & {distanceText}", contentX + 6, contentY, 18, Palette.Lime);
         contentY += 30;
 
         // Ball position block
-        Raylib.DrawRectangleLines(contentX - 4, contentY - 4, ScoreboardWidth - 24, 24, Palette.DarkGreen);
-        Raylib.DrawText($"BALL ON {yardLine:F0}", contentX + 6, contentY - 1, 14, Palette.White);
+        Raylib.DrawRectangleLines(contentX - 4, contentY - 4, ScoreboardWidth - 24, 24, panelAccent);
+        Raylib.DrawText($"BALL ON {yardLine:F0}", contentX + 6, contentY - 1, 14, panelText);
         contentY += 28;
 
-        // Player stats header
-        Raylib.DrawLine(contentX - 2, contentY, contentX + ScoreboardWidth - 30, contentY, Palette.DarkGreen);
+        // Passing
+        Raylib.DrawLine(contentX - 2, contentY, contentX + ScoreboardWidth - 30, contentY, panelAccent);
         contentY += 8;
-        Raylib.DrawText("PLAYER STATS", contentX + 2, contentY, 14, Palette.Yellow);
+        Raylib.DrawText("PASSING", contentX + 2, contentY, 14, Palette.Blue);
         contentY += 18;
 
-        // QB stats
-        int qbCol1 = contentX + 70;
-        int qbCol2 = contentX + 160;
-        int qbCol3 = contentX + 250;
-        int qbCol4 = contentX + 300;
-        Raylib.DrawText("QB", contentX + 2, contentY, 14, Palette.White);
-        Raylib.DrawText("CMP/ATT", qbCol1, contentY - 2, 12, Palette.DarkGreen);
-        Raylib.DrawText("YDS", qbCol2, contentY - 2, 12, Palette.DarkGreen);
-        Raylib.DrawText("TD", qbCol3, contentY - 2, 12, Palette.DarkGreen);
-        Raylib.DrawText("INT", qbCol4, contentY - 2, 12, Palette.DarkGreen);
+        int qbCol1 = contentX + (int)(innerWidth * 0.30f);
+        int qbCol2 = contentX + (int)(innerWidth * 0.52f);
+        int qbCol3 = contentX + (int)(innerWidth * 0.72f);
+        int qbCol4 = contentX + (int)(innerWidth * 0.86f);
+        Raylib.DrawText("QB", contentX + 2, contentY, 14, panelText);
+        Raylib.DrawText("CMP/ATT", qbCol1, contentY - 2, 12, panelAccent);
+        Raylib.DrawText("YDS", qbCol2, contentY - 2, 12, panelAccent);
+        Raylib.DrawText("TD", qbCol3, contentY - 2, 12, panelAccent);
+        Raylib.DrawText("INT", qbCol4, contentY - 2, 12, panelAccent);
         contentY += 16;
-        Raylib.DrawText($"{stats.Qb.Completions}/{stats.Qb.Attempts}", qbCol1, contentY, 14, Palette.White);
-        Raylib.DrawText($"{stats.Qb.PassYards}", qbCol2, contentY, 14, Palette.White);
-        Raylib.DrawText($"{stats.Qb.PassTds}", qbCol3, contentY, 14, Palette.White);
-        Raylib.DrawText($"{stats.Qb.Interceptions}", qbCol4, contentY, 14, Palette.White);
+        Raylib.DrawText($"{stats.Qb.Completions}/{stats.Qb.Attempts}", qbCol1, contentY, 14, panelText);
+        Raylib.DrawText($"{stats.Qb.PassYards}", qbCol2, contentY, 14, panelText);
+        Raylib.DrawText($"{stats.Qb.PassTds}", qbCol3, contentY, 14, panelText);
+        Raylib.DrawText($"{stats.Qb.Interceptions}", qbCol4, contentY, 14, panelText);
         contentY += 22;
 
-        // Receiver / TE stats (1-5)
-        Raylib.DrawText("REC", contentX + 2, contentY, 12, Palette.DarkGreen);
-        Raylib.DrawText("YDS", contentX + 90, contentY, 12, Palette.DarkGreen);
-        Raylib.DrawText("TD", contentX + 150, contentY, 12, Palette.DarkGreen);
+        // Receiving
+        Raylib.DrawLine(contentX - 2, contentY, contentX + ScoreboardWidth - 30, contentY, panelAccent);
+        contentY += 8;
+        Raylib.DrawText("RECEIVING", contentX + 2, contentY, 14, Palette.Blue);
+        contentY += 18;
+
+        int recCol1 = contentX + (int)(innerWidth * 0.22f);
+        int recCol2 = contentX + (int)(innerWidth * 0.52f);
+        int recCol3 = contentX + (int)(innerWidth * 0.72f);
+        Raylib.DrawText("REC", contentX + 2, contentY, 12, panelAccent);
+        Raylib.DrawText("YDS", recCol2, contentY, 12, panelAccent);
+        Raylib.DrawText("TD", recCol3, contentY, 12, panelAccent);
         contentY += 14;
 
         foreach (var receiver in stats.Receivers)
         {
-            Raylib.DrawText($"{receiver.Label}", contentX + 6, contentY, 14, Palette.White);
-            Raylib.DrawText($"{receiver.Receptions}", contentX + 40, contentY, 14, Palette.White);
-            Raylib.DrawText($"{receiver.Yards}", contentX + 90, contentY, 14, Palette.White);
-            Raylib.DrawText($"{receiver.Tds}", contentX + 150, contentY, 14, Palette.White);
+            Raylib.DrawText($"{receiver.Label}", contentX + 6, contentY, 14, panelText);
+            Raylib.DrawText($"{receiver.Receptions}", recCol1, contentY, 14, panelText);
+            Raylib.DrawText($"{receiver.Yards}", recCol2, contentY, 14, panelText);
+            Raylib.DrawText($"{receiver.Tds}", recCol3, contentY, 14, panelText);
             contentY += 16;
         }
 
-        // RB stats
+        // Running
         contentY += 4;
-        Raylib.DrawText("RB", contentX + 2, contentY, 14, Palette.White);
-        Raylib.DrawText("YDS", contentX + 90, contentY - 2, 12, Palette.DarkGreen);
-        Raylib.DrawText("TD", contentX + 150, contentY - 2, 12, Palette.DarkGreen);
+        Raylib.DrawLine(contentX - 2, contentY, contentX + ScoreboardWidth - 30, contentY, panelAccent);
+        contentY += 8;
+        Raylib.DrawText("RUNNING", contentX + 2, contentY, 14, Palette.Blue);
+        contentY += 18;
+        Raylib.DrawText("RB", contentX + 2, contentY, 14, panelText);
+        Raylib.DrawText("YDS", recCol2, contentY - 2, 12, panelAccent);
+        Raylib.DrawText("TD", recCol3, contentY - 2, 12, panelAccent);
         contentY += 16;
-        Raylib.DrawText($"{stats.Rb.Yards}", contentX + 90, contentY, 14, Palette.White);
-        Raylib.DrawText($"{stats.Rb.Tds}", contentX + 150, contentY, 14, Palette.White);
+        Raylib.DrawText($"{stats.Rb.Yards}", recCol2, contentY, 14, panelText);
+        Raylib.DrawText($"{stats.Rb.Tds}", recCol3, contentY, 14, panelText);
         contentY += 18;
 
         // Last play result ticker
@@ -123,25 +141,26 @@ public sealed class HudRenderer
             Color resultColor = resultText.Contains("TD") || resultText.Contains("1ST") ? Palette.Gold :
                                resultText.Contains("INT") || resultText.Contains("TURN") ? Palette.Red :
                                resultText.Contains("Incomplete") ? Palette.Orange :
-                               Palette.White;
+                               panelText;
 
-            Raylib.DrawRectangle(contentX - 4, contentY - 4, ScoreboardWidth - 24, 26, new Color(25, 25, 30, 255));
-            Raylib.DrawRectangleLines(contentX - 4, contentY - 4, ScoreboardWidth - 24, 26, Palette.DarkGreen);
+            Raylib.DrawRectangle(contentX - 4, contentY - 4, ScoreboardWidth - 24, 26, panelHeader);
+            Raylib.DrawRectangleLines(contentX - 4, contentY - 4, ScoreboardWidth - 24, 26, panelAccent);
             Raylib.DrawText(resultText, contentX + 6, contentY - 1, 14, resultColor);
         }
     }
-    
+
     public void DrawSidePanel(PlayManager play, string resultText, string selectedReceiverLabel, GameState state)
     {
         int screenH = Raylib.GetScreenHeight();
-        
+        int panelHeight = screenH - (int)(Constants.OuterMargin * 2);
+
         // Draw panel background
-        Raylib.DrawRectangle(PanelX, 10, PanelWidth, screenH - 20, new Color(20, 20, 25, 220));
-        Raylib.DrawRectangleLines(PanelX, 10, PanelWidth, screenH - 20, Palette.DarkGreen);
-        
-        int y = 25;
+        Raylib.DrawRectangle(PanelX, (int)Constants.OuterMargin, PanelWidth, panelHeight, new Color(20, 20, 25, 220));
+        Raylib.DrawRectangleLines(PanelX, (int)Constants.OuterMargin, PanelWidth, panelHeight, Palette.DarkGreen);
+
+        int y = (int)Constants.OuterMargin + 15;
         int x = PanelX + 15;
-        
+
         // Title
         Raylib.DrawText("RETRO QB", x, y, 34, Palette.Gold);
         y += 46;
@@ -191,15 +210,15 @@ public sealed class HudRenderer
         {
             y += 24;
         }
-        
+
         // Divider
         Raylib.DrawLine(x, y, x + PanelWidth - 30, y, Palette.DarkGreen);
         y += 15;
-        
+
         // Drive Summary
         Raylib.DrawText("DRIVE SUMMARY", x, y, 16, Palette.Yellow);
         y += 24;
-        
+
         // Show last 8 plays of drive history (most recent at top)
         int maxPlays = Math.Min(play.DriveHistory.Count, 8);
         if (maxPlays == 0)
@@ -218,7 +237,7 @@ public sealed class HudRenderer
                 y += 18;
             }
         }
-        
+
         // Controls at bottom
         y = screenH - 100;
         Raylib.DrawLine(x, y, x + PanelWidth - 30, y, Palette.DarkGreen);
@@ -238,11 +257,10 @@ public sealed class HudRenderer
 
     public void DrawMainMenu()
     {
-        int screenW = Raylib.GetScreenWidth();
-        int screenH = Raylib.GetScreenHeight();
-        int centerX = screenW / 2;
-        int centerY = screenH / 2;
-        
+        var field = Constants.FieldRect;
+        int centerX = (int)(field.X + field.Width / 2f);
+        int centerY = (int)(field.Y + field.Height / 2f);
+
         Raylib.DrawText("RetroQB", centerX - 100, centerY - 50, 48, Palette.Gold);
         Raylib.DrawText("Press ENTER to start", centerX - 110, centerY + 30, 20, Palette.White);
     }
