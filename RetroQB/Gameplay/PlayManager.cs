@@ -114,6 +114,68 @@ public sealed class PlayManager
         return $"{familyName}: {plays[index].Name}";
     }
 
+    public PlayType GetSuggestedPlayFamily()
+    {
+        if (Distance >= 9f || (Down >= 3 && Distance >= 6f))
+        {
+            return PlayType.LongPass;
+        }
+
+        if (Distance <= 3f)
+        {
+            return PlayType.QbRunFocus;
+        }
+
+        return PlayType.QuickPass;
+    }
+
+    public bool AutoSelectPlayBySituation(Random rng)
+    {
+        var candidates = GetSuggestedPlayFamilies();
+        if (candidates.Count == 0)
+        {
+            return false;
+        }
+
+        PlayType pickedFamily = candidates[rng.Next(candidates.Count)];
+        SelectedPlayFamily = pickedFamily;
+
+        if (_playbook.TryGetValue(pickedFamily, out var plays) && plays.Count > 0)
+        {
+            _selectedPlayIndexByFamily[pickedFamily] = rng.Next(plays.Count);
+            return true;
+        }
+
+        return false;
+    }
+
+    private List<PlayType> GetSuggestedPlayFamilies()
+    {
+        var families = new List<PlayType>();
+
+        if (Distance >= 9f || (Down >= 3 && Distance >= 6f))
+        {
+            families.Add(PlayType.LongPass);
+            families.Add(PlayType.LongPass);
+            families.Add(PlayType.QuickPass);
+            return families;
+        }
+
+        if (Distance <= 3f)
+        {
+            families.Add(PlayType.QbRunFocus);
+            families.Add(PlayType.QbRunFocus);
+            families.Add(PlayType.QuickPass);
+            return families;
+        }
+
+        families.Add(PlayType.QuickPass);
+        families.Add(PlayType.QuickPass);
+        families.Add(PlayType.QbRunFocus);
+        families.Add(PlayType.LongPass);
+        return families;
+    }
+
     public string ResolvePlay(float newBallY, bool incomplete, bool intercepted, bool touchdown)
     {
         string result;
@@ -205,7 +267,9 @@ public sealed class PlayManager
                 new(
                     "Stick",
                     PlayType.QuickPass,
+                    FormationType.SinglebackTrips,
                     RunningBackRole.Route,
+                    TightEndRole.Route,
                     new Dictionary<int, RouteType>
                     {
                         [0] = RouteType.Out,
@@ -217,7 +281,9 @@ public sealed class PlayManager
                 new(
                     "Slants",
                     PlayType.QuickPass,
+                    FormationType.SpreadFour,
                     RunningBackRole.Block,
+                    TightEndRole.Route,
                     new Dictionary<int, RouteType>
                     {
                         [0] = RouteType.Slant,
@@ -228,7 +294,9 @@ public sealed class PlayManager
                 new(
                     "Spacing",
                     PlayType.QuickPass,
+                    FormationType.Twins,
                     RunningBackRole.Route,
+                    TightEndRole.Route,
                     new Dictionary<int, RouteType>
                     {
                         [0] = RouteType.Out,
@@ -243,7 +311,9 @@ public sealed class PlayManager
                 new(
                     "Verts",
                     PlayType.LongPass,
+                    FormationType.SpreadFour,
                     RunningBackRole.Block,
+                    TightEndRole.Route,
                     new Dictionary<int, RouteType>
                     {
                         [0] = RouteType.Go,
@@ -254,7 +324,9 @@ public sealed class PlayManager
                 new(
                     "Post-Cross",
                     PlayType.LongPass,
+                    FormationType.SinglebackTrips,
                     RunningBackRole.Route,
+                    TightEndRole.Route,
                     new Dictionary<int, RouteType>
                     {
                         [0] = RouteType.Post,
@@ -266,7 +338,9 @@ public sealed class PlayManager
                 new(
                     "Deep Outs",
                     PlayType.LongPass,
+                    FormationType.Twins,
                     RunningBackRole.Block,
+                    TightEndRole.Route,
                     new Dictionary<int, RouteType>
                     {
                         [0] = RouteType.Go,
@@ -277,7 +351,9 @@ public sealed class PlayManager
                 new(
                     "Dagger",
                     PlayType.LongPass,
+                    FormationType.SpreadFour,
                     RunningBackRole.Route,
+                    TightEndRole.Route,
                     new Dictionary<int, RouteType>
                     {
                         [0] = RouteType.Go,
@@ -290,9 +366,11 @@ public sealed class PlayManager
             [PlayType.QbRunFocus] = new List<PlayDefinition>
             {
                 new(
-                    "QB Draw",
+                    "Inside Run",
                     PlayType.QbRunFocus,
-                    RunningBackRole.Block,
+                    FormationType.Heavy,
+                    RunningBackRole.Route,
+                    TightEndRole.Block,
                     new Dictionary<int, RouteType>
                     {
                         [0] = RouteType.Curl,
@@ -301,22 +379,11 @@ public sealed class PlayManager
                         [3] = RouteType.Out
                     }),
                 new(
-                    "Boot Flat",
+                    "Outside Run",
                     PlayType.QbRunFocus,
+                    FormationType.SpreadFour,
                     RunningBackRole.Route,
-                    new Dictionary<int, RouteType>
-                    {
-                        [0] = RouteType.Slant,
-                        [1] = RouteType.Out,
-                        [2] = RouteType.Out,
-                        [3] = RouteType.Curl,
-                        [4] = RouteType.Flat
-                    },
-                    runningBackSide: 1),
-                new(
-                    "Sprint Option",
-                    PlayType.QbRunFocus,
-                    RunningBackRole.Route,
+                    TightEndRole.Route,
                     new Dictionary<int, RouteType>
                     {
                         [0] = RouteType.Out,

@@ -48,6 +48,14 @@ public static class ReceiverAI
                 continue;
             }
 
+            if (receiver.IsTightEnd && play.TightEndRole == TightEndRole.Block)
+            {
+                receiver.Eligible = false;
+                receiver.IsBlocking = true;
+                receiver.Route = RouteType.Flat;
+                continue;
+            }
+
             if (!play.TryGetRoute(receiver.Index, out var route))
             {
                 route = PickRoute(play.Family, rng);
@@ -102,8 +110,8 @@ public static class ReceiverAI
                 dir = progress < 10f ? new Vector2(0, 1) : Vector2.Normalize(new Vector2(-0.6f * receiver.RouteSide, 1));
                 break;
             case RouteType.Curl:
-                float curlStem = receiver.IsRunningBack ? 4f : 7f;
-                float curlReturn = receiver.IsRunningBack ? 1.5f : 2f;
+                float curlStem = receiver.IsRunningBack ? 4f : receiver.IsTightEnd ? 6f : 7f;
+                float curlReturn = receiver.IsRunningBack ? 1.5f : receiver.IsTightEnd ? 1.8f : 2f;
                 if (progress < curlStem)
                 {
                     dir = new Vector2(0, 1);
@@ -134,12 +142,12 @@ public static class ReceiverAI
         Vector2 start = receiver.RouteStart;
         int side = receiver.RouteSide == 0 ? 1 : receiver.RouteSide;
 
-        float stem = receiver.IsRunningBack ? 4f : 9f;
-        float deep = receiver.IsRunningBack ? 6.5f : 14f;
-        float flatWidth = receiver.IsRunningBack ? 9f : 7f;
+        float stem = receiver.IsRunningBack ? 4f : receiver.IsTightEnd ? 7.5f : 9f;
+        float deep = receiver.IsRunningBack ? 6.5f : receiver.IsTightEnd ? 11f : 14f;
+        float flatWidth = receiver.IsRunningBack ? 9f : receiver.IsTightEnd ? 6f : 7f;
         float postAngle = 7f;
-        float curlStem = receiver.IsRunningBack ? 4f : 7f;
-        float curlReturn = receiver.IsRunningBack ? 1.5f : 2f;
+        float curlStem = receiver.IsRunningBack ? 4f : receiver.IsTightEnd ? 6f : 7f;
+        float curlReturn = receiver.IsRunningBack ? 1.5f : receiver.IsTightEnd ? 1.8f : 2f;
 
         Vector2 stemPoint = start + new Vector2(0, stem);
         Vector2 deepPoint = start + new Vector2(0, deep);

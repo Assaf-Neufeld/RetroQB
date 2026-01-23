@@ -14,7 +14,7 @@ public static class Constants
     public const float EndZoneDepth = 10f;
 
     // Side panel width for HUD
-    public const float SidePanelWidth = 280f;
+    public const float SidePanelWidth = 340f;
 
     // Dynamic field rect - call UpdateFieldRect each frame
     private static Rectangle _fieldRect = new(300, 40, 284, 640);

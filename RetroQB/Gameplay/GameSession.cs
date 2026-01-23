@@ -25,6 +25,9 @@ public sealed class GameSession
     private Ball _ball = null!;
     private string _lastPlayText = string.Empty;
     private bool _qbPastLos;
+    private float _playOverTimer;
+    private bool _manualPlaySelection;
+    private bool _autoPlaySelectionDone;
 
     public GameSession()
     {
@@ -37,6 +40,9 @@ public sealed class GameSession
         _playManager.StartNewDrive();
         SetupEntities();
         _lastPlayText = string.Empty;
+        _playOverTimer = 0f;
+        _manualPlaySelection = false;
+        _autoPlaySelectionDone = false;
     }
 
     private void SetupEntities()
@@ -70,20 +76,20 @@ public sealed class GameSession
                 AddReceiver(new Vector2(Constants.FieldWidth * 0.30f, los - 1.0f)); // Slot L
                 AddReceiver(new Vector2(Constants.FieldWidth * 0.70f, los - 1.0f)); // Slot R
                 AddReceiver(new Vector2(Constants.FieldWidth * 0.88f, los - 0.3f)); // Z WR
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 3.8f), isRunningBack: true); // RB
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 5.0f), isRunningBack: true); // RB
                 AddBaseLine(los, addExtra: false);
                 break;
             case FormationType.Twins:
                 AddReceiver(new Vector2(Constants.FieldWidth * 0.18f, los - 0.3f)); // X WR
                 AddReceiver(new Vector2(Constants.FieldWidth * 0.82f, los - 0.3f)); // Z WR
                 AddReceiver(new Vector2(Constants.FieldWidth * 0.62f, los - 0.05f), isTightEnd: true); // TE inline
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 3.6f), isRunningBack: true); // RB
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 4.8f), isRunningBack: true); // RB
                 AddBaseLine(los, addExtra: false);
                 break;
             case FormationType.Heavy:
                 AddReceiver(new Vector2(Constants.FieldWidth * 0.20f, los - 0.3f)); // X WR
                 AddReceiver(new Vector2(Constants.FieldWidth * 0.64f, los - 0.05f), isTightEnd: true); // TE inline
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.52f, los - 3.9f), isRunningBack: true); // RB
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.52f, los - 5.1f), isRunningBack: true); // RB
                 AddBaseLine(los, addExtra: true);
                 break;
             default:
@@ -92,7 +98,7 @@ public sealed class GameSession
                 AddReceiver(new Vector2(Constants.FieldWidth * 0.32f, los - 1.0f)); // Slot (left)
                 AddReceiver(new Vector2(Constants.FieldWidth * 0.85f, los - 0.3f)); // Z WR (right)
                 AddReceiver(new Vector2(Constants.FieldWidth * 0.66f, los - 0.05f), isTightEnd: true); // TE (right)
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 3.5f), isRunningBack: true); // RB
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 4.7f), isRunningBack: true); // RB
                 AddBaseLine(los, addExtra: false);
                 break;
         }
@@ -172,6 +178,11 @@ public sealed class GameSession
             return;
         }
 
+        if (_stateManager.State == GameState.PlayOver)
+        {
+            _playOverTimer += dt;
+        }
+
         if (Raylib.IsKeyPressed(KeyboardKey.R))
         {
             InitializeDrive();
@@ -185,6 +196,8 @@ public sealed class GameSession
                 if (Raylib.IsKeyPressed(KeyboardKey.Enter))
                 {
                     _stateManager.SetState(GameState.PreSnap);
+                    _manualPlaySelection = false;
+                    _autoPlaySelectionDone = false;
                 }
                 break;
             case GameState.PreSnap:
@@ -194,11 +207,13 @@ public sealed class GameSession
                 HandlePlayActive(dt);
                 break;
             case GameState.PlayOver:
-                if (Raylib.IsKeyPressed(KeyboardKey.Enter))
+                if (_playOverTimer >= 1.25f)
                 {
                     _stateManager.SetState(GameState.PreSnap);
                     SetupEntities();
                     _lastPlayText = string.Empty;
+                    _manualPlaySelection = false;
+                    _autoPlaySelectionDone = false;
                 }
                 break;
         }
@@ -223,6 +238,13 @@ public sealed class GameSession
         if (selection.HasValue)
         {
             playChanged = _playManager.SelectPlayByGlobalIndex(selection.Value - 1);
+            _manualPlaySelection = true;
+        }
+
+        if (!selection.HasValue && !_manualPlaySelection && !_autoPlaySelectionDone)
+        {
+            playChanged = _playManager.AutoSelectPlayBySituation(_rng) || playChanged;
+            _autoPlaySelectionDone = true;
         }
 
         if (playChanged)
@@ -247,6 +269,8 @@ public sealed class GameSession
             AutoSelectReceiver();
         }
 
+        TryHandoffToRunningBack();
+
         Vector2 inputDir = _input.GetMovementDirection();
         bool sprint = _input.IsSprintHeld();
         Receiver? controlledReceiver = _ball.State == BallState.HeldByReceiver ? _ball.Holder as Receiver : null;
@@ -267,6 +291,31 @@ public sealed class GameSession
             if (receiver.IsBlocking)
             {
                 UpdateBlockingReceiver(receiver, dt);
+                receiver.Update(dt);
+                ClampToField(receiver);
+                continue;
+            }
+
+            if (IsRunPlayActivePreHandoff() && receiver.IsRunningBack)
+            {
+                Vector2 toQb = _qb.Position - receiver.Position;
+                float dist = toQb.Length();
+                if (dist > 0.01f)
+                {
+                    toQb /= dist;
+                }
+
+                float settleRange = 4.5f;
+                float approachSpeed = receiver.Speed * 0.55f;
+                if (dist <= settleRange)
+                {
+                    receiver.Velocity = toQb * approachSpeed;
+                }
+                else
+                {
+                    ReceiverAI.UpdateRoute(receiver, dt);
+                }
+
                 receiver.Update(dt);
                 ClampToField(receiver);
                 continue;
@@ -334,7 +383,8 @@ public sealed class GameSession
             ClampToField(defender);
         }
 
-        UpdateBlockers(dt);
+        bool runBlockingBoost = IsRunPlayActiveWithRunningBack();
+        UpdateBlockers(dt, runBlockingBoost);
         ResolvePlayerOverlaps();
 
         HandleBall(dt);
@@ -440,6 +490,12 @@ public sealed class GameSession
 
         if (carrier == null) return;
 
+        if (IsSidelineOutOfBounds(carrier.Position))
+        {
+            EndPlay(tackle: true);
+            return;
+        }
+
         if (Rules.IsTouchdown(carrier.Position))
         {
             EndPlay(touchdown: true);
@@ -469,6 +525,7 @@ public sealed class GameSession
         }
 
         _lastPlayText = _playManager.ResolvePlay(spot, incomplete, intercepted, touchdown);
+        _playOverTimer = 0f;
         _stateManager.SetState(GameState.PlayOver);
     }
 
@@ -529,11 +586,28 @@ public sealed class GameSession
         Raylib.DrawCircleLines((int)screen.X, (int)screen.Y, 12, Palette.Yellow);
     }
 
-    private static void ClampToField(Entity entity)
+    private void ClampToField(Entity entity)
     {
-        float x = MathF.Max(0.5f, MathF.Min(Constants.FieldWidth - 0.5f, entity.Position.X));
+        bool isCarrier = _ball.State switch
+        {
+            BallState.HeldByQB => entity == _qb,
+            BallState.HeldByReceiver => entity == _ball.Holder,
+            _ => false
+        };
+
+        float x = entity.Position.X;
+        if (!isCarrier || (x >= 0 && x <= Constants.FieldWidth))
+        {
+            x = MathF.Max(0.5f, MathF.Min(Constants.FieldWidth - 0.5f, x));
+        }
+
         float y = MathF.Max(0.5f, MathF.Min(Constants.FieldLength - 0.5f, entity.Position.Y));
         entity.Position = new Vector2(x, y);
+    }
+
+    private static bool IsSidelineOutOfBounds(Vector2 position)
+    {
+        return position.X < 0 || position.X > Constants.FieldWidth;
     }
 
     private void ResolvePlayerOverlaps()
@@ -591,7 +665,7 @@ public sealed class GameSession
         }
     }
 
-    private void UpdateBlockers(float dt)
+    private void UpdateBlockers(float dt, bool runBlockingBoost)
     {
         foreach (var blocker in _blockers)
         {
@@ -603,7 +677,12 @@ public sealed class GameSession
                 {
                     toTarget = Vector2.Normalize(toTarget);
                 }
-                blocker.Velocity = toTarget * blocker.Speed;
+                Vector2 baseVelocity = toTarget * blocker.Speed;
+                if (runBlockingBoost)
+                {
+                    baseVelocity += new Vector2(0f, blocker.Speed * 0.45f);
+                }
+                blocker.Velocity = baseVelocity;
 
                 float contactRange = blocker.Radius + target.Radius + 0.6f;
                 float distance = Vector2.Distance(blocker.Position, target.Position);
@@ -622,12 +701,67 @@ public sealed class GameSession
             }
             else
             {
-                blocker.Velocity = new Vector2(0f, blocker.Speed * 0.4f);
+                float forwardSpeed = runBlockingBoost ? blocker.Speed * 0.75f : blocker.Speed * 0.4f;
+                blocker.Velocity = new Vector2(0f, forwardSpeed);
             }
 
             blocker.Update(dt);
             ClampToField(blocker);
         }
+    }
+
+    private void TryHandoffToRunningBack()
+    {
+        if (_playManager.SelectedPlayFamily != PlayType.QbRunFocus)
+        {
+            return;
+        }
+
+        if (_ball.State != BallState.HeldByQB)
+        {
+            return;
+        }
+
+        Receiver? runningBack = _receivers.FirstOrDefault(r => r.IsRunningBack);
+        if (runningBack == null)
+        {
+            return;
+        }
+
+        float handoffRange = 3.2f;
+        float distance = Vector2.Distance(_qb.Position, runningBack.Position);
+        if (distance > handoffRange)
+        {
+            return;
+        }
+
+        runningBack.HasBall = true;
+        _ball.SetHeld(runningBack, BallState.HeldByReceiver);
+    }
+
+    private bool IsRunPlayActivePreHandoff()
+    {
+        if (_playManager.SelectedPlayFamily != PlayType.QbRunFocus)
+        {
+            return false;
+        }
+
+        return _ball.State == BallState.HeldByQB;
+    }
+
+    private bool IsRunPlayActiveWithRunningBack()
+    {
+        if (_playManager.SelectedPlayFamily != PlayType.QbRunFocus)
+        {
+            return false;
+        }
+
+        if (_ball.State != BallState.HeldByReceiver)
+        {
+            return false;
+        }
+
+        return _ball.Holder is Receiver receiver && receiver.IsRunningBack;
     }
 
     private void UpdateBlockingReceiver(Receiver receiver, float dt)

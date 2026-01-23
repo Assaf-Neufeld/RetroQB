@@ -8,7 +8,7 @@ namespace RetroQB.Rendering;
 public sealed class HudRenderer
 {
     private const int PanelX = 10;
-    private const int PanelWidth = 260;
+    private const int PanelWidth = 320;
     
     public void DrawSidePanel(PlayManager play, string resultText, int selectedReceiver, string selectedReceiverLabel, GameState state)
     {
@@ -22,12 +22,12 @@ public sealed class HudRenderer
         int x = PanelX + 15;
         
         // Title
-        Raylib.DrawText("RETRO QB", x, y, 28, Palette.Gold);
-        y += 40;
+        Raylib.DrawText("RETRO QB", x, y, 34, Palette.Gold);
+        y += 46;
         
         // Score
-        Raylib.DrawText($"SCORE: {play.Score}", x, y, 24, Palette.White);
-        y += 40;
+        Raylib.DrawText($"SCORE: {play.Score}", x, y, 28, Palette.White);
+        y += 42;
         
         // Divider
         Raylib.DrawLine(x, y, x + PanelWidth - 30, y, Palette.DarkGreen);
@@ -47,14 +47,14 @@ public sealed class HudRenderer
         float toGoal = 100f - yardLine;
         string distanceText = toGoal <= play.Distance ? "Goal" : $"{play.Distance:F0}";
         
-        Raylib.DrawText($"{downOrdinal} & {distanceText}", x, y, 22, Palette.Gold);
-        y += 28;
+        Raylib.DrawText($"{downOrdinal} & {distanceText}", x, y, 24, Palette.Gold);
+        y += 30;
         
-        Raylib.DrawText($"Ball on {yardLine:F0} yd line", x, y, 18, Palette.White);
-        y += 28;
+        Raylib.DrawText($"Ball on {yardLine:F0} yd line", x, y, 20, Palette.White);
+        y += 30;
         
-        Raylib.DrawText($"Target: {selectedReceiverLabel} {selectedReceiver + 1}", x, y, 18, Palette.Lime);
-        y += 35;
+        Raylib.DrawText($"Target: {selectedReceiverLabel} {selectedReceiver + 1}", x, y, 20, Palette.Lime);
+        y += 36;
         
         // Divider
         Raylib.DrawLine(x, y, x + PanelWidth - 30, y, Palette.DarkGreen);
@@ -63,7 +63,17 @@ public sealed class HudRenderer
         // Play selection (pre-snap) or last result
         if (state == GameState.PreSnap)
         {
-            Raylib.DrawText("SELECT PLAY:", x, y, 16, Palette.Yellow);
+            Raylib.DrawText("SELECT PLAY:", x, y, 18, Palette.Yellow);
+            y += 24;
+            PlayType suggestedFamily = play.GetSuggestedPlayFamily();
+            string suggestedName = suggestedFamily switch
+            {
+                PlayType.QuickPass => "Quick",
+                PlayType.LongPass => "Long",
+                PlayType.QbRunFocus => "Run",
+                _ => "Play"
+            };
+            Raylib.DrawText($"Suggested: {suggestedName}", x, y, 16, Palette.Lime);
             y += 22;
             var options = play.PlayOptions;
             for (int i = 0; i < options.Count; i++)
@@ -79,19 +89,19 @@ public sealed class HudRenderer
                     _ => "Play"
                 };
 
-                Raylib.DrawText($"{displayNum}) {familyName}: {option.Name}", x, y, 16, isSelected ? Palette.Gold : Palette.White);
-                y += 18;
+                Raylib.DrawText($"{displayNum}) {familyName}: {option.Name}", x, y, 18, isSelected ? Palette.Gold : Palette.White);
+                y += 20;
             }
 
             y += 10;
-            Raylib.DrawText("1-9,0 select | SPACE snap", x, y, 16, Palette.Lime);
-            y += 30;
+            Raylib.DrawText("1-9,0 select | SPACE snap", x, y, 18, Palette.Lime);
+            y += 32;
         }
         else if (state == GameState.PlayOver)
         {
             // Show prominent result box
-            Raylib.DrawRectangle(x - 5, y - 5, PanelWidth - 20, 70, new Color(40, 40, 50, 255));
-            Raylib.DrawRectangleLines(x - 5, y - 5, PanelWidth - 20, 70, Palette.Gold);
+            Raylib.DrawRectangle(x - 5, y - 5, PanelWidth - 20, 80, new Color(40, 40, 50, 255));
+            Raylib.DrawRectangleLines(x - 5, y - 5, PanelWidth - 20, 80, Palette.Gold);
             
             // Determine result color
             Color resultColor = resultText.Contains("TD") || resultText.Contains("1ST") ? Palette.Gold :
@@ -99,9 +109,7 @@ public sealed class HudRenderer
                                resultText.Contains("Incomplete") ? Palette.Orange :
                                Palette.White;
             
-            Raylib.DrawText(resultText, x, y, 20, resultColor);
-            y += 32;
-            Raylib.DrawText("ENTER to continue", x, y, 16, Palette.Lime);
+            Raylib.DrawText(resultText, x, y, 22, resultColor);
             y += 40;
         }
         else if (!string.IsNullOrWhiteSpace(resultText))
