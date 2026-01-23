@@ -102,7 +102,20 @@ public static class ReceiverAI
                 dir = progress < 10f ? new Vector2(0, 1) : Vector2.Normalize(new Vector2(-0.6f * receiver.RouteSide, 1));
                 break;
             case RouteType.Curl:
-                dir = progress < 7f ? new Vector2(0, 1) : new Vector2(0, -1);
+                float curlStem = receiver.IsRunningBack ? 4f : 7f;
+                float curlReturn = receiver.IsRunningBack ? 1.5f : 2f;
+                if (progress < curlStem)
+                {
+                    dir = new Vector2(0, 1);
+                }
+                else if (progress < curlStem + curlReturn)
+                {
+                    dir = new Vector2(0, -1);
+                }
+                else
+                {
+                    dir = Vector2.Zero;
+                }
                 break;
             case RouteType.Flat:
                 dir = Vector2.Normalize(new Vector2(receiver.RouteSide, 0.25f));
@@ -110,7 +123,10 @@ public static class ReceiverAI
         }
 
         receiver.Velocity = dir * speed;
-        receiver.RouteProgress += speed * dt;
+        if (dir != Vector2.Zero)
+        {
+            receiver.RouteProgress += speed * dt;
+        }
     }
 
     public static IReadOnlyList<Vector2> GetRouteWaypoints(Receiver receiver)
@@ -122,9 +138,12 @@ public static class ReceiverAI
         float deep = receiver.IsRunningBack ? 6.5f : 14f;
         float flatWidth = receiver.IsRunningBack ? 9f : 7f;
         float postAngle = 7f;
+        float curlStem = receiver.IsRunningBack ? 4f : 7f;
+        float curlReturn = receiver.IsRunningBack ? 1.5f : 2f;
 
         Vector2 stemPoint = start + new Vector2(0, stem);
         Vector2 deepPoint = start + new Vector2(0, deep);
+        Vector2 curlStemPoint = start + new Vector2(0, curlStem);
 
         return receiver.Route switch
         {
@@ -132,7 +151,7 @@ public static class ReceiverAI
             RouteType.Slant => new[] { start, start + new Vector2(3.5f * side, deep) },
             RouteType.Out => new[] { start, deepPoint, deepPoint + new Vector2(6f * side, 0) },
             RouteType.Post => new[] { start, deepPoint, deepPoint + new Vector2(postAngle * -side, postAngle) },
-            RouteType.Curl => new[] { start, stemPoint, stemPoint + new Vector2(0, -3.5f) },
+            RouteType.Curl => new[] { start, curlStemPoint, curlStemPoint + new Vector2(0, -curlReturn) },
             RouteType.Flat => new[] { start, start + new Vector2(flatWidth * side, 2f) },
             _ => new[] { start, deepPoint }
         };

@@ -181,8 +181,16 @@ public sealed class GameSession
 
         Vector2 inputDir = _input.GetMovementDirection();
         bool sprint = _input.IsSprintHeld();
+        Receiver? controlledReceiver = _ball.State == BallState.HeldByReceiver ? _ball.Holder as Receiver : null;
 
-        _qb.ApplyInput(inputDir, sprint, false, dt);
+        if (_ball.State == BallState.HeldByQB)
+        {
+            _qb.ApplyInput(inputDir, sprint, false, dt);
+        }
+        else
+        {
+            _qb.ApplyInput(Vector2.Zero, false, false, dt);
+        }
         _qb.Update(dt);
         ClampToField(_qb);
 
@@ -191,6 +199,15 @@ public sealed class GameSession
             if (receiver.IsBlocking)
             {
                 UpdateBlockingReceiver(receiver, dt);
+                receiver.Update(dt);
+                ClampToField(receiver);
+                continue;
+            }
+
+            if (receiver == controlledReceiver)
+            {
+                float carrierSpeed = sprint ? Constants.ReceiverSpeed * 1.15f : Constants.ReceiverSpeed;
+                receiver.Velocity = inputDir * carrierSpeed;
                 receiver.Update(dt);
                 ClampToField(receiver);
                 continue;
