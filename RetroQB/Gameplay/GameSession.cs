@@ -270,31 +270,55 @@ public sealed class GameSession
     private void SpawnDefenders(float los)
     {
         ResolveCoverageIndices(out int left, out int leftSlot, out int middle, out int rightSlot, out int right);
+        
+        // Determine if zone coverage based on yards to go
+        bool useZone = _playManager.Distance > Constants.ManCoverageDistanceThreshold;
+        
+        // Calculate available depth before end of field (leave 1 yard buffer from back of endzone)
+        float maxY = Constants.FieldLength - 1f;
+        float availableDepth = maxY - los;
+        
+        // Condense formation when near the endzone
+        float depthScale = availableDepth < 18f ? availableDepth / 18f : 1f;
+        depthScale = MathF.Max(depthScale, 0.3f); // Don't compress more than 70%
 
         // Defensive formation: 4-3 with 4 DB
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, los + 2.8f), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -5.0f });
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.46f, los + 2.8f), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -2.0f });
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.54f, los + 2.8f), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 2.0f });
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, los + 2.8f), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 5.0f });
+        float dlDepth = ClampDefenderY(los + 2.8f * depthScale, maxY);
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, dlDepth), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -5.0f });
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.46f, dlDepth), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -2.0f });
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.54f, dlDepth), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 2.0f });
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, dlDepth), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 5.0f });
 
         // Linebackers - each has 10% chance to blitz
         bool lblBlitz = _rng.NextDouble() < 0.10;
         bool mlbBlitz = _rng.NextDouble() < 0.10;
         bool lbrBlitz = _rng.NextDouble() < 0.10;
         
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.38f, los + 6.2f), DefensivePosition.LB) { IsRusher = lblBlitz, CoverageReceiverIndex = leftSlot, ZoneRole = CoverageRole.HookLeft, RushLaneOffsetX = -7.0f }); // LB
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.50f, los + 6.2f), DefensivePosition.LB) { IsRusher = mlbBlitz, CoverageReceiverIndex = middle, ZoneRole = CoverageRole.HookMiddle, RushLaneOffsetX = 0f }); // MLB
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.62f, los + 6.2f), DefensivePosition.LB) { IsRusher = lbrBlitz, CoverageReceiverIndex = rightSlot, ZoneRole = CoverageRole.HookRight, RushLaneOffsetX = 7.0f }); // LB
+        float lbDepth = ClampDefenderY(los + 6.2f * depthScale, maxY);
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.38f, lbDepth), DefensivePosition.LB) { IsRusher = lblBlitz, CoverageReceiverIndex = leftSlot, ZoneRole = CoverageRole.HookLeft, RushLaneOffsetX = -7.0f }); // LB
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.50f, lbDepth), DefensivePosition.LB) { IsRusher = mlbBlitz, CoverageReceiverIndex = middle, ZoneRole = CoverageRole.HookMiddle, RushLaneOffsetX = 0f }); // MLB
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.62f, lbDepth), DefensivePosition.LB) { IsRusher = lbrBlitz, CoverageReceiverIndex = rightSlot, ZoneRole = CoverageRole.HookRight, RushLaneOffsetX = 7.0f }); // LB
 
-        // Press coverage CBs - start close to line of scrimmage, 5% chance to blitz
-        bool leftCbBlitz = _rng.NextDouble() < 0.05;
-        bool rightCbBlitz = _rng.NextDouble() < 0.05;
+        // DB positioning depends on coverage type
+        float baseCbDepth = useZone ? 8.0f : 3.5f;   // Zone: off coverage, Man: press
+        float baseSDepth = useZone ? 16.0f : 13.5f;  // Zone: deeper, Man: normal
+        float cbDepth = ClampDefenderY(los + baseCbDepth * depthScale, maxY);
+        float sDepth = ClampDefenderY(los + baseSDepth * depthScale, maxY);
         
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.18f, los + 3.5f), DefensivePosition.DB) { IsRusher = leftCbBlitz, CoverageReceiverIndex = left, ZoneRole = CoverageRole.FlatLeft, IsPressCoverage = true, RushLaneOffsetX = -10.0f }); // CB (press)
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.82f, los + 3.5f), DefensivePosition.DB) { IsRusher = rightCbBlitz, CoverageReceiverIndex = right, ZoneRole = CoverageRole.FlatRight, IsPressCoverage = true, RushLaneOffsetX = 10.0f }); // CB (press)
-        // Off coverage safeties - start deeper, don't sprint forward immediately
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, los + 13.5f), DefensivePosition.DB) { CoverageReceiverIndex = leftSlot, ZoneRole = CoverageRole.DeepLeft, IsPressCoverage = false }); // S (off)
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, los + 13.5f), DefensivePosition.DB) { CoverageReceiverIndex = rightSlot, ZoneRole = CoverageRole.DeepRight, IsPressCoverage = false }); // S (off)
+        // CBs - 5% chance to blitz only in man coverage (press)
+        bool leftCbBlitz = !useZone && _rng.NextDouble() < 0.05;
+        bool rightCbBlitz = !useZone && _rng.NextDouble() < 0.05;
+        
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.18f, cbDepth), DefensivePosition.DB) { IsRusher = leftCbBlitz, CoverageReceiverIndex = left, ZoneRole = CoverageRole.FlatLeft, IsPressCoverage = !useZone, RushLaneOffsetX = -10.0f }); // CB
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.82f, cbDepth), DefensivePosition.DB) { IsRusher = rightCbBlitz, CoverageReceiverIndex = right, ZoneRole = CoverageRole.FlatRight, IsPressCoverage = !useZone, RushLaneOffsetX = 10.0f }); // CB
+        // Safeties
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, sDepth), DefensivePosition.DB) { CoverageReceiverIndex = leftSlot, ZoneRole = CoverageRole.DeepLeft, IsPressCoverage = false }); // S
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, sDepth), DefensivePosition.DB) { CoverageReceiverIndex = rightSlot, ZoneRole = CoverageRole.DeepRight, IsPressCoverage = false }); // S
+    }
+    
+    private static float ClampDefenderY(float y, float maxY)
+    {
+        return MathF.Min(y, maxY);
     }
 
     private void ResolveCoverageIndices(out int left, out int leftSlot, out int middle, out int rightSlot, out int right)
