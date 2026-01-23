@@ -69,6 +69,20 @@ public static class ReceiverAI
                 route = PickRoute(play.Family, rng);
             }
 
+            if (receiver.IsRunningBack && play.Family != PlayType.QbRunFocus && play.RunningBackRole == RunningBackRole.Route)
+            {
+                route = route switch
+                {
+                    RouteType.Curl => RouteType.Flat,
+                    RouteType.Go => RouteType.Flat,
+                    RouteType.PostDeep => RouteType.Flat,
+                    RouteType.PostShallow => RouteType.Flat,
+                    RouteType.InDeep => RouteType.OutShallow,
+                    RouteType.OutDeep => RouteType.OutShallow,
+                    _ => route
+                };
+            }
+
             receiver.Route = route;
             receiver.SlantInside = true;
             if (receiver.Route == RouteType.Slant && play.TryGetSlantDirection(receiver.Index, out var slantInside))
@@ -170,6 +184,16 @@ public static class ReceiverAI
             case RouteType.Flat:
                 dir = Vector2.Normalize(new Vector2(receiver.RouteSide, 0.25f));
                 break;
+        }
+
+        if (!receiver.IsRunningBack && !receiver.IsTightEnd && dir == Vector2.Zero)
+        {
+            Vector2 scramble = new Vector2(receiver.RouteSide * 0.35f, 0.65f);
+            if (scramble.LengthSquared() > 0.001f)
+            {
+                scramble = Vector2.Normalize(scramble);
+            }
+            dir = scramble;
         }
 
         receiver.Velocity = dir * speed;

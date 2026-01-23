@@ -264,169 +264,164 @@ public sealed class PlayManager
         {
             [PlayType.QuickPass] = new List<PlayDefinition>
             {
+                // Play 1: Quick Slant - Base formation, quick developing slant routes
                 new(
                     "Quick Slant",
                     PlayType.QuickPass,
-                    FormationType.ShotgunTrips,
+                    FormationType.BaseTripsRight,
+                    RunningBackRole.Block,
+                    TightEndRole.Route,
+                    new Dictionary<int, RouteType>
+                    {
+                        [0] = RouteType.Slant,      // WR1 - primary slant
+                        [1] = RouteType.OutShallow, // WR2 - out route
+                        [2] = RouteType.Curl,       // WR3 - curl
+                        [3] = RouteType.Flat        // TE - flat
+                    },
+                    slantDirections: new Dictionary<int, bool>
+                    {
+                        [0] = true  // slant inside
+                    }),
+                // Play 2: Mesh Concept - Pass formation, crossing routes
+                new(
+                    "Mesh",
+                    PlayType.QuickPass,
+                    FormationType.PassSpread,
                     RunningBackRole.Route,
                     TightEndRole.Route,
                     new Dictionary<int, RouteType>
                     {
-                        [0] = RouteType.OutShallow,
-                        [1] = RouteType.Slant,
-                        [2] = RouteType.Curl,
-                        [3] = RouteType.Curl
+                        [0] = RouteType.InShallow,  // WR1 - shallow cross
+                        [1] = RouteType.InShallow,  // WR2 - shallow cross opposite
+                        [2] = RouteType.Curl,       // WR3 - curl
+                        [3] = RouteType.OutShallow, // WR4 - out
+                        [4] = RouteType.Flat        // TE - flat
+                    }),
+                // Play 3: Bunch Quick - Pass bunch formation
+                new(
+                    "Bunch Quick",
+                    PlayType.QuickPass,
+                    FormationType.PassBunch,
+                    RunningBackRole.Route,
+                    TightEndRole.Route,
+                    new Dictionary<int, RouteType>
+                    {
+                        [0] = RouteType.OutShallow, // WR1 isolated - out
+                        [1] = RouteType.Slant,      // WR2 bunch - slant
+                        [2] = RouteType.Flat,       // WR3 bunch - flat
+                        [3] = RouteType.Curl,       // WR4 bunch - curl
+                        [4] = RouteType.InShallow   // TE - drag
                     },
                     slantDirections: new Dictionary<int, bool>
                     {
                         [1] = true
-                    }),
-                new(
-                    "Smash",
-                    PlayType.QuickPass,
-                    FormationType.Bunch,
-                    RunningBackRole.Route,
-                    TightEndRole.Route,
-                    new Dictionary<int, RouteType>
-                    {
-                        [0] = RouteType.OutDeep,
-                        [1] = RouteType.Curl,
-                        [2] = RouteType.Slant,
-                        [3] = RouteType.OutShallow
-                    },
-                    slantDirections: new Dictionary<int, bool>
-                    {
-                        [2] = false
-                    }),
-                new(
-                    "Mesh",
-                    PlayType.QuickPass,
-                    FormationType.Spread,
-                    RunningBackRole.Route,
-                    TightEndRole.Route,
-                    new Dictionary<int, RouteType>
-                    {
-                        [0] = RouteType.InShallow,
-                        [1] = RouteType.InDeep,
-                        [2] = RouteType.Curl,
-                        [3] = RouteType.Curl
                     })
             },
             [PlayType.LongPass] = new List<PlayDefinition>
             {
+                // Play 4: Four Verticals - Pass spread, all go routes
+                new(
+                    "Four Verts",
+                    PlayType.LongPass,
+                    FormationType.PassSpread,
+                    RunningBackRole.Route,
+                    TightEndRole.Route,
+                    new Dictionary<int, RouteType>
+                    {
+                        [0] = RouteType.Go,     // WR1 - go
+                        [1] = RouteType.Go,     // WR2 - go
+                        [2] = RouteType.Go,     // WR3 - go
+                        [3] = RouteType.Go,     // WR4 - go
+                        [4] = RouteType.Go      // TE - seam
+                    }),
+                // Play 5: Deep Post - Base formation, deep developing
                 new(
                     "Deep Post",
                     PlayType.LongPass,
-                    FormationType.Spread,
-                    RunningBackRole.Route,
+                    FormationType.BaseTripsLeft,
+                    RunningBackRole.Block,
                     TightEndRole.Route,
                     new Dictionary<int, RouteType>
                     {
-                        [0] = RouteType.Go,
-                        [1] = RouteType.PostDeep,
-                        [2] = RouteType.OutShallow,
-                        [3] = RouteType.Curl
+                        [0] = RouteType.PostDeep,   // WR1 - deep post
+                        [1] = RouteType.Go,         // WR2 - go
+                        [2] = RouteType.OutDeep,    // WR3 - out
+                        [3] = RouteType.InDeep      // TE - seam
                     }),
+                // Play 6: Flood - Pass empty, flood one side
                 new(
-                    "Levels",
+                    "Flood",
                     PlayType.LongPass,
-                    FormationType.Spread,
+                    FormationType.PassEmpty,
                     RunningBackRole.Route,
                     TightEndRole.Route,
                     new Dictionary<int, RouteType>
                     {
-                        [0] = RouteType.InDeep,
-                        [1] = RouteType.InShallow,
-                        [2] = RouteType.Curl,
-                        [3] = RouteType.Curl
+                        [0] = RouteType.Go,         // WR1 - go deep
+                        [1] = RouteType.OutDeep,    // WR2 - corner/out deep
+                        [2] = RouteType.OutShallow, // WR3 - out shallow
+                        [3] = RouteType.Curl,       // WR4 - curl
+                        [4] = RouteType.Flat        // TE - flat
                     }),
+                // Play 7: Smash - Base formation, hi-lo concept
                 new(
-                    "Slant Go",
+                    "Smash",
                     PlayType.LongPass,
-                    FormationType.Slot,
-                    RunningBackRole.Route,
+                    FormationType.BaseSplit,
+                    RunningBackRole.Block,
                     TightEndRole.Route,
                     new Dictionary<int, RouteType>
                     {
-                        [0] = RouteType.Go,
-                        [1] = RouteType.PostDeep,
-                        [2] = RouteType.Slant,
-                        [3] = RouteType.Curl
-                    },
-                    slantDirections: new Dictionary<int, bool>
-                    {
-                        [2] = false
+                        [0] = RouteType.Curl,       // WR1 - hitch
+                        [1] = RouteType.OutDeep,    // WR2 - corner
+                        [2] = RouteType.Go,         // WR3 - clear out
+                        [3] = RouteType.InShallow   // TE - drag
                     })
             },
             [PlayType.QbRunFocus] = new List<PlayDefinition>
             {
+                // Play 8: Power Right - Run formation
                 new(
-                    "RB Inside Zone",
+                    "Power Right",
                     PlayType.QbRunFocus,
-                    FormationType.Shotgun,
+                    FormationType.RunPowerRight,
                     RunningBackRole.Route,
                     TightEndRole.Block,
                     new Dictionary<int, RouteType>
                     {
-                        [0] = RouteType.Go,
-                        [1] = RouteType.Go,
-                        [2] = RouteType.Curl,
-                        [3] = RouteType.Curl
+                        [0] = RouteType.Go,         // WR - clear out
+                        [1] = RouteType.OutShallow  // RB - swing right
                     },
-                    runningBackSide: 0),
+                    runningBackSide: 1),
+                // Play 9: Power Left - Run formation
                 new(
-                    "RB Power Right",
+                    "Power Left",
                     PlayType.QbRunFocus,
-                    FormationType.Pistol,
+                    FormationType.RunPowerLeft,
                     RunningBackRole.Route,
-                    TightEndRole.Route,
+                    TightEndRole.Block,
                     new Dictionary<int, RouteType>
                     {
-                        [0] = RouteType.Slant,
-                        [1] = RouteType.Go,
-                        [2] = RouteType.OutShallow,
-                        [3] = RouteType.OutShallow
+                        [0] = RouteType.Go,         // WR - clear out
+                        [1] = RouteType.OutShallow  // RB - swing left
                     },
-                    runningBackSide: 1,
-                    slantDirections: new Dictionary<int, bool>
-                    {
-                        [0] = true
-                    }),
+                    runningBackSide: -1),
+                // Play 10: I-Form Dive - Run I-formation
                 new(
-                    "RB Sweep Left",
+                    "I-Form Dive",
                     PlayType.QbRunFocus,
-                    FormationType.Trips,
+                    FormationType.RunIForm,
                     RunningBackRole.Route,
-                    TightEndRole.Route,
+                    TightEndRole.Block,
                     new Dictionary<int, RouteType>
                     {
-                        [0] = RouteType.Slant,
-                        [1] = RouteType.Go,
-                        [2] = RouteType.Curl,
-                        [3] = RouteType.OutShallow
-                    },
-                    runningBackSide: -1,
-                    slantDirections: new Dictionary<int, bool>
-                    {
-                        [0] = false
-                    }),
-                new(
-                    "RB Draw",
-                    PlayType.QbRunFocus,
-                    FormationType.Spread,
-                    RunningBackRole.Route,
-                    TightEndRole.Route,
-                    new Dictionary<int, RouteType>
-                    {
-                        [0] = RouteType.Go,
-                        [1] = RouteType.Curl,
-                        [2] = RouteType.Slant,
-                        [3] = RouteType.Curl
+                        [0] = RouteType.Slant,      // WR - slant to clear
+                        [1] = RouteType.Go          // RB - straight ahead
                     },
                     runningBackSide: 0,
                     slantDirections: new Dictionary<int, bool>
                     {
-                        [2] = true
+                        [0] = true
                     })
             }
         };

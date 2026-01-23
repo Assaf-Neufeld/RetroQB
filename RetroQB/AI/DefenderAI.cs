@@ -90,17 +90,61 @@ public static class DefenderAI
     private static Vector2 GetZoneTarget(Defender defender, IReadOnlyList<Receiver> receivers, float los)
     {
         Vector2 baseTarget = GetZoneAnchor(defender, los);
+        if (defender.ZoneRole is CoverageRole.DeepLeft or CoverageRole.DeepRight)
+        {
+            baseTarget = new Vector2(baseTarget.X, GetDeepZoneDepth(defender, receivers, los));
+        }
         if (TryGetZoneMatch(defender, receivers, los, out var match))
         {
             if (defender.ZoneRole is CoverageRole.DeepLeft or CoverageRole.DeepRight)
             {
-                return new Vector2(match.Position.X, match.Position.Y + Constants.ZoneDeepCushion);
+                float targetY = MathF.Max(match.Position.Y + Constants.ZoneDeepCushion, baseTarget.Y);
+                return new Vector2(match.Position.X, targetY);
             }
 
             return match.Position;
         }
 
         return baseTarget;
+    }
+
+    private static float GetDeepZoneDepth(Defender defender, IReadOnlyList<Receiver> receivers, float los)
+    {
+        ZoneBounds bounds = GetZoneBounds(defender.ZoneRole, los);
+        float deepest = float.NegativeInfinity;
+
+        foreach (var receiver in receivers)
+        {
+            if (!receiver.Eligible || receiver.IsBlocking)
+            {
+                continue;
+            }
+
+            if (receiver.Position.X < bounds.XMin || receiver.Position.X > bounds.XMax)
+            {
+                continue;
+            }
+
+            if (receiver.Position.Y < los)
+            {
+                continue;
+            }
+
+            if (receiver.Position.Y > deepest)
+            {
+                deepest = receiver.Position.Y;
+            }
+        }
+
+        float baseDepth = los + Constants.ZoneCoverageDepthDb;
+        float targetDepth = baseDepth;
+        if (deepest > float.NegativeInfinity)
+        {
+            targetDepth = MathF.Max(baseDepth, deepest + Constants.ZoneDeepCushion);
+        }
+
+        float maxFieldY = Constants.EndZoneDepth + 100f - 0.5f;
+        return MathF.Min(targetDepth, maxFieldY);
     }
 
     private static bool TryGetZoneMatch(Defender defender, IReadOnlyList<Receiver> receivers, float los, out Receiver match)

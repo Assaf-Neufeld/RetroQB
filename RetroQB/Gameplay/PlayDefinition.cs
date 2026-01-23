@@ -14,19 +14,27 @@ public enum TightEndRole
     Route
 }
 
+/// <summary>
+/// Base: 3 WR, 1 RB, 1 TE (5 skill + 5 OL)
+/// Pass: 4 WR, 1 TE (5 skill + 5 OL)  
+/// Run: 1 WR, 1 TE, 1 RB (3 skill + 7 OL)
+/// </summary>
 public enum FormationType
 {
-    SinglebackTrips,
-    SpreadFour,
-    Twins,
-    Heavy,
-    ShotgunTrips,
-    Bunch,
-    Spread,
-    Slot,
-    Shotgun,
-    Pistol,
-    Trips
+    // Base formations: 3 WR, 1 RB, 1 TE
+    BaseTripsRight,    // 3 WR trips right, TE left, RB in backfield
+    BaseTripsLeft,     // 3 WR trips left, TE right, RB in backfield
+    BaseSplit,         // 2 WR left, 1 WR right, TE right, RB in backfield
+
+    // Pass formations: 4 WR, 1 TE
+    PassSpread,        // 4 WR spread wide, TE inline
+    PassBunch,         // 3 WR bunched, 1 WR isolated, TE inline
+    PassEmpty,         // 4 WR spread, TE detached as receiver
+
+    // Run formations: 1 WR, 1 TE, 1 RB (heavy with extra OL)
+    RunPowerRight,     // WR left, TE right, RB offset right
+    RunPowerLeft,      // WR right, TE left, RB offset left
+    RunIForm           // WR split, TE inline, RB directly behind QB
 }
 
 public sealed class PlayDefinition

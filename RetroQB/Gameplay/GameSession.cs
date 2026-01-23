@@ -56,12 +56,19 @@ public sealed class GameSession
         _priorityReceiverIndices.Clear();
 
         float los = _playManager.LineOfScrimmage;
-        _qb = new Quarterback(new Vector2(Constants.FieldWidth / 2f, los - 1.6f));
+        _qb = new Quarterback(new Vector2(Constants.FieldWidth / 2f, ClampFormationY(los, 1.6f)));
         _ball = new Ball(_qb.Position);
         _ball.SetHeld(_qb, BallState.HeldByQB);
 
         var formation = _playManager.SelectedPlay.Formation;
-        AddFormation(formation, los);
+        if (_playManager.SelectedPlayFamily == PlayType.QbRunFocus)
+        {
+            AddRunFormation(los, _playManager.SelectedPlay.RunningBackSide);
+        }
+        else
+        {
+            AddFormation(formation, los);
+        }
 
         SpawnDefenders(los);
         ReceiverAI.AssignRoutes(_receivers, _playManager.SelectedPlay, _rng);
@@ -70,91 +77,133 @@ public sealed class GameSession
 
     private static readonly float[] BaseLineX = { 0.42f, 0.46f, 0.50f, 0.54f, 0.58f };
 
+    private static float ClampFormationY(float los, float offset)
+    {
+        float y = los - offset;
+        return MathF.Max(0.6f, y);
+    }
+
     private void AddFormation(FormationType formation, float los)
     {
         // All receivers must be on or behind the LOS (los - offset means behind)
         switch (formation)
         {
-            case FormationType.ShotgunTrips:
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.62f, los - 1.0f)); // R1
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.78f, los - 0.6f)); // R2
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.90f, los - 0.3f)); // R3
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 4.6f), isRunningBack: true); // RB
-                AddBaseLine(los, addExtra: false);
+            // ============================================
+            // BASE FORMATIONS: 3 WR, 1 TE, 1 RB (5 skill + 5 OL)
+            // ============================================
+            case FormationType.BaseTripsRight:
+                // 3 WR trips to the right, TE on left, RB in backfield
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.12f, ClampFormationY(los, 0.3f)));              // WR1 - X receiver left
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.72f, ClampFormationY(los, 1.0f)));              // WR2 - slot right
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.88f, ClampFormationY(los, 0.3f)));              // WR3 - Z receiver far right
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.38f, ClampFormationY(los, 0.05f)), isTightEnd: true);  // TE - inline left
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 5.0f)), isRunningBack: true); // RB - backfield
+                AddBaseLine(los, extraCount: 0); // 5 OL
                 break;
-            case FormationType.Bunch:
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.64f, los - 0.5f)); // R1
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.70f, los - 1.1f)); // R2
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.76f, los - 0.2f)); // R3
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 4.8f), isRunningBack: true); // RB
-                AddBaseLine(los, addExtra: false);
+
+            case FormationType.BaseTripsLeft:
+                // 3 WR trips to the left, TE on right, RB in backfield
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.12f, ClampFormationY(los, 0.3f)));              // WR1 - X receiver far left
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.28f, ClampFormationY(los, 1.0f)));              // WR2 - slot left
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.88f, ClampFormationY(los, 0.3f)));              // WR3 - Z receiver right
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.62f, ClampFormationY(los, 0.05f)), isTightEnd: true);  // TE - inline right
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 5.0f)), isRunningBack: true); // RB - backfield
+                AddBaseLine(los, extraCount: 0); // 5 OL
                 break;
-            case FormationType.Spread:
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.18f, los - 0.3f)); // R1
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.34f, los - 1.0f)); // R2
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.82f, los - 0.3f)); // R3
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 5.2f), isRunningBack: true); // RB
-                AddBaseLine(los, addExtra: false);
+
+            case FormationType.BaseSplit:
+                // 2 WR left, 1 WR right, TE right, RB in backfield
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.10f, ClampFormationY(los, 0.3f)));              // WR1 - X receiver far left
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.26f, ClampFormationY(los, 1.0f)));              // WR2 - slot left
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.90f, ClampFormationY(los, 0.3f)));              // WR3 - Z receiver far right
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.64f, ClampFormationY(los, 0.05f)), isTightEnd: true);  // TE - inline right
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 5.0f)), isRunningBack: true); // RB - backfield
+                AddBaseLine(los, extraCount: 0); // 5 OL
                 break;
-            case FormationType.Slot:
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.16f, los - 0.3f)); // R1
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.66f, los - 1.0f)); // R2
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.86f, los - 0.3f)); // R3
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 5.0f), isRunningBack: true); // RB
-                AddBaseLine(los, addExtra: false);
+
+            // ============================================
+            // PASS FORMATIONS: 4 WR, 1 TE (5 skill + 5 OL)
+            // ============================================
+            case FormationType.PassSpread:
+                // 4 WR spread wide, TE inline
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.08f, ClampFormationY(los, 0.3f)));              // WR1 - X far left
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.26f, ClampFormationY(los, 1.0f)));              // WR2 - slot left
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.74f, ClampFormationY(los, 1.0f)));              // WR3 - slot right
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.92f, ClampFormationY(los, 0.3f)));              // WR4 - Z far right
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.62f, ClampFormationY(los, 0.05f)), isTightEnd: true);  // TE - inline right
+                AddBaseLine(los, extraCount: 0); // 5 OL
                 break;
-            case FormationType.Shotgun:
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.18f, los - 0.3f)); // R1
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.34f, los - 1.0f)); // R2
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.82f, los - 0.3f)); // R3
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 4.4f), isRunningBack: true); // RB
-                AddBaseLine(los, addExtra: false);
+
+            case FormationType.PassBunch:
+                // 1 WR isolated left, 3 WR bunched right, TE inline left
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.10f, ClampFormationY(los, 0.3f)));              // WR1 - X isolated left
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.72f, ClampFormationY(los, 0.3f)));              // WR2 - bunch point
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.78f, ClampFormationY(los, 1.2f)));              // WR3 - bunch wing
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.84f, ClampFormationY(los, 0.6f)));              // WR4 - bunch flat
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.36f, ClampFormationY(los, 0.05f)), isTightEnd: true);  // TE - inline left
+                AddBaseLine(los, extraCount: 0); // 5 OL
                 break;
-            case FormationType.Pistol:
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.18f, los - 0.3f)); // R1
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.82f, los - 0.3f)); // R2
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.62f, los - 0.05f), isTightEnd: true); // R3 (TE)
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 3.8f), isRunningBack: true); // RB
-                AddBaseLine(los, addExtra: false);
+
+            case FormationType.PassEmpty:
+                // 4 WR spread, TE detached as receiver (no RB)
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.06f, ClampFormationY(los, 0.3f)));              // WR1 - X far left
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.24f, ClampFormationY(los, 1.0f)));              // WR2 - slot left
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.76f, ClampFormationY(los, 1.0f)));              // WR3 - slot right
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.94f, ClampFormationY(los, 0.3f)));              // WR4 - Z far right
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 1.5f)), isTightEnd: true);   // TE - flexed out middle
+                AddBaseLine(los, extraCount: 0); // 5 OL
                 break;
-            case FormationType.Trips:
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.12f, los - 0.3f)); // R1
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.28f, los - 1.0f)); // R2
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.34f, los - 0.4f)); // R3
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 5.0f), isRunningBack: true); // RB
-                AddBaseLine(los, addExtra: false);
+
+            // ============================================
+            // RUN FORMATIONS: 1 WR, 1 TE, 1 RB (3 skill + 7 OL)
+            // ============================================
+            case FormationType.RunPowerRight:
+                // WR left, TE right (blocking), RB offset right
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.10f, ClampFormationY(los, 0.3f)));              // WR - X far left
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.55f, ClampFormationY(los, 4.0f)), isRunningBack: true); // RB - offset right
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.66f, ClampFormationY(los, 0.05f)), isTightEnd: true);  // TE - inline right (blocking)
+                AddBaseLine(los, extraCount: 2); // 7 OL (5 base + 2 extra)
                 break;
-            case FormationType.SpreadFour:
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.10f, los - 0.3f)); // X WR
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.28f, los - 1.0f)); // Slot L
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.72f, los - 1.0f)); // Slot R
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.90f, los - 0.3f)); // Z WR
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 5.4f), isRunningBack: true); // RB
-                AddBaseLine(los, addExtra: false);
+
+            case FormationType.RunPowerLeft:
+                // WR right, TE left (blocking), RB offset left
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.90f, ClampFormationY(los, 0.3f)));              // WR - Z far right
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.45f, ClampFormationY(los, 4.0f)), isRunningBack: true); // RB - offset left
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.34f, ClampFormationY(los, 0.05f)), isTightEnd: true);  // TE - inline left (blocking)
+                AddBaseLine(los, extraCount: 2); // 7 OL (5 base + 2 extra)
                 break;
-            case FormationType.Twins:
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.14f, los - 0.3f)); // X WR
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.86f, los - 0.3f)); // Z WR
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.66f, los - 0.05f), isTightEnd: true); // TE inline
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 5.2f), isRunningBack: true); // RB
-                AddBaseLine(los, addExtra: false);
+
+            case FormationType.RunIForm:
+                // WR split out, TE inline, RB directly behind QB
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.12f, ClampFormationY(los, 0.3f)));              // WR - X split left
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 3.5f)), isRunningBack: true); // RB - I-form directly behind QB
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.64f, ClampFormationY(los, 0.05f)), isTightEnd: true);  // TE - inline right (blocking)
+                AddBaseLine(los, extraCount: 2); // 7 OL (5 base + 2 extra)
                 break;
-            case FormationType.Heavy:
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.16f, los - 0.3f)); // X WR
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.68f, los - 0.05f), isTightEnd: true); // TE inline
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.52f, los - 5.4f), isRunningBack: true); // RB
-                AddBaseLine(los, addExtra: true);
-                break;
+
             default:
-                // SinglebackTrips
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.12f, los - 0.3f)); // X WR (left)
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.30f, los - 1.0f)); // Slot (left)
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.88f, los - 0.3f)); // Z WR (right)
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.70f, los - 0.05f), isTightEnd: true); // TE (right)
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 5.2f), isRunningBack: true); // RB
-                AddBaseLine(los, addExtra: false);
+                // Default to BaseTripsRight
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.12f, ClampFormationY(los, 0.3f)));
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.72f, ClampFormationY(los, 1.0f)));
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.88f, ClampFormationY(los, 0.3f)));
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.38f, ClampFormationY(los, 0.05f)), isTightEnd: true);
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 5.0f)), isRunningBack: true);
+                AddBaseLine(los, extraCount: 0);
                 break;
         }
+    }
+
+    private void AddRunFormation(float los, int runningBackSide)
+    {
+        // Run formations are now handled in AddFormation via RunPowerRight, RunPowerLeft, RunIForm
+        // This method is kept for backward compatibility but delegates to appropriate formation
+        var formation = runningBackSide switch
+        {
+            1 => FormationType.RunPowerRight,
+            -1 => FormationType.RunPowerLeft,
+            _ => FormationType.RunIForm
+        };
+        AddFormation(formation, los);
     }
 
     private void AddReceiver(Vector2 position, bool isRunningBack = false, bool isTightEnd = false)
@@ -162,16 +211,22 @@ public sealed class GameSession
         _receivers.Add(new Receiver(_receivers.Count, position, isRunningBack, isTightEnd));
     }
 
-    private void AddBaseLine(float los, bool addExtra)
+    private void AddBaseLine(float los, int extraCount)
     {
+        // Base 5 OL positions
         foreach (float x in BaseLineX)
         {
             _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * x, los - 0.1f)));
         }
 
-        if (addExtra)
+        // Add extra OL for run formations (positions 6 and 7)
+        if (extraCount >= 1)
         {
-            _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.62f, los - 0.1f)));
+            _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.36f, los - 0.1f))); // Extra OL left
+        }
+        if (extraCount >= 2)
+        {
+            _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.64f, los - 0.1f))); // Extra OL right
         }
     }
 
@@ -710,8 +765,8 @@ public sealed class GameSession
         bool isRunPlay = _playManager.SelectedPlayFamily == PlayType.QbRunFocus;
         float los = _playManager.LineOfScrimmage;
         int runSide = Math.Sign(_playManager.SelectedPlay.RunningBackSide);
-        float lateralPush = isRunPlay && runSide != 0 ? runSide * 2.2f : 0f;
-        float targetY = isRunPlay ? los + 1.6f : los - 1.4f;
+        float lateralPush = isRunPlay && runSide != 0 ? runSide * 2.8f : 0f;
+        float targetY = isRunPlay ? los + 2.4f : los - 1.4f;
 
         foreach (var blocker in _blockers)
         {
@@ -735,6 +790,15 @@ public sealed class GameSession
                 {
                     baseVelocity += new Vector2(0f, blocker.Speed * 0.45f);
                 }
+                if (isRunPlay)
+                {
+                    Vector2 driveDir = new Vector2(runSide * 0.2f, 1f);
+                    if (driveDir.LengthSquared() > 0.001f)
+                    {
+                        driveDir = Vector2.Normalize(driveDir);
+                    }
+                    baseVelocity += driveDir * (blocker.Speed * 0.25f);
+                }
                 blocker.Velocity = baseVelocity;
 
                 float contactRange = blocker.Radius + target.Radius + (runBlockingBoost ? 1.0f : 0.6f);
@@ -750,6 +814,15 @@ public sealed class GameSession
                     float holdStrength = runBlockingBoost ? Constants.BlockHoldStrength * 1.6f : Constants.BlockHoldStrength;
                     float overlapBoost = runBlockingBoost ? 9f : 6f;
                     target.Position += pushDir * (holdStrength + overlap * overlapBoost) * dt;
+                    if (isRunPlay)
+                    {
+                        Vector2 driveDir = new Vector2(runSide * 0.2f, 1f);
+                        if (driveDir.LengthSquared() > 0.001f)
+                        {
+                            driveDir = Vector2.Normalize(driveDir);
+                        }
+                        target.Position += driveDir * (runBlockingBoost ? 0.9f : 0.6f) * dt;
+                    }
                     target.Velocity *= runBlockingBoost ? 0.05f : 0.15f;
                     blocker.Velocity *= 0.25f;
                 }
@@ -764,6 +837,10 @@ public sealed class GameSession
 
                 float anchorSpeed = isRunPlay ? blocker.Speed * 0.85f : blocker.Speed * 0.7f;
                 blocker.Velocity = toAnchor * anchorSpeed;
+                if (isRunPlay)
+                {
+                    blocker.Velocity += new Vector2(0f, blocker.Speed * 0.2f);
+                }
 
                 if (closeToAnchor)
                 {
@@ -1040,7 +1117,7 @@ public sealed class GameSession
         bool isRunPlay = _playManager.SelectedPlayFamily == PlayType.QbRunFocus;
         float los = _playManager.LineOfScrimmage;
         int runSide = Math.Sign(_playManager.SelectedPlay.RunningBackSide);
-        float lateralPush = isRunPlay && runSide != 0 ? runSide * 2.2f : 0f;
+        float lateralPush = isRunPlay && runSide != 0 ? runSide * 2.8f : 0f;
         float targetY = isRunPlay ? los + 1.6f : los - 1.4f;
 
         foreach (var blocker in _blockers)
