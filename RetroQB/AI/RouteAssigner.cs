@@ -1,0 +1,145 @@
+using RetroQB.Entities;
+using RetroQB.Gameplay;
+using RetroQB.Core;
+
+namespace RetroQB.AI;
+
+/// <summary>
+/// Handles assigning routes to receivers based on play definitions.
+/// </summary>
+public static class RouteAssigner
+{
+    public static void AssignRoutes(IReadOnlyList<Receiver> receivers, PlayDefinition play, Random rng)
+    {
+        foreach (var receiver in receivers)
+        {
+            InitializeReceiver(receiver);
+            AssignRouteSide(receiver, play, rng);
+
+            if (TryAssignBlockingRole(receiver, play))
+            {
+                continue;
+            }
+
+            AssignRoute(receiver, play, rng);
+        }
+    }
+
+    private static void InitializeReceiver(Receiver receiver)
+    {
+        receiver.RouteStart = receiver.Position;
+        receiver.RouteProgress = 0f;
+        receiver.HasBall = false;
+        receiver.Eligible = true;
+        receiver.IsBlocking = false;
+    }
+
+    private static void AssignRouteSide(Receiver receiver, PlayDefinition play, Random rng)
+    {
+        receiver.RouteSide = receiver.Position.X < Constants.FieldWidth * 0.5f ? -1 : 1;
+
+        if (receiver.IsRunningBack)
+        {
+            if (play.RunningBackSide != 0)
+            {
+                receiver.RouteSide = Math.Sign(play.RunningBackSide);
+            }
+            else if (play.Family == PlayType.QbRunFocus)
+            {
+                receiver.RouteSide = 0;
+            }
+            else
+            {
+                receiver.RouteSide = rng.Next(0, 2) == 0 ? -1 : 1;
+            }
+        }
+    }
+
+    private static bool TryAssignBlockingRole(Receiver receiver, PlayDefinition play)
+    {
+        if (receiver.IsRunningBack && play.RunningBackRole == RunningBackRole.Block)
+        {
+            SetAsBlocker(receiver);
+            return true;
+        }
+
+        if (receiver.IsTightEnd && play.TightEndRole == TightEndRole.Block)
+        {
+            SetAsBlocker(receiver);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static void SetAsBlocker(Receiver receiver)
+    {
+        receiver.Eligible = false;
+        receiver.IsBlocking = true;
+        receiver.Route = RouteType.Flat;
+    }
+
+    private static void AssignRoute(Receiver receiver, PlayDefinition play, Random rng)
+    {
+        if (!play.TryGetRoute(receiver.Index, out var route))
+        {
+            route = PickRoute(play.Family, rng);
+        }
+
+        route = AdjustRouteForRunningBack(receiver, play, route);
+
+        receiver.Route = route;
+        receiver.SlantInside = true;
+
+        if (receiver.Route == RouteType.Slant && play.TryGetSlantDirection(receiver.Index, out var slantInside))
+        {
+            receiver.SlantInside = slantInside;
+        }
+    }
+
+    private static RouteType AdjustRouteForRunningBack(Receiver receiver, PlayDefinition play, RouteType route)
+    {
+        if (!receiver.IsRunningBack || play.Family == PlayType.QbRunFocus || play.RunningBackRole != RunningBackRole.Route)
+        {
+            return route;
+        }
+
+        return route switch
+        {
+            RouteType.Curl => RouteType.Flat,
+            RouteType.Go => RouteType.Flat,
+            RouteType.PostDeep => RouteType.Flat,
+            RouteType.PostShallow => RouteType.Flat,
+            RouteType.InDeep => RouteType.OutShallow,
+            RouteType.OutDeep => RouteType.OutShallow,
+            _ => route
+        };
+    }
+
+    private static RouteType PickRoute(PlayType playType, Random rng)
+    {
+        int roll = rng.Next(100);
+        return playType switch
+        {
+            PlayType.QuickPass => PickQuickPassRoute(roll),
+            PlayType.LongPass => PickLongPassRoute(roll),
+            PlayType.QbRunFocus => PickQbRunFocusRoute(roll),
+            _ => RouteType.Go
+        };
+    }
+
+    private static RouteType PickQuickPassRoute(int roll) =>
+        roll < 30 ? RouteType.Slant :
+        roll < 55 ? RouteType.OutShallow :
+        roll < 80 ? RouteType.InShallow :
+        RouteType.Curl;
+
+    private static RouteType PickLongPassRoute(int roll) =>
+        roll < 35 ? RouteType.Go :
+        roll < 65 ? RouteType.PostDeep :
+        roll < 85 ? RouteType.InDeep :
+        RouteType.OutDeep;
+
+    private static RouteType PickQbRunFocusRoute(int roll) =>
+        roll < 50 ? RouteType.OutShallow : RouteType.Flat;
+}
