@@ -31,6 +31,7 @@ public sealed class Defender : Entity
     public int CoverageReceiverIndex { get; set; } = -1;
     public bool HasBall { get; set; }
     public CoverageRole ZoneRole { get; set; } = CoverageRole.None;
+    public float RushLaneOffsetX { get; set; }
 
     public Defender(Vector2 position, DefensivePosition role) : base(position, Constants.DefenderRadius, role.ToString(), Palette.Red)
     {

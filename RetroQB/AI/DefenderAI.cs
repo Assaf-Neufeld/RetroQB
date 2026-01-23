@@ -44,7 +44,10 @@ public static class DefenderAI
         }
         else if (defender.IsRusher)
         {
-            target = qb.Position;
+            float stuntBlend = Math.Clamp((defender.Position.Y - (lineOfScrimmage + 1.0f)) / 4.5f, 0f, 1f);
+            float lateralOffset = defender.RushLaneOffsetX * (0.55f + 0.45f * stuntBlend);
+            float closeIn = defender.RushLaneOffsetX * -0.35f * (1f - stuntBlend);
+            target = qb.Position + new Vector2(lateralOffset + closeIn, 0f);
         }
         else if (useZoneCoverage && defender.ZoneRole != CoverageRole.None)
         {
@@ -76,13 +79,13 @@ public static class DefenderAI
 
         return defender.ZoneRole switch
         {
-            CoverageRole.DeepLeft => new Vector2(Constants.FieldWidth * 0.25f, los + depth),
-            CoverageRole.DeepRight => new Vector2(Constants.FieldWidth * 0.75f, los + depth),
-            CoverageRole.FlatLeft => new Vector2(Constants.FieldWidth * 0.18f, los + depth),
-            CoverageRole.FlatRight => new Vector2(Constants.FieldWidth * 0.82f, los + depth),
-            CoverageRole.HookLeft => new Vector2(Constants.FieldWidth * 0.38f, los + depth),
-            CoverageRole.HookMiddle => new Vector2(Constants.FieldWidth * 0.50f, los + depth),
-            CoverageRole.HookRight => new Vector2(Constants.FieldWidth * 0.62f, los + depth),
+            CoverageRole.DeepLeft => new Vector2(Constants.FieldWidth * 0.30f, los + Constants.ZoneCoverageDepthDb),
+            CoverageRole.DeepRight => new Vector2(Constants.FieldWidth * 0.70f, los + Constants.ZoneCoverageDepthDb),
+            CoverageRole.FlatLeft => new Vector2(Constants.FieldWidth * 0.12f, los + Constants.ZoneCoverageDepthFlat),
+            CoverageRole.FlatRight => new Vector2(Constants.FieldWidth * 0.88f, los + Constants.ZoneCoverageDepthFlat),
+            CoverageRole.HookLeft => new Vector2(Constants.FieldWidth * 0.38f, los + Constants.ZoneCoverageDepth),
+            CoverageRole.HookMiddle => new Vector2(Constants.FieldWidth * 0.50f, los + Constants.ZoneCoverageDepth),
+            CoverageRole.HookRight => new Vector2(Constants.FieldWidth * 0.62f, los + Constants.ZoneCoverageDepth),
             _ => new Vector2(Constants.FieldWidth * 0.50f, los + depth)
         };
     }

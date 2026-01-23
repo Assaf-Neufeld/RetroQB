@@ -50,42 +50,111 @@ public sealed class GameSession
         _ball = new Ball(_qb.Position);
         _ball.SetHeld(_qb, BallState.HeldByQB);
 
-        // Offensive formation: Singleback with TE, 3WR (2 wide + slot), RB
-        // All receivers must be on or behind the LOS (los - offset means behind)
-        _receivers.Add(new Receiver(0, new Vector2(Constants.FieldWidth * 0.15f, los - 0.3f))); // X WR (left)
-        _receivers.Add(new Receiver(1, new Vector2(Constants.FieldWidth * 0.32f, los - 1.0f))); // Slot (left)
-        _receivers.Add(new Receiver(2, new Vector2(Constants.FieldWidth * 0.85f, los - 0.3f))); // Z WR (right)
-        _receivers.Add(new Receiver(3, new Vector2(Constants.FieldWidth * 0.66f, los - 0.1f))); // TE (right)
-        _receivers.Add(new Receiver(4, new Vector2(Constants.FieldWidth * 0.50f, los - 3.5f), isRunningBack: true)); // RB
-
-        // Offensive line: LT, LG, C, RG, RT
-        _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.42f, los - 0.1f)));
-        _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.47f, los - 0.1f)));
-        _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.50f, los - 0.1f)));
-        _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.53f, los - 0.1f)));
-        _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.58f, los - 0.1f)));
+        var formation = _playManager.SelectedPlay.Formation;
+        AddFormation(formation, los);
 
         SpawnDefenders(los);
         ReceiverAI.AssignRoutes(_receivers, _playManager.SelectedPlay, _rng);
         SelectFirstEligibleReceiver();
     }
 
+    private static readonly float[] BaseLineX = { 0.42f, 0.47f, 0.50f, 0.53f, 0.58f };
+
+    private void AddFormation(FormationType formation, float los)
+    {
+        // All receivers must be on or behind the LOS (los - offset means behind)
+        switch (formation)
+        {
+            case FormationType.SpreadFour:
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.12f, los - 0.3f)); // X WR
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.30f, los - 1.0f)); // Slot L
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.70f, los - 1.0f)); // Slot R
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.88f, los - 0.3f)); // Z WR
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 3.8f), isRunningBack: true); // RB
+                AddBaseLine(los, addExtra: false);
+                break;
+            case FormationType.Twins:
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.18f, los - 0.3f)); // X WR
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.82f, los - 0.3f)); // Z WR
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.62f, los - 0.05f), isTightEnd: true); // TE inline
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 3.6f), isRunningBack: true); // RB
+                AddBaseLine(los, addExtra: false);
+                break;
+            case FormationType.Heavy:
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.20f, los - 0.3f)); // X WR
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.64f, los - 0.05f), isTightEnd: true); // TE inline
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.52f, los - 3.9f), isRunningBack: true); // RB
+                AddBaseLine(los, addExtra: true);
+                break;
+            default:
+                // SinglebackTrips
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.15f, los - 0.3f)); // X WR (left)
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.32f, los - 1.0f)); // Slot (left)
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.85f, los - 0.3f)); // Z WR (right)
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.66f, los - 0.05f), isTightEnd: true); // TE (right)
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 3.5f), isRunningBack: true); // RB
+                AddBaseLine(los, addExtra: false);
+                break;
+        }
+    }
+
+    private void AddReceiver(Vector2 position, bool isRunningBack = false, bool isTightEnd = false)
+    {
+        _receivers.Add(new Receiver(_receivers.Count, position, isRunningBack, isTightEnd));
+    }
+
+    private void AddBaseLine(float los, bool addExtra)
+    {
+        foreach (float x in BaseLineX)
+        {
+            _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * x, los - 0.1f)));
+        }
+
+        if (addExtra)
+        {
+            _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.62f, los - 0.1f)));
+        }
+    }
+
     private void SpawnDefenders(float los)
     {
+        ResolveCoverageIndices(out int left, out int leftSlot, out int middle, out int rightSlot, out int right);
+
         // Defensive formation: 4-3 with 4 DB
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, los + 2.8f), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None });
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.46f, los + 2.8f), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None });
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.54f, los + 2.8f), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None });
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, los + 2.8f), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None });
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, los + 2.8f), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -5.0f });
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.46f, los + 2.8f), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -2.0f });
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.54f, los + 2.8f), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 2.0f });
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, los + 2.8f), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 5.0f });
 
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.38f, los + 6.2f), DefensivePosition.LB) { CoverageReceiverIndex = 1, ZoneRole = CoverageRole.HookLeft }); // LB
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.50f, los + 6.2f), DefensivePosition.LB) { CoverageReceiverIndex = 3, ZoneRole = CoverageRole.HookMiddle }); // MLB (TE)
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.62f, los + 6.2f), DefensivePosition.LB) { CoverageReceiverIndex = 2, ZoneRole = CoverageRole.HookRight }); // LB
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.38f, los + 6.2f), DefensivePosition.LB) { CoverageReceiverIndex = leftSlot, ZoneRole = CoverageRole.HookLeft }); // LB
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.50f, los + 6.2f), DefensivePosition.LB) { CoverageReceiverIndex = middle, ZoneRole = CoverageRole.HookMiddle }); // MLB
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.62f, los + 6.2f), DefensivePosition.LB) { CoverageReceiverIndex = rightSlot, ZoneRole = CoverageRole.HookRight }); // LB
 
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.20f, los + 10.5f), DefensivePosition.DB) { CoverageReceiverIndex = 0, ZoneRole = CoverageRole.FlatLeft }); // CB
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.80f, los + 10.5f), DefensivePosition.DB) { CoverageReceiverIndex = 2, ZoneRole = CoverageRole.FlatRight }); // CB
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, los + 12.5f), DefensivePosition.DB) { CoverageReceiverIndex = 1, ZoneRole = CoverageRole.DeepLeft }); // S
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, los + 12.5f), DefensivePosition.DB) { CoverageReceiverIndex = 3, ZoneRole = CoverageRole.DeepRight }); // S
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.18f, los + 10.5f), DefensivePosition.DB) { CoverageReceiverIndex = left, ZoneRole = CoverageRole.FlatLeft }); // CB (flat)
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.82f, los + 10.5f), DefensivePosition.DB) { CoverageReceiverIndex = right, ZoneRole = CoverageRole.FlatRight }); // CB (flat)
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, los + 13.5f), DefensivePosition.DB) { CoverageReceiverIndex = leftSlot, ZoneRole = CoverageRole.DeepLeft }); // S (deep half)
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, los + 13.5f), DefensivePosition.DB) { CoverageReceiverIndex = rightSlot, ZoneRole = CoverageRole.DeepRight }); // S (deep half)
+    }
+
+    private void ResolveCoverageIndices(out int left, out int leftSlot, out int middle, out int rightSlot, out int right)
+    {
+        if (_receivers.Count == 0)
+        {
+            left = leftSlot = middle = rightSlot = right = -1;
+            return;
+        }
+
+        var ordered = _receivers
+            .Select((receiver, index) => new { receiver.Position.X, index })
+            .OrderBy(item => item.X)
+            .Select(item => item.index)
+            .ToList();
+
+        left = ordered[0];
+        right = ordered[^1];
+        middle = ordered[ordered.Count / 2];
+        leftSlot = ordered.Count > 2 ? ordered[1] : left;
+        rightSlot = ordered.Count > 3 ? ordered[^2] : right;
     }
 
     public void Update(float dt)
@@ -158,8 +227,7 @@ public sealed class GameSession
 
         if (playChanged)
         {
-            ReceiverAI.AssignRoutes(_receivers, _playManager.SelectedPlay, _rng);
-            SelectFirstEligibleReceiver();
+            SetupEntities();
         }
 
         if (Raylib.IsKeyPressed(KeyboardKey.Space))
@@ -802,8 +870,8 @@ public sealed class GameSession
             {
                 return 0f;
             }
-            float t = -c / b;
-            return t > 0f ? t : 0f;
+            float time = -c / b;
+            return time > 0f ? time : 0f;
         }
 
         float discriminant = b * b - 4f * a * c;

@@ -63,6 +63,7 @@ public static class Constants
     public const float QbFriction = 16f;
 
     public const float WrSpeed = 7.6f;
+    public const float TeSpeed = 6.9f;
     public const float RbSpeed = 7.1f;
     public const float OlSpeed = 5.6f;
     public const float DlSpeed = 6.3f;
@@ -88,6 +89,7 @@ public static class Constants
     public const float ManCoverageDistanceThreshold = 5f;
     public const float ZoneCoverageDepth = 14f;
     public const float ZoneCoverageDepthDb = 22f;
+    public const float ZoneCoverageDepthFlat = 6.5f;
 
     public static Vector2 WorldToScreen(Vector2 worldPos)
     {
