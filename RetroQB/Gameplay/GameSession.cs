@@ -21,6 +21,8 @@ public sealed class GameSession
     private readonly List<Receiver> _receivers = new();
     private readonly List<Defender> _defenders = new();
     private readonly List<Blocker> _blockers = new();
+    private readonly Dictionary<int, int> _receiverPriorityByIndex = new();
+    private readonly List<int> _priorityReceiverIndices = new();
     private Quarterback _qb = null!;
     private Ball _ball = null!;
     private string _lastPlayText = string.Empty;
@@ -50,6 +52,8 @@ public sealed class GameSession
         _receivers.Clear();
         _defenders.Clear();
         _blockers.Clear();
+        _receiverPriorityByIndex.Clear();
+        _priorityReceiverIndices.Clear();
 
         float los = _playManager.LineOfScrimmage;
         _qb = new Quarterback(new Vector2(Constants.FieldWidth / 2f, los - 1.6f));
@@ -61,10 +65,10 @@ public sealed class GameSession
 
         SpawnDefenders(los);
         ReceiverAI.AssignRoutes(_receivers, _playManager.SelectedPlay, _rng);
-        SelectFirstEligibleReceiver();
+        AssignReceiverPriorities();
     }
 
-    private static readonly float[] BaseLineX = { 0.38f, 0.44f, 0.50f, 0.56f, 0.62f };
+    private static readonly float[] BaseLineX = { 0.42f, 0.46f, 0.50f, 0.54f, 0.58f };
 
     private void AddFormation(FormationType formation, float los)
     {
@@ -264,11 +268,6 @@ public sealed class GameSession
     {
         _qbPastLos = _qb.Position.Y > _playManager.LineOfScrimmage + 0.1f && _ball.State == BallState.HeldByQB;
 
-        if (_ball.State == BallState.HeldByQB && !_qbPastLos)
-        {
-            AutoSelectReceiver();
-        }
-
         TryHandoffToRunningBack();
 
         Vector2 inputDir = _input.GetMovementDirection();
@@ -466,33 +465,13 @@ public sealed class GameSession
             }
         }
 
-        if (_ball.State == BallState.HeldByQB && !_qbPastLos && Raylib.IsKeyPressed(KeyboardKey.Space))
+        if (_ball.State == BallState.HeldByQB && !_qbPastLos)
         {
-            EnsureSelectedReceiverEligible();
-            if (_playManager.SelectedReceiver >= 0 && _playManager.SelectedReceiver < _receivers.Count)
-            {
-                var receiver = _receivers[_playManager.SelectedReceiver];
-                if (!receiver.Eligible) return;
-                float speed = Constants.BallMaxSpeed;
-                Vector2 toReceiver = receiver.Position - _qb.Position;
-                float leadTime = CalculateInterceptTime(toReceiver, receiver.Velocity, speed);
-                leadTime = Math.Clamp(leadTime, 0f, Constants.BallMaxAirTime);
-                Vector2 leadTarget = receiver.Position + receiver.Velocity * leadTime;
-
-                Vector2 dir = leadTarget - _qb.Position;
-                if (dir.LengthSquared() > 0.001f)
-                {
-                    dir = Vector2.Normalize(dir);
-                }
-
-                float pressure = GetQbPressureFactor();
-                float inaccuracyDeg = Lerp(Constants.ThrowBaseInaccuracyDeg, Constants.ThrowMaxInaccuracyDeg, pressure);
-                float inaccuracyRad = inaccuracyDeg * (MathF.PI / 180f);
-                float angle = ((float)_rng.NextDouble() * 2f - 1f) * inaccuracyRad;
-                dir = Rotate(dir, angle);
-
-                _ball.SetInAir(_qb.Position, dir * speed);
-            }
+            if (Raylib.IsKeyPressed(KeyboardKey.One)) TryThrowToPriority(1);
+            if (Raylib.IsKeyPressed(KeyboardKey.Two)) TryThrowToPriority(2);
+            if (Raylib.IsKeyPressed(KeyboardKey.Three)) TryThrowToPriority(3);
+            if (Raylib.IsKeyPressed(KeyboardKey.Four)) TryThrowToPriority(4);
+            if (Raylib.IsKeyPressed(KeyboardKey.Five)) TryThrowToPriority(5);
         }
     }
 
@@ -560,6 +539,8 @@ public sealed class GameSession
             receiver.Draw();
         }
 
+        DrawReceiverPriorityLabels();
+
         foreach (var blocker in _blockers)
         {
             blocker.Draw();
@@ -573,15 +554,9 @@ public sealed class GameSession
         _qb.Draw();
         _ball.Draw();
 
-        DrawSelectedReceiverHighlight();
-        
         // Draw side panel with all HUD info
-        string targetLabel = "WR";
-        if (_playManager.SelectedReceiver >= 0 && _playManager.SelectedReceiver < _receivers.Count)
-        {
-            targetLabel = _receivers[_playManager.SelectedReceiver].Glyph;
-        }
-        _hudRenderer.DrawSidePanel(_playManager, _lastPlayText, _playManager.SelectedReceiver, targetLabel, _stateManager.State);
+        string targetLabel = GetSelectedReceiverPriorityLabel();
+        _hudRenderer.DrawSidePanel(_playManager, _lastPlayText, targetLabel, _stateManager.State);
 
         if (_stateManager.State == GameState.MainMenu)
         {
@@ -594,15 +569,6 @@ public sealed class GameSession
         }
     }
 
-    private void DrawSelectedReceiverHighlight()
-    {
-        if (_playManager.SelectedReceiver < 0 || _playManager.SelectedReceiver >= _receivers.Count) return;
-        var receiver = _receivers[_playManager.SelectedReceiver];
-        if (!receiver.Eligible) return;
-        Vector2 screen = Constants.WorldToScreen(receiver.Position);
-        Raylib.DrawCircleLines((int)screen.X, (int)screen.Y, 12, Palette.Yellow);
-    }
-
     private void ClampToField(Entity entity)
     {
         bool isCarrier = _ball.State switch
@@ -613,7 +579,7 @@ public sealed class GameSession
         };
 
         float x = entity.Position.X;
-        if (!isCarrier || (x >= 0 && x <= Constants.FieldWidth))
+        if (!isCarrier)
         {
             x = MathF.Max(0.5f, MathF.Min(Constants.FieldWidth - 0.5f, x));
         }
@@ -899,95 +865,100 @@ public sealed class GameSession
         }
     }
 
-    private void SelectFirstEligibleReceiver()
+    private void AssignReceiverPriorities()
     {
-        for (int i = 0; i < _receivers.Count; i++)
+        _receiverPriorityByIndex.Clear();
+        _priorityReceiverIndices.Clear();
+
+        var ordered = _receivers
+            .Where(r => r.Eligible)
+            .OrderBy(r => r.Position.X)
+            .ToList();
+
+        int count = Math.Min(5, ordered.Count);
+        for (int i = 0; i < count; i++)
         {
-            if (_receivers[i].Eligible)
-            {
-                _playManager.SelectedReceiver = i;
-                return;
-            }
+            int receiverIndex = ordered[i].Index;
+            _receiverPriorityByIndex[receiverIndex] = i + 1;
+            _priorityReceiverIndices.Add(receiverIndex);
         }
 
-        _playManager.SelectedReceiver = 0;
+        _playManager.SelectedReceiver = count > 0 ? _priorityReceiverIndices[0] : 0;
     }
 
-    private void SelectNextEligibleReceiver()
+    private bool TryGetReceiverIndexForPriority(int priority, out int receiverIndex)
     {
-        if (_receivers.Count == 0) return;
-
-        int start = _playManager.SelectedReceiver;
-        for (int i = 1; i <= _receivers.Count; i++)
-        {
-            int index = (start + i) % _receivers.Count;
-            if (_receivers[index].Eligible)
-            {
-                _playManager.SelectedReceiver = index;
-                return;
-            }
-        }
+        receiverIndex = -1;
+        if (priority <= 0) return false;
+        int listIndex = priority - 1;
+        if (listIndex < 0 || listIndex >= _priorityReceiverIndices.Count) return false;
+        receiverIndex = _priorityReceiverIndices[listIndex];
+        return receiverIndex >= 0 && receiverIndex < _receivers.Count;
     }
 
-    private void EnsureSelectedReceiverEligible()
+    private string GetReceiverPriorityLabel(int receiverIndex)
     {
-        if (_playManager.SelectedReceiver >= 0 && _playManager.SelectedReceiver < _receivers.Count)
-        {
-            if (_receivers[_playManager.SelectedReceiver].Eligible) return;
-        }
-
-        SelectNextEligibleReceiver();
+        return _receiverPriorityByIndex.TryGetValue(receiverIndex, out int priority)
+            ? priority.ToString()
+            : "-";
     }
 
-    private void AutoSelectReceiver()
+    private string GetSelectedReceiverPriorityLabel()
     {
-        if (_receivers.Count == 0) return;
-
-        const float maxTargetRange = 28f;
-        const float openWeight = 1.35f;
-        const float distanceWeight = 0.35f;
-
-        int bestIndex = -1;
-        float bestScore = float.MinValue;
-        float bestOpen = float.MinValue;
-        float bestDist = float.MaxValue;
-
-        foreach (var receiver in _receivers)
+        if (_playManager.SelectedReceiver < 0 || _playManager.SelectedReceiver >= _receivers.Count)
         {
-            if (!receiver.Eligible) continue;
-
-            float distToQb = Vector2.Distance(receiver.Position, _qb.Position);
-            if (distToQb > maxTargetRange) continue;
-
-            float openDist = GetNearestDefenderDistance(receiver.Position);
-            float score = openDist * openWeight - distToQb * distanceWeight;
-
-            bool isBetter = score > bestScore;
-            if (MathF.Abs(score - bestScore) < 0.001f)
-            {
-                if (openDist > bestOpen + 0.01f)
-                {
-                    isBetter = true;
-                }
-                else if (MathF.Abs(openDist - bestOpen) < 0.01f && distToQb < bestDist)
-                {
-                    isBetter = true;
-                }
-            }
-
-            if (isBetter)
-            {
-                bestScore = score;
-                bestOpen = openDist;
-                bestDist = distToQb;
-                bestIndex = receiver.Index;
-            }
+            return "-";
         }
 
-        if (bestIndex >= 0 && bestIndex < _receivers.Count)
+        return GetReceiverPriorityLabel(_playManager.SelectedReceiver);
+    }
+
+    private void TryThrowToPriority(int priority)
+    {
+        if (!TryGetReceiverIndexForPriority(priority, out int receiverIndex)) return;
+        _playManager.SelectedReceiver = receiverIndex;
+        TryThrowToSelected();
+    }
+
+    private void TryThrowToSelected()
+    {
+        if (!TryGetReceiverIndexForPriority(1, out int fallbackIndex))
         {
-            _playManager.SelectedReceiver = bestIndex;
+            return;
         }
+
+        int receiverIndex = _playManager.SelectedReceiver;
+        if (!_receiverPriorityByIndex.ContainsKey(receiverIndex))
+        {
+            receiverIndex = fallbackIndex;
+            _playManager.SelectedReceiver = receiverIndex;
+        }
+
+        if (receiverIndex < 0 || receiverIndex >= _receivers.Count) return;
+        var receiver = _receivers[receiverIndex];
+        if (!receiver.Eligible) return;
+
+        float speed = Constants.BallMaxSpeed;
+        Vector2 toReceiver = receiver.Position - _qb.Position;
+        float leadTime = CalculateInterceptTime(toReceiver, receiver.Velocity, speed);
+        leadTime = Math.Clamp(leadTime, 0f, Constants.BallMaxAirTime);
+        Vector2 leadTarget = receiver.Position + receiver.Velocity * leadTime;
+
+        Vector2 dir = leadTarget - _qb.Position;
+        if (dir.LengthSquared() > 0.001f)
+        {
+            dir = Vector2.Normalize(dir);
+        }
+
+        float pressure = GetQbPressureFactor();
+        float movementPenalty = GetMovementInaccuracyPenalty(dir);
+        float combinedFactor = Math.Clamp(pressure + movementPenalty, 0f, 1f);
+        float inaccuracyDeg = Lerp(Constants.ThrowBaseInaccuracyDeg, Constants.ThrowMaxInaccuracyDeg, combinedFactor);
+        float inaccuracyRad = inaccuracyDeg * (MathF.PI / 180f);
+        float angle = ((float)_rng.NextDouble() * 2f - 1f) * inaccuracyRad;
+        dir = Rotate(dir, angle);
+
+        _ball.SetInAir(_qb.Position, dir * speed);
     }
 
     private void DrawRouteOverlay()
@@ -1007,9 +978,6 @@ public sealed class GameSession
                 Raylib.DrawLineEx(a, b, 2.0f, routeColor);
             }
 
-            int side = receiver.RouteSide == 0 ? 1 : receiver.RouteSide;
-            Vector2 labelPos = Constants.WorldToScreen(points[0] + new Vector2(0.9f * side, 0.7f));
-            Raylib.DrawText(ReceiverAI.GetRouteLabel(receiver.Route), (int)labelPos.X, (int)labelPos.Y, 12, routeColor);
         }
 
         DrawBlockerRoutes();
@@ -1047,6 +1015,28 @@ public sealed class GameSession
                 Vector2 oB = Constants.WorldToScreen(orthoEnd);
                 Raylib.DrawLineEx(oA, oB, 2.0f, Palette.RouteBlocking);
             }
+        }
+    }
+
+    private void DrawReceiverPriorityLabels()
+    {
+        if (_receivers.Count == 0) return;
+
+        foreach (var receiver in _receivers)
+        {
+            if (!receiver.Eligible) continue;
+
+            string priorityLabel = GetReceiverPriorityLabel(receiver.Index);
+            if (priorityLabel == "-") continue;
+
+            Vector2 labelPos = Constants.WorldToScreen(receiver.Position);
+            int fontSize = 20;
+            Color shadow = new Color(10, 10, 12, 220);
+            int textWidth = Raylib.MeasureText(priorityLabel, fontSize);
+            int drawX = (int)labelPos.X - textWidth / 2;
+            int drawY = (int)labelPos.Y - 20;
+            Raylib.DrawText(priorityLabel, drawX + 1, drawY + 1, fontSize, shadow);
+            Raylib.DrawText(priorityLabel, drawX, drawY, fontSize, Palette.Lime);
         }
     }
 
@@ -1096,6 +1086,19 @@ public sealed class GameSession
         }
 
         return best;
+    }
+
+    private float GetMovementInaccuracyPenalty(Vector2 throwDir)
+    {
+        float speed = _qb.Velocity.Length();
+        if (speed < 0.2f) return 0f;
+
+        Vector2 moveDir = _qb.Velocity / speed;
+        float dot = Vector2.Dot(moveDir, throwDir);
+        dot = Math.Clamp(dot, -1f, 1f);
+
+        float penalty = (1f - dot) * 0.5f;
+        return Math.Clamp(penalty, 0f, 1f);
     }
 
     private float GetQbPressureFactor()

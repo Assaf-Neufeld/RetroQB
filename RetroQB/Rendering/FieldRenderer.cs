@@ -35,9 +35,9 @@ public sealed class FieldRenderer
 
         Color bleacherBase = new Color(45, 45, 55, 255);
         Color bleacherEdge = new Color(70, 70, 85, 255);
-        Color crowd1 = new Color(210, 210, 220, 255);
-        Color crowd2 = new Color(240, 200, 90, 255);
-        Color crowd3 = new Color(120, 200, 170, 255);
+        Color crowd1 = new Color(235, 235, 235, 255);
+        Color crowd2 = new Color(250, 250, 250, 255);
+        Color crowd3 = new Color(215, 215, 220, 255);
 
         DrawBleachersColumn(rect, leftBleacherX, bleacherWidth, bleacherBase, bleacherEdge, crowd1, crowd2, crowd3);
         DrawBleachersColumn(rect, rightBleacherX, bleacherWidth, bleacherBase, bleacherEdge, crowd1, crowd2, crowd3);

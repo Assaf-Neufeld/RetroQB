@@ -43,8 +43,7 @@ Built with C# and Raylib for that crisp, responsive feel.
 | Move | `WASD` or `Arrow Keys` |
 | Sprint | `Left Shift` |
 | Snap Ball | `Space` |
-| Throw Pass | `Space` (during play) |
-| Cycle Receiver | `Tab` |
+| Throw Pass | `1` `2` `3` `4` `5` |
 | Select Play | `1` / `2` / `3` |
 | Restart Drive | `R` |
 | Pause | `Esc` |
@@ -55,9 +54,9 @@ Built with C# and Raylib for that crisp, responsive feel.
 
 1. **Pre-Snap**: Choose your play type (Quick Pass, Long Pass, or QB Run)
 2. **Snap**: Press `Space` to start the play
-3. **Read the Defense**: Use `Tab` to cycle through receivers and find the open man
+3. **Read the Defense**: Receivers are labeled by priority `1`-`5`
 4. **Make Your Move**: 
-   - Throw with `Space` before crossing the line of scrimmage
+  - Throw with `1`-`5` before crossing the line of scrimmage
    - Or tuck it and run! Sprint past defenders for big gains
 5. **Score Touchdowns**: Reach the end zone for 7 points
 
