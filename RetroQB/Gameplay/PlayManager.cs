@@ -352,7 +352,7 @@ public sealed class PlayManager
                 new(
                     "Flood",
                     PlayType.LongPass,
-                    FormationType.PassEmpty,
+                    FormationType.PassSpread,
                     RunningBackRole.Route,
                     TightEndRole.Route,
                     new Dictionary<int, RouteType>

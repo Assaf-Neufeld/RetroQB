@@ -11,6 +11,28 @@ namespace RetroQB.Gameplay;
 
 public sealed class GameSession
 {
+    private sealed class QbStatLine
+    {
+        public int Completions;
+        public int Attempts;
+        public int PassYards;
+        public int PassTds;
+        public int Interceptions;
+    }
+
+    private sealed class SkillStatLine
+    {
+        public int Receptions;
+        public int Yards;
+        public int Tds;
+    }
+
+    private sealed class RushStatLine
+    {
+        public int Yards;
+        public int Tds;
+    }
+
     private readonly GameStateManager _stateManager = new();
     private readonly PlayManager _playManager = new();
     private readonly InputManager _input = new();
@@ -24,6 +46,9 @@ public sealed class GameSession
     private readonly List<Blocker> _blockers = new();
     private readonly Dictionary<int, int> _receiverPriorityByIndex = new();
     private readonly List<int> _priorityReceiverIndices = new();
+    private readonly QbStatLine _qbStats = new();
+    private readonly RushStatLine _rbStats = new();
+    private readonly Dictionary<int, SkillStatLine> _receiverStats = new();
     private Quarterback _qb = null!;
     private Ball _ball = null!;
     private string _lastPlayText = string.Empty;
@@ -32,6 +57,10 @@ public sealed class GameSession
     private float _playOverDuration = 1.25f;
     private bool _manualPlaySelection;
     private bool _autoPlaySelectionDone;
+    private bool _passAttemptedThisPlay;
+    private bool _passCompletedThisPlay;
+    private Receiver? _passCatcher;
+    private float _playStartLos;
 
     public GameSession()
     {
@@ -58,6 +87,10 @@ public sealed class GameSession
         _blockers.Clear();
         _receiverPriorityByIndex.Clear();
         _priorityReceiverIndices.Clear();
+        _passAttemptedThisPlay = false;
+        _passCompletedThisPlay = false;
+        _passCatcher = null;
+        _playStartLos = _playManager.LineOfScrimmage;
 
         float los = _playManager.LineOfScrimmage;
         _qb = new Quarterback(new Vector2(Constants.FieldWidth / 2f, ClampFormationY(los, 1.6f)));
@@ -578,6 +611,13 @@ public sealed class GameSession
 
                     receiver.HasBall = true;
                     _ball.SetHeld(receiver, BallState.HeldByReceiver);
+                    if (_passAttemptedThisPlay && !_passCompletedThisPlay)
+                    {
+                        _passCompletedThisPlay = true;
+                        _passCatcher = receiver;
+                        _qbStats.Completions++;
+                        GetReceiverStatLine(receiver.Index).Receptions++;
+                    }
                     return;
                 }
             }
@@ -628,6 +668,40 @@ public sealed class GameSession
 
     private void EndPlay(bool tackle = false, bool incomplete = false, bool intercepted = false, bool touchdown = false)
     {
+        if (_passAttemptedThisPlay && intercepted)
+        {
+            _qbStats.Interceptions++;
+        }
+
+        if (!incomplete && !intercepted && _ball.Holder != null)
+        {
+            int gain = (int)MathF.Round(_ball.Holder.Position.Y - _playStartLos);
+            if (_passCompletedThisPlay && _passCatcher != null)
+            {
+                _qbStats.PassYards += gain;
+                if (touchdown)
+                {
+                    _qbStats.PassTds++;
+                }
+
+                var receiverStats = GetReceiverStatLine(_passCatcher.Index);
+                receiverStats.Yards += gain;
+                if (touchdown)
+                {
+                    receiverStats.Tds++;
+                }
+            }
+
+            if (_ball.Holder is Receiver ballCarrier && ballCarrier.IsRunningBack)
+            {
+                _rbStats.Yards += gain;
+                if (touchdown)
+                {
+                    _rbStats.Tds++;
+                }
+            }
+        }
+
         float spot = _playManager.LineOfScrimmage;
         if (tackle && _ball.Holder != null)
         {
@@ -686,6 +760,7 @@ public sealed class GameSession
 
         // Draw scoreboard and side panel HUD
         string targetLabel = GetSelectedReceiverPriorityLabel();
+        _hudRenderer.SetStatsSnapshot(BuildStatsSnapshot());
         _hudRenderer.DrawScoreboard(_playManager, _lastPlayText, _stateManager.State);
         _hudRenderer.DrawSidePanel(_playManager, _lastPlayText, targetLabel, _stateManager.State);
 
@@ -855,6 +930,7 @@ public sealed class GameSession
             Defender? rbTarget = GetClosestDefender(_qb.Position, Constants.BlockEngageRadius + 1.8f, preferRushers: true);
             if (rbTarget != null && Vector2.Distance(rbTarget.Position, _qb.Position) <= 4.8f)
             {
+                float blockMultiplier = GetReceiverBlockStrength(receiver) * GetDefenderBlockDifficulty(rbTarget);
                 Vector2 toTarget = rbTarget.Position - receiver.Position;
                 if (toTarget.LengthSquared() > 0.001f)
                 {
@@ -872,8 +948,10 @@ public sealed class GameSession
                         pushDir = Vector2.Normalize(pushDir);
                     }
                     float overlap = contactRange - distance;
-                    rbTarget.Position += pushDir * (Constants.BlockHoldStrength * 1.1f + overlap * 6f) * dt;
-                    rbTarget.Velocity *= 0.12f;
+                    float holdStrength = (Constants.BlockHoldStrength * 1.1f) * blockMultiplier;
+                    float overlapBoost = 6f * blockMultiplier;
+                    rbTarget.Position += pushDir * (holdStrength + overlap * overlapBoost) * dt;
+                    rbTarget.Velocity *= GetDefenderSlowdown(blockMultiplier, 0.12f);
                     receiver.Velocity *= 0.25f;
                 }
             }
@@ -899,12 +977,23 @@ public sealed class GameSession
         if (target != null)
         {
             bool runBlockingBoost = IsRunPlayActiveWithRunningBack();
+            int runSide = Math.Sign(_playManager.SelectedPlay.RunningBackSide);
+            float blockMultiplier = GetReceiverBlockStrength(receiver) * GetDefenderBlockDifficulty(target);
             Vector2 toTarget = target.Position - receiver.Position;
             if (toTarget.LengthSquared() > 0.001f)
             {
                 toTarget = Vector2.Normalize(toTarget);
             }
             receiver.Velocity = toTarget * receiver.Speed;
+            if (runBlockingBoost && runSide != 0)
+            {
+                Vector2 driveDir = new Vector2(runSide * 0.7f, 1f);
+                if (driveDir.LengthSquared() > 0.001f)
+                {
+                    driveDir = Vector2.Normalize(driveDir);
+                }
+                receiver.Velocity += driveDir * (receiver.Speed * 0.3f);
+            }
 
             float contactRange = receiver.Radius + target.Radius + (runBlockingBoost ? 0.9f : 0.6f);
             float distance = Vector2.Distance(receiver.Position, target.Position);
@@ -918,15 +1007,67 @@ public sealed class GameSession
                 float overlap = contactRange - distance;
                 float holdStrength = runBlockingBoost ? Constants.BlockHoldStrength * 1.4f : Constants.BlockHoldStrength;
                 float overlapBoost = runBlockingBoost ? 8f : 6f;
+                holdStrength *= blockMultiplier;
+                overlapBoost *= blockMultiplier;
                 target.Position += pushDir * (holdStrength + overlap * overlapBoost) * dt;
-                target.Velocity *= runBlockingBoost ? 0.08f : 0.15f;
+                if (runBlockingBoost && runSide != 0)
+                {
+                    Vector2 driveDir = new Vector2(runSide * 0.7f, 1f);
+                    if (driveDir.LengthSquared() > 0.001f)
+                    {
+                        driveDir = Vector2.Normalize(driveDir);
+                    }
+                    target.Position += driveDir * 0.8f * dt;
+                }
+                float baseSlow = runBlockingBoost ? 0.08f : 0.15f;
+                target.Velocity *= GetDefenderSlowdown(blockMultiplier, baseSlow);
                 receiver.Velocity *= 0.25f;
             }
         }
         else
         {
-            receiver.Velocity = new Vector2(0f, receiver.Speed * 0.4f);
+            if (IsRunPlayActiveWithRunningBack())
+            {
+                int runSide = Math.Sign(_playManager.SelectedPlay.RunningBackSide);
+                receiver.Velocity = new Vector2(runSide * receiver.Speed * 0.18f, receiver.Speed * 0.4f);
+            }
+            else
+            {
+                receiver.Velocity = new Vector2(0f, receiver.Speed * 0.4f);
+            }
         }
+    }
+
+    private static float GetReceiverBlockStrength(Receiver receiver)
+    {
+        if (receiver.IsTightEnd)
+        {
+            return 1.1f;
+        }
+
+        if (receiver.IsRunningBack)
+        {
+            return 1.0f;
+        }
+
+        return 0.75f;
+    }
+
+    private static float GetDefenderBlockDifficulty(Defender defender)
+    {
+        return defender.PositionRole switch
+        {
+            DefensivePosition.DL => 0.75f,
+            DefensivePosition.LB => 0.95f,
+            _ => 1.15f
+        };
+    }
+
+    private static float GetDefenderSlowdown(float blockMultiplier, float baseSlow)
+    {
+        float bonus = Math.Clamp(blockMultiplier - 1f, -0.6f, 0.6f);
+        float adjusted = baseSlow - bonus * 0.06f;
+        return Math.Clamp(adjusted, 0.05f, 0.22f);
     }
 
     private void AssignReceiverPriorities()
@@ -977,6 +1118,37 @@ public sealed class GameSession
         return GetReceiverPriorityLabel(_playManager.SelectedReceiver);
     }
 
+    private SkillStatLine GetReceiverStatLine(int receiverIndex)
+    {
+        if (!_receiverStats.TryGetValue(receiverIndex, out var stats))
+        {
+            stats = new SkillStatLine();
+            _receiverStats[receiverIndex] = stats;
+        }
+
+        return stats;
+    }
+
+    private GameStatsSnapshot BuildStatsSnapshot()
+    {
+        var receivers = new List<ReceiverStatsSnapshot>(5);
+        for (int i = 1; i <= 5; i++)
+        {
+            if (TryGetReceiverIndexForPriority(i, out int receiverIndex) && _receiverStats.TryGetValue(receiverIndex, out var stats))
+            {
+                receivers.Add(new ReceiverStatsSnapshot(i.ToString(), stats.Receptions, stats.Yards, stats.Tds));
+            }
+            else
+            {
+                receivers.Add(new ReceiverStatsSnapshot(i.ToString(), 0, 0, 0));
+            }
+        }
+
+        var qb = new QbStatsSnapshot(_qbStats.Completions, _qbStats.Attempts, _qbStats.PassYards, _qbStats.PassTds, _qbStats.Interceptions);
+        var rb = new RbStatsSnapshot(_rbStats.Yards, _rbStats.Tds);
+        return new GameStatsSnapshot(qb, receivers, rb);
+    }
+
     private void TryThrowToPriority(int priority)
     {
         if (!TryGetReceiverIndexForPriority(priority, out int receiverIndex)) return;
@@ -1001,6 +1173,12 @@ public sealed class GameSession
         if (receiverIndex < 0 || receiverIndex >= _receivers.Count) return;
         var receiver = _receivers[receiverIndex];
         if (!receiver.Eligible) return;
+
+        if (!_passAttemptedThisPlay)
+        {
+            _passAttemptedThisPlay = true;
+            _qbStats.Attempts++;
+        }
 
         float speed = Constants.BallMaxSpeed;
         Vector2 toReceiver = receiver.Position - _qb.Position;

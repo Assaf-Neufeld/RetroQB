@@ -4,6 +4,13 @@ using RetroQB.Gameplay;
 
 Raylib.SetConfigFlags(ConfigFlags.ResizableWindow);
 Raylib.InitWindow(Constants.ScreenWidth, Constants.ScreenHeight, "RetroQB");
+string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "helmet_icon.png");
+if (File.Exists(iconPath))
+{
+	Image windowIcon = Raylib.LoadImage(iconPath);
+	Raylib.SetWindowIcon(windowIcon);
+	Raylib.UnloadImage(windowIcon);
+}
 Raylib.SetTargetFPS(Constants.TargetFps);
 
 GameSession session = new();

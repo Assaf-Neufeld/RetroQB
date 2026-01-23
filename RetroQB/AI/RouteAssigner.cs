@@ -11,6 +11,8 @@ public static class RouteAssigner
 {
     public static void AssignRoutes(IReadOnlyList<Receiver> receivers, PlayDefinition play, Random rng)
     {
+        ResolveOuterWideReceivers(receivers, out int leftOuterWrIndex, out int rightOuterWrIndex);
+
         foreach (var receiver in receivers)
         {
             InitializeReceiver(receiver);
@@ -21,7 +23,35 @@ public static class RouteAssigner
                 continue;
             }
 
-            AssignRoute(receiver, play, rng);
+            AssignRoute(receiver, play, rng, leftOuterWrIndex, rightOuterWrIndex);
+        }
+    }
+
+    private static void ResolveOuterWideReceivers(IReadOnlyList<Receiver> receivers, out int leftOuterWrIndex, out int rightOuterWrIndex)
+    {
+        leftOuterWrIndex = -1;
+        rightOuterWrIndex = -1;
+        float leftX = float.MaxValue;
+        float rightX = float.MinValue;
+
+        foreach (var receiver in receivers)
+        {
+            if (receiver.PositionRole != OffensivePosition.WR)
+            {
+                continue;
+            }
+
+            if (receiver.Position.X < leftX)
+            {
+                leftX = receiver.Position.X;
+                leftOuterWrIndex = receiver.Index;
+            }
+
+            if (receiver.Position.X > rightX)
+            {
+                rightX = receiver.Position.X;
+                rightOuterWrIndex = receiver.Index;
+            }
         }
     }
 
@@ -79,7 +109,7 @@ public static class RouteAssigner
         receiver.Route = RouteType.Flat;
     }
 
-    private static void AssignRoute(Receiver receiver, PlayDefinition play, Random rng)
+    private static void AssignRoute(Receiver receiver, PlayDefinition play, Random rng, int leftOuterWrIndex, int rightOuterWrIndex)
     {
         if (!play.TryGetRoute(receiver.Index, out var route))
         {
@@ -87,6 +117,7 @@ public static class RouteAssigner
         }
 
         route = AdjustRouteForRunningBack(receiver, play, route);
+        route = AdjustRouteForOuterWideReceiver(receiver, route, leftOuterWrIndex, rightOuterWrIndex);
 
         receiver.Route = route;
         receiver.SlantInside = true;
@@ -112,6 +143,26 @@ public static class RouteAssigner
             RouteType.PostShallow => RouteType.Flat,
             RouteType.InDeep => RouteType.OutShallow,
             RouteType.OutDeep => RouteType.OutShallow,
+            _ => route
+        };
+    }
+
+    private static RouteType AdjustRouteForOuterWideReceiver(Receiver receiver, RouteType route, int leftOuterWrIndex, int rightOuterWrIndex)
+    {
+        if (receiver.PositionRole != OffensivePosition.WR)
+        {
+            return route;
+        }
+
+        if (receiver.Index != leftOuterWrIndex && receiver.Index != rightOuterWrIndex)
+        {
+            return route;
+        }
+
+        return route switch
+        {
+            RouteType.OutShallow => RouteType.InShallow,
+            RouteType.OutDeep => RouteType.InDeep,
             _ => route
         };
     }

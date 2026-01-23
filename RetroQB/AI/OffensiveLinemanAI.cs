@@ -73,8 +73,11 @@ public static class OffensiveLinemanAI
                         pushDir = Vector2.Normalize(pushDir);
                     }
                     float overlap = contactRange - distance;
+                    float blockMultiplier = GetOlBlockStrength(target);
                     float holdStrength = runBlockingBoost ? Constants.BlockHoldStrength * 1.6f : Constants.BlockHoldStrength;
                     float overlapBoost = runBlockingBoost ? 9f : 6f;
+                    holdStrength *= blockMultiplier;
+                    overlapBoost *= blockMultiplier;
                     target.Position += pushDir * (holdStrength + overlap * overlapBoost) * dt;
                     if (isRunPlay)
                     {
@@ -85,7 +88,8 @@ public static class OffensiveLinemanAI
                         }
                         target.Position += driveDir * (runBlockingBoost ? 1.2f : 0.8f) * dt;
                     }
-                    target.Velocity *= runBlockingBoost ? 0.05f : 0.15f;
+                    float baseSlow = runBlockingBoost ? 0.05f : 0.15f;
+                    target.Velocity *= GetDefenderSlowdown(blockMultiplier, baseSlow);
                     blocker.Velocity *= 0.25f;
                 }
             }
@@ -184,5 +188,24 @@ public static class OffensiveLinemanAI
         }
 
         return closest;
+    }
+
+    private static float GetOlBlockStrength(Defender defender)
+    {
+        float defenderEase = defender.PositionRole switch
+        {
+            DefensivePosition.DL => 0.75f,
+            DefensivePosition.LB => 0.95f,
+            _ => 1.15f
+        };
+
+        return 1.35f * defenderEase;
+    }
+
+    private static float GetDefenderSlowdown(float blockMultiplier, float baseSlow)
+    {
+        float bonus = Math.Clamp(blockMultiplier - 1f, -0.6f, 0.6f);
+        float adjusted = baseSlow - bonus * 0.06f;
+        return Math.Clamp(adjusted, 0.05f, 0.22f);
     }
 }

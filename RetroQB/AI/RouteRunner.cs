@@ -1,5 +1,6 @@
 using System.Numerics;
 using RetroQB.Entities;
+using RetroQB.Core;
 
 namespace RetroQB.AI;
 
@@ -70,8 +71,8 @@ public static class RouteRunner
         {
             RouteType.Go => CalculateGoDirection(),
             RouteType.Slant => CalculateSlantDirection(receiver),
-            RouteType.OutShallow => CalculateOutDirection(progress, stems.Shallow, receiver.RouteSide),
-            RouteType.OutDeep => CalculateOutDirection(progress, stems.Deep, receiver.RouteSide),
+            RouteType.OutShallow => CalculateOutDirection(receiver, progress, stems.Shallow),
+            RouteType.OutDeep => CalculateOutDirection(receiver, progress, stems.Deep),
             RouteType.InShallow => CalculateInDirection(progress, stems.Shallow, receiver.RouteSide),
             RouteType.InDeep => CalculateInDirection(progress, stems.Deep, receiver.RouteSide),
             RouteType.PostShallow => CalculatePostDirection(progress, stems.Shallow, receiver.RouteSide, stems.PostAngleShallow),
@@ -97,9 +98,20 @@ public static class RouteRunner
         return Vector2.Normalize(new Vector2(0.7f * slantSide, 1));
     }
 
-    private static Vector2 CalculateOutDirection(float progress, float stem, int routeSide)
+    private static Vector2 CalculateOutDirection(Receiver receiver, float progress, float stem)
     {
-        return progress < stem ? new Vector2(0, 1) : new Vector2(routeSide, 0);
+        if (progress < stem)
+        {
+            return new Vector2(0, 1);
+        }
+
+        float sidelineBuffer = 0.6f;
+        if (receiver.Position.X <= sidelineBuffer || receiver.Position.X >= Constants.FieldWidth - sidelineBuffer)
+        {
+            return Vector2.Zero;
+        }
+
+        return new Vector2(receiver.RouteSide, 0);
     }
 
     private static Vector2 CalculateInDirection(float progress, float stem, int routeSide)
