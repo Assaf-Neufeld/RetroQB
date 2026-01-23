@@ -384,7 +384,7 @@ public sealed class GameSession
 
         if (selection.HasValue)
         {
-            playChanged = _playManager.SelectPlayByGlobalIndex(selection.Value - 1);
+            playChanged = _playManager.SelectPlayByGlobalIndex(selection.Value - 1, _rng);
             _manualPlaySelection = true;
         }
 
@@ -401,7 +401,7 @@ public sealed class GameSession
 
         if (Raylib.IsKeyPressed(KeyboardKey.Space))
         {
-            _playManager.StartPlay(_rng);
+            _playManager.StartPlay();
             SetupEntities();
             _stateManager.SetState(GameState.PlayActive);
         }
