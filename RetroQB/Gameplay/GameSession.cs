@@ -765,7 +765,8 @@ public sealed class GameSession
         bool isRunPlay = _playManager.SelectedPlayFamily == PlayType.QbRunFocus;
         float los = _playManager.LineOfScrimmage;
         int runSide = Math.Sign(_playManager.SelectedPlay.RunningBackSide);
-        float lateralPush = isRunPlay && runSide != 0 ? runSide * 2.8f : 0f;
+        // Increased lateral push for run plays to create better blocking angles
+        float lateralPush = isRunPlay && runSide != 0 ? runSide * 3.5f : 0f;
         float targetY = isRunPlay ? los + 2.4f : los - 1.4f;
 
         foreach (var blocker in _blockers)
@@ -792,12 +793,13 @@ public sealed class GameSession
                 }
                 if (isRunPlay)
                 {
-                    Vector2 driveDir = new Vector2(runSide * 0.2f, 1f);
+                    // Drive direction based on play side: Power Right pushes right, Power Left pushes left
+                    Vector2 driveDir = new Vector2(runSide * 0.7f, 1f);
                     if (driveDir.LengthSquared() > 0.001f)
                     {
                         driveDir = Vector2.Normalize(driveDir);
                     }
-                    baseVelocity += driveDir * (blocker.Speed * 0.25f);
+                    baseVelocity += driveDir * (blocker.Speed * 0.35f);
                 }
                 blocker.Velocity = baseVelocity;
 
@@ -816,12 +818,13 @@ public sealed class GameSession
                     target.Position += pushDir * (holdStrength + overlap * overlapBoost) * dt;
                     if (isRunPlay)
                     {
-                        Vector2 driveDir = new Vector2(runSide * 0.2f, 1f);
+                        // Push defenders in the direction of the run play
+                        Vector2 driveDir = new Vector2(runSide * 0.7f, 1f);
                         if (driveDir.LengthSquared() > 0.001f)
                         {
                             driveDir = Vector2.Normalize(driveDir);
                         }
-                        target.Position += driveDir * (runBlockingBoost ? 0.9f : 0.6f) * dt;
+                        target.Position += driveDir * (runBlockingBoost ? 1.2f : 0.8f) * dt;
                     }
                     target.Velocity *= runBlockingBoost ? 0.05f : 0.15f;
                     blocker.Velocity *= 0.25f;
@@ -839,13 +842,15 @@ public sealed class GameSession
                 blocker.Velocity = toAnchor * anchorSpeed;
                 if (isRunPlay)
                 {
-                    blocker.Velocity += new Vector2(0f, blocker.Speed * 0.2f);
+                    // Add velocity in run direction, not just forward
+                    blocker.Velocity += new Vector2(runSide * blocker.Speed * 0.15f, blocker.Speed * 0.2f);
                 }
 
                 if (closeToAnchor)
                 {
                     float settleSpeed = isRunPlay ? blocker.Speed * 0.45f : blocker.Speed * 0.1f;
-                    blocker.Velocity = new Vector2(0f, settleSpeed * (isRunPlay ? 1f : -1f));
+                    // When settling, continue pushing in run direction
+                    blocker.Velocity = new Vector2(runSide * settleSpeed * 0.3f, settleSpeed * (isRunPlay ? 1f : -1f));
                 }
             }
 

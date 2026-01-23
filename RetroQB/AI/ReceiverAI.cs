@@ -132,9 +132,11 @@ public static class ReceiverAI
 
         float speed = receiver.Speed;
         Vector2 dir = Vector2.Zero;
-        float progress = receiver.RouteProgress;
+        // Use actual Y-distance traveled from route start, not time-based progress
+        // This ensures routes break at correct positions even if receiver is blocked/pushed
+        float progress = receiver.Position.Y - receiver.RouteStart.Y;
         float stemShallow = receiver.IsRunningBack ? 3.8f : receiver.IsTightEnd ? 5.5f : 6.5f;
-        float stemDeep = receiver.IsRunningBack ? 6.2f : receiver.IsTightEnd ? 8.2f : 10.5f;
+        float stemDeep = receiver.IsRunningBack ? 5.5f : receiver.IsTightEnd ? 7.5f : 9f;
         float postAngleShallow = 4.8f;
         float postAngleDeep = 7.2f;
 
@@ -209,7 +211,7 @@ public static class ReceiverAI
         int side = receiver.RouteSide == 0 ? 1 : receiver.RouteSide;
 
         float stem = receiver.IsRunningBack ? 4f : receiver.IsTightEnd ? 7.5f : 9f;
-        float deep = receiver.IsRunningBack ? 6.5f : receiver.IsTightEnd ? 11f : 14f;
+        float deep = receiver.IsRunningBack ? 5.5f : receiver.IsTightEnd ? 7.5f : 9f;
         float shallow = receiver.IsRunningBack ? 5f : receiver.IsTightEnd ? 7.5f : 9f;
         float flatWidth = receiver.IsRunningBack ? 9f : receiver.IsTightEnd ? 6f : 7f;
         float postAngleShallow = 4.8f;
