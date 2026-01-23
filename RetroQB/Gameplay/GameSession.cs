@@ -603,8 +603,9 @@ public sealed class GameSession
         _qb.Draw();
         _ball.Draw();
 
-        // Draw side panel with all HUD info
+        // Draw scoreboard and side panel HUD
         string targetLabel = GetSelectedReceiverPriorityLabel();
+        _hudRenderer.DrawScoreboard(_playManager, _lastPlayText, _stateManager.State);
         _hudRenderer.DrawSidePanel(_playManager, _lastPlayText, targetLabel, _stateManager.State);
 
         if (_stateManager.State == GameState.MainMenu)

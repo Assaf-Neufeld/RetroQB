@@ -9,6 +9,68 @@ public sealed class HudRenderer
 {
     private const int PanelX = 10;
     private const int PanelWidth = 320;
+    private const int ScoreboardY = 10;
+    private const int ScoreboardWidth = 320;
+    private const int ScoreboardHeight = 140;
+
+    public void DrawScoreboard(PlayManager play, string resultText, GameState state)
+    {
+        int x = Raylib.GetScreenWidth() - ScoreboardWidth - 10;
+        int y = ScoreboardY;
+
+        // Outer shell
+        Raylib.DrawRectangle(x, y, ScoreboardWidth, ScoreboardHeight, new Color(12, 12, 14, 235));
+        Raylib.DrawRectangleLines(x, y, ScoreboardWidth, ScoreboardHeight, Palette.Gold);
+
+        // Header bar
+        Raylib.DrawRectangle(x + 2, y + 2, ScoreboardWidth - 4, 22, new Color(30, 30, 36, 255));
+        Raylib.DrawText("RETRO STADIUM", x + 10, y + 5, 14, Palette.Gold);
+
+        int contentX = x + 10;
+        int contentY = y + 30;
+
+        // Score block
+        Raylib.DrawRectangleLines(contentX - 4, contentY - 4, ScoreboardWidth - 20, 32, Palette.DarkGreen);
+        Raylib.DrawText("HOME", contentX + 6, contentY + 2, 14, Palette.White);
+        Raylib.DrawText($"{play.Score}", x + ScoreboardWidth - 50, contentY - 1, 26, Palette.White);
+        contentY += 38;
+
+        // Down & Distance block
+        string downOrdinal = play.Down switch
+        {
+            1 => "1st",
+            2 => "2nd",
+            3 => "3rd",
+            4 => "4th",
+            _ => $"{play.Down}th"
+        };
+
+        float yardLine = play.GetYardLineDisplay(play.LineOfScrimmage);
+        float toGoal = 100f - yardLine;
+        string distanceText = toGoal <= play.Distance ? "Goal" : $"{play.Distance:F0}";
+
+        Raylib.DrawRectangleLines(contentX - 4, contentY - 4, ScoreboardWidth - 20, 28, Palette.DarkGreen);
+        Raylib.DrawText($"{downOrdinal} & {distanceText}", contentX + 6, contentY, 18, Palette.Gold);
+        contentY += 30;
+
+        // Ball position block
+        Raylib.DrawRectangleLines(contentX - 4, contentY - 4, ScoreboardWidth - 20, 24, Palette.DarkGreen);
+        Raylib.DrawText($"BALL ON {yardLine:F0}", contentX + 6, contentY - 1, 14, Palette.White);
+        contentY += 28;
+
+        // Last play result ticker
+        if (!string.IsNullOrWhiteSpace(resultText))
+        {
+            Color resultColor = resultText.Contains("TD") || resultText.Contains("1ST") ? Palette.Gold :
+                               resultText.Contains("INT") || resultText.Contains("TURN") ? Palette.Red :
+                               resultText.Contains("Incomplete") ? Palette.Orange :
+                               Palette.White;
+
+            Raylib.DrawRectangle(contentX - 4, contentY - 4, ScoreboardWidth - 20, 26, new Color(25, 25, 30, 255));
+            Raylib.DrawRectangleLines(contentX - 4, contentY - 4, ScoreboardWidth - 20, 26, Palette.DarkGreen);
+            Raylib.DrawText(resultText, contentX + 6, contentY - 1, 14, resultColor);
+        }
+    }
     
     public void DrawSidePanel(PlayManager play, string resultText, string selectedReceiverLabel, GameState state)
     {
@@ -24,42 +86,12 @@ public sealed class HudRenderer
         // Title
         Raylib.DrawText("RETRO QB", x, y, 34, Palette.Gold);
         y += 46;
-        
-        // Score
-        Raylib.DrawText($"SCORE: {play.Score}", x, y, 28, Palette.White);
-        y += 42;
-        
+
         // Divider
         Raylib.DrawLine(x, y, x + PanelWidth - 30, y, Palette.DarkGreen);
         y += 15;
-        
-        // Down and Distance
-        string downOrdinal = play.Down switch
-        {
-            1 => "1st",
-            2 => "2nd",
-            3 => "3rd",
-            4 => "4th",
-            _ => $"{play.Down}th"
-        };
-        
-        float yardLine = play.GetYardLineDisplay(play.LineOfScrimmage);
-        float toGoal = 100f - yardLine;
-        string distanceText = toGoal <= play.Distance ? "Goal" : $"{play.Distance:F0}";
-        
-        Raylib.DrawText($"{downOrdinal} & {distanceText}", x, y, 24, Palette.Gold);
-        y += 30;
-        
-        Raylib.DrawText($"Ball on {yardLine:F0} yd line", x, y, 20, Palette.White);
-        y += 30;
-        
-        y += 36;
-        
-        // Divider
-        Raylib.DrawLine(x, y, x + PanelWidth - 30, y, Palette.DarkGreen);
-        y += 15;
-        
-        // Play selection (pre-snap) or last result
+
+        // Play selection (pre-snap)
         if (state == GameState.PreSnap)
         {
             Raylib.DrawText("SELECT PLAY:", x, y, 18, Palette.Yellow);
@@ -96,29 +128,9 @@ public sealed class HudRenderer
             Raylib.DrawText("1-9,0 select | SPACE snap", x, y, 18, Palette.Lime);
             y += 32;
         }
-        else if (state == GameState.PlayOver)
-        {
-            // Show prominent result box
-            Raylib.DrawRectangle(x - 5, y - 5, PanelWidth - 20, 80, new Color(40, 40, 50, 255));
-            Raylib.DrawRectangleLines(x - 5, y - 5, PanelWidth - 20, 80, Palette.Gold);
-            
-            // Determine result color
-            Color resultColor = resultText.Contains("TD") || resultText.Contains("1ST") ? Palette.Gold :
-                               resultText.Contains("INT") || resultText.Contains("TURN") ? Palette.Red :
-                               resultText.Contains("Incomplete") ? Palette.Orange :
-                               Palette.White;
-            
-            Raylib.DrawText(resultText, x, y, 22, resultColor);
-            y += 40;
-        }
-        else if (!string.IsNullOrWhiteSpace(resultText))
-        {
-            Raylib.DrawText(resultText, x, y, 16, Palette.Gold);
-            y += 30;
-        }
         else
         {
-            y += 30;
+            y += 24;
         }
         
         // Divider
