@@ -30,7 +30,7 @@ public static class DefenderAI
             }
             else if (useZoneCoverage && defender.ZoneRole != CoverageRole.None)
             {
-                target = GetZoneTarget(defender, lineOfScrimmage);
+                target = GetZoneTarget(defender, receivers, lineOfScrimmage);
             }
             else if (defender.CoverageReceiverIndex >= 0 && defender.CoverageReceiverIndex < receivers.Count)
             {
@@ -51,7 +51,7 @@ public static class DefenderAI
         }
         else if (useZoneCoverage && defender.ZoneRole != CoverageRole.None)
         {
-            target = GetZoneTarget(defender, lineOfScrimmage);
+            target = GetZoneTarget(defender, receivers, lineOfScrimmage);
         }
         else if (defender.CoverageReceiverIndex >= 0 && defender.CoverageReceiverIndex < receivers.Count)
         {
@@ -71,7 +71,150 @@ public static class DefenderAI
         defender.Position += defender.Velocity * dt;
     }
 
-    private static Vector2 GetZoneTarget(Defender defender, float los)
+    private readonly struct ZoneBounds
+    {
+        public readonly float XMin;
+        public readonly float XMax;
+        public readonly float YMin;
+        public readonly float YMax;
+
+        public ZoneBounds(float xMin, float xMax, float yMin, float yMax)
+        {
+            XMin = xMin;
+            XMax = xMax;
+            YMin = yMin;
+            YMax = yMax;
+        }
+    }
+
+    private static Vector2 GetZoneTarget(Defender defender, IReadOnlyList<Receiver> receivers, float los)
+    {
+        Vector2 baseTarget = GetZoneAnchor(defender, los);
+        if (TryGetZoneMatch(defender, receivers, los, out var match))
+        {
+            if (defender.ZoneRole is CoverageRole.DeepLeft or CoverageRole.DeepRight)
+            {
+                return new Vector2(match.Position.X, match.Position.Y + Constants.ZoneDeepCushion);
+            }
+
+            return match.Position;
+        }
+
+        return baseTarget;
+    }
+
+    private static bool TryGetZoneMatch(Defender defender, IReadOnlyList<Receiver> receivers, float los, out Receiver match)
+    {
+        match = null!;
+        ZoneBounds bounds = GetZoneBounds(defender.ZoneRole, los);
+
+        float bestScore = float.NegativeInfinity;
+
+        foreach (var receiver in receivers)
+        {
+            if (!receiver.Eligible || receiver.IsBlocking)
+            {
+                continue;
+            }
+
+            if (receiver.Position.X < bounds.XMin || receiver.Position.X > bounds.XMax)
+            {
+                continue;
+            }
+
+            if (receiver.Position.Y < bounds.YMin)
+            {
+                continue;
+            }
+
+            bool inZoneDepth = receiver.Position.Y <= bounds.YMax;
+            bool carryDeep = receiver.Position.Y > bounds.YMax && receiver.Position.Y <= los + Constants.ZoneCarryDepth;
+            if (!inZoneDepth && !carryDeep)
+            {
+                continue;
+            }
+
+            float score;
+            if (defender.ZoneRole is CoverageRole.DeepLeft or CoverageRole.DeepRight)
+            {
+                score = receiver.Position.Y;
+            }
+            else
+            {
+                float dist = Vector2.Distance(defender.Position, receiver.Position);
+                score = (inZoneDepth ? 1000f : 800f) + receiver.Position.Y - dist;
+            }
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                match = receiver;
+            }
+        }
+
+        return bestScore > float.NegativeInfinity;
+    }
+
+    private static ZoneBounds GetZoneBounds(CoverageRole role, float los)
+    {
+        float yMin = los + 1.0f;
+        float yMax;
+        float xCenter;
+        float width;
+
+        switch (role)
+        {
+            case CoverageRole.FlatLeft:
+                xCenter = Constants.FieldWidth * 0.12f;
+                width = Constants.ZoneMatchWidthFlat;
+                yMax = los + Constants.ZoneCoverageDepthFlat + Constants.ZoneMatchDepthBuffer;
+                break;
+            case CoverageRole.FlatRight:
+                xCenter = Constants.FieldWidth * 0.88f;
+                width = Constants.ZoneMatchWidthFlat;
+                yMax = los + Constants.ZoneCoverageDepthFlat + Constants.ZoneMatchDepthBuffer;
+                break;
+            case CoverageRole.HookLeft:
+                xCenter = Constants.FieldWidth * 0.38f;
+                width = Constants.ZoneMatchWidthHook;
+                yMax = los + Constants.ZoneCoverageDepth + Constants.ZoneMatchDepthBuffer;
+                break;
+            case CoverageRole.HookMiddle:
+                xCenter = Constants.FieldWidth * 0.50f;
+                width = Constants.ZoneMatchWidthHook;
+                yMax = los + Constants.ZoneCoverageDepth + Constants.ZoneMatchDepthBuffer;
+                break;
+            case CoverageRole.HookRight:
+                xCenter = Constants.FieldWidth * 0.62f;
+                width = Constants.ZoneMatchWidthHook;
+                yMax = los + Constants.ZoneCoverageDepth + Constants.ZoneMatchDepthBuffer;
+                break;
+            case CoverageRole.DeepLeft:
+                xCenter = Constants.FieldWidth * 0.30f;
+                width = Constants.ZoneMatchWidthDeep;
+                yMin = los + Constants.ZoneCoverageDepth;
+                yMax = los + Constants.FieldLength;
+                break;
+            case CoverageRole.DeepRight:
+                xCenter = Constants.FieldWidth * 0.70f;
+                width = Constants.ZoneMatchWidthDeep;
+                yMin = los + Constants.ZoneCoverageDepth;
+                yMax = los + Constants.FieldLength;
+                break;
+            default:
+                xCenter = Constants.FieldWidth * 0.50f;
+                width = Constants.ZoneMatchWidthHook;
+                yMax = los + Constants.ZoneCoverageDepth + Constants.ZoneMatchDepthBuffer;
+                break;
+        }
+
+        float halfWidth = width * 0.5f;
+        float xMin = Math.Clamp(xCenter - halfWidth, 0.5f, Constants.FieldWidth - 0.5f);
+        float xMax = Math.Clamp(xCenter + halfWidth, 0.5f, Constants.FieldWidth - 0.5f);
+        return new ZoneBounds(xMin, xMax, yMin, yMax);
+    }
+
+    private static Vector2 GetZoneAnchor(Defender defender, float los)
     {
         float depth = defender.PositionRole == DefensivePosition.DB
             ? Constants.ZoneCoverageDepthDb

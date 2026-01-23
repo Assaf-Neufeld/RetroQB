@@ -19,7 +19,14 @@ public enum FormationType
     SinglebackTrips,
     SpreadFour,
     Twins,
-    Heavy
+    Heavy,
+    ShotgunTrips,
+    Bunch,
+    Spread,
+    Slot,
+    Shotgun,
+    Pistol,
+    Trips
 }
 
 public sealed class PlayDefinition
@@ -31,6 +38,7 @@ public sealed class PlayDefinition
     public TightEndRole TightEndRole { get; }
     public int RunningBackSide { get; }
     public IReadOnlyDictionary<int, RouteType> Routes { get; }
+    public IReadOnlyDictionary<int, bool> SlantDirections { get; }
 
     public PlayDefinition(
         string name,
@@ -39,7 +47,8 @@ public sealed class PlayDefinition
         RunningBackRole runningBackRole,
         TightEndRole tightEndRole,
         IReadOnlyDictionary<int, RouteType> routes,
-        int runningBackSide = 0)
+        int runningBackSide = 0,
+        IReadOnlyDictionary<int, bool>? slantDirections = null)
     {
         Name = name;
         Family = family;
@@ -48,10 +57,16 @@ public sealed class PlayDefinition
         TightEndRole = tightEndRole;
         Routes = routes;
         RunningBackSide = runningBackSide;
+        SlantDirections = slantDirections ?? new Dictionary<int, bool>();
     }
 
     public bool TryGetRoute(int receiverIndex, out RouteType route)
     {
         return Routes.TryGetValue(receiverIndex, out route);
+    }
+
+    public bool TryGetSlantDirection(int receiverIndex, out bool slantInside)
+    {
+        return SlantDirections.TryGetValue(receiverIndex, out slantInside);
     }
 }

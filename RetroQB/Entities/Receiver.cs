@@ -27,6 +27,7 @@ public sealed class Receiver : Entity
     public float RouteProgress { get; set; }
     public Color HighlightColor { get; set; } = Palette.Yellow;
     public int RouteSide { get; set; }
+    public bool SlantInside { get; set; }
 
     public Receiver(int index, Vector2 position, bool isRunningBack = false, bool isTightEnd = false) : base(position, Constants.ReceiverRadius, ResolveGlyph(isRunningBack, isTightEnd), ResolveColor(isRunningBack, isTightEnd))
     {

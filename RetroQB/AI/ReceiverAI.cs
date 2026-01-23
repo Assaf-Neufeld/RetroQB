@@ -9,8 +9,12 @@ public enum RouteType
 {
     Go,
     Slant,
-    Out,
-    Post,
+    OutShallow,
+    OutDeep,
+    InShallow,
+    InDeep,
+    PostShallow,
+    PostDeep,
     Curl,
     Flat
 }
@@ -33,6 +37,10 @@ public static class ReceiverAI
                 if (play.RunningBackSide != 0)
                 {
                     receiver.RouteSide = Math.Sign(play.RunningBackSide);
+                }
+                else if (play.Family == PlayType.QbRunFocus)
+                {
+                    receiver.RouteSide = 0;
                 }
                 else
                 {
@@ -62,6 +70,11 @@ public static class ReceiverAI
             }
 
             receiver.Route = route;
+            receiver.SlantInside = true;
+            if (receiver.Route == RouteType.Slant && play.TryGetSlantDirection(receiver.Index, out var slantInside))
+            {
+                receiver.SlantInside = slantInside;
+            }
         }
     }
 
@@ -70,9 +83,9 @@ public static class ReceiverAI
         int roll = rng.Next(100);
         return playType switch
         {
-            PlayType.QuickPass => roll < 35 ? RouteType.Slant : roll < 70 ? RouteType.Out : RouteType.Curl,
-            PlayType.LongPass => roll < 45 ? RouteType.Go : RouteType.Post,
-            PlayType.QbRunFocus => roll < 50 ? RouteType.Out : RouteType.Flat,
+            PlayType.QuickPass => roll < 30 ? RouteType.Slant : roll < 55 ? RouteType.OutShallow : roll < 80 ? RouteType.InShallow : RouteType.Curl,
+            PlayType.LongPass => roll < 35 ? RouteType.Go : roll < 65 ? RouteType.PostDeep : roll < 85 ? RouteType.InDeep : RouteType.OutDeep,
+            PlayType.QbRunFocus => roll < 50 ? RouteType.OutShallow : RouteType.Flat,
             _ => RouteType.Go
         };
     }
@@ -87,13 +100,29 @@ public static class ReceiverAI
 
         if (receiver.HasBall)
         {
-            receiver.Velocity = new Vector2(0, receiver.Speed);
+            if (receiver.IsRunningBack)
+            {
+                Vector2 runDir = new Vector2(receiver.RouteSide * 0.55f, 1f);
+                if (runDir.LengthSquared() > 0.001f)
+                {
+                    runDir = Vector2.Normalize(runDir);
+                }
+                receiver.Velocity = runDir * receiver.Speed;
+            }
+            else
+            {
+                receiver.Velocity = new Vector2(0, receiver.Speed);
+            }
             return;
         }
 
         float speed = receiver.Speed;
         Vector2 dir = Vector2.Zero;
         float progress = receiver.RouteProgress;
+        float stemShallow = receiver.IsRunningBack ? 3.8f : receiver.IsTightEnd ? 5.5f : 6.5f;
+        float stemDeep = receiver.IsRunningBack ? 6.2f : receiver.IsTightEnd ? 8.2f : 10.5f;
+        float postAngleShallow = 4.8f;
+        float postAngleDeep = 7.2f;
 
         switch (receiver.Route)
         {
@@ -101,13 +130,26 @@ public static class ReceiverAI
                 dir = new Vector2(0, 1);
                 break;
             case RouteType.Slant:
-                dir = Vector2.Normalize(new Vector2(0.7f * receiver.RouteSide, 1));
+                float slantSide = receiver.SlantInside ? -receiver.RouteSide : receiver.RouteSide;
+                dir = Vector2.Normalize(new Vector2(0.7f * slantSide, 1));
                 break;
-            case RouteType.Out:
-                dir = progress < 8f ? new Vector2(0, 1) : new Vector2(receiver.RouteSide, 0);
+            case RouteType.OutShallow:
+                dir = progress < stemShallow ? new Vector2(0, 1) : new Vector2(receiver.RouteSide, 0);
                 break;
-            case RouteType.Post:
-                dir = progress < 10f ? new Vector2(0, 1) : Vector2.Normalize(new Vector2(-0.6f * receiver.RouteSide, 1));
+            case RouteType.OutDeep:
+                dir = progress < stemDeep ? new Vector2(0, 1) : new Vector2(receiver.RouteSide, 0);
+                break;
+            case RouteType.InShallow:
+                dir = progress < stemShallow ? new Vector2(0, 1) : new Vector2(-receiver.RouteSide, 0);
+                break;
+            case RouteType.InDeep:
+                dir = progress < stemDeep ? new Vector2(0, 1) : new Vector2(-receiver.RouteSide, 0);
+                break;
+            case RouteType.PostShallow:
+                dir = progress < stemShallow ? new Vector2(0, 1) : Vector2.Normalize(new Vector2(-0.6f * receiver.RouteSide, postAngleShallow));
+                break;
+            case RouteType.PostDeep:
+                dir = progress < stemDeep ? new Vector2(0, 1) : Vector2.Normalize(new Vector2(-0.6f * receiver.RouteSide, postAngleDeep));
                 break;
             case RouteType.Curl:
                 float curlStem = receiver.IsRunningBack ? 4f : receiver.IsTightEnd ? 6f : 7f;
@@ -144,21 +186,28 @@ public static class ReceiverAI
 
         float stem = receiver.IsRunningBack ? 4f : receiver.IsTightEnd ? 7.5f : 9f;
         float deep = receiver.IsRunningBack ? 6.5f : receiver.IsTightEnd ? 11f : 14f;
+        float shallow = receiver.IsRunningBack ? 5f : receiver.IsTightEnd ? 7.5f : 9f;
         float flatWidth = receiver.IsRunningBack ? 9f : receiver.IsTightEnd ? 6f : 7f;
-        float postAngle = 7f;
+        float postAngleShallow = 4.8f;
+        float postAngleDeep = 7.2f;
         float curlStem = receiver.IsRunningBack ? 4f : receiver.IsTightEnd ? 6f : 7f;
         float curlReturn = receiver.IsRunningBack ? 1.5f : receiver.IsTightEnd ? 1.8f : 2f;
 
         Vector2 stemPoint = start + new Vector2(0, stem);
         Vector2 deepPoint = start + new Vector2(0, deep);
+        Vector2 shallowPoint = start + new Vector2(0, shallow);
         Vector2 curlStemPoint = start + new Vector2(0, curlStem);
 
         return receiver.Route switch
         {
             RouteType.Go => new[] { start, start + new Vector2(0, deep + 8f) },
-            RouteType.Slant => new[] { start, start + new Vector2(3.5f * side, deep) },
-            RouteType.Out => new[] { start, deepPoint, deepPoint + new Vector2(6f * side, 0) },
-            RouteType.Post => new[] { start, deepPoint, deepPoint + new Vector2(postAngle * -side, postAngle) },
+            RouteType.Slant => new[] { start, start + new Vector2(3.5f * (receiver.SlantInside ? -side : side), deep) },
+            RouteType.OutShallow => new[] { start, shallowPoint, shallowPoint + new Vector2(6f * side, 0) },
+            RouteType.OutDeep => new[] { start, deepPoint, deepPoint + new Vector2(6f * side, 0) },
+            RouteType.InShallow => new[] { start, shallowPoint, shallowPoint + new Vector2(6f * -side, 0) },
+            RouteType.InDeep => new[] { start, deepPoint, deepPoint + new Vector2(6f * -side, 0) },
+            RouteType.PostShallow => new[] { start, shallowPoint, shallowPoint + new Vector2(postAngleShallow * -side, postAngleShallow) },
+            RouteType.PostDeep => new[] { start, deepPoint, deepPoint + new Vector2(postAngleDeep * -side, postAngleDeep) },
             RouteType.Curl => new[] { start, curlStemPoint, curlStemPoint + new Vector2(0, -curlReturn) },
             RouteType.Flat => new[] { start, start + new Vector2(flatWidth * side, 2f) },
             _ => new[] { start, deepPoint }
@@ -171,8 +220,12 @@ public static class ReceiverAI
         {
             RouteType.Go => "Go",
             RouteType.Slant => "Slant",
-            RouteType.Out => "Out",
-            RouteType.Post => "Post",
+            RouteType.OutShallow => "Out S",
+            RouteType.OutDeep => "Out D",
+            RouteType.InShallow => "In S",
+            RouteType.InDeep => "In D",
+            RouteType.PostShallow => "Post S",
+            RouteType.PostDeep => "Post D",
             RouteType.Curl => "Curl",
             RouteType.Flat => "Flat",
             _ => "Route"

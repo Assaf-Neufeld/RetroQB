@@ -75,6 +75,55 @@ public sealed class GameSession
         // All receivers must be on or behind the LOS (los - offset means behind)
         switch (formation)
         {
+            case FormationType.ShotgunTrips:
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.62f, los - 1.0f)); // R1
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.78f, los - 0.6f)); // R2
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.90f, los - 0.3f)); // R3
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 4.6f), isRunningBack: true); // RB
+                AddBaseLine(los, addExtra: false);
+                break;
+            case FormationType.Bunch:
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.64f, los - 0.5f)); // R1
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.70f, los - 1.1f)); // R2
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.76f, los - 0.2f)); // R3
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 4.8f), isRunningBack: true); // RB
+                AddBaseLine(los, addExtra: false);
+                break;
+            case FormationType.Spread:
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.18f, los - 0.3f)); // R1
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.34f, los - 1.0f)); // R2
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.82f, los - 0.3f)); // R3
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 5.2f), isRunningBack: true); // RB
+                AddBaseLine(los, addExtra: false);
+                break;
+            case FormationType.Slot:
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.16f, los - 0.3f)); // R1
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.66f, los - 1.0f)); // R2
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.86f, los - 0.3f)); // R3
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 5.0f), isRunningBack: true); // RB
+                AddBaseLine(los, addExtra: false);
+                break;
+            case FormationType.Shotgun:
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.18f, los - 0.3f)); // R1
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.34f, los - 1.0f)); // R2
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.82f, los - 0.3f)); // R3
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 4.4f), isRunningBack: true); // RB
+                AddBaseLine(los, addExtra: false);
+                break;
+            case FormationType.Pistol:
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.18f, los - 0.3f)); // R1
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.82f, los - 0.3f)); // R2
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.62f, los - 0.05f), isTightEnd: true); // R3 (TE)
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 3.8f), isRunningBack: true); // RB
+                AddBaseLine(los, addExtra: false);
+                break;
+            case FormationType.Trips:
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.12f, los - 0.3f)); // R1
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.28f, los - 1.0f)); // R2
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.34f, los - 0.4f)); // R3
+                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, los - 5.0f), isRunningBack: true); // RB
+                AddBaseLine(los, addExtra: false);
+                break;
             case FormationType.SpreadFour:
                 AddReceiver(new Vector2(Constants.FieldWidth * 0.10f, los - 0.3f)); // X WR
                 AddReceiver(new Vector2(Constants.FieldWidth * 0.28f, los - 1.0f)); // Slot L
