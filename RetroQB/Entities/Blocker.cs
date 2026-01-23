@@ -6,7 +6,10 @@ namespace RetroQB.Entities;
 
 public sealed class Blocker : Entity
 {
-    public Blocker(Vector2 position) : base(position, Constants.ReceiverRadius, "B", Palette.White)
+    public float Speed { get; }
+
+    public Blocker(Vector2 position) : base(position, Constants.ReceiverRadius, "OL", Palette.White)
     {
+        Speed = Constants.OlSpeed;
     }
 }

@@ -79,11 +79,11 @@ public static class ReceiverAI
 
         if (receiver.HasBall)
         {
-            receiver.Velocity = new Vector2(0, Constants.ReceiverSpeed);
+            receiver.Velocity = new Vector2(0, receiver.Speed);
             return;
         }
 
-        float speed = Constants.ReceiverSpeed;
+        float speed = receiver.Speed;
         Vector2 dir = Vector2.Zero;
         float progress = receiver.RouteProgress;
 

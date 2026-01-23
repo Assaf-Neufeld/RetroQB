@@ -10,7 +10,7 @@ public sealed class HudRenderer
     private const int PanelX = 10;
     private const int PanelWidth = 260;
     
-    public void DrawSidePanel(PlayManager play, string resultText, int selectedReceiver, GameState state)
+    public void DrawSidePanel(PlayManager play, string resultText, int selectedReceiver, string selectedReceiverLabel, GameState state)
     {
         int screenH = Raylib.GetScreenHeight();
         
@@ -53,7 +53,7 @@ public sealed class HudRenderer
         Raylib.DrawText($"Ball on {yardLine:F0} yd line", x, y, 18, Palette.White);
         y += 28;
         
-        Raylib.DrawText($"Target: WR {selectedReceiver + 1}", x, y, 18, Palette.Lime);
+        Raylib.DrawText($"Target: {selectedReceiverLabel} {selectedReceiver + 1}", x, y, 18, Palette.Lime);
         y += 35;
         
         // Divider

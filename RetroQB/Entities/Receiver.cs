@@ -5,10 +5,18 @@ using RetroQB.AI;
 
 namespace RetroQB.Entities;
 
+public enum OffensivePosition
+{
+    WR,
+    RB
+}
+
 public sealed class Receiver : Entity
 {
     public int Index { get; }
     public bool IsRunningBack { get; }
+    public OffensivePosition PositionRole { get; }
+    public float Speed { get; }
     public bool HasBall { get; set; }
     public bool Eligible { get; set; } = true;
     public bool IsBlocking { get; set; }
@@ -18,10 +26,12 @@ public sealed class Receiver : Entity
     public Color HighlightColor { get; set; } = Palette.Yellow;
     public int RouteSide { get; set; }
 
-    public Receiver(int index, Vector2 position, bool isRunningBack = false) : base(position, Constants.ReceiverRadius, "R", Palette.Blue)
+    public Receiver(int index, Vector2 position, bool isRunningBack = false) : base(position, Constants.ReceiverRadius, isRunningBack ? "RB" : "WR", Palette.Blue)
     {
         Index = index;
         IsRunningBack = isRunningBack;
+        PositionRole = isRunningBack ? OffensivePosition.RB : OffensivePosition.WR;
+        Speed = isRunningBack ? Constants.RbSpeed : Constants.WrSpeed;
         RouteStart = position;
     }
 

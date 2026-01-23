@@ -29,6 +29,8 @@ public abstract class Entity
     public virtual void Draw()
     {
         Vector2 screen = Constants.WorldToScreen(Position);
-        Raylib.DrawText(Glyph, (int)screen.X - 6, (int)screen.Y - 8, 18, Color);
+        int fontSize = 18;
+        int textWidth = Raylib.MeasureText(Glyph, fontSize);
+        Raylib.DrawText(Glyph, (int)screen.X - textWidth / 2, (int)screen.Y - 8, fontSize, Color);
     }
 }

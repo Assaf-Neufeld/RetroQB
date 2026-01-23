@@ -8,7 +8,7 @@ public static class DefenderAI
 {
     public static void UpdateDefender(Defender defender, Quarterback qb, IReadOnlyList<Receiver> receivers, Ball ball, float speedMultiplier, float dt, bool qbIsRunner, bool useZoneCoverage, float lineOfScrimmage)
     {
-        float speed = Constants.DefenderSpeed * speedMultiplier;
+        float speed = defender.Speed * speedMultiplier;
         Vector2 target;
 
         if (qbIsRunner)

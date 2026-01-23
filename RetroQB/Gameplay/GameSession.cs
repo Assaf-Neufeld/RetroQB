@@ -73,19 +73,19 @@ public sealed class GameSession
     private void SpawnDefenders(float los)
     {
         // Defensive formation: 4-3 with 4 DB
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, los + 2.8f)) { IsRusher = true, ZoneRole = CoverageRole.None });
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.46f, los + 2.8f)) { IsRusher = true, ZoneRole = CoverageRole.None });
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.54f, los + 2.8f)) { IsRusher = true, ZoneRole = CoverageRole.None });
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, los + 2.8f)) { IsRusher = true, ZoneRole = CoverageRole.None });
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, los + 2.8f), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None });
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.46f, los + 2.8f), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None });
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.54f, los + 2.8f), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None });
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, los + 2.8f), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None });
 
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.38f, los + 6.2f)) { CoverageReceiverIndex = 1, ZoneRole = CoverageRole.HookLeft }); // LB
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.50f, los + 6.2f)) { CoverageReceiverIndex = 3, ZoneRole = CoverageRole.HookMiddle }); // MLB (TE)
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.62f, los + 6.2f)) { CoverageReceiverIndex = 2, ZoneRole = CoverageRole.HookRight }); // LB
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.38f, los + 6.2f), DefensivePosition.LB) { CoverageReceiverIndex = 1, ZoneRole = CoverageRole.HookLeft }); // LB
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.50f, los + 6.2f), DefensivePosition.LB) { CoverageReceiverIndex = 3, ZoneRole = CoverageRole.HookMiddle }); // MLB (TE)
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.62f, los + 6.2f), DefensivePosition.LB) { CoverageReceiverIndex = 2, ZoneRole = CoverageRole.HookRight }); // LB
 
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.20f, los + 10.5f)) { CoverageReceiverIndex = 0, ZoneRole = CoverageRole.FlatLeft }); // CB
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.80f, los + 10.5f)) { CoverageReceiverIndex = 2, ZoneRole = CoverageRole.FlatRight }); // CB
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, los + 12.5f)) { CoverageReceiverIndex = 1, ZoneRole = CoverageRole.DeepLeft }); // S
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, los + 12.5f)) { CoverageReceiverIndex = 3, ZoneRole = CoverageRole.DeepRight }); // S
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.20f, los + 10.5f), DefensivePosition.DB) { CoverageReceiverIndex = 0, ZoneRole = CoverageRole.FlatLeft }); // CB
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.80f, los + 10.5f), DefensivePosition.DB) { CoverageReceiverIndex = 2, ZoneRole = CoverageRole.FlatRight }); // CB
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, los + 12.5f), DefensivePosition.DB) { CoverageReceiverIndex = 1, ZoneRole = CoverageRole.DeepLeft }); // S
+        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, los + 12.5f), DefensivePosition.DB) { CoverageReceiverIndex = 3, ZoneRole = CoverageRole.DeepRight }); // S
     }
 
     public void Update(float dt)
@@ -206,7 +206,7 @@ public sealed class GameSession
 
             if (receiver == controlledReceiver)
             {
-                float carrierSpeed = sprint ? Constants.ReceiverSpeed * 1.15f : Constants.ReceiverSpeed;
+                float carrierSpeed = sprint ? controlledReceiver.Speed * 1.15f : controlledReceiver.Speed;
                 receiver.Velocity = inputDir * carrierSpeed;
                 receiver.Update(dt);
                 ClampToField(receiver);
@@ -224,7 +224,7 @@ public sealed class GameSession
                     {
                         toTarget = Vector2.Normalize(toTarget);
                     }
-                    receiver.Velocity = toTarget * (Constants.BlockerSpeed * 0.9f);
+                    receiver.Velocity = toTarget * (receiver.Speed * 0.9f);
                 }
             }
             else if (_ball.State == BallState.InAir && receiver.Eligible)
@@ -234,7 +234,7 @@ public sealed class GameSession
                 {
                     toBall = Vector2.Normalize(toBall);
                 }
-                receiver.Velocity = toBall * Constants.ReceiverSpeed;
+                receiver.Velocity = toBall * receiver.Speed;
             }
             receiver.Update(dt);
             ClampToField(receiver);
@@ -408,7 +408,12 @@ public sealed class GameSession
         DrawSelectedReceiverHighlight();
         
         // Draw side panel with all HUD info
-        _hudRenderer.DrawSidePanel(_playManager, _lastPlayText, _playManager.SelectedReceiver, _stateManager.State);
+        string targetLabel = "WR";
+        if (_playManager.SelectedReceiver >= 0 && _playManager.SelectedReceiver < _receivers.Count)
+        {
+            targetLabel = _receivers[_playManager.SelectedReceiver].Glyph;
+        }
+        _hudRenderer.DrawSidePanel(_playManager, _lastPlayText, _playManager.SelectedReceiver, targetLabel, _stateManager.State);
 
         if (_stateManager.State == GameState.MainMenu)
         {
@@ -504,7 +509,7 @@ public sealed class GameSession
                 {
                     toTarget = Vector2.Normalize(toTarget);
                 }
-                blocker.Velocity = toTarget * Constants.BlockerSpeed;
+                blocker.Velocity = toTarget * blocker.Speed;
 
                 float contactRange = blocker.Radius + target.Radius + 0.6f;
                 float distance = Vector2.Distance(blocker.Position, target.Position);
@@ -523,7 +528,7 @@ public sealed class GameSession
             }
             else
             {
-                blocker.Velocity = new Vector2(0f, Constants.BlockerSpeed * 0.4f);
+                blocker.Velocity = new Vector2(0f, blocker.Speed * 0.4f);
             }
 
             blocker.Update(dt);
@@ -541,7 +546,7 @@ public sealed class GameSession
             {
                 toTarget = Vector2.Normalize(toTarget);
             }
-            receiver.Velocity = toTarget * Constants.BlockerSpeed;
+            receiver.Velocity = toTarget * receiver.Speed;
 
             float contactRange = receiver.Radius + target.Radius + 0.6f;
             float distance = Vector2.Distance(receiver.Position, target.Position);
@@ -560,7 +565,7 @@ public sealed class GameSession
         }
         else
         {
-            receiver.Velocity = new Vector2(0f, Constants.BlockerSpeed * 0.4f);
+            receiver.Velocity = new Vector2(0f, receiver.Speed * 0.4f);
         }
     }
 

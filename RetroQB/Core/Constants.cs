@@ -62,8 +62,12 @@ public static class Constants
     public const float QbAcceleration = 28f;
     public const float QbFriction = 16f;
 
-    public const float ReceiverSpeed = 7.2f;
-    public const float DefenderSpeed = 7.0f;
+    public const float WrSpeed = 7.6f;
+    public const float RbSpeed = 7.1f;
+    public const float OlSpeed = 5.6f;
+    public const float DlSpeed = 6.3f;
+    public const float LbSpeed = 6.8f;
+    public const float DbSpeed = 7.4f;
 
     public const float BallMinSpeed = 14f;
     public const float BallMaxSpeed = 22f;
