@@ -30,7 +30,7 @@ public static class DefenderAI
             }
             else if (useZoneCoverage && defender.ZoneRole != CoverageRole.None)
             {
-                target = GetZoneTarget(defender.ZoneRole, lineOfScrimmage);
+                target = GetZoneTarget(defender, lineOfScrimmage);
             }
             else if (defender.CoverageReceiverIndex >= 0 && defender.CoverageReceiverIndex < receivers.Count)
             {
@@ -48,7 +48,7 @@ public static class DefenderAI
         }
         else if (useZoneCoverage && defender.ZoneRole != CoverageRole.None)
         {
-            target = GetZoneTarget(defender.ZoneRole, lineOfScrimmage);
+            target = GetZoneTarget(defender, lineOfScrimmage);
         }
         else if (defender.CoverageReceiverIndex >= 0 && defender.CoverageReceiverIndex < receivers.Count)
         {
@@ -68,18 +68,22 @@ public static class DefenderAI
         defender.Position += defender.Velocity * dt;
     }
 
-    private static Vector2 GetZoneTarget(CoverageRole role, float los)
+    private static Vector2 GetZoneTarget(Defender defender, float los)
     {
-        return role switch
+        float depth = defender.PositionRole == DefensivePosition.DB
+            ? Constants.ZoneCoverageDepthDb
+            : Constants.ZoneCoverageDepth;
+
+        return defender.ZoneRole switch
         {
-            CoverageRole.DeepLeft => new Vector2(Constants.FieldWidth * 0.25f, los + Constants.ZoneCoverageDepth),
-            CoverageRole.DeepRight => new Vector2(Constants.FieldWidth * 0.75f, los + Constants.ZoneCoverageDepth),
-            CoverageRole.FlatLeft => new Vector2(Constants.FieldWidth * 0.18f, los + Constants.ZoneCoverageDepth),
-            CoverageRole.FlatRight => new Vector2(Constants.FieldWidth * 0.82f, los + Constants.ZoneCoverageDepth),
-            CoverageRole.HookLeft => new Vector2(Constants.FieldWidth * 0.38f, los + Constants.ZoneCoverageDepth),
-            CoverageRole.HookMiddle => new Vector2(Constants.FieldWidth * 0.50f, los + Constants.ZoneCoverageDepth),
-            CoverageRole.HookRight => new Vector2(Constants.FieldWidth * 0.62f, los + Constants.ZoneCoverageDepth),
-            _ => new Vector2(Constants.FieldWidth * 0.50f, los + Constants.ZoneCoverageDepth)
+            CoverageRole.DeepLeft => new Vector2(Constants.FieldWidth * 0.25f, los + depth),
+            CoverageRole.DeepRight => new Vector2(Constants.FieldWidth * 0.75f, los + depth),
+            CoverageRole.FlatLeft => new Vector2(Constants.FieldWidth * 0.18f, los + depth),
+            CoverageRole.FlatRight => new Vector2(Constants.FieldWidth * 0.82f, los + depth),
+            CoverageRole.HookLeft => new Vector2(Constants.FieldWidth * 0.38f, los + depth),
+            CoverageRole.HookMiddle => new Vector2(Constants.FieldWidth * 0.50f, los + depth),
+            CoverageRole.HookRight => new Vector2(Constants.FieldWidth * 0.62f, los + depth),
+            _ => new Vector2(Constants.FieldWidth * 0.50f, los + depth)
         };
     }
 }

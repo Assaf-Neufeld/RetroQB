@@ -229,12 +229,31 @@ public sealed class GameSession
             }
             else if (_ball.State == BallState.InAir && receiver.Eligible)
             {
+                Vector2 routeVelocity = receiver.Velocity;
                 Vector2 toBall = _ball.Position - receiver.Position;
-                if (toBall.LengthSquared() > 0.001f)
+                float distToBall = toBall.Length();
+                if (distToBall > 0.001f)
                 {
-                    toBall = Vector2.Normalize(toBall);
+                    toBall /= distToBall;
                 }
-                receiver.Velocity = toBall * receiver.Speed;
+
+                bool ballAhead = _ball.Position.Y >= receiver.Position.Y - 0.75f;
+                bool allowComeback = distToBall <= Constants.CatchRadius + 0.75f;
+
+                if (ballAhead || allowComeback)
+                {
+                    Vector2 baseDir = routeVelocity.LengthSquared() > 0.001f
+                        ? Vector2.Normalize(routeVelocity)
+                        : toBall;
+
+                    float adjustWeight = Math.Clamp(1f - (distToBall / 12f), 0.15f, 0.6f);
+                    Vector2 blendedDir = baseDir * (1f - adjustWeight) + toBall * adjustWeight;
+                    if (blendedDir.LengthSquared() > 0.001f)
+                    {
+                        blendedDir = Vector2.Normalize(blendedDir);
+                    }
+                    receiver.Velocity = blendedDir * receiver.Speed;
+                }
             }
             receiver.Update(dt);
             ClampToField(receiver);
@@ -319,17 +338,24 @@ public sealed class GameSession
             {
                 var receiver = _receivers[_playManager.SelectedReceiver];
                 if (!receiver.Eligible) return;
-                // Lead the receiver - predict where they'll be
-                float distance = Vector2.Distance(_qb.Position, receiver.Position);
-                float flightTime = distance / Constants.BallMaxSpeed;
-                Vector2 leadTarget = receiver.Position + receiver.Velocity * flightTime * 1.2f;
-                
+                float speed = Constants.BallMaxSpeed;
+                Vector2 toReceiver = receiver.Position - _qb.Position;
+                float leadTime = CalculateInterceptTime(toReceiver, receiver.Velocity, speed);
+                leadTime = Math.Clamp(leadTime, 0f, Constants.BallMaxAirTime);
+                Vector2 leadTarget = receiver.Position + receiver.Velocity * leadTime;
+
                 Vector2 dir = leadTarget - _qb.Position;
                 if (dir.LengthSquared() > 0.001f)
                 {
                     dir = Vector2.Normalize(dir);
                 }
-                float speed = Constants.BallMaxSpeed;
+
+                float pressure = GetQbPressureFactor();
+                float inaccuracyDeg = Lerp(Constants.ThrowBaseInaccuracyDeg, Constants.ThrowMaxInaccuracyDeg, pressure);
+                float inaccuracyRad = inaccuracyDeg * (MathF.PI / 180f);
+                float angle = ((float)_rng.NextDouble() * 2f - 1f) * inaccuracyRad;
+                dir = Rotate(dir, angle);
+
                 _ball.SetInAir(_qb.Position, dir * speed);
             }
         }
@@ -735,5 +761,73 @@ public sealed class GameSession
         }
 
         return best;
+    }
+
+    private float GetQbPressureFactor()
+    {
+        float closest = float.MaxValue;
+        foreach (var defender in _defenders)
+        {
+            if (!defender.IsRusher) continue;
+            float dist = Vector2.Distance(defender.Position, _qb.Position);
+            if (dist < closest)
+            {
+                closest = dist;
+            }
+        }
+
+        if (closest == float.MaxValue || closest >= Constants.ThrowPressureMaxDistance)
+        {
+            return 0f;
+        }
+
+        if (closest <= Constants.ThrowPressureMinDistance)
+        {
+            return 1f;
+        }
+
+        float t = 1f - (closest - Constants.ThrowPressureMinDistance) / (Constants.ThrowPressureMaxDistance - Constants.ThrowPressureMinDistance);
+        return Math.Clamp(t, 0f, 1f);
+    }
+
+    private static float CalculateInterceptTime(Vector2 toTarget, Vector2 targetVelocity, float projectileSpeed)
+    {
+        float a = Vector2.Dot(targetVelocity, targetVelocity) - projectileSpeed * projectileSpeed;
+        float b = 2f * Vector2.Dot(targetVelocity, toTarget);
+        float c = Vector2.Dot(toTarget, toTarget);
+
+        if (MathF.Abs(a) < 0.0001f)
+        {
+            if (MathF.Abs(b) < 0.0001f)
+            {
+                return 0f;
+            }
+            float t = -c / b;
+            return t > 0f ? t : 0f;
+        }
+
+        float discriminant = b * b - 4f * a * c;
+        if (discriminant < 0f)
+        {
+            return 0f;
+        }
+
+        float sqrt = MathF.Sqrt(discriminant);
+        float t1 = (-b - sqrt) / (2f * a);
+        float t2 = (-b + sqrt) / (2f * a);
+        float t = (t1 > 0f && t2 > 0f) ? MathF.Min(t1, t2) : MathF.Max(t1, t2);
+        return t > 0f ? t : 0f;
+    }
+
+    private static Vector2 Rotate(Vector2 v, float radians)
+    {
+        float cos = MathF.Cos(radians);
+        float sin = MathF.Sin(radians);
+        return new Vector2(v.X * cos - v.Y * sin, v.X * sin + v.Y * cos);
+    }
+
+    private static float Lerp(float a, float b, float t)
+    {
+        return a + (b - a) * t;
     }
 }

@@ -70,8 +70,13 @@ public static class Constants
     public const float DbSpeed = 7.4f;
 
     public const float BallMinSpeed = 14f;
-    public const float BallMaxSpeed = 22f;
+    public const float BallMaxSpeed = 26f;
     public const float BallMaxAirTime = 3.0f;
+
+    public const float ThrowPressureMinDistance = 2.8f;
+    public const float ThrowPressureMaxDistance = 10.5f;
+    public const float ThrowBaseInaccuracyDeg = 0.6f;
+    public const float ThrowMaxInaccuracyDeg = 9.5f;
 
     public const float AimChargeSeconds = 1.0f;
 
@@ -82,6 +87,7 @@ public static class Constants
     // Defensive coverage tuning
     public const float ManCoverageDistanceThreshold = 5f;
     public const float ZoneCoverageDepth = 14f;
+    public const float ZoneCoverageDepthDb = 22f;
 
     public static Vector2 WorldToScreen(Vector2 worldPos)
     {
