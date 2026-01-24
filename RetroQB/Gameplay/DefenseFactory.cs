@@ -53,7 +53,7 @@ public sealed class DefenseFactory : IDefenseFactory
         if (mlbBlitz) blitzers.Add("MLB");
         if (lbrBlitz) blitzers.Add("LB");
 
-        float lbDepth = ClampDefenderY(lineOfScrimmage + 6.2f * depthScale, maxY);
+        float lbDepth = ClampDefenderY(lineOfScrimmage + 7.6f * depthScale, maxY);
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.38f, lbDepth), DefensivePosition.LB, attrs) { IsRusher = lblBlitz, CoverageReceiverIndex = leftSlot, ZoneRole = CoverageRole.HookLeft, RushLaneOffsetX = -7.0f });
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.50f, lbDepth), DefensivePosition.LB, attrs) { IsRusher = mlbBlitz, CoverageReceiverIndex = middle, ZoneRole = CoverageRole.HookMiddle, RushLaneOffsetX = 0f });
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.62f, lbDepth), DefensivePosition.LB, attrs) { IsRusher = lbrBlitz, CoverageReceiverIndex = rightSlot, ZoneRole = CoverageRole.HookRight, RushLaneOffsetX = 7.0f });

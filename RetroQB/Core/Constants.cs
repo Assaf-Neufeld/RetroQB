@@ -81,6 +81,8 @@ public static class Constants
     public const float ThrowPressureMaxDistance = 10.5f;
     public const float ThrowBaseInaccuracyDeg = 0.6f;
     public const float ThrowMaxInaccuracyDeg = 9.5f;
+    public const float ShortPassMaxDistance = 8f;
+    public const float MediumPassMaxDistance = 16f;
 
     public const float AimChargeSeconds = 1.0f;
 

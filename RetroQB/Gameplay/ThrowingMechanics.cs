@@ -1,4 +1,5 @@
 using System.Numerics;
+using RetroQB.Core;
 
 namespace RetroQB.Gameplay;
 
@@ -11,14 +12,15 @@ public interface IThrowingMechanics
         Vector2 targetVelocity,
         float ballSpeed,
         float pressure,
+        OffensiveTeamAttributes offensiveTeam,
         Random rng);
     float CalculateInterceptTime(Vector2 toTarget, Vector2 targetVelocity, float projectileSpeed);
 }
 
 public sealed class ThrowingMechanics : IThrowingMechanics
 {
-    private const float ThrowBaseInaccuracyDeg = 2f;
-    private const float ThrowMaxInaccuracyDeg = 12f;
+    private const float ThrowBaseInaccuracyDeg = 1.0f;
+    private const float ThrowMaxInaccuracyDeg = 8f;
     private const float BallMaxAirTime = 2.5f;
 
     public Vector2 CalculateThrowVelocity(
@@ -28,6 +30,7 @@ public sealed class ThrowingMechanics : IThrowingMechanics
         Vector2 targetVelocity,
         float ballSpeed,
         float pressure,
+        OffensiveTeamAttributes offensiveTeam,
         Random rng)
     {
         Vector2 toReceiver = targetPosition - qbPosition;
@@ -42,8 +45,10 @@ public sealed class ThrowingMechanics : IThrowingMechanics
         }
 
         float movementPenalty = GetMovementInaccuracyPenalty(qbVelocity, dir);
+        float distanceMultiplier = GetDistanceAccuracyMultiplier(toReceiver.Length(), offensiveTeam);
         float combinedFactor = Math.Clamp(pressure + movementPenalty, 0f, 1f);
         float inaccuracyDeg = Lerp(ThrowBaseInaccuracyDeg, ThrowMaxInaccuracyDeg, combinedFactor);
+        inaccuracyDeg *= offensiveTeam.ThrowInaccuracyMultiplier * distanceMultiplier;
         float inaccuracyRad = inaccuracyDeg * (MathF.PI / 180f);
         float angle = ((float)rng.NextDouble() * 2f - 1f) * inaccuracyRad;
         dir = Rotate(dir, angle);
@@ -86,11 +91,43 @@ public sealed class ThrowingMechanics : IThrowingMechanics
         if (speed < 0.2f) return 0f;
 
         Vector2 moveDir = qbVelocity / speed;
-        float dot = Vector2.Dot(moveDir, throwDir);
-        dot = Math.Clamp(dot, -1f, 1f);
+        
+        // Penalty for throwing across the body (opposite horizontal direction)
+        // Running right (+X) and throwing left (-X) = penalty
+        // Running sideways and throwing forward = OK
+        // Running forward and throwing forward = OK
+        float moveX = moveDir.X;
+        float throwX = throwDir.X;
+        
+        float horizontalMovement = MathF.Abs(moveX);
+        
+        // If not moving much horizontally, no cross-body penalty
+        if (horizontalMovement < 0.3f) return 0f;
+        
+        // If throw is in opposite X direction from movement, apply penalty
+        if (moveX * throwX < 0)
+        {
+            // Penalty scales with how much you're moving sideways and how far across you're throwing
+            float crossBodyFactor = horizontalMovement * MathF.Abs(throwX);
+            return Math.Clamp(crossBodyFactor * 1.5f, 0f, 1f);
+        }
+        
+        return 0f;
+    }
 
-        float penalty = (1f - dot) * 0.5f;
-        return Math.Clamp(penalty, 0f, 1f);
+    private static float GetDistanceAccuracyMultiplier(float distance, OffensiveTeamAttributes offensiveTeam)
+    {
+        if (distance <= Constants.ShortPassMaxDistance)
+        {
+            return offensiveTeam.ShortAccuracyMultiplier;
+        }
+
+        if (distance <= Constants.MediumPassMaxDistance)
+        {
+            return offensiveTeam.MediumAccuracyMultiplier;
+        }
+
+        return offensiveTeam.LongAccuracyMultiplier;
     }
 
     private static Vector2 Rotate(Vector2 v, float radians)

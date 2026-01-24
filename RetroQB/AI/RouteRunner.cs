@@ -65,7 +65,7 @@ public static class RouteRunner
         // Use actual Y-distance traveled from route start, not time-based progress
         // This ensures routes break at correct positions even if receiver is blocked/pushed
         float progress = receiver.Position.Y - receiver.RouteStart.Y;
-        var stems = GetStemDistances(receiver);
+        var stems = RouteGeometry.GetStemDistances(receiver);
 
         return receiver.Route switch
         {
@@ -75,29 +75,19 @@ public static class RouteRunner
             RouteType.OutDeep => CalculateOutDirection(receiver, progress, stems.Deep),
             RouteType.InShallow => CalculateInDirection(progress, stems.Shallow, receiver.RouteSide),
             RouteType.InDeep => CalculateInDirection(progress, stems.Deep, receiver.RouteSide),
-            RouteType.PostShallow => CalculatePostDirection(progress, stems.Shallow, receiver.RouteSide, 0.6f, stems.PostAngleShallow),
-            RouteType.PostDeep => CalculatePostDirection(progress, stems.Deep, receiver.RouteSide, 0.9f, stems.PostAngleDeep),
+            RouteType.PostShallow => CalculatePostDirection(progress, stems.Shallow, receiver.RouteSide, RouteGeometry.PostXFactorShallow, stems.PostAngleShallow),
+            RouteType.PostDeep => CalculatePostDirection(progress, stems.Deep, receiver.RouteSide, RouteGeometry.PostXFactorDeep, stems.PostAngleDeep),
             RouteType.Curl => CalculateCurlDirection(receiver, progress),
             RouteType.Flat => CalculateFlatDirection(receiver.RouteSide),
             _ => Vector2.Zero
         };
     }
 
-    private static (float Shallow, float Deep, float PostAngleShallow, float PostAngleDeep) GetStemDistances(Receiver receiver)
-    {
-        float stemShallow = receiver.IsRunningBack ? 3.8f : receiver.IsTightEnd ? 5.5f : 6.5f;
-        float stemDeep = receiver.IsRunningBack ? 5.5f : receiver.IsTightEnd ? 8.5f : 11f;
-        // PostAngle values represent the Y-component of the post cut direction
-        // Lower values = sharper cut toward the middle, higher = more gradual
-        return (stemShallow, stemDeep, 1.2f, 1.0f);
-    }
-
     private static Vector2 CalculateGoDirection() => new Vector2(0, 1);
 
     private static Vector2 CalculateSlantDirection(Receiver receiver)
     {
-        float slantSide = receiver.SlantInside ? -receiver.RouteSide : receiver.RouteSide;
-        return Vector2.Normalize(new Vector2(0.7f * slantSide, 1));
+        return RouteGeometry.GetSlantDirection(receiver.RouteSide, receiver.SlantInside);
     }
 
     private static Vector2 CalculateOutDirection(Receiver receiver, float progress, float stem)
@@ -113,7 +103,7 @@ public static class RouteRunner
             return Vector2.Zero;
         }
 
-        return new Vector2(receiver.RouteSide, 0);
+        return RouteGeometry.GetOutBreakDirection(receiver.RouteSide);
     }
 
     private static Vector2 CalculateInDirection(float progress, float stem, int routeSide)
@@ -125,13 +115,14 @@ public static class RouteRunner
     {
         return progress < stem
             ? new Vector2(0, 1)
-            : Vector2.Normalize(new Vector2(-xFactor * routeSide, postAngle));
+            : RouteGeometry.GetPostBreakDirection(routeSide, xFactor, postAngle);
     }
 
     private static Vector2 CalculateCurlDirection(Receiver receiver, float progress)
     {
-        float curlStem = receiver.IsRunningBack ? 4f : receiver.IsTightEnd ? 6f : 7f;
-        float curlReturn = receiver.IsRunningBack ? 1.5f : receiver.IsTightEnd ? 1.8f : 2f;
+        var curl = RouteGeometry.GetCurlValues(receiver);
+        float curlStem = curl.Stem;
+        float curlReturn = curl.Return;
 
         if (progress < curlStem)
         {
@@ -139,7 +130,8 @@ public static class RouteRunner
         }
         else if (progress < curlStem + curlReturn)
         {
-            return new Vector2(0, -1);
+            // Comeback with slight drift toward the sideline for separation
+            return RouteGeometry.GetCurlComebackDirection(receiver.RouteSide);
         }
         else
         {

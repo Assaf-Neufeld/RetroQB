@@ -34,6 +34,14 @@ public sealed class OffensiveTeamAttributes : TeamAttributes
     /// </summary>
     public float ThrowInaccuracyMultiplier { get; init; } = 1.0f;
 
+    /// <summary>
+    /// Distance-based QB accuracy multipliers (lower = more accurate).
+    /// Applied in addition to ThrowInaccuracyMultiplier.
+    /// </summary>
+    public float ShortAccuracyMultiplier { get; init; } = 0.9f;
+    public float MediumAccuracyMultiplier { get; init; } = 1.0f;
+    public float LongAccuracyMultiplier { get; init; } = 1.15f;
+
     // Receiver attributes
     public float WrSpeed { get; init; } = Constants.WrSpeed;
     public float TeSpeed { get; init; } = Constants.TeSpeed;
@@ -44,6 +52,12 @@ public sealed class OffensiveTeamAttributes : TeamAttributes
     /// Range: 0.0 - 1.0, where 0.7 is baseline (70% contested catch rate).
     /// </summary>
     public float CatchingAbility { get; init; } = 0.7f;
+    
+    /// <summary>
+    /// RB tackle-breaking ability. Chance to break a tackle attempt.
+    /// Range: 0.0 - 0.5, where 0.25 is baseline (25% chance to break tackle).
+    /// </summary>
+    public float RbTackleBreakChance { get; init; } = 0.25f;
     
     /// <summary>
     /// Catch radius multiplier. 1.0 = baseline.
@@ -94,11 +108,19 @@ public sealed class DefensiveTeamAttributes : TeamAttributes
     public float SpeedMultiplier { get; init; } = 1.0f;
     
     /// <summary>
-    /// Interception ability. Higher = better chance to intercept.
-    /// Affects the intercept radius: actual = base * InterceptionAbility.
+    /// Overall interception ability multiplier. Higher = better chance to intercept.
+    /// Affects the intercept radius: actual = base * position multiplier * InterceptionAbility.
     /// Range: 0.5 - 1.5, where 1.0 is baseline.
     /// </summary>
     public float InterceptionAbility { get; init; } = 1.0f;
+    
+    /// <summary>
+    /// Position-specific interception multipliers. DBs are best at intercepting,
+    /// LBs are decent, and DL are poor at catching passes.
+    /// </summary>
+    public float DbInterceptionMultiplier { get; init; } = 1.0f;
+    public float LbInterceptionMultiplier { get; init; } = 0.6f;
+    public float DlInterceptionMultiplier { get; init; } = 0.15f;
     
     /// <summary>
     /// Coverage tightness. Higher = defenders stick closer to receivers.
@@ -154,10 +176,32 @@ public sealed class DefensiveTeamAttributes : TeamAttributes
     }
     
     /// <summary>
-    /// Gets the effective intercept radius based on interception ability.
+    /// Gets the effective intercept radius based on interception ability (team-wide).
     /// </summary>
     public float GetEffectiveInterceptRadius()
     {
         return Constants.InterceptRadius * InterceptionAbility;
+    }
+    
+    /// <summary>
+    /// Gets the position-specific interception multiplier.
+    /// </summary>
+    public float GetPositionInterceptionMultiplier(Entities.DefensivePosition position)
+    {
+        return position switch
+        {
+            Entities.DefensivePosition.DB => DbInterceptionMultiplier,
+            Entities.DefensivePosition.LB => LbInterceptionMultiplier,
+            _ => DlInterceptionMultiplier
+        };
+    }
+    
+    /// <summary>
+    /// Gets the effective intercept radius for a specific defender position.
+    /// DBs have the best interception ability, LBs are moderate, DL are poor.
+    /// </summary>
+    public float GetEffectiveInterceptRadius(Entities.DefensivePosition position)
+    {
+        return Constants.InterceptRadius * InterceptionAbility * GetPositionInterceptionMultiplier(position);
     }
 }

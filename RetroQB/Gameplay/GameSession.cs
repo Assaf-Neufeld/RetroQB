@@ -166,6 +166,7 @@ public sealed class GameSession
         _passCompletedThisPlay = false;
         _passCatcher = null;
         _playStartLos = _playManager.LineOfScrimmage;
+        _brokenTackleDefenders.Clear();
 
         // Use FormationFactory to create offensive formation with team attributes
         var formationResult = _formationFactory.CreateFormation(_playManager.SelectedPlay, _playManager.LineOfScrimmage, _offensiveTeam);
@@ -441,6 +442,7 @@ public sealed class GameSession
         }
 
         bool runBlockingBoost = IsRunPlayActiveWithRunningBack();
+        Vector2? ballCarrierPosition = GetBallCarrierPosition();
         OffensiveLinemanAI.UpdateBlockers(
             _blockers,
             _defenders,
@@ -449,7 +451,8 @@ public sealed class GameSession
             _playManager.SelectedPlay.RunningBackSide,
             dt,
             runBlockingBoost,
-            ClampToField);
+            ClampToField,
+            ballCarrierPosition);
         ResolvePlayerOverlaps();
 
         HandleBall(dt);
@@ -486,19 +489,26 @@ public sealed class GameSession
                 
                 if (receiverDist <= catchRadius)
                 {
-                    // Find closest defender to the ball
+                    // Find closest defender to the ball and check for interception
+                    Defender? closestDefender = null;
                     float closestDefenderDist = float.MaxValue;
                     foreach (var d in _defenders)
                     {
                         float dist = Vector2.Distance(d.Position, _ball.Position);
-                        if (dist < closestDefenderDist) closestDefenderDist = dist;
+                        if (dist < closestDefenderDist)
+                        {
+                            closestDefenderDist = dist;
+                            closestDefender = d;
+                        }
                     }
                     
-                    // Use team attributes for intercept radius
-                    float interceptRadius = _defensiveTeam.GetEffectiveInterceptRadius();
+                    // Use position-specific intercept radius (DBs best, LBs moderate, DL poor)
+                    float interceptRadius = closestDefender != null 
+                        ? _defensiveTeam.GetEffectiveInterceptRadius(closestDefender.PositionRole)
+                        : 0f;
                     
                     // Interception only if defender is closer than receiver AND within intercept radius
-                    if (closestDefenderDist <= interceptRadius && closestDefenderDist < receiverDist)
+                    if (closestDefender != null && closestDefenderDist <= interceptRadius && closestDefenderDist < receiverDist)
                     {
                         EndPlay(intercepted: true);
                         return;
@@ -566,10 +576,49 @@ public sealed class GameSession
         {
             if (Vector2.Distance(defender.Position, carrier.Position) <= defender.Radius + carrier.Radius)
             {
+                // Check for tackle break if carrier is a running back
+                if (carrier is Receiver receiver && receiver.IsRunningBack)
+                {
+                    if (TryBreakTackle(defender))
+                    {
+                        // Tackle broken - push defender away and continue
+                        continue;
+                    }
+                }
+                
                 EndPlay(tackle: true);
                 return;
             }
         }
+    }
+    
+    private readonly HashSet<Defender> _brokenTackleDefenders = new();
+    
+    private bool TryBreakTackle(Defender defender)
+    {
+        // Each defender only gets one tackle attempt per play
+        if (_brokenTackleDefenders.Contains(defender))
+            return true; // Already broke this defender's tackle
+        
+        float breakChance = _offensiveTeam.RbTackleBreakChance;
+        if (_rng.NextDouble() < breakChance)
+        {
+            _brokenTackleDefenders.Add(defender);
+            
+            // Push defender away from the ball carrier
+            if (_ball.Holder != null)
+            {
+                Vector2 pushDir = defender.Position - _ball.Holder.Position;
+                if (pushDir.LengthSquared() > 0.001f)
+                {
+                    pushDir = Vector2.Normalize(pushDir);
+                    defender.Position += pushDir * 0.8f; // Push defender back
+                }
+            }
+            return true;
+        }
+        
+        return false;
     }
 
     private void EndPlay(bool tackle = false, bool incomplete = false, bool intercepted = false, bool touchdown = false)
@@ -914,6 +963,7 @@ public sealed class GameSession
         {
             int side = receiver.RouteSide == 0 ? (receiver.Position.X <= _qb.Position.X ? -1 : 1) : receiver.RouteSide;
             Vector2 pocketSpot = _qb.Position + new Vector2(1.7f * side, -0.4f);
+            Vector2? ballCarrierPosition = GetBallCarrierPosition();
 
             Defender? rbTarget = GetClosestDefender(_qb.Position, Constants.BlockEngageRadius + 6.0f, preferRushers: true);
             if (rbTarget != null)
@@ -938,8 +988,20 @@ public sealed class GameSession
                     float overlap = contactRange - distance;
                     float holdStrength = (Constants.BlockHoldStrength * 1.1f) * blockMultiplier;
                     float overlapBoost = 6f * blockMultiplier;
+                    float shedBoost = GetTackleShedBoost(rbTarget.Position, ballCarrierPosition);
+                    if (shedBoost > 0f)
+                    {
+                        float shedScale = 1f - (0.65f * shedBoost);
+                        holdStrength *= shedScale;
+                        overlapBoost *= shedScale;
+                    }
                     rbTarget.Position += pushDir * (holdStrength + overlap * overlapBoost) * dt;
-                    rbTarget.Velocity *= GetDefenderSlowdown(blockMultiplier, 0.12f);
+                    float baseSlow = 0.12f;
+                    if (shedBoost > 0f)
+                    {
+                        baseSlow *= 1f - (0.6f * shedBoost);
+                    }
+                    rbTarget.Velocity *= GetDefenderSlowdown(blockMultiplier, baseSlow);
                     receiver.Velocity *= 0.25f;
                 }
             }
@@ -965,6 +1027,7 @@ public sealed class GameSession
         if (target != null)
         {
             bool runBlockingBoost = IsRunPlayActiveWithRunningBack();
+            Vector2? ballCarrierPosition = GetBallCarrierPosition();
             int runSide = Math.Sign(_playManager.SelectedPlay.RunningBackSide);
             float blockMultiplier = GetReceiverBlockStrength(receiver) * GetDefenderBlockDifficulty(target);
             Vector2 toTarget = target.Position - receiver.Position;
@@ -997,6 +1060,13 @@ public sealed class GameSession
                 float overlapBoost = runBlockingBoost ? 8f : 6f;
                 holdStrength *= blockMultiplier;
                 overlapBoost *= blockMultiplier;
+                float shedBoost = GetTackleShedBoost(target.Position, ballCarrierPosition);
+                if (shedBoost > 0f)
+                {
+                    float shedScale = 1f - (0.65f * shedBoost);
+                    holdStrength *= shedScale;
+                    overlapBoost *= shedScale;
+                }
                 target.Position += pushDir * (holdStrength + overlap * overlapBoost) * dt;
                 if (runBlockingBoost && runSide != 0)
                 {
@@ -1008,6 +1078,10 @@ public sealed class GameSession
                     target.Position += driveDir * 0.8f * dt;
                 }
                 float baseSlow = runBlockingBoost ? 0.08f : 0.15f;
+                if (shedBoost > 0f)
+                {
+                    baseSlow *= 1f - (0.6f * shedBoost);
+                }
                 target.Velocity *= GetDefenderSlowdown(blockMultiplier, baseSlow);
                 receiver.Velocity *= 0.25f;
             }
@@ -1056,6 +1130,34 @@ public sealed class GameSession
         float bonus = Math.Clamp(blockMultiplier - 1f, -0.6f, 0.6f);
         float adjusted = baseSlow - bonus * 0.06f;
         return Math.Clamp(adjusted, 0.05f, 0.22f);
+    }
+
+    private Vector2? GetBallCarrierPosition()
+    {
+        return _ball.State switch
+        {
+            BallState.HeldByQB => _qb.Position,
+            BallState.HeldByReceiver => _ball.Holder?.Position,
+            _ => null
+        };
+    }
+
+    private static float GetTackleShedBoost(Vector2 defenderPosition, Vector2? ballCarrierPosition)
+    {
+        if (ballCarrierPosition == null)
+        {
+            return 0f;
+        }
+
+        float distance = Vector2.Distance(defenderPosition, ballCarrierPosition.Value);
+        const float shedRange = 6.0f;
+        if (distance >= shedRange)
+        {
+            return 0f;
+        }
+
+        float t = 1f - (distance / shedRange);
+        return Math.Clamp(t, 0f, 1f);
     }
 
     private void AssignReceiverPriorities()
@@ -1153,6 +1255,7 @@ public sealed class GameSession
             receiver.Velocity,
             Constants.BallMaxSpeed,
             pressure,
+            _offensiveTeam,
             _rng);
 
         _ball.SetInAir(_qb.Position, throwVelocity);

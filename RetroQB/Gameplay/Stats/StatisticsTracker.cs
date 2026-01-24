@@ -91,11 +91,11 @@ public sealed class StatisticsTracker : IStatisticsTracker
             
             if (hasIndex && _receiverStats.TryGetValue(receiverIndex, out var stats))
             {
-                receivers.Add(new ReceiverStatsSnapshot(i.ToString(), stats.Receptions, stats.Yards, stats.Tds));
+                receivers.Add(new ReceiverStatsSnapshot($"WR{i}", stats.Receptions, stats.Yards, stats.Tds));
             }
             else
             {
-                receivers.Add(new ReceiverStatsSnapshot(i.ToString(), 0, 0, 0));
+                receivers.Add(new ReceiverStatsSnapshot($"WR{i}", 0, 0, 0));
             }
         }
 

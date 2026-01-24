@@ -116,10 +116,10 @@ public static class PlaybookBuilder
                 TightEndRole.Route,
                 new Dictionary<int, RouteType>
                 {
-                    [0] = RouteType.InDeep,
-                    [1] = RouteType.Go,
-                    [2] = RouteType.OutDeep,
-                    [3] = RouteType.InDeep
+                    [0] = RouteType.Go,
+                    [1] = RouteType.InDeep,
+                    [2] = RouteType.PostDeep,
+                    [3] = RouteType.OutShallow
                 }),
 
             new(
@@ -130,10 +130,10 @@ public static class PlaybookBuilder
                 TightEndRole.Route,
                 new Dictionary<int, RouteType>
                 {
-                    [0] = RouteType.Go,
-                    [1] = RouteType.OutDeep,
-                    [2] = RouteType.OutShallow,
-                    [3] = RouteType.Curl,
+                    [0] = RouteType.InDeep,
+                    [1] = RouteType.Curl,
+                    [2] = RouteType.OutDeep,
+                    [3] = RouteType.Go,
                     [4] = RouteType.Flat
                 }),
 
