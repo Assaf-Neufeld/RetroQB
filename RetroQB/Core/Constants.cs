@@ -93,7 +93,6 @@ public static class Constants
     public const float BlockHoldStrength = 4.2f;
 
     // Defensive coverage tuning
-    public const float ManCoverageDistanceThreshold = 5f;
     public const float ZoneCoverageDepth = 14f;
     public const float ZoneCoverageDepthDb = 22f;
     public const float ZoneCoverageDepthFlat = 6.5f;

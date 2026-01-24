@@ -109,14 +109,14 @@ public static class PlaybookBuilder
                 }),
 
             new(
-                "Deep Post",
+                "Deep Ins",
                 PlayType.LongPass,
                 FormationType.BaseTripsLeft,
                 RunningBackRole.Block,
                 TightEndRole.Route,
                 new Dictionary<int, RouteType>
                 {
-                    [0] = RouteType.PostDeep,
+                    [0] = RouteType.InDeep,
                     [1] = RouteType.Go,
                     [2] = RouteType.OutDeep,
                     [3] = RouteType.InDeep

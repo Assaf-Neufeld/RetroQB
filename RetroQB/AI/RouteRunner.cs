@@ -75,8 +75,8 @@ public static class RouteRunner
             RouteType.OutDeep => CalculateOutDirection(receiver, progress, stems.Deep),
             RouteType.InShallow => CalculateInDirection(progress, stems.Shallow, receiver.RouteSide),
             RouteType.InDeep => CalculateInDirection(progress, stems.Deep, receiver.RouteSide),
-            RouteType.PostShallow => CalculatePostDirection(progress, stems.Shallow, receiver.RouteSide, stems.PostAngleShallow),
-            RouteType.PostDeep => CalculatePostDirection(progress, stems.Deep, receiver.RouteSide, stems.PostAngleDeep),
+            RouteType.PostShallow => CalculatePostDirection(progress, stems.Shallow, receiver.RouteSide, 0.6f, stems.PostAngleShallow),
+            RouteType.PostDeep => CalculatePostDirection(progress, stems.Deep, receiver.RouteSide, 0.9f, stems.PostAngleDeep),
             RouteType.Curl => CalculateCurlDirection(receiver, progress),
             RouteType.Flat => CalculateFlatDirection(receiver.RouteSide),
             _ => Vector2.Zero
@@ -86,7 +86,7 @@ public static class RouteRunner
     private static (float Shallow, float Deep, float PostAngleShallow, float PostAngleDeep) GetStemDistances(Receiver receiver)
     {
         float stemShallow = receiver.IsRunningBack ? 3.8f : receiver.IsTightEnd ? 5.5f : 6.5f;
-        float stemDeep = receiver.IsRunningBack ? 5.5f : receiver.IsTightEnd ? 7.5f : 9f;
+        float stemDeep = receiver.IsRunningBack ? 5.5f : receiver.IsTightEnd ? 8.5f : 11f;
         return (stemShallow, stemDeep, 4.8f, 7.2f);
     }
 
@@ -119,11 +119,11 @@ public static class RouteRunner
         return progress < stem ? new Vector2(0, 1) : new Vector2(-routeSide, 0);
     }
 
-    private static Vector2 CalculatePostDirection(float progress, float stem, int routeSide, float postAngle)
+    private static Vector2 CalculatePostDirection(float progress, float stem, int routeSide, float xFactor, float postAngle)
     {
         return progress < stem
             ? new Vector2(0, 1)
-            : Vector2.Normalize(new Vector2(-0.6f * routeSide, postAngle));
+            : Vector2.Normalize(new Vector2(-xFactor * routeSide, postAngle));
     }
 
     private static Vector2 CalculateCurlDirection(Receiver receiver, float progress)

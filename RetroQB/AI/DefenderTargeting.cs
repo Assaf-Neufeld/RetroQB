@@ -50,24 +50,24 @@ public static class DefenderTargeting
         bool useZoneCoverage,
         float lineOfScrimmage)
     {
-        // Only break on ball if defender is close enough to make a play
         float distToBall = Vector2.Distance(defender.Position, ball.Position);
-        if (distToBall < 12f)
-        {
-            return ball.Position;
-        }
+        float maxBreakDistance = defender.PositionRole == DefensivePosition.DB ? 18f : 14f;
+        float ballFocus = Math.Clamp(1f - (distToBall / maxBreakDistance), 0f, 1f);
+        Vector2 ballLead = ball.Position + ball.Velocity * 0.20f;
 
         if (useZoneCoverage && defender.ZoneRole != CoverageRole.None)
         {
-            return ZoneCoverage.GetZoneTarget(defender, receivers, lineOfScrimmage);
+            Vector2 zoneTarget = ZoneCoverage.GetZoneTarget(defender, receivers, lineOfScrimmage);
+            return ballFocus > 0f ? Vector2.Lerp(zoneTarget, ballLead, ballFocus) : zoneTarget;
         }
 
         if (defender.CoverageReceiverIndex >= 0 && defender.CoverageReceiverIndex < receivers.Count)
         {
-            return receivers[defender.CoverageReceiverIndex].Position;
+            Vector2 receiverTarget = receivers[defender.CoverageReceiverIndex].Position;
+            return ballFocus > 0f ? Vector2.Lerp(receiverTarget, ballLead, ballFocus) : receiverTarget;
         }
 
-        return ball.Position;
+        return ballLead;
     }
 
     private static Vector2 GetRushTarget(Defender defender, Quarterback qb, float lineOfScrimmage)

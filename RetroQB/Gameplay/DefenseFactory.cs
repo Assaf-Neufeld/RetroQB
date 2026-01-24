@@ -25,7 +25,9 @@ public sealed class DefenseFactory : IDefenseFactory
 
         ResolveCoverageIndices(receivers, out int left, out int leftSlot, out int middle, out int rightSlot, out int right);
 
-        bool useZone = distance > Constants.ManCoverageDistanceThreshold;
+        // Distance-based man coverage probability: 95% at 1 yard, 30% at 10 yards
+        float manChance = GetManCoverageChance(distance);
+        bool useZone = rng.NextDouble() >= manChance;
 
         float maxY = Constants.FieldLength - 1f;
         float availableDepth = maxY - lineOfScrimmage;
@@ -56,7 +58,7 @@ public sealed class DefenseFactory : IDefenseFactory
 
         // DBs
         float baseCbDepth = useZone ? 8.0f : 3.5f;
-        float baseSDepth = useZone ? 16.0f : 13.5f;
+        float baseSDepth = useZone ? 16.0f : 10.0f;
         float cbDepth = ClampDefenderY(lineOfScrimmage + baseCbDepth * depthScale, maxY);
         float sDepth = ClampDefenderY(lineOfScrimmage + baseSDepth * depthScale, maxY);
 
@@ -82,6 +84,23 @@ public sealed class DefenseFactory : IDefenseFactory
     private static float ClampDefenderY(float y, float maxY)
     {
         return MathF.Min(y, maxY);
+    }
+
+    private static float GetManCoverageChance(float distance)
+    {
+        const float nearDistance = 1f;
+        const float farDistance = 10f;
+        const float nearManChance = 0.95f;
+        const float farManChance = 0.30f;
+
+        if (distance <= nearDistance)
+            return nearManChance;
+
+        if (distance >= farDistance)
+            return farManChance;
+
+        float t = (distance - nearDistance) / (farDistance - nearDistance);
+        return nearManChance + (farManChance - nearManChance) * t;
     }
 
     private static void ResolveCoverageIndices(List<Receiver> receivers, out int left, out int leftSlot, out int middle, out int rightSlot, out int right)

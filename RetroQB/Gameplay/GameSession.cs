@@ -364,7 +364,7 @@ public sealed class GameSession
 
         foreach (var defender in _defenders)
         {
-            bool useZone = _playManager.Distance > Constants.ManCoverageDistanceThreshold;
+            bool useZone = _isZoneCoverage;
             float runDefenseAdjust = IsRunPlayActiveWithRunningBack() ? 0.9f : 1f;
             float speedMultiplier = _playManager.DefenderSpeedMultiplier * runDefenseAdjust;
             DefenderAI.UpdateDefender(defender, _qb, _receivers, _ball, speedMultiplier, dt, _qbPastLos, useZone, _playManager.LineOfScrimmage);
@@ -775,8 +775,8 @@ public sealed class GameSession
             int side = receiver.RouteSide == 0 ? (receiver.Position.X <= _qb.Position.X ? -1 : 1) : receiver.RouteSide;
             Vector2 pocketSpot = _qb.Position + new Vector2(1.7f * side, -0.4f);
 
-            Defender? rbTarget = GetClosestDefender(_qb.Position, Constants.BlockEngageRadius + 1.8f, preferRushers: true);
-            if (rbTarget != null && Vector2.Distance(rbTarget.Position, _qb.Position) <= 4.8f)
+            Defender? rbTarget = GetClosestDefender(_qb.Position, Constants.BlockEngageRadius + 6.0f, preferRushers: true);
+            if (rbTarget != null)
             {
                 float blockMultiplier = GetReceiverBlockStrength(receiver) * GetDefenderBlockDifficulty(rbTarget);
                 Vector2 toTarget = rbTarget.Position - receiver.Position;
@@ -784,7 +784,7 @@ public sealed class GameSession
                 {
                     toTarget = Vector2.Normalize(toTarget);
                 }
-                receiver.Velocity = toTarget * receiver.Speed;
+                receiver.Velocity = toTarget * (receiver.Speed * 0.9f);
 
                 float contactRange = receiver.Radius + rbTarget.Radius + 0.8f;
                 float distance = Vector2.Distance(receiver.Position, rbTarget.Position);

@@ -138,33 +138,51 @@ public sealed class HudRenderer
         // Drive Summary Section
         Raylib.DrawLine(contentX - 2, contentY, contentX + ScoreboardWidth - 30, contentY, panelAccent);
         contentY += 8;
-        Raylib.DrawText("DRIVE SUMMARY", contentX + 2, contentY, 14, Palette.Blue);
-        contentY += 18;
+        Raylib.DrawText("DRIVE SUMMARY", contentX + 2, contentY, 16, Palette.Blue);
+        contentY += 22;
 
-        // Show last 4 plays (most recent at top), each with situation, call, and result
-        int maxPlays = Math.Min(play.PlayRecords.Count, 4);
-        if (maxPlays == 0)
+        // Show all plays in chronological order (oldest first)
+        if (play.PlayRecords.Count == 0)
         {
-            Raylib.DrawText("No plays yet", contentX + 6, contentY, 12, panelText);
+            Raylib.DrawText("No plays yet", contentX + 6, contentY, 14, panelText);
         }
         else
         {
-            for (int i = play.PlayRecords.Count - 1; i >= Math.Max(0, play.PlayRecords.Count - maxPlays); i--)
+            for (int i = 0; i < play.PlayRecords.Count; i++)
             {
                 var record = play.PlayRecords[i];
                 
                 // Play number and situation (e.g., "#1: OWN 25 | 1st & 10")
                 string situationLine = $"#{record.PlayNumber}: {record.GetSituationText()}";
-                Raylib.DrawText(situationLine, contentX + 4, contentY, 11, Palette.Yellow);
-                contentY += 13;
+                Raylib.DrawText(situationLine, contentX + 4, contentY, 14, Palette.Yellow);
+                contentY += 16;
                 
                 // Play call (e.g., "Quick: Slants vs Zone (LB blitz)")
                 string playCallLine = record.GetPlayCallText();
+                string? blitzLine = null;
+                int blitzIndex = playCallLine.IndexOf(" (");
+                if (blitzIndex >= 0)
+                {
+                    blitzLine = playCallLine.Substring(blitzIndex + 2).TrimEnd(')');
+                    if (blitzLine.EndsWith(" blitz", StringComparison.OrdinalIgnoreCase))
+                        blitzLine = blitzLine[..^6];
+                    playCallLine = playCallLine.Substring(0, blitzIndex);
+                }
+
                 // Truncate if too long
                 if (playCallLine.Length > 32)
                     playCallLine = playCallLine.Substring(0, 29) + "...";
-                Raylib.DrawText(playCallLine, contentX + 8, contentY, 10, panelText);
-                contentY += 12;
+                Raylib.DrawText(playCallLine, contentX + 8, contentY, 12, panelText);
+                contentY += 14;
+
+                if (!string.IsNullOrWhiteSpace(blitzLine))
+                {
+                    string blitzText = $"Blitz: {blitzLine}";
+                    if (blitzText.Length > 32)
+                        blitzText = blitzText.Substring(0, 29) + "...";
+                    Raylib.DrawText(blitzText, contentX + 8, contentY, 12, Palette.Orange);
+                    contentY += 14;
+                }
                 
                 // Result (e.g., "+14 yd pass to WR2 (Go)")
                 string resultLine = record.GetResultText();
@@ -181,8 +199,8 @@ public sealed class HudRenderer
                 // Truncate if too long
                 if (resultLine.Length > 35)
                     resultLine = resultLine.Substring(0, 32) + "...";
-                Raylib.DrawText(resultLine, contentX + 8, contentY, 10, resultColor);
-                contentY += 16;
+                Raylib.DrawText(resultLine, contentX + 8, contentY, 12, resultColor);
+                contentY += 18;
             }
         }
 
