@@ -87,7 +87,9 @@ public static class RouteRunner
     {
         float stemShallow = receiver.IsRunningBack ? 3.8f : receiver.IsTightEnd ? 5.5f : 6.5f;
         float stemDeep = receiver.IsRunningBack ? 5.5f : receiver.IsTightEnd ? 8.5f : 11f;
-        return (stemShallow, stemDeep, 4.8f, 7.2f);
+        // PostAngle values represent the Y-component of the post cut direction
+        // Lower values = sharper cut toward the middle, higher = more gradual
+        return (stemShallow, stemDeep, 1.2f, 1.0f);
     }
 
     private static Vector2 CalculateGoDirection() => new Vector2(0, 1);

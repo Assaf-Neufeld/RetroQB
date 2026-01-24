@@ -48,10 +48,12 @@ public sealed class HudRenderer
         int innerWidth = ScoreboardWidth - 24;
 
         // Score block
-        Raylib.DrawRectangleLines(contentX - 4, contentY - 4, ScoreboardWidth - 24, 32, panelAccent);
+        Raylib.DrawRectangleLines(contentX - 4, contentY - 4, ScoreboardWidth - 24, 48, panelAccent);
         Raylib.DrawText("HOME", contentX + 6, contentY + 2, 14, panelText);
-        Raylib.DrawText($"{play.Score}", x + ScoreboardWidth - 50, contentY - 1, 26, Palette.Blue);
-        contentY += 38;
+        Raylib.DrawText($"{play.Score}", x + ScoreboardWidth - 54, contentY - 2, 22, Palette.Blue);
+        Raylib.DrawText("AWAY", contentX + 6, contentY + 24, 14, panelText);
+        Raylib.DrawText($"{play.AwayScore}", x + ScoreboardWidth - 54, contentY + 20, 22, Palette.Red);
+        contentY += 54;
 
         // Down & Distance block
         string downOrdinal = play.Down switch
@@ -289,21 +291,30 @@ public sealed class HudRenderer
             y += 24;
         }
 
+        // Goal
+        y = screenH - 160;
+        Raylib.DrawRectangle(x - 4, y - 4, PanelWidth - 22, 22, new Color(30, 50, 30, 200));
+        Raylib.DrawText("GOAL: First to 21 wins!", x, y, 14, Palette.Gold);
+        y += 26;
+
         // Controls at bottom
-        y = screenH - 100;
         Raylib.DrawLine(x, y, x + PanelWidth - 30, y, Palette.DarkGreen);
         y += 10;
         Raylib.DrawText("CONTROLS", x, y, 14, Palette.Yellow);
         y += 18;
-        Raylib.DrawText("Move: WASD/Arrows", x, y, 12, Palette.White);
+        Raylib.DrawText("Move QB: WASD or Arrows", x, y, 12, Palette.White);
         y += 15;
-        Raylib.DrawText("Sprint: Shift", x, y, 12, Palette.White);
+        Raylib.DrawText("Sprint: Hold Shift", x, y, 12, Palette.White);
         y += 15;
-        Raylib.DrawText("Throw: 1-5", x, y, 12, Palette.White);
+        Raylib.DrawText("Select Play: 1-9, 0", x, y, 12, Palette.White);
         y += 15;
-        Raylib.DrawText("Target: Priority", x, y, 12, Palette.White);
+        Raylib.DrawText("Snap Ball: Space", x, y, 12, Palette.White);
         y += 15;
-        Raylib.DrawText("Restart: R  Pause: Esc", x, y, 12, Palette.White);
+        Raylib.DrawText("Throw to Receiver: 1-5", x, y, 12, Palette.White);
+        y += 15;
+        Raylib.DrawText("Restart Drive: R", x, y, 12, Palette.White);
+        y += 15;
+        Raylib.DrawText("Pause: Esc", x, y, 12, Palette.White);
     }
 
     public void DrawMainMenu()
@@ -320,6 +331,100 @@ public sealed class HudRenderer
     {
         int screenW = Raylib.GetScreenWidth();
         Raylib.DrawText("PAUSED", screenW / 2 - 60, 40, 24, Palette.Yellow);
+    }
+
+    public void DrawVictoryBanner(int finalScore, int awayScore)
+    {
+        int screenW = Raylib.GetScreenWidth();
+        int screenH = Raylib.GetScreenHeight();
+
+        int bannerWidth = Math.Min(520, screenW - 80);
+        int bannerHeight = 340;
+        int x = (screenW - bannerWidth) / 2;
+        int y = (screenH - bannerHeight) / 2;
+
+        // Outer frame with gold border
+        Raylib.DrawRectangle(x - 4, y - 4, bannerWidth + 8, bannerHeight + 8, Palette.Gold);
+        Raylib.DrawRectangle(x, y, bannerWidth, bannerHeight, new Color(10, 14, 22, 250));
+        Raylib.DrawRectangle(x + 4, y + 4, bannerWidth - 8, bannerHeight - 8, new Color(18, 24, 36, 250));
+        
+        // Victory header
+        string title = "VICTORY!";
+        int titleSize = 48;
+        int titleWidth = Raylib.MeasureText(title, titleSize);
+        Raylib.DrawText(title, x + (bannerWidth - titleWidth) / 2, y + 16, titleSize, Palette.Gold);
+
+        // Final score
+        string scoreText = $"FINAL: {finalScore} - {awayScore}";
+        int scoreSize = 24;
+        int scoreWidth = Raylib.MeasureText(scoreText, scoreSize);
+        Raylib.DrawText(scoreText, x + (bannerWidth - scoreWidth) / 2, y + 70, scoreSize, Palette.Lime);
+
+        // Divider
+        int divY = y + 102;
+        Raylib.DrawLine(x + 30, divY, x + bannerWidth - 30, divY, Palette.Gold);
+
+        // QB Stats header
+        int contentY = divY + 12;
+        string qbHeader = "QB GAME STATS";
+        int headerSize = 20;
+        int headerWidth = Raylib.MeasureText(qbHeader, headerSize);
+        Raylib.DrawText(qbHeader, x + (bannerWidth - headerWidth) / 2, contentY, headerSize, Palette.Blue);
+        contentY += 32;
+
+        // Stats layout
+        int leftCol = x + 40;
+        int rightCol = x + bannerWidth / 2 + 20;
+        int labelSize = 16;
+        int valueSize = 22;
+        Color labelColor = new(140, 160, 180, 255);
+        Color valueColor = Palette.White;
+
+        // Passing stats
+        Raylib.DrawText("PASSING", leftCol, contentY, labelSize, labelColor);
+        contentY += 20;
+        
+        string compAtt = $"{_stats.Qb.Completions}/{_stats.Qb.Attempts}";
+        Raylib.DrawText("CMP/ATT:", leftCol, contentY, labelSize, labelColor);
+        Raylib.DrawText(compAtt, leftCol + 90, contentY, valueSize, valueColor);
+        
+        Raylib.DrawText("YARDS:", rightCol, contentY, labelSize, labelColor);
+        Raylib.DrawText($"{_stats.Qb.PassYards}", rightCol + 70, contentY, valueSize, valueColor);
+        contentY += 26;
+
+        Raylib.DrawText("TD:", leftCol, contentY, labelSize, labelColor);
+        Raylib.DrawText($"{_stats.Qb.PassTds}", leftCol + 90, contentY, valueSize, _stats.Qb.PassTds > 0 ? Palette.Gold : valueColor);
+        
+        Raylib.DrawText("INT:", rightCol, contentY, labelSize, labelColor);
+        Raylib.DrawText($"{_stats.Qb.Interceptions}", rightCol + 70, contentY, valueSize, _stats.Qb.Interceptions > 0 ? Palette.Red : valueColor);
+        contentY += 30;
+
+        // Passer rating calculation (simplified)
+        float compPct = _stats.Qb.Attempts > 0 ? (float)_stats.Qb.Completions / _stats.Qb.Attempts * 100f : 0f;
+        Raylib.DrawText("CMP%:", leftCol, contentY, labelSize, labelColor);
+        Raylib.DrawText($"{compPct:F1}%", leftCol + 90, contentY, valueSize, compPct >= 65f ? Palette.Lime : valueColor);
+        
+        float ypa = _stats.Qb.Attempts > 0 ? (float)_stats.Qb.PassYards / _stats.Qb.Attempts : 0f;
+        Raylib.DrawText("Y/A:", rightCol, contentY, labelSize, labelColor);
+        Raylib.DrawText($"{ypa:F1}", rightCol + 70, contentY, valueSize, ypa >= 8f ? Palette.Lime : valueColor);
+        contentY += 34;
+
+        // Rushing stats
+        Raylib.DrawText("RUSHING", leftCol, contentY, labelSize, labelColor);
+        contentY += 20;
+        
+        Raylib.DrawText("YARDS:", leftCol, contentY, labelSize, labelColor);
+        Raylib.DrawText($"{_stats.Qb.RushYards}", leftCol + 90, contentY, valueSize, valueColor);
+        
+        Raylib.DrawText("TD:", rightCol, contentY, labelSize, labelColor);
+        Raylib.DrawText($"{_stats.Qb.RushTds}", rightCol + 70, contentY, valueSize, _stats.Qb.RushTds > 0 ? Palette.Gold : valueColor);
+        contentY += 34;
+
+        // Continue prompt
+        string prompt = "PRESS ENTER FOR NEW GAME";
+        int promptSize = 16;
+        int promptWidth = Raylib.MeasureText(prompt, promptSize);
+        Raylib.DrawText(prompt, x + (bannerWidth - promptWidth) / 2, y + bannerHeight - 28, promptSize, Palette.Yellow);
     }
 
     public void DrawTouchdownPopup()

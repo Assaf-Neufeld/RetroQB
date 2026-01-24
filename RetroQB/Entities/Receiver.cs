@@ -28,14 +28,21 @@ public sealed class Receiver : Entity
     public Color HighlightColor { get; set; } = Palette.Yellow;
     public int RouteSide { get; set; }
     public bool SlantInside { get; set; }
+    
+    /// <summary>
+    /// Reference to the team attributes for this receiver.
+    /// </summary>
+    public OffensiveTeamAttributes TeamAttributes { get; }
 
-    public Receiver(int index, Vector2 position, bool isRunningBack = false, bool isTightEnd = false) : base(position, Constants.ReceiverRadius, ResolveGlyph(isRunningBack, isTightEnd), ResolveColor(isRunningBack, isTightEnd))
+    public Receiver(int index, Vector2 position, bool isRunningBack = false, bool isTightEnd = false, OffensiveTeamAttributes? teamAttributes = null) 
+        : base(position, Constants.ReceiverRadius, ResolveGlyph(isRunningBack, isTightEnd), ResolveColor(isRunningBack, isTightEnd))
     {
+        TeamAttributes = teamAttributes ?? OffensiveTeamAttributes.Default;
         Index = index;
         IsRunningBack = isRunningBack;
         IsTightEnd = isTightEnd && !isRunningBack;
         PositionRole = IsRunningBack ? OffensivePosition.RB : IsTightEnd ? OffensivePosition.TE : OffensivePosition.WR;
-        Speed = IsRunningBack ? Constants.RbSpeed : IsTightEnd ? Constants.TeSpeed : Constants.WrSpeed;
+        Speed = TeamAttributes.GetReceiverSpeed(IsRunningBack, IsTightEnd);
         RouteStart = position;
     }
 

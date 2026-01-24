@@ -12,6 +12,7 @@ namespace RetroQB.Gameplay;
 
 public sealed class GameSession
 {
+    private const int WinningScore = 21;
     // Injected dependencies
     private readonly GameStateManager _stateManager;
     private readonly PlayManager _playManager;
@@ -25,6 +26,10 @@ public sealed class GameSession
     private readonly IStatisticsTracker _statsTracker;
     private readonly ICollisionResolver _collisionResolver;
     private readonly IThrowingMechanics _throwingMechanics;
+    
+    // Team attributes
+    private OffensiveTeamAttributes _offensiveTeam = OffensiveTeamAttributes.Default;
+    private DefensiveTeamAttributes _defensiveTeam = DefensiveTeamAttributes.Default;
 
     // Entity state
     private readonly List<Receiver> _receivers = new();
@@ -96,10 +101,50 @@ public sealed class GameSession
         InitializeDrive();
         _stateManager.SetState(GameState.MainMenu);
     }
+    
+    /// <summary>
+    /// Sets the offensive team attributes for the current game.
+    /// </summary>
+    public void SetOffensiveTeam(OffensiveTeamAttributes team)
+    {
+        _offensiveTeam = team ?? OffensiveTeamAttributes.Default;
+    }
+    
+    /// <summary>
+    /// Sets the defensive team attributes for the current game.
+    /// </summary>
+    public void SetDefensiveTeam(DefensiveTeamAttributes team)
+    {
+        _defensiveTeam = team ?? DefensiveTeamAttributes.Default;
+    }
+    
+    /// <summary>
+    /// Gets the current offensive team attributes.
+    /// </summary>
+    public OffensiveTeamAttributes OffensiveTeam => _offensiveTeam;
+    
+    /// <summary>
+    /// Gets the current defensive team attributes.
+    /// </summary>
+    public DefensiveTeamAttributes DefensiveTeam => _defensiveTeam;
 
     private void InitializeDrive()
     {
         _playManager.StartNewDrive();
+        SetupEntities();
+        _lastPlayText = string.Empty;
+        _driveOverText = string.Empty;
+        _playOverTimer = 0f;
+        _playOverDuration = 1.25f;
+        _manualPlaySelection = false;
+        _autoPlaySelectionDone = false;
+        _fireworks.Clear();
+    }
+
+    private void InitializeGame()
+    {
+        _statsTracker.Reset();
+        _playManager.StartNewGame();
         SetupEntities();
         _lastPlayText = string.Empty;
         _driveOverText = string.Empty;
@@ -122,15 +167,15 @@ public sealed class GameSession
         _passCatcher = null;
         _playStartLos = _playManager.LineOfScrimmage;
 
-        // Use FormationFactory to create offensive formation
-        var formationResult = _formationFactory.CreateFormation(_playManager.SelectedPlay, _playManager.LineOfScrimmage);
+        // Use FormationFactory to create offensive formation with team attributes
+        var formationResult = _formationFactory.CreateFormation(_playManager.SelectedPlay, _playManager.LineOfScrimmage, _offensiveTeam);
         _qb = formationResult.Qb;
         _ball = formationResult.Ball;
         _receivers.AddRange(formationResult.Receivers);
         _blockers.AddRange(formationResult.Blockers);
 
-        // Use DefenseFactory to create defense
-        var defenseResult = _defenseFactory.CreateDefense(_playManager.LineOfScrimmage, _playManager.Distance, _receivers, _rng);
+        // Use DefenseFactory to create defense with team attributes
+        var defenseResult = _defenseFactory.CreateDefense(_playManager.LineOfScrimmage, _playManager.Distance, _receivers, _rng, _defensiveTeam);
         _defenders.AddRange(defenseResult.Defenders);
         _isZoneCoverage = defenseResult.IsZoneCoverage;
         _blitzers = defenseResult.Blitzers;
@@ -163,7 +208,14 @@ public sealed class GameSession
 
         if (Raylib.IsKeyPressed(KeyboardKey.R))
         {
-            InitializeDrive();
+            if (_stateManager.State == GameState.GameOver)
+            {
+                InitializeGame();
+            }
+            else
+            {
+                InitializeDrive();
+            }
             _stateManager.SetState(GameState.PreSnap);
             return;
         }
@@ -173,6 +225,7 @@ public sealed class GameSession
             case GameState.MainMenu:
                 if (Raylib.IsKeyPressed(KeyboardKey.Enter))
                 {
+                    InitializeGame();
                     _stateManager.SetState(GameState.PreSnap);
                     _manualPlaySelection = false;
                     _autoPlaySelectionDone = false;
@@ -198,6 +251,13 @@ public sealed class GameSession
                 if (Raylib.IsKeyPressed(KeyboardKey.Enter))
                 {
                     InitializeDrive();
+                    _stateManager.SetState(GameState.PreSnap);
+                }
+                break;
+            case GameState.GameOver:
+                if (Raylib.IsKeyPressed(KeyboardKey.Enter))
+                {
+                    InitializeGame();
                     _stateManager.SetState(GameState.PreSnap);
                 }
                 break;
@@ -419,8 +479,12 @@ public sealed class GameSession
             foreach (var receiver in _receivers)
             {
                 if (!receiver.Eligible) continue;
+                
+                // Use team attributes for catch radius
+                float catchRadius = Constants.CatchRadius * _offensiveTeam.CatchRadiusMultiplier;
                 float receiverDist = Vector2.Distance(receiver.Position, _ball.Position);
-                if (receiverDist <= Constants.CatchRadius)
+                
+                if (receiverDist <= catchRadius)
                 {
                     // Find closest defender to the ball
                     float closestDefenderDist = float.MaxValue;
@@ -430,17 +494,22 @@ public sealed class GameSession
                         if (dist < closestDefenderDist) closestDefenderDist = dist;
                     }
                     
+                    // Use team attributes for intercept radius
+                    float interceptRadius = _defensiveTeam.GetEffectiveInterceptRadius();
+                    
                     // Interception only if defender is closer than receiver AND within intercept radius
-                    if (closestDefenderDist <= Constants.InterceptRadius && closestDefenderDist < receiverDist)
+                    if (closestDefenderDist <= interceptRadius && closestDefenderDist < receiverDist)
                     {
                         EndPlay(intercepted: true);
                         return;
                     }
                     
-                    // Contested catch - if defender is close but not closer, 70% catch rate
+                    // Contested catch - use team attributes for catch success rate
                     if (closestDefenderDist <= Constants.ContestedCatchRadius)
                     {
-                        if (_rng.NextDouble() < 0.3) // 30% drop rate on contested
+                        // Drop rate = 1 - catching ability (e.g., 0.7 catching = 0.3 drop rate)
+                        float dropRate = 1.0f - _offensiveTeam.CatchingAbility;
+                        if (_rng.NextDouble() < dropRate)
                         {
                             EndPlay(incomplete: true);
                             return;
@@ -572,6 +641,13 @@ public sealed class GameSession
         _lastPlayText = result.Message;
         _playOverTimer = 0f;
 
+        if (_playManager.Score >= WinningScore || _playManager.AwayScore >= WinningScore)
+        {
+            _driveOverText = _playManager.Score >= WinningScore ? "HOME WINS!" : "AWAY WINS!";
+            _stateManager.SetState(GameState.GameOver);
+            return;
+        }
+
         if (result.Outcome is PlayOutcome.Touchdown or PlayOutcome.Interception or PlayOutcome.Turnover)
         {
             _driveOverText = result.Message;
@@ -639,6 +715,19 @@ public sealed class GameSession
         if (_stateManager.State == GameState.DriveOver)
         {
             DrawDriveOverBanner(_driveOverText, "PRESS ENTER FOR NEXT DRIVE");
+        }
+
+        if (_stateManager.State == GameState.GameOver)
+        {
+            // Show victory banner with QB stats if player won, otherwise show loss banner
+            if (_playManager.Score >= WinningScore)
+            {
+                _hudRenderer.DrawVictoryBanner(_playManager.Score, _playManager.AwayScore);
+            }
+            else
+            {
+                DrawDriveOverBanner(_driveOverText, "PRESS ENTER FOR NEW GAME");
+            }
         }
 
         if (_stateManager.State == GameState.MainMenu)

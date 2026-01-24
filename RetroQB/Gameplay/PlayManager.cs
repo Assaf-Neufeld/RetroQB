@@ -45,6 +45,7 @@ public sealed class PlayManager
     public float LineOfScrimmage => _driveState.LineOfScrimmage;
     public float FirstDownLine => _driveState.FirstDownLine;
     public int Score => _driveState.Score;
+    public int AwayScore => _driveState.AwayScore;
     public float DefenderSpeedMultiplier => _driveState.DifficultyMultiplier;
     public List<string> DriveHistory => _driveState.DriveHistory;
     public List<PlayRecord> PlayRecords => _driveState.PlayRecords;
@@ -77,6 +78,12 @@ public sealed class PlayManager
     public void StartNewDrive()
     {
         _driveState.Reset();
+        SelectedPlayFamily = PlayType.QuickPass;
+    }
+
+    public void StartNewGame()
+    {
+        _driveState.ResetForNewGame();
         SelectedPlayFamily = PlayType.QuickPass;
     }
 

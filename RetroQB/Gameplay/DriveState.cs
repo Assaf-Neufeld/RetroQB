@@ -10,12 +10,14 @@ public sealed class DriveState
     private const float DefaultDistance = 10f;
     private const int MaxDowns = 4;
     private const int TouchdownPoints = 7;
+    private const int DefensiveScorePoints = 7;
 
     public int Down { get; private set; } = 1;
     public float Distance { get; private set; } = DefaultDistance;
     public float LineOfScrimmage { get; private set; }
     public float FirstDownLine { get; private set; }
     public int Score { get; private set; }
+    public int AwayScore { get; private set; }
     public int PlayNumber { get; private set; } = 1;
     public List<string> DriveHistory { get; } = new();
     public List<PlayRecord> PlayRecords { get; } = new();
@@ -28,6 +30,14 @@ public sealed class DriveState
 
     public DriveState()
     {
+        Reset();
+    }
+
+    public void ResetForNewGame()
+    {
+        Score = 0;
+        AwayScore = 0;
+        DifficultyMultiplier = 1.0f;
         Reset();
     }
 
@@ -93,7 +103,8 @@ public sealed class DriveState
 
     public PlayResult ResolveInterception()
     {
-        var result = new PlayResult(PlayOutcome.Interception, 0f, "INTERCEPTION!");
+        AwayScore += DefensiveScorePoints;
+        var result = new PlayResult(PlayOutcome.Interception, 0f, "INTERCEPTION! AWAY +7");
         RecordPlay(result);
         Reset();
         return result;
@@ -141,7 +152,8 @@ public sealed class DriveState
     {
         if (Down > MaxDowns)
         {
-            var result = new PlayResult(PlayOutcome.Turnover, 0f, "TURNOVER ON DOWNS");
+            AwayScore += DefensiveScorePoints;
+            var result = new PlayResult(PlayOutcome.Turnover, 0f, "TURNOVER ON DOWNS - AWAY +7");
             Reset();
             return result;
         }

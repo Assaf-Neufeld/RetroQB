@@ -6,7 +6,7 @@ namespace RetroQB.Gameplay;
 
 public interface IFormationFactory
 {
-    FormationResult CreateFormation(PlayDefinition play, float lineOfScrimmage);
+    FormationResult CreateFormation(PlayDefinition play, float lineOfScrimmage, OffensiveTeamAttributes? teamAttributes = null);
 }
 
 public sealed class FormationResult
@@ -20,13 +20,17 @@ public sealed class FormationResult
 public sealed class FormationFactory : IFormationFactory
 {
     private static readonly float[] BaseLineX = { 0.42f, 0.46f, 0.50f, 0.54f, 0.58f };
+    
+    private OffensiveTeamAttributes? _currentTeamAttributes;
 
-    public FormationResult CreateFormation(PlayDefinition play, float lineOfScrimmage)
+    public FormationResult CreateFormation(PlayDefinition play, float lineOfScrimmage, OffensiveTeamAttributes? teamAttributes = null)
     {
+        _currentTeamAttributes = teamAttributes ?? OffensiveTeamAttributes.Default;
+        
         var receivers = new List<Receiver>();
         var blockers = new List<Blocker>();
 
-        var qb = new Quarterback(new Vector2(Constants.FieldWidth / 2f, ClampFormationY(lineOfScrimmage, 1.6f)));
+        var qb = new Quarterback(new Vector2(Constants.FieldWidth / 2f, ClampFormationY(lineOfScrimmage, 1.6f)), _currentTeamAttributes);
         var ball = new Ball(qb.Position);
         ball.SetHeld(qb, BallState.HeldByQB);
 
@@ -155,25 +159,25 @@ public sealed class FormationFactory : IFormationFactory
         AddFormation(receivers, blockers, formation, los);
     }
 
-    private static void AddReceiver(List<Receiver> receivers, Vector2 position, bool isRunningBack = false, bool isTightEnd = false)
+    private void AddReceiver(List<Receiver> receivers, Vector2 position, bool isRunningBack = false, bool isTightEnd = false)
     {
-        receivers.Add(new Receiver(receivers.Count, position, isRunningBack, isTightEnd));
+        receivers.Add(new Receiver(receivers.Count, position, isRunningBack, isTightEnd, _currentTeamAttributes));
     }
 
-    private static void AddBaseLine(List<Blocker> blockers, float los, int extraCount)
+    private void AddBaseLine(List<Blocker> blockers, float los, int extraCount)
     {
         foreach (float x in BaseLineX)
         {
-            blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * x, los - 0.1f)));
+            blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * x, los - 0.1f), _currentTeamAttributes));
         }
 
         if (extraCount >= 1)
         {
-            blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.36f, los - 0.1f)));
+            blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.36f, los - 0.1f), _currentTeamAttributes));
         }
         if (extraCount >= 2)
         {
-            blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.64f, los - 0.1f)));
+            blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.64f, los - 0.1f), _currentTeamAttributes));
         }
     }
 }
