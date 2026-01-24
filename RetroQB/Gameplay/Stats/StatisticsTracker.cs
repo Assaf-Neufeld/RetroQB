@@ -8,6 +8,7 @@ public interface IStatisticsTracker
     void RecordPassYards(int receiverIndex, int yards, bool isTouchdown);
     void RecordInterception();
     void RecordRushYards(int yards, bool isTouchdown);
+    void RecordQbRushYards(int yards, bool isTouchdown);
     SkillStatLine GetReceiverStats(int receiverIndex);
     GameStatsSnapshot BuildSnapshot(Func<int, bool> tryGetReceiverIndex);
 }
@@ -66,6 +67,15 @@ public sealed class StatisticsTracker : IStatisticsTracker
         }
     }
 
+    public void RecordQbRushYards(int yards, bool isTouchdown)
+    {
+        _qbStats.RushYards += yards;
+        if (isTouchdown)
+        {
+            _qbStats.RushTds++;
+        }
+    }
+
     public SkillStatLine GetReceiverStats(int receiverIndex)
     {
         return GetOrCreateReceiverStats(receiverIndex);
@@ -94,7 +104,9 @@ public sealed class StatisticsTracker : IStatisticsTracker
             _qbStats.Attempts,
             _qbStats.PassYards,
             _qbStats.PassTds,
-            _qbStats.Interceptions);
+            _qbStats.Interceptions,
+            _qbStats.RushYards,
+            _qbStats.RushTds);
         var rb = new RbStatsSnapshot(_rbStats.Yards, _rbStats.Tds);
         return new GameStatsSnapshot(qb, receivers, rb);
     }

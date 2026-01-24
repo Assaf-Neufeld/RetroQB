@@ -7,6 +7,8 @@ public sealed class QbStatLine
     public int PassYards { get; set; }
     public int PassTds { get; set; }
     public int Interceptions { get; set; }
+    public int RushYards { get; set; }
+    public int RushTds { get; set; }
 
     public void Reset()
     {
@@ -15,5 +17,7 @@ public sealed class QbStatLine
         PassYards = 0;
         PassTds = 0;
         Interceptions = 0;
+        RushYards = 0;
+        RushTds = 0;
     }
 }

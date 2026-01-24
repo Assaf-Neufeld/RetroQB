@@ -37,6 +37,7 @@ public sealed class GameSession
 
     // Play state
     private string _lastPlayText = string.Empty;
+    private string _driveOverText = string.Empty;
     private bool _qbPastLos;
     private float _playOverTimer;
     private float _playOverDuration = 1.25f;
@@ -101,6 +102,7 @@ public sealed class GameSession
         _playManager.StartNewDrive();
         SetupEntities();
         _lastPlayText = string.Empty;
+        _driveOverText = string.Empty;
         _playOverTimer = 0f;
         _playOverDuration = 1.25f;
         _manualPlaySelection = false;
@@ -190,6 +192,13 @@ public sealed class GameSession
                     _lastPlayText = string.Empty;
                     _manualPlaySelection = false;
                     _autoPlaySelectionDone = false;
+                }
+                break;
+            case GameState.DriveOver:
+                if (Raylib.IsKeyPressed(KeyboardKey.Enter))
+                {
+                    InitializeDrive();
+                    _stateManager.SetState(GameState.PreSnap);
                 }
                 break;
         }
@@ -523,6 +532,11 @@ public sealed class GameSession
                 _statsTracker.RecordRushYards((int)gain, touchdown);
                 wasRun = true;
             }
+            else if (_ball.Holder is Quarterback)
+            {
+                _statsTracker.RecordQbRushYards((int)gain, touchdown);
+                wasRun = true;
+            }
         }
 
         float spot = _playManager.LineOfScrimmage;
@@ -554,9 +568,19 @@ public sealed class GameSession
             _playOverDuration = 1.25f;
         }
 
-        _lastPlayText = _playManager.ResolvePlay(spot, incomplete, intercepted, touchdown);
+        PlayResult result = _playManager.ResolvePlay(spot, incomplete, intercepted, touchdown);
+        _lastPlayText = result.Message;
         _playOverTimer = 0f;
-        _stateManager.SetState(GameState.PlayOver);
+
+        if (result.Outcome is PlayOutcome.Touchdown or PlayOutcome.Interception or PlayOutcome.Turnover)
+        {
+            _driveOverText = result.Message;
+            _stateManager.SetState(GameState.DriveOver);
+        }
+        else
+        {
+            _stateManager.SetState(GameState.PlayOver);
+        }
     }
 
     private string GetCatcherLabel(Receiver catcher)
@@ -612,9 +636,9 @@ public sealed class GameSession
         _hudRenderer.DrawScoreboard(_playManager, _lastPlayText, _stateManager.State);
         _hudRenderer.DrawSidePanel(_playManager, _lastPlayText, targetLabel, _stateManager.State);
 
-        if (_stateManager.State == GameState.PlayOver && _lastPlayText.Contains("TOUCHDOWN"))
+        if (_stateManager.State == GameState.DriveOver)
         {
-            _hudRenderer.DrawTouchdownPopup();
+            DrawDriveOverBanner(_driveOverText, "PRESS ENTER FOR NEXT DRIVE");
         }
 
         if (_stateManager.State == GameState.MainMenu)
@@ -650,6 +674,33 @@ public sealed class GameSession
     private static bool IsSidelineOutOfBounds(Vector2 position)
     {
         return position.X < 0 || position.X > Constants.FieldWidth;
+    }
+
+    private static void DrawDriveOverBanner(string titleText, string subText)
+    {
+        int screenW = Raylib.GetScreenWidth();
+        int screenH = Raylib.GetScreenHeight();
+
+        int bannerWidth = Math.Min(760, screenW - 120);
+        int bannerHeight = 130;
+        int x = (screenW - bannerWidth) / 2;
+        int y = (screenH - bannerHeight) / 2;
+
+        Raylib.DrawRectangle(x, y, bannerWidth, bannerHeight, new Color(10, 10, 14, 235));
+        Raylib.DrawRectangleLinesEx(new Rectangle(x, y, bannerWidth, bannerHeight), 3, Palette.Gold);
+        Raylib.DrawRectangle(x + 6, y + 6, bannerWidth - 12, bannerHeight - 12, new Color(20, 20, 28, 235));
+
+        string title = string.IsNullOrWhiteSpace(titleText) ? "DRIVE OVER" : titleText.ToUpperInvariant();
+        int titleSize = 40;
+        int titleWidth = Raylib.MeasureText(title, titleSize);
+        int titleX = x + (bannerWidth - titleWidth) / 2;
+        int titleY = y + 18;
+        Raylib.DrawText(title, titleX, titleY, titleSize, Palette.Gold);
+
+        string sub = string.IsNullOrWhiteSpace(subText) ? "PRESS ENTER" : subText.ToUpperInvariant();
+        int subSize = 18;
+        int subWidth = Raylib.MeasureText(sub, subSize);
+        Raylib.DrawText(sub, x + (bannerWidth - subWidth) / 2, y + bannerHeight - subSize - 14, subSize, Palette.White);
     }
 
     private void ResolvePlayerOverlaps()

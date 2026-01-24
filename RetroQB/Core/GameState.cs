@@ -6,5 +6,6 @@ public enum GameState
     PreSnap,
     PlayActive,
     PlayOver,
+    DriveOver,
     GameOver
 }

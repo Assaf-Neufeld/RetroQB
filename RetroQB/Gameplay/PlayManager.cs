@@ -152,7 +152,7 @@ public sealed class PlayManager
         return $"{familyName}: {plays[index].Name}";
     }
 
-    public string ResolvePlay(float newBallY, bool incomplete, bool intercepted, bool touchdown)
+    public PlayResult ResolvePlay(float newBallY, bool incomplete, bool intercepted, bool touchdown)
     {
         PlayResult result;
         float gain = newBallY - LineOfScrimmage;
@@ -174,7 +174,7 @@ public sealed class PlayManager
             result = _driveState.ResolveTackle(newBallY);
         }
 
-        return result.Message;
+        return result;
     }
 
     public float GetYardLineDisplay(float worldY)

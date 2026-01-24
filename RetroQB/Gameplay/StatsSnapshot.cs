@@ -5,7 +5,9 @@ public readonly record struct QbStatsSnapshot(
     int Attempts,
     int PassYards,
     int PassTds,
-    int Interceptions);
+    int Interceptions,
+    int RushYards,
+    int RushTds);
 
 public readonly record struct ReceiverStatsSnapshot(
     string Label,

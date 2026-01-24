@@ -14,7 +14,7 @@ public sealed class HudRenderer
     private static int ScoreboardWidth => (int)Constants.ScoreboardPanelWidth;
     private static int ScoreboardHeight => Raylib.GetScreenHeight() - (int)(Constants.OuterMargin * 2);
     private GameStatsSnapshot _stats = new(
-        new QbStatsSnapshot(0, 0, 0, 0, 0),
+        new QbStatsSnapshot(0, 0, 0, 0, 0, 0, 0),
         Array.Empty<ReceiverStatsSnapshot>(),
         new RbStatsSnapshot(0, 0));
 
@@ -65,7 +65,11 @@ public sealed class HudRenderer
 
         float yardLine = play.GetYardLineDisplay(play.LineOfScrimmage);
         float toGoal = 100f - yardLine;
-        string distanceText = toGoal <= play.Distance ? "Goal" : $"{play.Distance:F0}";
+        string distanceText = toGoal <= play.Distance
+            ? "Goal"
+            : play.Distance < 1f
+                ? "Inches"
+                : $"{play.Distance:F0}";
 
         Raylib.DrawRectangleLines(contentX - 4, contentY - 4, ScoreboardWidth - 24, 28, panelAccent);
         Raylib.DrawText($"{downOrdinal} & {distanceText}", contentX + 6, contentY, 18, Palette.Lime);
@@ -127,10 +131,14 @@ public sealed class HudRenderer
         contentY += 8;
         Raylib.DrawText("RUNNING", contentX + 2, contentY, 14, Palette.Blue);
         contentY += 18;
-        Raylib.DrawText("RB", contentX + 2, contentY, 14, panelText);
+        Raylib.DrawText("QB", contentX + 2, contentY, 14, panelText);
         Raylib.DrawText("YDS", recCol2, contentY - 2, 12, panelAccent);
         Raylib.DrawText("TD", recCol3, contentY - 2, 12, panelAccent);
         contentY += 16;
+        Raylib.DrawText($"{stats.Qb.RushYards}", recCol2, contentY, 14, panelText);
+        Raylib.DrawText($"{stats.Qb.RushTds}", recCol3, contentY, 14, panelText);
+        contentY += 16;
+        Raylib.DrawText("RB", contentX + 2, contentY, 14, panelText);
         Raylib.DrawText($"{stats.Rb.Yards}", recCol2, contentY, 14, panelText);
         Raylib.DrawText($"{stats.Rb.Tds}", recCol3, contentY, 14, panelText);
         contentY += 22;
@@ -340,4 +348,5 @@ public sealed class HudRenderer
         int subWidth = Raylib.MeasureText(subText, subSize);
         Raylib.DrawText(subText, x + (bannerWidth - subWidth) / 2, y + bannerHeight - subSize - 12, subSize, Palette.White);
     }
+
 }

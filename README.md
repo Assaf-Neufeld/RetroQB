@@ -99,4 +99,13 @@ RetroQB/
 
 ---
 
+## 🙏 Credits
+
+- Opus 4.5
+- GPT-5.2-Codex
+- Visual Studio Code
+- GitHub Copilot
+
+---
+
 *Can you lead your team to victory? The pocket is collapsing. Clock is ticking. Make the call.*

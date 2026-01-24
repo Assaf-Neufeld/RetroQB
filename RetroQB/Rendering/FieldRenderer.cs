@@ -72,8 +72,7 @@ public sealed class FieldRenderer
         Raylib.DrawRectangle(x, lowerY, width, lowerHeight, lowerBase);
         Raylib.DrawRectangleLines(x, topLimit, width, height, edgeColor);
 
-        DrawBleacherSteps(x, upperY, width, upperHeight, stepLight, stepDark);
-        DrawBleacherSteps(x, lowerY, width, lowerHeight, stepLight, stepDark);
+        // Steps removed per request to avoid dark overlays.
 
         Raylib.DrawRectangle(x, lowerY - 2, width, 2, rail);
         Raylib.DrawRectangle(x, topLimit - 4, width, 3, AdjustColor(edgeColor, -8));
@@ -89,15 +88,7 @@ public sealed class FieldRenderer
         int seatSpacing = seatSize + 4;
 
         DrawCrowd(x, upperY + 6, width, upperHeight - 12, c1, c2, c3, 3, seatSize, seatSpacing);
-        DrawCrowd(x, lowerY + 6, width, lowerHeight - 18, c1, c2, c3, 4, seatSize, seatSpacing);
-
-        int bannerY = lowerY + lowerHeight - 14;
-        int bannerHeight = 8;
-        int bannerWidth = Math.Max(10, width / 4);
-        Raylib.DrawRectangle(x + 6, bannerY, bannerWidth, bannerHeight, Palette.Gold);
-        Raylib.DrawRectangle(x + 10 + bannerWidth, bannerY, bannerWidth, bannerHeight, Palette.Red);
-        Raylib.DrawRectangle(x + 14 + bannerWidth * 2, bannerY, bannerWidth, bannerHeight, Palette.Blue);
-        Raylib.DrawRectangleLines(x + 6, bannerY, bannerWidth * 3 + 8, bannerHeight, AdjustColor(edgeColor, 10));
+        DrawCrowd(x, lowerY + 4, width, lowerHeight - 8, c1, c2, c3, 4, seatSize, seatSpacing);
     }
 
     private static void DrawBleacherSteps(int x, int y, int width, int height, Color light, Color dark)
