@@ -18,6 +18,8 @@ public sealed class DriveState
     public int Score { get; private set; }
     public int PlayNumber { get; private set; } = 1;
     public List<string> DriveHistory { get; } = new();
+    public List<PlayRecord> PlayRecords { get; } = new();
+    public PlayRecord? CurrentPlayRecord { get; private set; }
     
     /// <summary>
     /// Multiplier that increases as the player scores, making defenders faster.
@@ -36,16 +38,56 @@ public sealed class DriveState
         LineOfScrimmage = FieldGeometry.EndZoneDepth + DefaultStartingYardLine;
         FirstDownLine = LineOfScrimmage + Distance;
         DriveHistory.Clear();
+        PlayRecords.Clear();
+        CurrentPlayRecord = null;
         PlayNumber = 1;
     }
 
-    public PlayResult ResolveTouchdown()
+    /// <summary>
+    /// Creates a new PlayRecord for the current play with pre-snap information.
+    /// </summary>
+    public void StartPlayRecord(string playName, PlayType playFamily, bool isZoneCoverage, List<string> blitzers)
+    {
+        float yardLine = FieldGeometry.GetYardLineDisplay(LineOfScrimmage);
+        CurrentPlayRecord = new PlayRecord
+        {
+            PlayNumber = PlayNumber,
+            Down = Down,
+            Distance = Distance,
+            YardLine = yardLine,
+            OffensivePlayName = playName,
+            PlayFamily = playFamily,
+            IsZoneCoverage = isZoneCoverage,
+            Blitzers = new List<string>(blitzers)
+        };
+    }
+
+    /// <summary>
+    /// Finalizes the current PlayRecord with result information.
+    /// </summary>
+    public void FinalizePlayRecord(PlayOutcome outcome, float gain, string? catcherLabel, RetroQB.AI.RouteType? catcherRoute, bool wasRun)
+    {
+        if (CurrentPlayRecord != null)
+        {
+            CurrentPlayRecord.Outcome = outcome;
+            CurrentPlayRecord.Gain = gain;
+            CurrentPlayRecord.CatcherLabel = catcherLabel;
+            CurrentPlayRecord.CatcherRoute = catcherRoute;
+            CurrentPlayRecord.WasRun = wasRun;
+            PlayRecords.Add(CurrentPlayRecord);
+            CurrentPlayRecord = null;
+        }
+    }
+
+    public PlayResult ResolveTouchdown(float gain = 0f)
     {
         Score += TouchdownPoints;
         DifficultyMultiplier += 0.03f;
-        var result = new PlayResult(PlayOutcome.Touchdown, 0f, "TOUCHDOWN! +7");
+        var result = new PlayResult(PlayOutcome.Touchdown, gain, "TOUCHDOWN! +7");
         RecordPlay(result);
+        var records = new List<PlayRecord>(PlayRecords);
         Reset();
+        PlayRecords.AddRange(records); // Preserve records for display after reset
         return result;
     }
 

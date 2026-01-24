@@ -61,6 +61,8 @@ public sealed class GameSession
     private bool _passCompletedThisPlay;
     private Receiver? _passCatcher;
     private float _playStartLos;
+    private bool _isZoneCoverage;
+    private List<string> _blitzers = new();
 
     public GameSession()
     {
@@ -273,6 +275,8 @@ public sealed class GameSession
         
         // Determine if zone coverage based on yards to go
         bool useZone = _playManager.Distance > Constants.ManCoverageDistanceThreshold;
+        _isZoneCoverage = useZone;
+        _blitzers.Clear();
         
         // Calculate available depth before end of field (leave 1 yard buffer from back of endzone)
         float maxY = Constants.FieldLength - 1f;
@@ -294,6 +298,10 @@ public sealed class GameSession
         bool mlbBlitz = _rng.NextDouble() < 0.10;
         bool lbrBlitz = _rng.NextDouble() < 0.10;
         
+        if (lblBlitz) _blitzers.Add("LB");
+        if (mlbBlitz) _blitzers.Add("MLB");
+        if (lbrBlitz) _blitzers.Add("LB");
+        
         float lbDepth = ClampDefenderY(los + 6.2f * depthScale, maxY);
         _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.38f, lbDepth), DefensivePosition.LB) { IsRusher = lblBlitz, CoverageReceiverIndex = leftSlot, ZoneRole = CoverageRole.HookLeft, RushLaneOffsetX = -7.0f }); // LB
         _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.50f, lbDepth), DefensivePosition.LB) { IsRusher = mlbBlitz, CoverageReceiverIndex = middle, ZoneRole = CoverageRole.HookMiddle, RushLaneOffsetX = 0f }); // MLB
@@ -308,6 +316,9 @@ public sealed class GameSession
         // CBs - 5% chance to blitz only in man coverage (press)
         bool leftCbBlitz = !useZone && _rng.NextDouble() < 0.05;
         bool rightCbBlitz = !useZone && _rng.NextDouble() < 0.05;
+        
+        if (leftCbBlitz) _blitzers.Add("CB");
+        if (rightCbBlitz) _blitzers.Add("CB");
         
         _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.18f, cbDepth), DefensivePosition.DB) { IsRusher = leftCbBlitz, CoverageReceiverIndex = left, ZoneRole = CoverageRole.FlatLeft, IsPressCoverage = !useZone, RushLaneOffsetX = -10.0f }); // CB
         _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.82f, cbDepth), DefensivePosition.DB) { IsRusher = rightCbBlitz, CoverageReceiverIndex = right, ZoneRole = CoverageRole.FlatRight, IsPressCoverage = !useZone, RushLaneOffsetX = 10.0f }); // CB
@@ -436,6 +447,7 @@ public sealed class GameSession
         if (Raylib.IsKeyPressed(KeyboardKey.Space))
         {
             _playManager.StartPlay();
+            _playManager.StartPlayRecord(_isZoneCoverage, _blitzers);
             _stateManager.SetState(GameState.PlayActive);
         }
     }
@@ -706,32 +718,42 @@ public sealed class GameSession
             _qbStats.Interceptions++;
         }
 
+        float gain = 0f;
+        bool wasRun = false;
+        string? catcherLabel = null;
+        AI.RouteType? catcherRoute = null;
+
         if (!incomplete && !intercepted && _ball.Holder != null)
         {
-            int gain = (int)MathF.Round(_ball.Holder.Position.Y - _playStartLos);
+            gain = MathF.Round(_ball.Holder.Position.Y - _playStartLos);
             if (_passCompletedThisPlay && _passCatcher != null)
             {
-                _qbStats.PassYards += gain;
+                _qbStats.PassYards += (int)gain;
                 if (touchdown)
                 {
                     _qbStats.PassTds++;
                 }
 
                 var receiverStats = GetReceiverStatLine(_passCatcher.Index);
-                receiverStats.Yards += gain;
+                receiverStats.Yards += (int)gain;
                 if (touchdown)
                 {
                     receiverStats.Tds++;
                 }
+                
+                // Capture catcher info for play record
+                catcherLabel = GetCatcherLabel(_passCatcher);
+                catcherRoute = _passCatcher.Route;
             }
 
             if (_ball.Holder is Receiver ballCarrier && ballCarrier.IsRunningBack)
             {
-                _rbStats.Yards += gain;
+                _rbStats.Yards += (int)gain;
                 if (touchdown)
                 {
                     _rbStats.Tds++;
                 }
+                wasRun = true;
             }
         }
 
@@ -744,6 +766,15 @@ public sealed class GameSession
         {
             spot = Constants.EndZoneDepth + 100f;
         }
+
+        // Determine play outcome for record
+        PlayOutcome outcome = touchdown ? PlayOutcome.Touchdown :
+                              intercepted ? PlayOutcome.Interception :
+                              incomplete ? PlayOutcome.Incomplete :
+                              PlayOutcome.Tackle;
+        
+        // Finalize play record before resolving (which may reset drive)
+        _playManager.FinalizePlayRecord(outcome, gain, catcherLabel, catcherRoute, wasRun);
 
         if (touchdown)
         {
@@ -758,6 +789,22 @@ public sealed class GameSession
         _lastPlayText = _playManager.ResolvePlay(spot, incomplete, intercepted, touchdown);
         _playOverTimer = 0f;
         _stateManager.SetState(GameState.PlayOver);
+    }
+
+    private string GetCatcherLabel(Receiver catcher)
+    {
+        // Get position-based label (WR1, WR2, TE, RB)
+        if (catcher.IsRunningBack) return "RB";
+        if (catcher.IsTightEnd) return "TE";
+        
+        // Count WRs by their left-to-right order
+        var wrs = _receivers
+            .Where(r => !r.IsRunningBack && !r.IsTightEnd && r.Eligible)
+            .OrderBy(r => r.Position.X)
+            .ToList();
+        
+        int wrIndex = wrs.FindIndex(r => r.Index == catcher.Index);
+        return wrIndex >= 0 ? $"WR{wrIndex + 1}" : "WR";
     }
 
     public void Draw()

@@ -47,7 +47,24 @@ public sealed class PlayManager
     public int Score => _driveState.Score;
     public float DefenderSpeedMultiplier => _driveState.DifficultyMultiplier;
     public List<string> DriveHistory => _driveState.DriveHistory;
+    public List<PlayRecord> PlayRecords => _driveState.PlayRecords;
     public int PlayNumber => _driveState.PlayNumber;
+
+    /// <summary>
+    /// Starts recording a new play with pre-snap information.
+    /// </summary>
+    public void StartPlayRecord(bool isZoneCoverage, List<string> blitzers)
+    {
+        _driveState.StartPlayRecord(SelectedPlay.Name, SelectedPlayFamily, isZoneCoverage, blitzers);
+    }
+
+    /// <summary>
+    /// Finalizes the current play record with result information.
+    /// </summary>
+    public void FinalizePlayRecord(PlayOutcome outcome, float gain, string? catcherLabel, AI.RouteType? catcherRoute, bool wasRun)
+    {
+        _driveState.FinalizePlayRecord(outcome, gain, catcherLabel, catcherRoute, wasRun);
+    }
 
     public PlayManager()
     {
@@ -138,10 +155,11 @@ public sealed class PlayManager
     public string ResolvePlay(float newBallY, bool incomplete, bool intercepted, bool touchdown)
     {
         PlayResult result;
+        float gain = newBallY - LineOfScrimmage;
 
         if (touchdown)
         {
-            result = _driveState.ResolveTouchdown();
+            result = _driveState.ResolveTouchdown(gain);
         }
         else if (intercepted)
         {

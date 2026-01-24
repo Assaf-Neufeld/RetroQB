@@ -133,11 +133,63 @@ public sealed class HudRenderer
         contentY += 16;
         Raylib.DrawText($"{stats.Rb.Yards}", recCol2, contentY, 14, panelText);
         Raylib.DrawText($"{stats.Rb.Tds}", recCol3, contentY, 14, panelText);
+        contentY += 22;
+
+        // Drive Summary Section
+        Raylib.DrawLine(contentX - 2, contentY, contentX + ScoreboardWidth - 30, contentY, panelAccent);
+        contentY += 8;
+        Raylib.DrawText("DRIVE SUMMARY", contentX + 2, contentY, 14, Palette.Blue);
         contentY += 18;
 
-        // Last play result ticker
+        // Show last 4 plays (most recent at top), each with situation, call, and result
+        int maxPlays = Math.Min(play.PlayRecords.Count, 4);
+        if (maxPlays == 0)
+        {
+            Raylib.DrawText("No plays yet", contentX + 6, contentY, 12, panelText);
+        }
+        else
+        {
+            for (int i = play.PlayRecords.Count - 1; i >= Math.Max(0, play.PlayRecords.Count - maxPlays); i--)
+            {
+                var record = play.PlayRecords[i];
+                
+                // Play number and situation (e.g., "#1: OWN 25 | 1st & 10")
+                string situationLine = $"#{record.PlayNumber}: {record.GetSituationText()}";
+                Raylib.DrawText(situationLine, contentX + 4, contentY, 11, Palette.Yellow);
+                contentY += 13;
+                
+                // Play call (e.g., "Quick: Slants vs Zone (LB blitz)")
+                string playCallLine = record.GetPlayCallText();
+                // Truncate if too long
+                if (playCallLine.Length > 32)
+                    playCallLine = playCallLine.Substring(0, 29) + "...";
+                Raylib.DrawText(playCallLine, contentX + 8, contentY, 10, panelText);
+                contentY += 12;
+                
+                // Result (e.g., "+14 yd pass to WR2 (Go)")
+                string resultLine = record.GetResultText();
+                Color resultColor = record.Outcome switch
+                {
+                    PlayOutcome.Touchdown => Palette.Gold,
+                    PlayOutcome.Interception => Palette.Red,
+                    PlayOutcome.Incomplete => Palette.Orange,
+                    PlayOutcome.Turnover => Palette.Red,
+                    _ when record.Gain >= 10 => Palette.Lime,
+                    _ when record.Gain < 0 => Palette.Orange,
+                    _ => panelText
+                };
+                // Truncate if too long
+                if (resultLine.Length > 35)
+                    resultLine = resultLine.Substring(0, 32) + "...";
+                Raylib.DrawText(resultLine, contentX + 8, contentY, 10, resultColor);
+                contentY += 16;
+            }
+        }
+
+        // Last play result ticker (at the bottom)
         if (!string.IsNullOrWhiteSpace(resultText))
         {
+            contentY += 4;
             Color resultColor = resultText.Contains("TD") || resultText.Contains("1ST") ? Palette.Gold :
                                resultText.Contains("INT") || resultText.Contains("TURN") ? Palette.Red :
                                resultText.Contains("Incomplete") ? Palette.Orange :
@@ -209,33 +261,6 @@ public sealed class HudRenderer
         else
         {
             y += 24;
-        }
-
-        // Divider
-        Raylib.DrawLine(x, y, x + PanelWidth - 30, y, Palette.DarkGreen);
-        y += 15;
-
-        // Drive Summary
-        Raylib.DrawText("DRIVE SUMMARY", x, y, 16, Palette.Yellow);
-        y += 24;
-
-        // Show last 8 plays of drive history (most recent at top)
-        int maxPlays = Math.Min(play.DriveHistory.Count, 8);
-        if (maxPlays == 0)
-        {
-            Raylib.DrawText("No plays yet", x, y, 14, Palette.White);
-        }
-        else
-        {
-            for (int i = play.DriveHistory.Count - 1; i >= Math.Max(0, play.DriveHistory.Count - maxPlays); i--)
-            {
-                string playResult = play.DriveHistory[i];
-                Color textColor = playResult.Contains("TD") || playResult.Contains("1ST") ? Palette.Gold :
-                                  playResult.Contains("INT") || playResult.Contains("TURN") ? Palette.Red :
-                                  Palette.White;
-                Raylib.DrawText(playResult, x, y, 14, textColor);
-                y += 18;
-            }
         }
 
         // Controls at bottom
