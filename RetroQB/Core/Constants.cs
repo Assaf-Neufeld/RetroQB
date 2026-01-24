@@ -84,6 +84,10 @@ public static class Constants
 
     public const float AimChargeSeconds = 1.0f;
 
+    // Play timing
+    public const float DefaultPlayOverDuration = 1.25f;
+    public const float TouchdownPlayOverDuration = 2.6f;
+
     public const float BlockerSpeed = 6.0f;
     public const float BlockEngageRadius = 3.8f;
     public const float BlockHoldStrength = 4.2f;

@@ -4,6 +4,7 @@ using Raylib_cs;
 using RetroQB.AI;
 using RetroQB.Core;
 using RetroQB.Entities;
+using RetroQB.Gameplay.Stats;
 using RetroQB.Input;
 using RetroQB.Rendering;
 
@@ -11,46 +12,30 @@ namespace RetroQB.Gameplay;
 
 public sealed class GameSession
 {
-    private sealed class QbStatLine
-    {
-        public int Completions;
-        public int Attempts;
-        public int PassYards;
-        public int PassTds;
-        public int Interceptions;
-    }
+    // Injected dependencies
+    private readonly GameStateManager _stateManager;
+    private readonly PlayManager _playManager;
+    private readonly InputManager _input;
+    private readonly FieldRenderer _fieldRenderer;
+    private readonly HudRenderer _hudRenderer;
+    private readonly FireworksEffect _fireworks;
+    private readonly Random _rng;
+    private readonly IFormationFactory _formationFactory;
+    private readonly IDefenseFactory _defenseFactory;
+    private readonly IStatisticsTracker _statsTracker;
+    private readonly ICollisionResolver _collisionResolver;
+    private readonly IThrowingMechanics _throwingMechanics;
 
-    private sealed class SkillStatLine
-    {
-        public int Receptions;
-        public int Yards;
-        public int Tds;
-    }
-
-    private sealed class RushStatLine
-    {
-        public int Yards;
-        public int Tds;
-    }
-
-    private readonly GameStateManager _stateManager = new();
-    private readonly PlayManager _playManager = new();
-    private readonly InputManager _input = new();
-    private readonly FieldRenderer _fieldRenderer = new();
-    private readonly HudRenderer _hudRenderer = new();
-    private readonly FireworksEffect _fireworks = new();
-    private readonly Random _rng = new();
-
+    // Entity state
     private readonly List<Receiver> _receivers = new();
     private readonly List<Defender> _defenders = new();
     private readonly List<Blocker> _blockers = new();
     private readonly Dictionary<int, int> _receiverPriorityByIndex = new();
     private readonly List<int> _priorityReceiverIndices = new();
-    private readonly QbStatLine _qbStats = new();
-    private readonly RushStatLine _rbStats = new();
-    private readonly Dictionary<int, SkillStatLine> _receiverStats = new();
     private Quarterback _qb = null!;
     private Ball _ball = null!;
+
+    // Play state
     private string _lastPlayText = string.Empty;
     private bool _qbPastLos;
     private float _playOverTimer;
@@ -64,8 +49,49 @@ public sealed class GameSession
     private bool _isZoneCoverage;
     private List<string> _blitzers = new();
 
-    public GameSession()
+    public GameSession() : this(
+        new GameStateManager(),
+        new PlayManager(),
+        new InputManager(),
+        new FieldRenderer(),
+        new HudRenderer(),
+        new FireworksEffect(),
+        new Random(),
+        new FormationFactory(),
+        new DefenseFactory(),
+        new StatisticsTracker(),
+        new CollisionResolver(),
+        new ThrowingMechanics())
     {
+    }
+
+    public GameSession(
+        GameStateManager stateManager,
+        PlayManager playManager,
+        InputManager input,
+        FieldRenderer fieldRenderer,
+        HudRenderer hudRenderer,
+        FireworksEffect fireworks,
+        Random rng,
+        IFormationFactory formationFactory,
+        IDefenseFactory defenseFactory,
+        IStatisticsTracker statsTracker,
+        ICollisionResolver collisionResolver,
+        IThrowingMechanics throwingMechanics)
+    {
+        _stateManager = stateManager;
+        _playManager = playManager;
+        _input = input;
+        _fieldRenderer = fieldRenderer;
+        _hudRenderer = hudRenderer;
+        _fireworks = fireworks;
+        _rng = rng;
+        _formationFactory = formationFactory;
+        _defenseFactory = defenseFactory;
+        _statsTracker = statsTracker;
+        _collisionResolver = collisionResolver;
+        _throwingMechanics = throwingMechanics;
+
         InitializeDrive();
         _stateManager.SetState(GameState.MainMenu);
     }
@@ -94,263 +120,21 @@ public sealed class GameSession
         _passCatcher = null;
         _playStartLos = _playManager.LineOfScrimmage;
 
-        float los = _playManager.LineOfScrimmage;
-        _qb = new Quarterback(new Vector2(Constants.FieldWidth / 2f, ClampFormationY(los, 1.6f)));
-        _ball = new Ball(_qb.Position);
-        _ball.SetHeld(_qb, BallState.HeldByQB);
+        // Use FormationFactory to create offensive formation
+        var formationResult = _formationFactory.CreateFormation(_playManager.SelectedPlay, _playManager.LineOfScrimmage);
+        _qb = formationResult.Qb;
+        _ball = formationResult.Ball;
+        _receivers.AddRange(formationResult.Receivers);
+        _blockers.AddRange(formationResult.Blockers);
 
-        var formation = _playManager.SelectedPlay.Formation;
-        if (_playManager.SelectedPlayFamily == PlayType.QbRunFocus)
-        {
-            AddRunFormation(los, _playManager.SelectedPlay.RunningBackSide);
-        }
-        else
-        {
-            AddFormation(formation, los);
-        }
+        // Use DefenseFactory to create defense
+        var defenseResult = _defenseFactory.CreateDefense(_playManager.LineOfScrimmage, _playManager.Distance, _receivers, _rng);
+        _defenders.AddRange(defenseResult.Defenders);
+        _isZoneCoverage = defenseResult.IsZoneCoverage;
+        _blitzers = defenseResult.Blitzers;
 
-        SpawnDefenders(los);
         ReceiverAI.AssignRoutes(_receivers, _playManager.SelectedPlay, _rng);
         AssignReceiverPriorities();
-    }
-
-    private static readonly float[] BaseLineX = { 0.42f, 0.46f, 0.50f, 0.54f, 0.58f };
-
-    private static float ClampFormationY(float los, float offset)
-    {
-        float y = los - offset;
-        return MathF.Max(0.6f, y);
-    }
-
-    private void AddFormation(FormationType formation, float los)
-    {
-        // All receivers must be on or behind the LOS (los - offset means behind)
-        switch (formation)
-        {
-            // ============================================
-            // BASE FORMATIONS: 3 WR, 1 TE, 1 RB (5 skill + 5 OL)
-            // ============================================
-            case FormationType.BaseTripsRight:
-                // 3 WR trips to the right, TE on left, RB in backfield
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.12f, ClampFormationY(los, 0.3f)));              // WR1 - X receiver left
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.72f, ClampFormationY(los, 1.0f)));              // WR2 - slot right
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.88f, ClampFormationY(los, 0.3f)));              // WR3 - Z receiver far right
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.38f, ClampFormationY(los, 0.05f)), isTightEnd: true);  // TE - inline left
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 5.0f)), isRunningBack: true); // RB - backfield
-                AddBaseLine(los, extraCount: 0); // 5 OL
-                break;
-
-            case FormationType.BaseTripsLeft:
-                // 3 WR trips to the left, TE on right, RB in backfield
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.12f, ClampFormationY(los, 0.3f)));              // WR1 - X receiver far left
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.28f, ClampFormationY(los, 1.0f)));              // WR2 - slot left
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.88f, ClampFormationY(los, 0.3f)));              // WR3 - Z receiver right
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.62f, ClampFormationY(los, 0.05f)), isTightEnd: true);  // TE - inline right
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 5.0f)), isRunningBack: true); // RB - backfield
-                AddBaseLine(los, extraCount: 0); // 5 OL
-                break;
-
-            case FormationType.BaseSplit:
-                // 2 WR left, 1 WR right, TE right, RB in backfield
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.10f, ClampFormationY(los, 0.3f)));              // WR1 - X receiver far left
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.26f, ClampFormationY(los, 1.0f)));              // WR2 - slot left
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.90f, ClampFormationY(los, 0.3f)));              // WR3 - Z receiver far right
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.64f, ClampFormationY(los, 0.05f)), isTightEnd: true);  // TE - inline right
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 5.0f)), isRunningBack: true); // RB - backfield
-                AddBaseLine(los, extraCount: 0); // 5 OL
-                break;
-
-            // ============================================
-            // PASS FORMATIONS: 4 WR, 1 TE (5 skill + 5 OL)
-            // ============================================
-            case FormationType.PassSpread:
-                // 4 WR spread wide, TE inline
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.08f, ClampFormationY(los, 0.3f)));              // WR1 - X far left
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.26f, ClampFormationY(los, 1.0f)));              // WR2 - slot left
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.74f, ClampFormationY(los, 1.0f)));              // WR3 - slot right
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.92f, ClampFormationY(los, 0.3f)));              // WR4 - Z far right
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.62f, ClampFormationY(los, 0.05f)), isTightEnd: true);  // TE - inline right
-                AddBaseLine(los, extraCount: 0); // 5 OL
-                break;
-
-            case FormationType.PassBunch:
-                // 1 WR isolated left, 3 WR bunched right, TE inline left
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.10f, ClampFormationY(los, 0.3f)));              // WR1 - X isolated left
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.72f, ClampFormationY(los, 0.3f)));              // WR2 - bunch point
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.78f, ClampFormationY(los, 1.2f)));              // WR3 - bunch wing
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.84f, ClampFormationY(los, 0.6f)));              // WR4 - bunch flat
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.36f, ClampFormationY(los, 0.05f)), isTightEnd: true);  // TE - inline left
-                AddBaseLine(los, extraCount: 0); // 5 OL
-                break;
-
-            case FormationType.PassEmpty:
-                // 4 WR spread, TE detached as receiver (no RB)
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.06f, ClampFormationY(los, 0.3f)));              // WR1 - X far left
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.24f, ClampFormationY(los, 1.0f)));              // WR2 - slot left
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.76f, ClampFormationY(los, 1.0f)));              // WR3 - slot right
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.94f, ClampFormationY(los, 0.3f)));              // WR4 - Z far right
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 1.5f)), isTightEnd: true);   // TE - flexed out middle
-                AddBaseLine(los, extraCount: 0); // 5 OL
-                break;
-
-            // ============================================
-            // RUN FORMATIONS: 1 WR, 1 TE, 1 RB (3 skill + 7 OL)
-            // ============================================
-            case FormationType.RunPowerRight:
-                // WR left, TE right (blocking), RB offset right
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.10f, ClampFormationY(los, 0.3f)));              // WR - X far left
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.55f, ClampFormationY(los, 4.0f)), isRunningBack: true); // RB - offset right
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.66f, ClampFormationY(los, 0.05f)), isTightEnd: true);  // TE - inline right (blocking)
-                AddBaseLine(los, extraCount: 2); // 7 OL (5 base + 2 extra)
-                break;
-
-            case FormationType.RunPowerLeft:
-                // WR right, TE left (blocking), RB offset left
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.90f, ClampFormationY(los, 0.3f)));              // WR - Z far right
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.45f, ClampFormationY(los, 4.0f)), isRunningBack: true); // RB - offset left
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.34f, ClampFormationY(los, 0.05f)), isTightEnd: true);  // TE - inline left (blocking)
-                AddBaseLine(los, extraCount: 2); // 7 OL (5 base + 2 extra)
-                break;
-
-            case FormationType.RunIForm:
-                // WR split out, TE inline, RB directly behind QB
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.12f, ClampFormationY(los, 0.3f)));              // WR - X split left
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 3.5f)), isRunningBack: true); // RB - I-form directly behind QB
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.64f, ClampFormationY(los, 0.05f)), isTightEnd: true);  // TE - inline right (blocking)
-                AddBaseLine(los, extraCount: 2); // 7 OL (5 base + 2 extra)
-                break;
-
-            default:
-                // Default to BaseTripsRight
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.12f, ClampFormationY(los, 0.3f)));
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.72f, ClampFormationY(los, 1.0f)));
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.88f, ClampFormationY(los, 0.3f)));
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.38f, ClampFormationY(los, 0.05f)), isTightEnd: true);
-                AddReceiver(new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 5.0f)), isRunningBack: true);
-                AddBaseLine(los, extraCount: 0);
-                break;
-        }
-    }
-
-    private void AddRunFormation(float los, int runningBackSide)
-    {
-        // Run formations are now handled in AddFormation via RunPowerRight, RunPowerLeft, RunIForm
-        // This method is kept for backward compatibility but delegates to appropriate formation
-        var formation = runningBackSide switch
-        {
-            1 => FormationType.RunPowerRight,
-            -1 => FormationType.RunPowerLeft,
-            _ => FormationType.RunIForm
-        };
-        AddFormation(formation, los);
-    }
-
-    private void AddReceiver(Vector2 position, bool isRunningBack = false, bool isTightEnd = false)
-    {
-        _receivers.Add(new Receiver(_receivers.Count, position, isRunningBack, isTightEnd));
-    }
-
-    private void AddBaseLine(float los, int extraCount)
-    {
-        // Base 5 OL positions
-        foreach (float x in BaseLineX)
-        {
-            _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * x, los - 0.1f)));
-        }
-
-        // Add extra OL for run formations (positions 6 and 7)
-        if (extraCount >= 1)
-        {
-            _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.36f, los - 0.1f))); // Extra OL left
-        }
-        if (extraCount >= 2)
-        {
-            _blockers.Add(new Blocker(new Vector2(Constants.FieldWidth * 0.64f, los - 0.1f))); // Extra OL right
-        }
-    }
-
-    private void SpawnDefenders(float los)
-    {
-        ResolveCoverageIndices(out int left, out int leftSlot, out int middle, out int rightSlot, out int right);
-        
-        // Determine if zone coverage based on yards to go
-        bool useZone = _playManager.Distance > Constants.ManCoverageDistanceThreshold;
-        _isZoneCoverage = useZone;
-        _blitzers.Clear();
-        
-        // Calculate available depth before end of field (leave 1 yard buffer from back of endzone)
-        float maxY = Constants.FieldLength - 1f;
-        float availableDepth = maxY - los;
-        
-        // Condense formation when near the endzone
-        float depthScale = availableDepth < 18f ? availableDepth / 18f : 1f;
-        depthScale = MathF.Max(depthScale, 0.3f); // Don't compress more than 70%
-
-        // Defensive formation: 4-3 with 4 DB
-        float dlDepth = ClampDefenderY(los + 2.8f * depthScale, maxY);
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, dlDepth), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -5.0f });
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.46f, dlDepth), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -2.0f });
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.54f, dlDepth), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 2.0f });
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, dlDepth), DefensivePosition.DL) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 5.0f });
-
-        // Linebackers - each has 10% chance to blitz
-        bool lblBlitz = _rng.NextDouble() < 0.10;
-        bool mlbBlitz = _rng.NextDouble() < 0.10;
-        bool lbrBlitz = _rng.NextDouble() < 0.10;
-        
-        if (lblBlitz) _blitzers.Add("LB");
-        if (mlbBlitz) _blitzers.Add("MLB");
-        if (lbrBlitz) _blitzers.Add("LB");
-        
-        float lbDepth = ClampDefenderY(los + 6.2f * depthScale, maxY);
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.38f, lbDepth), DefensivePosition.LB) { IsRusher = lblBlitz, CoverageReceiverIndex = leftSlot, ZoneRole = CoverageRole.HookLeft, RushLaneOffsetX = -7.0f }); // LB
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.50f, lbDepth), DefensivePosition.LB) { IsRusher = mlbBlitz, CoverageReceiverIndex = middle, ZoneRole = CoverageRole.HookMiddle, RushLaneOffsetX = 0f }); // MLB
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.62f, lbDepth), DefensivePosition.LB) { IsRusher = lbrBlitz, CoverageReceiverIndex = rightSlot, ZoneRole = CoverageRole.HookRight, RushLaneOffsetX = 7.0f }); // LB
-
-        // DB positioning depends on coverage type
-        float baseCbDepth = useZone ? 8.0f : 3.5f;   // Zone: off coverage, Man: press
-        float baseSDepth = useZone ? 16.0f : 13.5f;  // Zone: deeper, Man: normal
-        float cbDepth = ClampDefenderY(los + baseCbDepth * depthScale, maxY);
-        float sDepth = ClampDefenderY(los + baseSDepth * depthScale, maxY);
-        
-        // CBs - 5% chance to blitz only in man coverage (press)
-        bool leftCbBlitz = !useZone && _rng.NextDouble() < 0.05;
-        bool rightCbBlitz = !useZone && _rng.NextDouble() < 0.05;
-        
-        if (leftCbBlitz) _blitzers.Add("CB");
-        if (rightCbBlitz) _blitzers.Add("CB");
-        
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.18f, cbDepth), DefensivePosition.DB) { IsRusher = leftCbBlitz, CoverageReceiverIndex = left, ZoneRole = CoverageRole.FlatLeft, IsPressCoverage = !useZone, RushLaneOffsetX = -10.0f }); // CB
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.82f, cbDepth), DefensivePosition.DB) { IsRusher = rightCbBlitz, CoverageReceiverIndex = right, ZoneRole = CoverageRole.FlatRight, IsPressCoverage = !useZone, RushLaneOffsetX = 10.0f }); // CB
-        // Safeties
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, sDepth), DefensivePosition.DB) { CoverageReceiverIndex = leftSlot, ZoneRole = CoverageRole.DeepLeft, IsPressCoverage = false }); // S
-        _defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, sDepth), DefensivePosition.DB) { CoverageReceiverIndex = rightSlot, ZoneRole = CoverageRole.DeepRight, IsPressCoverage = false }); // S
-    }
-    
-    private static float ClampDefenderY(float y, float maxY)
-    {
-        return MathF.Min(y, maxY);
-    }
-
-    private void ResolveCoverageIndices(out int left, out int leftSlot, out int middle, out int rightSlot, out int right)
-    {
-        if (_receivers.Count == 0)
-        {
-            left = leftSlot = middle = rightSlot = right = -1;
-            return;
-        }
-
-        var ordered = _receivers
-            .Select((receiver, index) => new { receiver.Position.X, index })
-            .OrderBy(item => item.X)
-            .Select(item => item.index)
-            .ToList();
-
-        left = ordered[0];
-        right = ordered[^1];
-        middle = ordered[ordered.Count / 2];
-        leftSlot = ordered.Count > 2 ? ordered[1] : left;
-        rightSlot = ordered.Count > 3 ? ordered[^2] : right;
     }
 
     public void Update(float dt)
@@ -660,8 +444,7 @@ public sealed class GameSession
                     {
                         _passCompletedThisPlay = true;
                         _passCatcher = receiver;
-                        _qbStats.Completions++;
-                        GetReceiverStatLine(receiver.Index).Receptions++;
+                        _statsTracker.RecordCompletion(receiver.Index);
                     }
                     return;
                 }
@@ -715,7 +498,7 @@ public sealed class GameSession
     {
         if (_passAttemptedThisPlay && intercepted)
         {
-            _qbStats.Interceptions++;
+            _statsTracker.RecordInterception();
         }
 
         float gain = 0f;
@@ -728,18 +511,7 @@ public sealed class GameSession
             gain = MathF.Round(_ball.Holder.Position.Y - _playStartLos);
             if (_passCompletedThisPlay && _passCatcher != null)
             {
-                _qbStats.PassYards += (int)gain;
-                if (touchdown)
-                {
-                    _qbStats.PassTds++;
-                }
-
-                var receiverStats = GetReceiverStatLine(_passCatcher.Index);
-                receiverStats.Yards += (int)gain;
-                if (touchdown)
-                {
-                    receiverStats.Tds++;
-                }
+                _statsTracker.RecordPassYards(_passCatcher.Index, (int)gain, touchdown);
                 
                 // Capture catcher info for play record
                 catcherLabel = GetCatcherLabel(_passCatcher);
@@ -748,11 +520,7 @@ public sealed class GameSession
 
             if (_ball.Holder is Receiver ballCarrier && ballCarrier.IsRunningBack)
             {
-                _rbStats.Yards += (int)gain;
-                if (touchdown)
-                {
-                    _rbStats.Tds++;
-                }
+                _statsTracker.RecordRushYards((int)gain, touchdown);
                 wasRun = true;
             }
         }
@@ -1198,35 +966,12 @@ public sealed class GameSession
         return GetReceiverPriorityLabel(_playManager.SelectedReceiver);
     }
 
-    private SkillStatLine GetReceiverStatLine(int receiverIndex)
-    {
-        if (!_receiverStats.TryGetValue(receiverIndex, out var stats))
-        {
-            stats = new SkillStatLine();
-            _receiverStats[receiverIndex] = stats;
-        }
-
-        return stats;
-    }
-
     private GameStatsSnapshot BuildStatsSnapshot()
     {
-        var receivers = new List<ReceiverStatsSnapshot>(5);
-        for (int i = 1; i <= 5; i++)
+        return _statsTracker.BuildSnapshot(priority =>
         {
-            if (TryGetReceiverIndexForPriority(i, out int receiverIndex) && _receiverStats.TryGetValue(receiverIndex, out var stats))
-            {
-                receivers.Add(new ReceiverStatsSnapshot(i.ToString(), stats.Receptions, stats.Yards, stats.Tds));
-            }
-            else
-            {
-                receivers.Add(new ReceiverStatsSnapshot(i.ToString(), 0, 0, 0));
-            }
-        }
-
-        var qb = new QbStatsSnapshot(_qbStats.Completions, _qbStats.Attempts, _qbStats.PassYards, _qbStats.PassTds, _qbStats.Interceptions);
-        var rb = new RbStatsSnapshot(_rbStats.Yards, _rbStats.Tds);
-        return new GameStatsSnapshot(qb, receivers, rb);
+            return TryGetReceiverIndexForPriority(priority, out _);
+        });
     }
 
     private void TryThrowToPriority(int priority)
@@ -1257,30 +1002,20 @@ public sealed class GameSession
         if (!_passAttemptedThisPlay)
         {
             _passAttemptedThisPlay = true;
-            _qbStats.Attempts++;
-        }
-
-        float speed = Constants.BallMaxSpeed;
-        Vector2 toReceiver = receiver.Position - _qb.Position;
-        float leadTime = CalculateInterceptTime(toReceiver, receiver.Velocity, speed);
-        leadTime = Math.Clamp(leadTime, 0f, Constants.BallMaxAirTime);
-        Vector2 leadTarget = receiver.Position + receiver.Velocity * leadTime;
-
-        Vector2 dir = leadTarget - _qb.Position;
-        if (dir.LengthSquared() > 0.001f)
-        {
-            dir = Vector2.Normalize(dir);
+            _statsTracker.RecordPassAttempt();
         }
 
         float pressure = GetQbPressureFactor();
-        float movementPenalty = GetMovementInaccuracyPenalty(dir);
-        float combinedFactor = Math.Clamp(pressure + movementPenalty, 0f, 1f);
-        float inaccuracyDeg = Lerp(Constants.ThrowBaseInaccuracyDeg, Constants.ThrowMaxInaccuracyDeg, combinedFactor);
-        float inaccuracyRad = inaccuracyDeg * (MathF.PI / 180f);
-        float angle = ((float)_rng.NextDouble() * 2f - 1f) * inaccuracyRad;
-        dir = Rotate(dir, angle);
+        Vector2 throwVelocity = _throwingMechanics.CalculateThrowVelocity(
+            _qb.Position,
+            _qb.Velocity,
+            receiver.Position,
+            receiver.Velocity,
+            Constants.BallMaxSpeed,
+            pressure,
+            _rng);
 
-        _ball.SetInAir(_qb.Position, dir * speed);
+        _ball.SetInAir(_qb.Position, throwVelocity);
     }
 
     private void DrawRouteOverlay()
@@ -1364,34 +1099,6 @@ public sealed class GameSession
         return closest;
     }
 
-    private float GetNearestDefenderDistance(Vector2 position)
-    {
-        float best = float.MaxValue;
-        foreach (var defender in _defenders)
-        {
-            float dist = Vector2.Distance(defender.Position, position);
-            if (dist < best)
-            {
-                best = dist;
-            }
-        }
-
-        return best;
-    }
-
-    private float GetMovementInaccuracyPenalty(Vector2 throwDir)
-    {
-        float speed = _qb.Velocity.Length();
-        if (speed < 0.2f) return 0f;
-
-        Vector2 moveDir = _qb.Velocity / speed;
-        float dot = Vector2.Dot(moveDir, throwDir);
-        dot = Math.Clamp(dot, -1f, 1f);
-
-        float penalty = (1f - dot) * 0.5f;
-        return Math.Clamp(penalty, 0f, 1f);
-    }
-
     private float GetQbPressureFactor()
     {
         float closest = float.MaxValue;
@@ -1417,46 +1124,5 @@ public sealed class GameSession
 
         float t = 1f - (closest - Constants.ThrowPressureMinDistance) / (Constants.ThrowPressureMaxDistance - Constants.ThrowPressureMinDistance);
         return Math.Clamp(t, 0f, 1f);
-    }
-
-    private static float CalculateInterceptTime(Vector2 toTarget, Vector2 targetVelocity, float projectileSpeed)
-    {
-        float a = Vector2.Dot(targetVelocity, targetVelocity) - projectileSpeed * projectileSpeed;
-        float b = 2f * Vector2.Dot(targetVelocity, toTarget);
-        float c = Vector2.Dot(toTarget, toTarget);
-
-        if (MathF.Abs(a) < 0.0001f)
-        {
-            if (MathF.Abs(b) < 0.0001f)
-            {
-                return 0f;
-            }
-            float time = -c / b;
-            return time > 0f ? time : 0f;
-        }
-
-        float discriminant = b * b - 4f * a * c;
-        if (discriminant < 0f)
-        {
-            return 0f;
-        }
-
-        float sqrt = MathF.Sqrt(discriminant);
-        float t1 = (-b - sqrt) / (2f * a);
-        float t2 = (-b + sqrt) / (2f * a);
-        float t = (t1 > 0f && t2 > 0f) ? MathF.Min(t1, t2) : MathF.Max(t1, t2);
-        return t > 0f ? t : 0f;
-    }
-
-    private static Vector2 Rotate(Vector2 v, float radians)
-    {
-        float cos = MathF.Cos(radians);
-        float sin = MathF.Sin(radians);
-        return new Vector2(v.X * cos - v.Y * sin, v.X * sin + v.Y * cos);
-    }
-
-    private static float Lerp(float a, float b, float t)
-    {
-        return a + (b - a) * t;
     }
 }
