@@ -4,8 +4,6 @@
 
 RetroQB is a fast-paced retro-style 2D American football game where YOU are the quarterback. Call plays, dodge rushers, and lead your receivers to the end zone in this love letter to classic arcade sports games.
 
-Built with C# and Raylib for that crisp, responsive feel.
-
 ---
 
 ## 📸 Screenshots
@@ -99,7 +97,7 @@ RetroQB/
 
 ---
 
-## 🙏 Credits
+## 🙏 Written with
 
 - Opus 4.5
 - GPT-5.2-Codex
