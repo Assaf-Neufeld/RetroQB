@@ -1,3 +1,4 @@
+using System.Numerics;
 using Raylib_cs;
 using RetroQB.Core;
 using RetroQB.Gameplay;
@@ -19,7 +20,7 @@ public sealed class FieldRenderer
         DrawHashMarks();
         DrawMarkers(lineOfScrimmage, firstDownLine);
         DrawSidelines();
-        Raylib.DrawRectangleLinesEx(rect, 2, Palette.DarkGreen);
+        Raylib.DrawRectangleLinesEx(rect, 3, Palette.DarkGreen);
     }
 
     private void DrawStadiumBackdrop()
@@ -200,7 +201,9 @@ public sealed class FieldRenderer
         {
             float worldY = Constants.EndZoneDepth + yard;
             float y = Constants.WorldToScreenY(worldY);
-            Raylib.DrawLine((int)rect.X, (int)y, (int)right, (int)y, Palette.YardLine);
+            Vector2 a = new Vector2(rect.X, y);
+            Vector2 b = new Vector2(right, y);
+            Raylib.DrawLineEx(a, b, 2.2f, Palette.YardLine);
             
             // Display yard line numbers on both sides of the field
             // Convert to standard football yard line display (0-50-0)
@@ -231,8 +234,13 @@ public sealed class FieldRenderer
             float worldY = Constants.EndZoneDepth + yard;
             float y = Constants.WorldToScreenY(worldY);
 
-            Raylib.DrawLine((int)(left + hashInset), (int)y, (int)(left + hashInset + hashLength), (int)y, Palette.DarkGreen);
-            Raylib.DrawLine((int)(right - hashInset - hashLength), (int)y, (int)(right - hashInset), (int)y, Palette.DarkGreen);
+            Vector2 leftA = new Vector2(left + hashInset, y);
+            Vector2 leftB = new Vector2(left + hashInset + hashLength, y);
+            Raylib.DrawLineEx(leftA, leftB, 2.0f, Palette.White);
+
+            Vector2 rightA = new Vector2(right - hashInset - hashLength, y);
+            Vector2 rightB = new Vector2(right - hashInset, y);
+            Raylib.DrawLineEx(rightA, rightB, 2.0f, Palette.White);
         }
     }
 
@@ -247,17 +255,17 @@ public sealed class FieldRenderer
         Color sideline = new Color(235, 235, 235, 255);
         Color sidelineShadow = new Color(40, 40, 50, 140);
 
-        Raylib.DrawLine(left - 2, top, left - 2, bottom, sidelineShadow);
-        Raylib.DrawLine(right + 2, top, right + 2, bottom, sidelineShadow);
-        Raylib.DrawLine(left, top, left, bottom, sideline);
-        Raylib.DrawLine(right, top, right, bottom, sideline);
+        Raylib.DrawLineEx(new Vector2(left - 2, top), new Vector2(left - 2, bottom), 2.0f, sidelineShadow);
+        Raylib.DrawLineEx(new Vector2(right + 2, top), new Vector2(right + 2, bottom), 2.0f, sidelineShadow);
+        Raylib.DrawLineEx(new Vector2(left, top), new Vector2(left, bottom), 2.2f, sideline);
+        Raylib.DrawLineEx(new Vector2(right, top), new Vector2(right, bottom), 2.2f, sideline);
 
         int dashLen = 12;
         int gap = 6;
         for (int y = top + 6; y < bottom - dashLen; y += dashLen + gap)
         {
-            Raylib.DrawLine(left - 5, y, left - 5, y + dashLen, sideline);
-            Raylib.DrawLine(right + 5, y, right + 5, y + dashLen, sideline);
+            Raylib.DrawLineEx(new Vector2(left - 5, y), new Vector2(left - 5, y + dashLen), 2.0f, sideline);
+            Raylib.DrawLineEx(new Vector2(right + 5, y), new Vector2(right + 5, y + dashLen), 2.0f, sideline);
         }
     }
 
@@ -268,7 +276,7 @@ public sealed class FieldRenderer
         float losY = Constants.WorldToScreenY(lineOfScrimmage);
         float fdY = Constants.WorldToScreenY(firstDownLine);
 
-        Raylib.DrawLine((int)rect.X, (int)losY, (int)right, (int)losY, Palette.Yellow);
-        Raylib.DrawLine((int)rect.X, (int)fdY, (int)right, (int)fdY, Palette.Orange);
+        Raylib.DrawLineEx(new Vector2(rect.X, losY), new Vector2(right, losY), 3.0f, Palette.Yellow);
+        Raylib.DrawLineEx(new Vector2(rect.X, fdY), new Vector2(right, fdY), 3.0f, Palette.Orange);
     }
 }

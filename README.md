@@ -63,7 +63,6 @@ RetroQB is a fast-paced retro-style 2D American football game where YOU are the 
 ## 🚀 Quick Start
 
 ```bash
-cd RetroQB
 dotnet run
 ```
 
@@ -86,6 +85,7 @@ dotnet run
 ## 📁 Project Structure
 
 ```
+RetroQB.csproj    # Project file (run from repo root)
 RetroQB/
 ├── AI/           # Defender and receiver AI behaviors
 ├── Core/         # Game constants, state, and utilities

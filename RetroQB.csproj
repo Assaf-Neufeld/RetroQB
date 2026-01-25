@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -6,8 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <ApplicationIcon>Assets\helmet.ico</ApplicationIcon>
-    
+    <ApplicationIcon>RetroQB\Assets\helmet.ico</ApplicationIcon>
+
+    <DefaultItemExcludes>$(DefaultItemExcludes);RetroQB\obj\**;RetroQB\bin\**</DefaultItemExcludes>
+
     <!-- Publish defaults -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
@@ -20,7 +22,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Assets\new_helmet.png">
+    <Compile Remove="RetroQB\obj\**" />
+    <Compile Remove="RetroQB\bin\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="RetroQB\Assets\new_helmet.png">
       <LogicalName>helmet_icon.png</LogicalName>
     </EmbeddedResource>
   </ItemGroup>

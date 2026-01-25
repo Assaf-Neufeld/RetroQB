@@ -228,19 +228,32 @@ public sealed class PlayManager
 
     private void TryRegenerateWildcard(Random rng)
     {
-        if (SelectedPlayFamily != PlayType.QuickPass)
+        if (SelectedPlayFamily == PlayType.QuickPass)
         {
+            if (_selectedPlayIndexByFamily[PlayType.QuickPass] != WildcardIndex)
+            {
+                return;
+            }
+
+            if (_playbook.TryGetValue(PlayType.QuickPass, out var quickPlays) && quickPlays.Count > 0)
+            {
+                quickPlays[WildcardIndex] = PlaybookBuilder.CreateWildcardPlay(rng);
+            }
+
             return;
         }
 
-        if (_selectedPlayIndexByFamily[PlayType.QuickPass] != WildcardIndex)
+        if (SelectedPlayFamily == PlayType.QbRunFocus)
         {
-            return;
-        }
+            if (_selectedPlayIndexByFamily[PlayType.QbRunFocus] != WildcardIndex)
+            {
+                return;
+            }
 
-        if (_playbook.TryGetValue(PlayType.QuickPass, out var plays) && plays.Count > 0)
-        {
-            plays[WildcardIndex] = PlaybookBuilder.CreateWildcardPlay(rng);
+            if (_playbook.TryGetValue(PlayType.QbRunFocus, out var runPlays) && runPlays.Count > 0)
+            {
+                runPlays[WildcardIndex] = PlaybookBuilder.CreateRunWildcardPlay(rng);
+            }
         }
     }
 

@@ -18,6 +18,13 @@ public static class PlaybookBuilder
         FormationType.PassEmpty
     };
 
+    private static readonly FormationType[] RunWildcardFormations =
+    {
+        FormationType.RunPowerRight,
+        FormationType.RunPowerLeft,
+        FormationType.RunIForm
+    };
+
     public static Dictionary<PlayType, List<PlayDefinition>> Build()
     {
         return new Dictionary<PlayType, List<PlayDefinition>>
@@ -41,6 +48,43 @@ public static class PlaybookBuilder
             rbRole,
             teRole,
             new Dictionary<int, RouteType>());
+    }
+
+    public static PlayDefinition CreateRunWildcardPlay(Random rng)
+    {
+        var formation = RunWildcardFormations[rng.Next(RunWildcardFormations.Length)];
+        int runningBackSide = formation switch
+        {
+            FormationType.RunPowerRight => 1,
+            FormationType.RunPowerLeft => -1,
+            _ => 0
+        };
+
+        Dictionary<int, RouteType> routes = formation == FormationType.RunIForm
+            ? new Dictionary<int, RouteType>
+            {
+                [0] = RouteType.Slant,
+                [1] = RouteType.Go
+            }
+            : new Dictionary<int, RouteType>
+            {
+                [0] = RouteType.Go,
+                [1] = RouteType.OutShallow
+            };
+
+        Dictionary<int, bool>? slantDirections = formation == FormationType.RunIForm
+            ? new Dictionary<int, bool> { [0] = true }
+            : null;
+
+        return new PlayDefinition(
+            "Wildcard",
+            PlayType.QbRunFocus,
+            formation,
+            RunningBackRole.Route,
+            TightEndRole.Block,
+            routes,
+            runningBackSide: runningBackSide,
+            slantDirections: slantDirections);
     }
 
     private static List<PlayDefinition> BuildQuickPassPlays()
@@ -157,6 +201,16 @@ public static class PlaybookBuilder
     {
         return new List<PlayDefinition>
         {
+            // Wildcard placeholder - regenerated at selection time
+            new(
+                "Wildcard",
+                PlayType.QbRunFocus,
+                FormationType.RunPowerRight,
+                RunningBackRole.Route,
+                TightEndRole.Block,
+                new Dictionary<int, RouteType>(),
+                runningBackSide: 1),
+
             new(
                 "Power Right",
                 PlayType.QbRunFocus,
@@ -181,21 +235,7 @@ public static class PlaybookBuilder
                     [0] = RouteType.Go,
                     [1] = RouteType.OutShallow
                 },
-                runningBackSide: -1),
-
-            new(
-                "I-Form Dive",
-                PlayType.QbRunFocus,
-                FormationType.RunIForm,
-                RunningBackRole.Route,
-                TightEndRole.Block,
-                new Dictionary<int, RouteType>
-                {
-                    [0] = RouteType.Slant,
-                    [1] = RouteType.Go
-                },
-                runningBackSide: 0,
-                slantDirections: new Dictionary<int, bool> { [0] = true })
+                runningBackSide: -1)
         };
     }
 }

@@ -609,11 +609,29 @@ public sealed class GameSession
             if (_ball.Holder != null)
             {
                 Vector2 pushDir = defender.Position - _ball.Holder.Position;
-                if (pushDir.LengthSquared() > 0.001f)
+                if (pushDir.LengthSquared() <= 0.001f)
+                {
+                    Vector2 fallback = _ball.Holder.Velocity;
+                    if (fallback.LengthSquared() <= 0.001f)
+                    {
+                        fallback = new Vector2(0, -1f);
+                    }
+                    pushDir = -Vector2.Normalize(fallback);
+                }
+                else
                 {
                     pushDir = Vector2.Normalize(pushDir);
-                    defender.Position += pushDir * 0.8f; // Push defender back
                 }
+
+                float minSeparation = defender.Radius + _ball.Holder.Radius + 0.7f;
+                if (pushDir.Y < 0f)
+                {
+                    minSeparation += 0.8f;
+                }
+
+                defender.Position = _ball.Holder.Position + pushDir * minSeparation;
+                defender.Velocity = pushDir * (defender.Speed * 0.6f);
+                ClampToField(defender);
             }
             return true;
         }
@@ -873,6 +891,22 @@ public sealed class GameSession
                 {
                     if ((a == ballCarrier && bIsDefender) || (b == ballCarrier && aIsDefender))
                     {
+                        var defender = aIsDefender ? (Defender)a : (Defender)b;
+                        if (_brokenTackleDefenders.Contains(defender))
+                        {
+                            Entity carrier = a == ballCarrier ? a : b;
+                            Vector2 deltaToDefender = defender.Position - carrier.Position;
+                            if (deltaToDefender.LengthSquared() > 0.0001f)
+                            {
+                                Vector2 pushDir = Vector2.Normalize(deltaToDefender);
+                                float minSeparation = defender.Radius + carrier.Radius + 0.6f;
+                                defender.Position = carrier.Position + pushDir * minSeparation;
+                                defender.Velocity = pushDir * (defender.Speed * 0.6f);
+                                ClampToField(defender);
+                            }
+                            continue;
+                        }
+
                         continue;
                     }
                 }
@@ -1270,12 +1304,11 @@ public sealed class GameSession
             var points = ReceiverAI.GetRouteWaypoints(receiver);
             if (points.Count < 2) continue;
 
-            Color routeColor = GetRouteColor(receiver.Index);
             for (int i = 0; i < points.Count - 1; i++)
             {
                 Vector2 a = Constants.WorldToScreen(points[i]);
                 Vector2 b = Constants.WorldToScreen(points[i + 1]);
-                Raylib.DrawLineEx(a, b, 2.0f, routeColor);
+                Raylib.DrawLineEx(a, b, 2.0f, Palette.Yellow);
             }
 
         }
