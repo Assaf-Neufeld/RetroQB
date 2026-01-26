@@ -77,6 +77,17 @@ public static class Constants
     public const float BallMaxSpeed = 26f;
     public const float BallMaxAirTime = 3.0f;
 
+    // Pass flight tuning
+    public const float PassOverthrowFactor = 0.2f;
+    public const float PassOverthrowMin = 1.5f;
+    public const float PassOverthrowMax = 6.0f;
+
+    public const float PassArcShortDistance = 6f;
+    public const float PassArcLongDistance = 28f;
+    public const float PassArcMinHeight = 0.35f;
+    public const float PassArcMaxHeight = 3.0f;
+    public const float PassCatchMaxHeight = 0.9f;
+
     public const float ThrowPressureMinDistance = 2.8f;
     public const float ThrowPressureMaxDistance = 10.5f;
     public const float ThrowBaseInaccuracyDeg = 0.6f;

@@ -479,6 +479,18 @@ public sealed class GameSession
                 return;
             }
 
+            if (_ball.MaxTravelDistance > 0f && _ball.GetTravelDistance() > _ball.MaxTravelDistance)
+            {
+                EndPlay(incomplete: true);
+                return;
+            }
+
+            float ballHeight = _ball.GetArcHeight();
+            if (ballHeight > Constants.PassCatchMaxHeight)
+            {
+                return;
+            }
+
             foreach (var receiver in _receivers)
             {
                 if (!receiver.Eligible) continue;
@@ -1292,7 +1304,35 @@ public sealed class GameSession
             _offensiveTeam,
             _rng);
 
-        _ball.SetInAir(_qb.Position, throwVelocity);
+        Vector2 toReceiver = receiver.Position - _qb.Position;
+        float leadTime = _throwingMechanics.CalculateInterceptTime(toReceiver, receiver.Velocity, Constants.BallMaxSpeed);
+        leadTime = Math.Clamp(leadTime, 0f, Constants.BallMaxAirTime);
+        Vector2 leadTarget = receiver.Position + receiver.Velocity * leadTime;
+        float intendedDistance = Vector2.Distance(_qb.Position, leadTarget);
+
+        float overthrowAllowance = GetOverthrowAllowance(intendedDistance);
+        float maxTravelDistance = intendedDistance + overthrowAllowance;
+        float arcApexHeight = GetPassArcApex(intendedDistance);
+
+        _ball.SetInAir(_qb.Position, throwVelocity, intendedDistance, maxTravelDistance, arcApexHeight);
+    }
+
+    private static float GetOverthrowAllowance(float intendedDistance)
+    {
+        float allowance = intendedDistance * Constants.PassOverthrowFactor;
+        return Math.Clamp(allowance, Constants.PassOverthrowMin, Constants.PassOverthrowMax);
+    }
+
+    private static float GetPassArcApex(float intendedDistance)
+    {
+        float t = 0f;
+        float range = Constants.PassArcLongDistance - Constants.PassArcShortDistance;
+        if (range > 0.01f)
+        {
+            t = Math.Clamp((intendedDistance - Constants.PassArcShortDistance) / range, 0f, 1f);
+        }
+
+        return Constants.PassArcMinHeight + (Constants.PassArcMaxHeight - Constants.PassArcMinHeight) * t;
     }
 
     private void DrawRouteOverlay()
