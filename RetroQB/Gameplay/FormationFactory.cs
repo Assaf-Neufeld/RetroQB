@@ -34,9 +34,9 @@ public sealed class FormationFactory : IFormationFactory
         var ball = new Ball(qb.Position);
         ball.SetHeld(qb, BallState.HeldByQB);
 
-        if (play.Family == PlayType.QbRunFocus)
+        if (play.Family == PlayType.Run)
         {
-            AddRunFormation(receivers, blockers, lineOfScrimmage, play.RunningBackSide);
+            AddRunFormation(receivers, blockers, lineOfScrimmage, play.Formation, play.RunningBackSide);
         }
         else
         {
@@ -137,6 +137,20 @@ public sealed class FormationFactory : IFormationFactory
                 AddBaseLine(blockers, los, extraCount: 2);
                 break;
 
+            case FormationType.RunSweepRight:
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.10f, ClampFormationY(los, 0.3f)));
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.70f, ClampFormationY(los, 4.6f)), isRunningBack: true);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.72f, ClampFormationY(los, 0.05f)), isTightEnd: true);
+                AddBaseLine(blockers, los, extraCount: 2);
+                break;
+
+            case FormationType.RunSweepLeft:
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.90f, ClampFormationY(los, 0.3f)));
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.30f, ClampFormationY(los, 4.6f)), isRunningBack: true);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.28f, ClampFormationY(los, 0.05f)), isTightEnd: true);
+                AddBaseLine(blockers, los, extraCount: 2);
+                break;
+
             default:
                 AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.12f, ClampFormationY(los, 0.3f)));
                 AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.72f, ClampFormationY(los, 1.0f)));
@@ -148,14 +162,21 @@ public sealed class FormationFactory : IFormationFactory
         }
     }
 
-    private void AddRunFormation(List<Receiver> receivers, List<Blocker> blockers, float los, int runningBackSide)
+    private void AddRunFormation(List<Receiver> receivers, List<Blocker> blockers, float los, FormationType formation, int runningBackSide)
     {
-        var formation = runningBackSide switch
+        if (formation is not FormationType.RunPowerRight
+            && formation is not FormationType.RunPowerLeft
+            && formation is not FormationType.RunIForm
+            && formation is not FormationType.RunSweepRight
+            && formation is not FormationType.RunSweepLeft)
         {
-            1 => FormationType.RunPowerRight,
-            -1 => FormationType.RunPowerLeft,
-            _ => FormationType.RunIForm
-        };
+            formation = runningBackSide switch
+            {
+                1 => FormationType.RunPowerRight,
+                -1 => FormationType.RunPowerLeft,
+                _ => FormationType.RunIForm
+            };
+        }
         AddFormation(receivers, blockers, formation, los);
     }
 

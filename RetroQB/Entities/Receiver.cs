@@ -35,7 +35,7 @@ public sealed class Receiver : Entity
     public OffensiveTeamAttributes TeamAttributes { get; }
 
     public Receiver(int index, Vector2 position, bool isRunningBack = false, bool isTightEnd = false, OffensiveTeamAttributes? teamAttributes = null) 
-        : base(position, Constants.ReceiverRadius, ResolveGlyph(isRunningBack, isTightEnd), ResolveColor(isRunningBack, isTightEnd))
+        : base(position, Constants.ReceiverRadius, ResolveGlyph(isRunningBack, isTightEnd), ResolveColor(isRunningBack, isTightEnd, teamAttributes))
     {
         TeamAttributes = teamAttributes ?? OffensiveTeamAttributes.Default;
         Index = index;
@@ -53,9 +53,9 @@ public sealed class Receiver : Entity
         return "WR";
     }
 
-    private static Color ResolveColor(bool isRunningBack, bool isTightEnd)
+    private static Color ResolveColor(bool isRunningBack, bool isTightEnd, OffensiveTeamAttributes? teamAttributes)
     {
-        return Palette.Receiver;
+        return teamAttributes?.SecondaryColor ?? Palette.Receiver;
     }
 
     public override void Update(float dt)

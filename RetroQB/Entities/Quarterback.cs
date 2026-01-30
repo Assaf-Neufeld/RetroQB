@@ -14,9 +14,10 @@ public sealed class Quarterback : Entity
     public OffensiveTeamAttributes TeamAttributes { get; }
 
     public Quarterback(Vector2 position, OffensiveTeamAttributes? teamAttributes = null) 
-        : base(position, Constants.QbRadius, "QB", Palette.QB)
+        : base(position, Constants.QbRadius, "QB", teamAttributes?.PrimaryColor ?? Palette.QB)
     {
         TeamAttributes = teamAttributes ?? OffensiveTeamAttributes.Default;
+        Color = TeamAttributes.PrimaryColor;
     }
 
     public void ApplyInput(Vector2 inputDir, bool sprinting, bool aimMode, float dt)

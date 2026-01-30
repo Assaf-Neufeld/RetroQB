@@ -1,0 +1,372 @@
+using System.Numerics;
+using RetroQB.Core;
+using RetroQB.Entities;
+
+namespace RetroQB.Gameplay.Controllers;
+
+/// <summary>
+/// Handles all blocking logic for receivers, tight ends, and running backs.
+/// </summary>
+public sealed class BlockingController
+{
+    /// <summary>
+    /// Updates a blocking receiver's behavior.
+    /// </summary>
+    public void UpdateBlockingReceiver(
+        Receiver receiver,
+        Quarterback qb,
+        Ball ball,
+        IReadOnlyList<Defender> defenders,
+        PlayDefinition selectedPlay,
+        PlayType selectedPlayType,
+        float lineOfScrimmage,
+        float dt,
+        Func<Vector2, float, bool, Defender?> getClosestDefender,
+        Action<Entity> clampToField)
+    {
+        bool isRunPlay = IsRunPlayActiveWithRunningBack(selectedPlayType, ball);
+        Vector2? ballCarrierPosition = GetBallCarrierPosition(ball, qb);
+
+        if (receiver.IsRunningBack && receiver.IsBlocking)
+        {
+            UpdateRbBlocking(receiver, qb, ball, defenders, selectedPlay, dt, getClosestDefender, clampToField, ballCarrierPosition);
+            return;
+        }
+
+        if (receiver.IsTightEnd && isRunPlay)
+        {
+            int runSide = Math.Sign(selectedPlay.RunningBackSide);
+            if (runSide != 0)
+            {
+                UpdateTightEndRunBlocking(receiver, qb, selectedPlay, defenders, runSide, lineOfScrimmage, dt, getClosestDefender, clampToField, ballCarrierPosition);
+                return;
+            }
+        }
+
+        // Generic receiver blocking
+        UpdateGenericBlocking(receiver, qb, ball, defenders, selectedPlay, selectedPlayType, dt, getClosestDefender, clampToField, ballCarrierPosition);
+    }
+
+    private void UpdateRbBlocking(
+        Receiver receiver,
+        Quarterback qb,
+        Ball ball,
+        IReadOnlyList<Defender> defenders,
+        PlayDefinition selectedPlay,
+        float dt,
+        Func<Vector2, float, bool, Defender?> getClosestDefender,
+        Action<Entity> clampToField,
+        Vector2? ballCarrierPosition)
+    {
+        int side = receiver.RouteSide == 0 ? (receiver.Position.X <= qb.Position.X ? -1 : 1) : receiver.RouteSide;
+        Vector2 pocketSpot = qb.Position + new Vector2(1.7f * side, -0.4f);
+
+        Defender? rbTarget = getClosestDefender(qb.Position, Constants.BlockEngageRadius + 6.0f, true);
+        if (rbTarget != null)
+        {
+            float blockMultiplier = GetReceiverBlockStrength(receiver) * GetDefenderBlockDifficulty(rbTarget);
+            Vector2 toTarget = rbTarget.Position - receiver.Position;
+            if (toTarget.LengthSquared() > 0.001f)
+            {
+                toTarget = Vector2.Normalize(toTarget);
+            }
+            receiver.Velocity = toTarget * (receiver.Speed * 0.9f);
+
+            float contactRange = receiver.Radius + rbTarget.Radius + 0.8f;
+            float distance = Vector2.Distance(receiver.Position, rbTarget.Position);
+            if (distance <= contactRange)
+            {
+                ApplyBlockContact(receiver, rbTarget, contactRange, distance, blockMultiplier, dt, clampToField, ballCarrierPosition, baseSlow: 0.12f, holdStrengthMult: 1.1f, overlapBoost: 6f);
+            }
+        }
+        else
+        {
+            MoveTowardSpot(receiver, pocketSpot, 0.6f, 0.8f);
+        }
+    }
+
+    private void UpdateTightEndRunBlocking(
+        Receiver receiver,
+        Quarterback qb,
+        PlayDefinition selectedPlay,
+        IReadOnlyList<Defender> defenders,
+        int runSide,
+        float lineOfScrimmage,
+        float dt,
+        Func<Vector2, float, bool, Defender?> getClosestDefender,
+        Action<Entity> clampToField,
+        Vector2? ballCarrierPosition)
+    {
+        bool isSweep = IsSweepFormation(selectedPlay.Formation);
+        float edgeX = Math.Clamp(qb.Position.X + (runSide * (isSweep ? 5.0f : 4.1f)), 1.1f, Constants.FieldWidth - 1.1f);
+        float edgeY = lineOfScrimmage + (isSweep ? 2.8f : 2.2f);
+        Vector2 edgeSpot = new Vector2(edgeX, edgeY);
+
+        Defender? edgeTarget = getClosestDefender(edgeSpot, Constants.BlockEngageRadius + 2.2f, true);
+        if (edgeTarget != null)
+        {
+            float blockMultiplier = GetReceiverBlockStrength(receiver) * GetDefenderBlockDifficulty(edgeTarget);
+            Vector2 toTarget = edgeTarget.Position - receiver.Position;
+            if (toTarget.LengthSquared() > 0.001f)
+            {
+                toTarget = Vector2.Normalize(toTarget);
+            }
+            receiver.Velocity = toTarget * receiver.Speed;
+
+            float contactRange = receiver.Radius + edgeTarget.Radius + 0.9f;
+            float distance = Vector2.Distance(receiver.Position, edgeTarget.Position);
+            if (distance <= contactRange)
+            {
+                ApplyBlockContactWithDrive(receiver, edgeTarget, contactRange, distance, blockMultiplier, runSide, dt, clampToField, ballCarrierPosition);
+            }
+        }
+        else
+        {
+            MoveTowardSpot(receiver, edgeSpot, 0.85f, 0.9f);
+        }
+    }
+
+    private void UpdateGenericBlocking(
+        Receiver receiver,
+        Quarterback qb,
+        Ball ball,
+        IReadOnlyList<Defender> defenders,
+        PlayDefinition selectedPlay,
+        PlayType selectedPlayType,
+        float dt,
+        Func<Vector2, float, bool, Defender?> getClosestDefender,
+        Action<Entity> clampToField,
+        Vector2? ballCarrierPosition)
+    {
+        bool runBlockingBoost = IsRunPlayActiveWithRunningBack(selectedPlayType, ball);
+        int runSide = Math.Sign(selectedPlay.RunningBackSide);
+
+        Defender? target = getClosestDefender(receiver.Position, Constants.BlockEngageRadius, true);
+        if (target != null)
+        {
+            float blockMultiplier = GetReceiverBlockStrength(receiver) * GetDefenderBlockDifficulty(target);
+            Vector2 toTarget = target.Position - receiver.Position;
+            if (toTarget.LengthSquared() > 0.001f)
+            {
+                toTarget = Vector2.Normalize(toTarget);
+            }
+            receiver.Velocity = toTarget * receiver.Speed;
+            if (runBlockingBoost && runSide != 0)
+            {
+                Vector2 driveDir = new Vector2(runSide * 0.7f, 1f);
+                if (driveDir.LengthSquared() > 0.001f)
+                {
+                    driveDir = Vector2.Normalize(driveDir);
+                }
+                receiver.Velocity += driveDir * (receiver.Speed * 0.3f);
+            }
+
+            float contactRange = receiver.Radius + target.Radius + (runBlockingBoost ? 0.9f : 0.6f);
+            float distance = Vector2.Distance(receiver.Position, target.Position);
+            if (distance <= contactRange)
+            {
+                float holdStrengthBase = runBlockingBoost ? Constants.BlockHoldStrength * 1.4f : Constants.BlockHoldStrength;
+                float overlapBoostBase = runBlockingBoost ? 8f : 6f;
+                float baseSlow = runBlockingBoost ? 0.08f : 0.15f;
+
+                Vector2 pushDir = target.Position - receiver.Position;
+                if (pushDir.LengthSquared() > 0.001f)
+                {
+                    pushDir = Vector2.Normalize(pushDir);
+                }
+                float overlap = contactRange - distance;
+                float holdStrength = holdStrengthBase * blockMultiplier;
+                float overlapBoost = overlapBoostBase * blockMultiplier;
+                float shedBoost = GetTackleShedBoost(target.Position, ballCarrierPosition);
+                if (shedBoost > 0f)
+                {
+                    float shedScale = 1f - (0.65f * shedBoost);
+                    holdStrength *= shedScale;
+                    overlapBoost *= shedScale;
+                }
+                target.Position += pushDir * (holdStrength + overlap * overlapBoost) * dt;
+                if (runBlockingBoost && runSide != 0)
+                {
+                    Vector2 driveDir = new Vector2(runSide * 0.7f, 1f);
+                    if (driveDir.LengthSquared() > 0.001f)
+                    {
+                        driveDir = Vector2.Normalize(driveDir);
+                    }
+                    target.Position += driveDir * 0.8f * dt;
+                }
+                if (shedBoost > 0f)
+                {
+                    baseSlow *= 1f - (0.6f * shedBoost);
+                }
+                target.Velocity *= GetDefenderSlowdown(blockMultiplier, baseSlow);
+                receiver.Velocity *= 0.25f;
+                clampToField(target);
+            }
+        }
+        else
+        {
+            if (runBlockingBoost)
+            {
+                receiver.Velocity = new Vector2(runSide * receiver.Speed * 0.18f, receiver.Speed * 0.4f);
+            }
+            else
+            {
+                receiver.Velocity = new Vector2(0f, receiver.Speed * 0.4f);
+            }
+        }
+    }
+
+    private void ApplyBlockContact(
+        Receiver receiver,
+        Defender target,
+        float contactRange,
+        float distance,
+        float blockMultiplier,
+        float dt,
+        Action<Entity> clampToField,
+        Vector2? ballCarrierPosition,
+        float baseSlow,
+        float holdStrengthMult,
+        float overlapBoost)
+    {
+        Vector2 pushDir = target.Position - receiver.Position;
+        if (pushDir.LengthSquared() > 0.001f)
+        {
+            pushDir = Vector2.Normalize(pushDir);
+        }
+        float overlap = contactRange - distance;
+        float holdStrength = (Constants.BlockHoldStrength * holdStrengthMult) * blockMultiplier;
+        float overlapBoostFinal = overlapBoost * blockMultiplier;
+        float shedBoost = GetTackleShedBoost(target.Position, ballCarrierPosition);
+        if (shedBoost > 0f)
+        {
+            float shedScale = 1f - (0.65f * shedBoost);
+            holdStrength *= shedScale;
+            overlapBoostFinal *= shedScale;
+        }
+        target.Position += pushDir * (holdStrength + overlap * overlapBoostFinal) * dt;
+        if (shedBoost > 0f)
+        {
+            baseSlow *= 1f - (0.6f * shedBoost);
+        }
+        target.Velocity *= GetDefenderSlowdown(blockMultiplier, baseSlow);
+        receiver.Velocity *= 0.25f;
+        clampToField(target);
+    }
+
+    private void ApplyBlockContactWithDrive(
+        Receiver receiver,
+        Defender target,
+        float contactRange,
+        float distance,
+        float blockMultiplier,
+        int runSide,
+        float dt,
+        Action<Entity> clampToField,
+        Vector2? ballCarrierPosition)
+    {
+        Vector2 pushDir = target.Position - receiver.Position;
+        if (pushDir.LengthSquared() > 0.001f)
+        {
+            pushDir = Vector2.Normalize(pushDir);
+        }
+        float overlap = contactRange - distance;
+        float holdStrength = Constants.BlockHoldStrength * 1.5f * blockMultiplier;
+        float overlapBoost = 8f * blockMultiplier;
+        float shedBoost = GetTackleShedBoost(target.Position, ballCarrierPosition);
+        if (shedBoost > 0f)
+        {
+            float shedScale = 1f - (0.65f * shedBoost);
+            holdStrength *= shedScale;
+            overlapBoost *= shedScale;
+        }
+        target.Position += pushDir * (holdStrength + overlap * overlapBoost) * dt;
+        Vector2 driveDir = new Vector2(runSide * 0.85f, 1f);
+        if (driveDir.LengthSquared() > 0.001f)
+        {
+            driveDir = Vector2.Normalize(driveDir);
+        }
+        target.Position += driveDir * 0.9f * dt;
+        float baseSlow = 0.08f;
+        if (shedBoost > 0f)
+        {
+            baseSlow *= 1f - (0.6f * shedBoost);
+        }
+        target.Velocity *= GetDefenderSlowdown(blockMultiplier, baseSlow);
+        receiver.Velocity *= 0.25f;
+        clampToField(target);
+    }
+
+    private void MoveTowardSpot(Receiver receiver, Vector2 spot, float speedMult, float arrivalRadius)
+    {
+        Vector2 toSpot = spot - receiver.Position;
+        if (toSpot.LengthSquared() > 0.001f)
+        {
+            toSpot = Vector2.Normalize(toSpot);
+        }
+        receiver.Velocity = toSpot * (receiver.Speed * speedMult);
+
+        if (Vector2.DistanceSquared(receiver.Position, spot) <= arrivalRadius * arrivalRadius)
+        {
+            receiver.Velocity = Vector2.Zero;
+        }
+    }
+
+    public static bool IsSweepFormation(FormationType formation)
+    {
+        return formation is FormationType.RunSweepLeft or FormationType.RunSweepRight;
+    }
+
+    public static float GetReceiverBlockStrength(Receiver receiver)
+    {
+        if (receiver.IsTightEnd) return 1.1f;
+        if (receiver.IsRunningBack) return 1.0f;
+        return 0.75f;
+    }
+
+    public static float GetDefenderBlockDifficulty(Defender defender)
+    {
+        return defender.PositionRole switch
+        {
+            DefensivePosition.DL => 0.75f,
+            DefensivePosition.LB => 0.95f,
+            _ => 1.15f
+        };
+    }
+
+    public static float GetDefenderSlowdown(float blockMultiplier, float baseSlow)
+    {
+        float bonus = Math.Clamp(blockMultiplier - 1f, -0.6f, 0.6f);
+        float adjusted = baseSlow - bonus * 0.06f;
+        return Math.Clamp(adjusted, 0.05f, 0.22f);
+    }
+
+    public static float GetTackleShedBoost(Vector2 defenderPosition, Vector2? ballCarrierPosition)
+    {
+        if (ballCarrierPosition == null) return 0f;
+
+        float distance = Vector2.Distance(defenderPosition, ballCarrierPosition.Value);
+        const float shedRange = 6.0f;
+        if (distance >= shedRange) return 0f;
+
+        float t = 1f - (distance / shedRange);
+        return Math.Clamp(t, 0f, 1f);
+    }
+
+    public static Vector2? GetBallCarrierPosition(Ball ball, Quarterback qb)
+    {
+        return ball.State switch
+        {
+            BallState.HeldByQB => qb.Position,
+            BallState.HeldByReceiver => ball.Holder?.Position,
+            _ => null
+        };
+    }
+
+    public static bool IsRunPlayActiveWithRunningBack(PlayType selectedPlayType, Ball ball)
+    {
+        if (selectedPlayType != PlayType.Run) return false;
+        if (ball.State != BallState.HeldByReceiver) return false;
+        return ball.Holder is Receiver receiver && receiver.IsRunningBack;
+    }
+}

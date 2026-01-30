@@ -58,9 +58,8 @@ public sealed class PlayRecord
     {
         string familyName = PlayFamily switch
         {
-            PlayType.QuickPass => "Quick",
-            PlayType.LongPass => "Long",
-            PlayType.QbRunFocus => "Run",
+            PlayType.Pass => "Pass",
+            PlayType.Run => "Run",
             _ => "Play"
         };
         

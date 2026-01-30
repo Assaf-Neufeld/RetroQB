@@ -2,9 +2,8 @@ namespace RetroQB.Gameplay;
 
 public enum PlayType
 {
-    QuickPass,
-    LongPass,
-    QbRunFocus
+    Pass,
+    Run
 }
 
 public enum PlayOutcome
@@ -19,25 +18,35 @@ public enum PlayOutcome
 
 /// <summary>
 /// Manages play selection and coordinates game state.
-/// Delegates drive tracking to DriveState and playbook to PlaybookBuilder.
+/// Pass plays: 10 plays (0-9 keys, with 0 as wildcard)
+/// Run plays: 10 plays (Q-P keys, with Q as wildcard)
 /// </summary>
 public sealed class PlayManager
 {
     private const int WildcardIndex = 0;
+    public const int PassPlayCount = 10;
+    public const int RunPlayCount = 10;
 
-    private readonly Dictionary<PlayType, List<PlayDefinition>> _playbook;
-    private readonly Dictionary<PlayType, int> _selectedPlayIndexByFamily;
-    private readonly List<PlayOption> _playOptions;
+    private readonly List<PlayDefinition> _passPlays;
+    private readonly List<PlayDefinition> _runPlays;
     private readonly DriveState _driveState;
 
-    public PlayType SelectedPlayFamily { get; private set; } = PlayType.QuickPass;
+    private int _selectedPassIndex = 0;
+    private int _selectedRunIndex = 0;
+
+    public PlayType SelectedPlayType { get; private set; } = PlayType.Pass;
     public int SelectedReceiver { get; set; }
     
-    public PlayDefinition SelectedPlay => 
-        _playbook[SelectedPlayFamily][_selectedPlayIndexByFamily[SelectedPlayFamily]];
+    public PlayDefinition SelectedPlay => SelectedPlayType == PlayType.Pass 
+        ? _passPlays[_selectedPassIndex] 
+        : _runPlays[_selectedRunIndex];
     
-    public int SelectedPlayIndex => _selectedPlayIndexByFamily[SelectedPlayFamily];
-    public IReadOnlyList<PlayOption> PlayOptions => _playOptions;
+    public int SelectedPlayIndex => SelectedPlayType == PlayType.Pass 
+        ? _selectedPassIndex 
+        : _selectedRunIndex;
+
+    public IReadOnlyList<PlayDefinition> PassPlays => _passPlays;
+    public IReadOnlyList<PlayDefinition> RunPlays => _runPlays;
 
     // Drive state delegation
     public int Down => _driveState.Down;
@@ -56,7 +65,7 @@ public sealed class PlayManager
     /// </summary>
     public void StartPlayRecord(bool isZoneCoverage, List<string> blitzers)
     {
-        _driveState.StartPlayRecord(SelectedPlay.Name, SelectedPlayFamily, isZoneCoverage, blitzers);
+        _driveState.StartPlayRecord(SelectedPlay.Name, SelectedPlayType, isZoneCoverage, blitzers);
     }
 
     /// <summary>
@@ -69,22 +78,21 @@ public sealed class PlayManager
 
     public PlayManager()
     {
-        _playbook = PlaybookBuilder.Build();
+        _passPlays = PlaybookBuilder.BuildPassPlays();
+        _runPlays = PlaybookBuilder.BuildRunPlays();
         _driveState = new DriveState();
-        _selectedPlayIndexByFamily = InitializePlayIndices();
-        _playOptions = BuildPlayOptions();
     }
 
     public void StartNewDrive()
     {
         _driveState.Reset();
-        SelectedPlayFamily = PlayType.QuickPass;
+        SelectedPlayType = PlayType.Pass;
     }
 
     public void StartNewGame()
     {
         _driveState.ResetForNewGame();
-        SelectedPlayFamily = PlayType.QuickPass;
+        SelectedPlayType = PlayType.Pass;
     }
 
     public void StartPlay()
@@ -92,32 +100,45 @@ public sealed class PlayManager
         SelectedReceiver = 0;
     }
 
-    public void SelectPlayFamily(PlayType family, Random rng)
+    /// <summary>
+    /// Select a pass play by index (0-9, where 0 is wildcard).
+    /// </summary>
+    public bool SelectPassPlay(int index, Random rng)
     {
-        if (SelectedPlayFamily == family)
-        {
-            CyclePlayInFamily(family);
-        }
-        else
-        {
-            SelectedPlayFamily = family;
-        }
-
-        TryRegenerateWildcard(rng);
-    }
-
-    public bool SelectPlayByGlobalIndex(int globalIndex, Random rng)
-    {
-        if (globalIndex < 0 || globalIndex >= _playOptions.Count)
+        if (index < 0 || index >= PassPlayCount)
         {
             return false;
         }
 
-        var option = _playOptions[globalIndex];
-        SelectedPlayFamily = option.Family;
-        _selectedPlayIndexByFamily[option.Family] = option.Index;
+        _selectedPassIndex = index;
+        SelectedPlayType = PlayType.Pass;
         
-        TryRegenerateWildcard(rng);
+        if (index == WildcardIndex)
+        {
+            _passPlays[WildcardIndex] = PlaybookBuilder.CreatePassWildcardPlay(rng);
+        }
+        
+        return true;
+    }
+
+    /// <summary>
+    /// Select a run play by index (0-9, where 0 is wildcard).
+    /// </summary>
+    public bool SelectRunPlay(int index, Random rng)
+    {
+        if (index < 0 || index >= RunPlayCount)
+        {
+            return false;
+        }
+
+        _selectedRunIndex = index;
+        SelectedPlayType = PlayType.Run;
+        
+        if (index == WildcardIndex)
+        {
+            _runPlays[WildcardIndex] = PlaybookBuilder.CreateRunWildcardPlay(rng);
+        }
+        
         return true;
     }
 
@@ -129,34 +150,38 @@ public sealed class PlayManager
             return false;
         }
 
-        PlayType pickedFamily = candidates[rng.Next(candidates.Count)];
-        SelectedPlayFamily = pickedFamily;
+        PlayType pickedType = candidates[rng.Next(candidates.Count)];
+        SelectedPlayType = pickedType;
 
-        if (_playbook.TryGetValue(pickedFamily, out var plays) && plays.Count > 0)
+        if (pickedType == PlayType.Pass)
         {
-            _selectedPlayIndexByFamily[pickedFamily] = rng.Next(plays.Count);
-            TryRegenerateWildcard(rng);
-            return true;
+            _selectedPassIndex = rng.Next(PassPlayCount);
+            if (_selectedPassIndex == WildcardIndex)
+            {
+                _passPlays[WildcardIndex] = PlaybookBuilder.CreatePassWildcardPlay(rng);
+            }
+        }
+        else
+        {
+            _selectedRunIndex = rng.Next(RunPlayCount);
+            if (_selectedRunIndex == WildcardIndex)
+            {
+                _runPlays[WildcardIndex] = PlaybookBuilder.CreateRunWildcardPlay(rng);
+            }
         }
 
-        return false;
+        return true;
     }
 
-    public PlayType GetSuggestedPlayFamily()
+    public PlayType GetSuggestedPlayType()
     {
         return PlaySuggestion.GetSuggested(Down, Distance);
     }
 
-    public string GetPlayLabel(PlayType family)
+    public string GetPlayLabel()
     {
-        if (!_playbook.TryGetValue(family, out var plays) || plays.Count == 0)
-        {
-            return family.ToString();
-        }
-
-        int index = _selectedPlayIndexByFamily[family];
-        string familyName = GetFamilyDisplayName(family);
-        return $"{familyName}: {plays[index].Name}";
+        string typeName = SelectedPlayType == PlayType.Pass ? "Pass" : "Run";
+        return $"{typeName}: {SelectedPlay.Name}";
     }
 
     public PlayResult ResolvePlay(float newBallY, bool incomplete, bool intercepted, bool touchdown)
@@ -188,85 +213,4 @@ public sealed class PlayManager
     {
         return FieldGeometry.GetYardLineDisplay(worldY);
     }
-
-    private Dictionary<PlayType, int> InitializePlayIndices()
-    {
-        return new Dictionary<PlayType, int>
-        {
-            [PlayType.QuickPass] = 0,
-            [PlayType.LongPass] = 0,
-            [PlayType.QbRunFocus] = 0
-        };
-    }
-
-    private List<PlayOption> BuildPlayOptions()
-    {
-        var list = new List<PlayOption>();
-        PlayType[] order = { PlayType.QuickPass, PlayType.LongPass, PlayType.QbRunFocus };
-
-        foreach (var family in order)
-        {
-            if (!_playbook.TryGetValue(family, out var plays))
-            {
-                continue;
-            }
-
-            for (int i = 0; i < plays.Count; i++)
-            {
-                list.Add(new PlayOption(family, i, plays[i].Name));
-            }
-        }
-
-        return list;
-    }
-
-    private void CyclePlayInFamily(PlayType family)
-    {
-        int count = _playbook[family].Count;
-        _selectedPlayIndexByFamily[family] = (_selectedPlayIndexByFamily[family] + 1) % count;
-    }
-
-    private void TryRegenerateWildcard(Random rng)
-    {
-        if (SelectedPlayFamily == PlayType.QuickPass)
-        {
-            if (_selectedPlayIndexByFamily[PlayType.QuickPass] != WildcardIndex)
-            {
-                return;
-            }
-
-            if (_playbook.TryGetValue(PlayType.QuickPass, out var quickPlays) && quickPlays.Count > 0)
-            {
-                quickPlays[WildcardIndex] = PlaybookBuilder.CreateWildcardPlay(rng);
-            }
-
-            return;
-        }
-
-        if (SelectedPlayFamily == PlayType.QbRunFocus)
-        {
-            if (_selectedPlayIndexByFamily[PlayType.QbRunFocus] != WildcardIndex)
-            {
-                return;
-            }
-
-            if (_playbook.TryGetValue(PlayType.QbRunFocus, out var runPlays) && runPlays.Count > 0)
-            {
-                runPlays[WildcardIndex] = PlaybookBuilder.CreateRunWildcardPlay(rng);
-            }
-        }
-    }
-
-    private static string GetFamilyDisplayName(PlayType family)
-    {
-        return family switch
-        {
-            PlayType.QuickPass => "Quick",
-            PlayType.LongPass => "Long",
-            PlayType.QbRunFocus => "Run",
-            _ => "Play"
-        };
-    }
-
-    public readonly record struct PlayOption(PlayType Family, int Index, string Name);
 }

@@ -1,3 +1,5 @@
+using Raylib_cs;
+
 namespace RetroQB.Core;
 
 /// <summary>
@@ -28,6 +30,21 @@ public sealed class OffensiveTeamAttributes : TeamAttributes
     public float QbSprintSpeed { get; init; } = Constants.QbSprintSpeed;
     public float QbAcceleration { get; init; } = Constants.QbAcceleration;
     public float QbFriction { get; init; } = Constants.QbFriction;
+
+    /// <summary>
+    /// Short description for menu display.
+    /// </summary>
+    public string Description { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Primary team color (used for QB and key UI accents).
+    /// </summary>
+    public Color PrimaryColor { get; init; } = Palette.QB;
+
+    /// <summary>
+    /// Secondary team color (used for receivers/OL and UI accents).
+    /// </summary>
+    public Color SecondaryColor { get; init; } = Palette.Receiver;
     
     /// <summary>
     /// Throwing accuracy multiplier (lower = more accurate). 1.0 = baseline.
@@ -77,9 +94,11 @@ public sealed class OffensiveTeamAttributes : TeamAttributes
     /// </summary>
     public static OffensiveTeamAttributes Default => new()
     {
-        Name = "Home"
+        Name = "Home",
+        PrimaryColor = Palette.QB,
+        SecondaryColor = Palette.Receiver
     };
-    
+
     /// <summary>
     /// Gets the speed for a receiver based on position type.
     /// </summary>

@@ -17,6 +17,7 @@ public static class OffensiveLinemanAI
         IReadOnlyList<Blocker> blockers,
         IReadOnlyList<Defender> defenders,
         PlayType playFamily,
+        FormationType formation,
         float lineOfScrimmage,
         int runningBackSide,
         float dt,
@@ -26,19 +27,26 @@ public static class OffensiveLinemanAI
     {
         if (blockers.Count == 0) return;
 
-        bool isRunPlay = playFamily == PlayType.QbRunFocus;
+        bool isRunPlay = playFamily == PlayType.Run;
         int runSide = Math.Sign(runningBackSide);
-        float lateralPush = isRunPlay && runSide != 0 ? runSide * 2.4f : 0f;
+        bool isSweep = isRunPlay && IsSweepFormation(formation);
+        float lateralPush = isRunPlay && runSide != 0 ? runSide * (isSweep ? 3.1f : 2.4f) : 0f;
         float targetY = isRunPlay ? lineOfScrimmage + 2.4f : lineOfScrimmage - 1.4f;
+        var pullingGuards = isRunPlay && runSide != 0
+            ? IdentifyPullingGuards(blockers, runSide, isSweep)
+            : EmptyPullerSet;
 
         foreach (var blocker in blockers)
         {
-            bool isBackside = isRunPlay && IsBacksideBlocker(blocker.HomeX, runSide);
-            float laneShift = isRunPlay ? GetRunLaneShift(blocker.HomeX, runSide) : 0f;
+            bool isPuller = isRunPlay && pullingGuards.Contains(blocker);
+            bool isBackside = isRunPlay && !isPuller && IsBacksideBlocker(blocker.HomeX, runSide);
+            float laneShift = isRunPlay ? GetRunLaneShift(blocker.HomeX, runSide, isSweep) : 0f;
             float backsideShift = isRunPlay ? GetBacksideSealShift(isBackside, runSide) : 0f;
+            float pullShift = isPuller ? runSide * (isSweep ? 3.6f : 2.6f) : 0f;
+            float pullForward = isPuller ? (isSweep ? 1.6f : 1.1f) : 0f;
             Vector2 targetAnchor = new Vector2(
-                Math.Clamp(blocker.HomeX + lateralPush + laneShift + backsideShift, 1.5f, Constants.FieldWidth - 1.5f),
-                targetY);
+                Math.Clamp(blocker.HomeX + lateralPush + laneShift + backsideShift + pullShift, 1.5f, Constants.FieldWidth - 1.5f),
+                targetY + pullForward);
 
             Defender? target = GetClosestDefender(defenders, blocker.Position, Constants.BlockEngageRadius, preferRushers: true);
             float anchorDistSq = Vector2.DistanceSquared(blocker.Position, targetAnchor);
@@ -60,7 +68,7 @@ public static class OffensiveLinemanAI
                 {
                     Vector2 driveDir = isBackside
                         ? new Vector2(-runSide * 0.6f, 1f)
-                        : new Vector2(runSide * 0.7f, 1f);
+                        : new Vector2(runSide * (isPuller ? 0.9f : 0.7f), 1f);
                     if (driveDir.LengthSquared() > 0.001f)
                     {
                         driveDir = Vector2.Normalize(driveDir);
@@ -96,7 +104,7 @@ public static class OffensiveLinemanAI
                     {
                         Vector2 driveDir = isBackside
                             ? new Vector2(-runSide * 0.55f, 1f)
-                            : new Vector2(runSide * 0.7f, 1f);
+                            : new Vector2(runSide * (isPuller ? 0.95f : 0.7f), 1f);
                         if (driveDir.LengthSquared() > 0.001f)
                         {
                             driveDir = Vector2.Normalize(driveDir);
@@ -126,6 +134,10 @@ public static class OffensiveLinemanAI
                 {
                     float lateralBias = isBackside ? -runSide : runSide;
                     blocker.Velocity += new Vector2(lateralBias * blocker.Speed * 0.2f, blocker.Speed * 0.2f);
+                    if (isPuller)
+                    {
+                        blocker.Velocity += new Vector2(runSide * blocker.Speed * 0.35f, blocker.Speed * 0.1f);
+                    }
                 }
 
                 if (closeToAnchor)
@@ -144,25 +156,33 @@ public static class OffensiveLinemanAI
     public static void DrawRoutes(
         IReadOnlyList<Blocker> blockers,
         PlayType playFamily,
+        FormationType formation,
         float lineOfScrimmage,
         int runningBackSide)
     {
         if (blockers.Count == 0) return;
 
-        bool isRunPlay = playFamily == PlayType.QbRunFocus;
+        bool isRunPlay = playFamily == PlayType.Run;
         int runSide = Math.Sign(runningBackSide);
-        float lateralPush = isRunPlay && runSide != 0 ? runSide * 2.1f : 0f;
+        bool isSweep = isRunPlay && IsSweepFormation(formation);
+        float lateralPush = isRunPlay && runSide != 0 ? runSide * (isSweep ? 2.8f : 2.1f) : 0f;
         float targetY = isRunPlay ? lineOfScrimmage + 1.6f : lineOfScrimmage - 1.4f;
+        var pullingGuards = isRunPlay && runSide != 0
+            ? IdentifyPullingGuards(blockers, runSide, isSweep)
+            : EmptyPullerSet;
 
         foreach (var blocker in blockers)
         {
             Vector2 start = blocker.Position;
-            bool isBackside = isRunPlay && IsBacksideBlocker(blocker.HomeX, runSide);
-            float laneShift = isRunPlay ? GetRunLaneShift(blocker.HomeX, runSide) : 0f;
+            bool isPuller = isRunPlay && pullingGuards.Contains(blocker);
+            bool isBackside = isRunPlay && !isPuller && IsBacksideBlocker(blocker.HomeX, runSide);
+            float laneShift = isRunPlay ? GetRunLaneShift(blocker.HomeX, runSide, isSweep) : 0f;
             float backsideShift = isRunPlay ? GetBacksideSealShift(isBackside, runSide) : 0f;
+            float pullShift = isPuller ? runSide * (isSweep ? 3.4f : 2.4f) : 0f;
+            float pullForward = isPuller ? (isSweep ? 1.2f : 0.8f) : 0f;
             Vector2 end = new Vector2(
-                Math.Clamp(blocker.HomeX + lateralPush + laneShift + backsideShift, 1.5f, Constants.FieldWidth - 1.5f),
-                targetY);
+                Math.Clamp(blocker.HomeX + lateralPush + laneShift + backsideShift + pullShift, 1.5f, Constants.FieldWidth - 1.5f),
+                targetY + pullForward);
 
             Vector2 a = Constants.WorldToScreen(start);
             Vector2 b = Constants.WorldToScreen(end);
@@ -279,7 +299,7 @@ public static class OffensiveLinemanAI
         return -runSide * sealAmount;
     }
 
-    private static float GetRunLaneShift(float homeX, int runSide)
+    private static float GetRunLaneShift(float homeX, int runSide, bool isSweep)
     {
         if (runSide == 0)
         {
@@ -287,7 +307,7 @@ public static class OffensiveLinemanAI
         }
 
         float centerX = Constants.FieldWidth * 0.5f;
-        float laneCenterX = centerX + (runSide * 3.2f);
+        float laneCenterX = centerX + (runSide * (isSweep ? 4.4f : 3.2f));
         float deltaFromLane = homeX - laneCenterX;
         int laneSide = Math.Sign(deltaFromLane);
         if (laneSide == 0)
@@ -299,5 +319,45 @@ public static class OffensiveLinemanAI
         float distanceBias = Math.Clamp(MathF.Abs(deltaFromLane) / 5.5f, 0f, 1f);
         float separation = baseSeparation + (distanceBias * 0.6f);
         return laneSide * separation;
+    }
+
+    private static bool IsSweepFormation(FormationType formation)
+    {
+        return formation is FormationType.RunSweepLeft or FormationType.RunSweepRight;
+    }
+
+    private static readonly HashSet<Blocker> EmptyPullerSet = new();
+
+    private static HashSet<Blocker> IdentifyPullingGuards(IReadOnlyList<Blocker> blockers, int runSide, bool isSweep)
+    {
+        var pullers = new HashSet<Blocker>();
+        if (blockers.Count < 3 || runSide == 0)
+        {
+            return pullers;
+        }
+
+        float centerX = Constants.FieldWidth * 0.5f;
+        var ordered = blockers.OrderBy(b => Math.Abs(b.HomeX - centerX)).ToList();
+        Blocker center = ordered[0];
+        Blocker? leftGuard = ordered.FirstOrDefault(b => b.HomeX < centerX && b != center);
+        Blocker? rightGuard = ordered.FirstOrDefault(b => b.HomeX > centerX && b != center);
+
+        if (isSweep)
+        {
+            if (leftGuard != null) pullers.Add(leftGuard);
+            if (rightGuard != null) pullers.Add(rightGuard);
+            return pullers;
+        }
+
+        if (runSide > 0)
+        {
+            if (leftGuard != null) pullers.Add(leftGuard);
+        }
+        else
+        {
+            if (rightGuard != null) pullers.Add(rightGuard);
+        }
+
+        return pullers;
     }
 }

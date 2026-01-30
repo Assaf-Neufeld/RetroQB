@@ -13,26 +13,21 @@ public static class PlaySuggestion
     private const int ThirdDown = 3;
 
     /// <summary>
-    /// Gets the single best suggested play family for the situation.
+    /// Gets the single best suggested play type for the situation.
     /// </summary>
     public static PlayType GetSuggested(int down, float distance)
     {
-        if (IsLongYardageSituation(down, distance))
-        {
-            return PlayType.LongPass;
-        }
-
         if (IsShortYardageSituation(distance))
         {
-            return PlayType.QbRunFocus;
+            return PlayType.Run;
         }
 
-        return PlayType.QuickPass;
+        return PlayType.Pass;
     }
 
     /// <summary>
-    /// Gets weighted list of play families for random selection.
-    /// Families appear multiple times based on situational preference.
+    /// Gets weighted list of play types for random selection.
+    /// Types appear multiple times based on situational preference.
     /// </summary>
     public static List<PlayType> GetWeightedCandidates(int down, float distance)
     {
@@ -40,9 +35,9 @@ public static class PlaySuggestion
         {
             return new List<PlayType>
             {
-                PlayType.LongPass,
-                PlayType.LongPass,
-                PlayType.QuickPass
+                PlayType.Pass,
+                PlayType.Pass,
+                PlayType.Pass
             };
         }
 
@@ -50,18 +45,18 @@ public static class PlaySuggestion
         {
             return new List<PlayType>
             {
-                PlayType.QbRunFocus,
-                PlayType.QbRunFocus,
-                PlayType.QuickPass
+                PlayType.Run,
+                PlayType.Run,
+                PlayType.Pass
             };
         }
 
         return new List<PlayType>
         {
-            PlayType.QuickPass,
-            PlayType.QuickPass,
-            PlayType.QbRunFocus,
-            PlayType.LongPass
+            PlayType.Pass,
+            PlayType.Pass,
+            PlayType.Run,
+            PlayType.Run
         };
     }
 

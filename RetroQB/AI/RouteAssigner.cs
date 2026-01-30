@@ -74,7 +74,7 @@ public static class RouteAssigner
             {
                 receiver.RouteSide = Math.Sign(play.RunningBackSide);
             }
-            else if (play.Family == PlayType.QbRunFocus)
+            else if (play.Family == PlayType.Run)
             {
                 receiver.RouteSide = 0;
             }
@@ -130,7 +130,7 @@ public static class RouteAssigner
 
     private static RouteType AdjustRouteForRunningBack(Receiver receiver, PlayDefinition play, RouteType route)
     {
-        if (!receiver.IsRunningBack || play.Family == PlayType.QbRunFocus || play.RunningBackRole != RunningBackRole.Route)
+        if (!receiver.IsRunningBack || play.Family == PlayType.Run || play.RunningBackRole != RunningBackRole.Route)
         {
             return route;
         }
@@ -172,29 +172,23 @@ public static class RouteAssigner
         int roll = rng.Next(100);
         return playType switch
         {
-            PlayType.QuickPass => PickQuickPassRoute(roll),
-            PlayType.LongPass => PickLongPassRoute(roll),
-            PlayType.QbRunFocus => PickQbRunFocusRoute(roll),
+            PlayType.Pass => PickPassRoute(roll),
+            PlayType.Run => PickRunRoute(roll),
             _ => RouteType.Go
         };
     }
 
-    private static RouteType PickQuickPassRoute(int roll) =>
+    private static RouteType PickPassRoute(int roll) =>
         roll < 20 ? RouteType.Slant :
         roll < 35 ? RouteType.OutShallow :
         roll < 50 ? RouteType.InShallow :
         roll < 62 ? RouteType.Curl :
         roll < 74 ? RouteType.Go :
         roll < 84 ? RouteType.PostShallow :
-        roll < 92 ? RouteType.OutDeep :
+        roll < 90 ? RouteType.PostDeep :
+        roll < 95 ? RouteType.OutDeep :
         RouteType.InDeep;
 
-    private static RouteType PickLongPassRoute(int roll) =>
-        roll < 35 ? RouteType.Go :
-        roll < 65 ? RouteType.PostDeep :
-        roll < 85 ? RouteType.InDeep :
-        RouteType.OutDeep;
-
-    private static RouteType PickQbRunFocusRoute(int roll) =>
+    private static RouteType PickRunRoute(int roll) =>
         roll < 50 ? RouteType.OutShallow : RouteType.Flat;
 }

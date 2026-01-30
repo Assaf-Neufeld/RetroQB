@@ -15,6 +15,7 @@ public static class Palette
     public static readonly Color Red = new(220, 70, 60, 255);
     public static readonly Color Blue = new(90, 170, 255, 255);
     public static readonly Color Lime = new(80, 230, 120, 255);
+    public static readonly Color Cyan = new(80, 220, 255, 255);
     public static readonly Color QB = new(70, 210, 220, 255);
     public static readonly Color Receiver = new(80, 150, 255, 255);
     public static readonly Color OffensiveLine = new(200, 200, 210, 255);
