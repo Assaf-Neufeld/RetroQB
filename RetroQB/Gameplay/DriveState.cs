@@ -95,9 +95,6 @@ public sealed class DriveState
         DifficultyMultiplier += 0.03f;
         var result = new PlayResult(PlayOutcome.Touchdown, gain, "TOUCHDOWN! +7");
         RecordPlay(result);
-        var records = new List<PlayRecord>(PlayRecords);
-        Reset();
-        PlayRecords.AddRange(records); // Preserve records for display after reset
         return result;
     }
 
@@ -106,7 +103,6 @@ public sealed class DriveState
         AwayScore += DefensiveScorePoints;
         var result = new PlayResult(PlayOutcome.Interception, 0f, "INTERCEPTION! AWAY +7");
         RecordPlay(result);
-        Reset();
         return result;
     }
 
@@ -154,7 +150,6 @@ public sealed class DriveState
         {
             AwayScore += DefensiveScorePoints;
             var result = new PlayResult(PlayOutcome.Turnover, 0f, "TURNOVER ON DOWNS - AWAY +7");
-            Reset();
             return result;
         }
         return null;

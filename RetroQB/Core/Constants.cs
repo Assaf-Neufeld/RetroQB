@@ -113,6 +113,7 @@ public static class Constants
     public const float ZoneMatchWidthHook = FieldWidth * 0.24f;
     public const float ZoneMatchWidthDeep = FieldWidth * 0.52f;
     public const float ZoneMatchDepthBuffer = 2.2f;
+    public const float ZoneMatchAttachRadius = 2.5f;
     public const float ZoneDeepCushion = 1.8f;
     public const float ZoneCarryDepth = 26f;
 

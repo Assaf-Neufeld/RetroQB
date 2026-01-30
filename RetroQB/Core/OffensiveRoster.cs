@@ -43,5 +43,5 @@ public sealed class OffensiveRoster
         => Receivers.TryGetValue(slot, out var profile) ? profile.Name : slot.GetLabel();
 
     private static float ClampSkill(float rating)
-        => Math.Clamp(rating, 0.6f, 1.4f);
+        => Math.Clamp(rating, 0.8f, 1.2f);
 }

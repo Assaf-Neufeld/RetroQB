@@ -14,10 +14,24 @@ public sealed class Quarterback : Entity
     public OffensiveTeamAttributes TeamAttributes { get; }
 
     public Quarterback(Vector2 position, OffensiveTeamAttributes? teamAttributes = null) 
-        : base(position, Constants.QbRadius, "QB", teamAttributes?.PrimaryColor ?? Palette.QB)
+        : base(position, Constants.QbRadius, "QB", ResolveQbColor(teamAttributes))
     {
         TeamAttributes = teamAttributes ?? OffensiveTeamAttributes.Default;
-        Color = TeamAttributes.PrimaryColor;
+        Color = ResolveQbColor(TeamAttributes);
+    }
+
+    private static Color ResolveQbColor(OffensiveTeamAttributes? teamAttributes)
+    {
+        var color = teamAttributes?.PrimaryColor ?? Palette.QB;
+        return IsDefenseRed(color) ? Palette.QB : color;
+    }
+
+    private static bool IsDefenseRed(Color color)
+    {
+         return color.R == Palette.Red.R
+             && color.G == Palette.Red.G
+             && color.B == Palette.Red.B
+             && color.A == Palette.Red.A;
     }
 
     public void ApplyInput(Vector2 inputDir, bool sprinting, bool aimMode, float dt)
