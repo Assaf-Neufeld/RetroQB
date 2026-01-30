@@ -15,7 +15,7 @@ public static class OffensiveTeamPresets
     public static OffensiveTeamAttributes Ballers => new()
     {
         Name = "Ballers",
-        Description = "Good all around",
+        Description = "Balanced",
         PrimaryColor = new Color(255, 200, 70, 255),
         SecondaryColor = new Color(90, 170, 255, 255),
         Roster = new OffensiveRoster
@@ -55,7 +55,7 @@ public static class OffensiveTeamPresets
     public static OffensiveTeamAttributes Lightning => new()
     {
         Name = "Lightning",
-        Description = "Elite receivers/RB, accurate QB, weak OL",
+        Description = "Speed & passing",
         PrimaryColor = new Color(255, 230, 90, 255),
         SecondaryColor = new Color(80, 220, 255, 255),
         Roster = new OffensiveRoster
@@ -95,7 +95,7 @@ public static class OffensiveTeamPresets
     public static OffensiveTeamAttributes Bulldozers => new()
     {
         Name = "Bulldozers",
-        Description = "Dominant OL/RB/QB, slow receivers",
+        Description = "Power running",
         PrimaryColor = new Color(220, 80, 60, 255),
         SecondaryColor = new Color(255, 140, 70, 255),
         Roster = new OffensiveRoster
