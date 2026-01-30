@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Raylib_cs;
+using RetroQB.Entities;
 
 namespace RetroQB.Core;
 
@@ -17,6 +18,19 @@ public static class OffensiveTeamPresets
         Description = "Good all around",
         PrimaryColor = new Color(255, 200, 70, 255),
         SecondaryColor = new Color(90, 170, 255, 255),
+        Roster = new OffensiveRoster
+        {
+            Quarterback = new QuarterbackProfile("Ace", 1.05f),
+            Receivers = new Dictionary<ReceiverSlot, ReceiverProfile>
+            {
+                [ReceiverSlot.WR1] = new ReceiverProfile("Stone", 1.05f),
+                [ReceiverSlot.WR2] = new ReceiverProfile("Flynn", 1.0f),
+                [ReceiverSlot.WR3] = new ReceiverProfile("Reed", 0.98f),
+                [ReceiverSlot.WR4] = new ReceiverProfile("North", 0.96f),
+                [ReceiverSlot.TE1] = new ReceiverProfile("Griff", 1.0f),
+                [ReceiverSlot.RB1] = new ReceiverProfile("Jet", 1.05f)
+            }
+        },
         OverallRating = 1.05f,
         QbMaxSpeed = Constants.QbMaxSpeed * 1.05f,
         QbSprintSpeed = Constants.QbSprintSpeed * 1.05f,
@@ -44,6 +58,19 @@ public static class OffensiveTeamPresets
         Description = "Elite receivers/RB, accurate QB, weak OL",
         PrimaryColor = new Color(255, 230, 90, 255),
         SecondaryColor = new Color(80, 220, 255, 255),
+        Roster = new OffensiveRoster
+        {
+            Quarterback = new QuarterbackProfile("Spark", 1.12f),
+            Receivers = new Dictionary<ReceiverSlot, ReceiverProfile>
+            {
+                [ReceiverSlot.WR1] = new ReceiverProfile("Flash", 1.18f),
+                [ReceiverSlot.WR2] = new ReceiverProfile("Bolt", 1.12f),
+                [ReceiverSlot.WR3] = new ReceiverProfile("Blaze", 1.08f),
+                [ReceiverSlot.WR4] = new ReceiverProfile("Surge", 1.05f),
+                [ReceiverSlot.TE1] = new ReceiverProfile("Arc", 1.0f),
+                [ReceiverSlot.RB1] = new ReceiverProfile("Dash", 1.12f)
+            }
+        },
         OverallRating = 1.0f,
         QbMaxSpeed = Constants.QbMaxSpeed * 0.85f,
         QbSprintSpeed = Constants.QbSprintSpeed * 0.9f,
@@ -71,6 +98,19 @@ public static class OffensiveTeamPresets
         Description = "Dominant OL/RB/QB, slow receivers",
         PrimaryColor = new Color(220, 80, 60, 255),
         SecondaryColor = new Color(255, 140, 70, 255),
+        Roster = new OffensiveRoster
+        {
+            Quarterback = new QuarterbackProfile("Hammer", 1.05f),
+            Receivers = new Dictionary<ReceiverSlot, ReceiverProfile>
+            {
+                [ReceiverSlot.WR1] = new ReceiverProfile("Brick", 0.86f),
+                [ReceiverSlot.WR2] = new ReceiverProfile("Stone", 0.82f),
+                [ReceiverSlot.WR3] = new ReceiverProfile("Grind", 0.78f),
+                [ReceiverSlot.WR4] = new ReceiverProfile("Forge", 0.75f),
+                [ReceiverSlot.TE1] = new ReceiverProfile("Anvil", 0.92f),
+                [ReceiverSlot.RB1] = new ReceiverProfile("Pound", 1.2f)
+            }
+        },
         OverallRating = 1.05f,
         QbMaxSpeed = Constants.QbMaxSpeed * 1.2f,
         QbSprintSpeed = Constants.QbSprintSpeed * 1.2f,

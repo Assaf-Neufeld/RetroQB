@@ -6,7 +6,7 @@ namespace RetroQB.Gameplay.Controllers;
 
 /// <summary>
 /// Manages receiver priority assignment and lookup.
-/// Receivers are numbered 1-5 from left to right for pass targeting.
+/// Receivers are numbered 1-5 by roster slot order for pass targeting.
 /// </summary>
 public sealed class ReceiverPriorityManager
 {
@@ -14,7 +14,7 @@ public sealed class ReceiverPriorityManager
     private readonly List<int> _priorityReceiverIndices = new();
 
     /// <summary>
-    /// Assigns priority numbers (1-5) to eligible receivers based on left-to-right position.
+    /// Assigns priority numbers (1-5) to eligible receivers based on roster slot order.
     /// </summary>
     public void AssignPriorities(IReadOnlyList<Receiver> receivers)
     {
@@ -23,7 +23,7 @@ public sealed class ReceiverPriorityManager
 
         var ordered = receivers
             .Where(r => r.Eligible)
-            .OrderBy(r => r.Position.X)
+            .OrderBy(r => r.Slot.GetPriorityOrder())
             .ToList();
 
         int count = Math.Min(5, ordered.Count);

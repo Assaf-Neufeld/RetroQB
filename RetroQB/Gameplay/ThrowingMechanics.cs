@@ -45,10 +45,10 @@ public sealed class ThrowingMechanics : IThrowingMechanics
         }
 
         float movementPenalty = GetMovementInaccuracyPenalty(qbVelocity, dir);
-        float distanceMultiplier = GetDistanceAccuracyMultiplier(toReceiver.Length(), offensiveTeam);
+        float distanceMultiplier = offensiveTeam.GetQbDistanceAccuracyMultiplier(toReceiver.Length());
         float combinedFactor = Math.Clamp(pressure + movementPenalty, 0f, 1f);
         float inaccuracyDeg = Lerp(ThrowBaseInaccuracyDeg, ThrowMaxInaccuracyDeg, combinedFactor);
-        inaccuracyDeg *= offensiveTeam.ThrowInaccuracyMultiplier * distanceMultiplier;
+        inaccuracyDeg *= offensiveTeam.GetQbThrowInaccuracyMultiplier() * distanceMultiplier;
         float inaccuracyRad = inaccuracyDeg * (MathF.PI / 180f);
         float angle = ((float)rng.NextDouble() * 2f - 1f) * inaccuracyRad;
         dir = Rotate(dir, angle);
@@ -113,21 +113,6 @@ public sealed class ThrowingMechanics : IThrowingMechanics
         }
         
         return 0f;
-    }
-
-    private static float GetDistanceAccuracyMultiplier(float distance, OffensiveTeamAttributes offensiveTeam)
-    {
-        if (distance <= Constants.ShortPassMaxDistance)
-        {
-            return offensiveTeam.ShortAccuracyMultiplier;
-        }
-
-        if (distance <= Constants.MediumPassMaxDistance)
-        {
-            return offensiveTeam.MediumAccuracyMultiplier;
-        }
-
-        return offensiveTeam.LongAccuracyMultiplier;
     }
 
     private static Vector2 Rotate(Vector2 v, float radians)

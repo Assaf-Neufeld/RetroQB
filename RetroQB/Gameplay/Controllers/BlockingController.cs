@@ -47,6 +47,16 @@ public sealed class BlockingController
         UpdateGenericBlocking(receiver, qb, ball, defenders, selectedPlay, selectedPlayType, dt, getClosestDefender, clampToField, ballCarrierPosition);
     }
 
+    private static Vector2 SafeNormalize(Vector2 vector)
+    {
+        return vector.LengthSquared() > 0.001f ? Vector2.Normalize(vector) : Vector2.Zero;
+    }
+
+    private static Vector2 GetDriveDirection(int runSide, float xFactor)
+    {
+        return SafeNormalize(new Vector2(runSide * xFactor, 1f));
+    }
+
     private void UpdateRbBlocking(
         Receiver receiver,
         Quarterback qb,
@@ -65,11 +75,7 @@ public sealed class BlockingController
         if (rbTarget != null)
         {
             float blockMultiplier = GetReceiverBlockStrength(receiver) * GetDefenderBlockDifficulty(rbTarget);
-            Vector2 toTarget = rbTarget.Position - receiver.Position;
-            if (toTarget.LengthSquared() > 0.001f)
-            {
-                toTarget = Vector2.Normalize(toTarget);
-            }
+            Vector2 toTarget = SafeNormalize(rbTarget.Position - receiver.Position);
             receiver.Velocity = toTarget * (receiver.Speed * 0.9f);
 
             float contactRange = receiver.Radius + rbTarget.Radius + 0.8f;
@@ -106,18 +112,15 @@ public sealed class BlockingController
         if (edgeTarget != null)
         {
             float blockMultiplier = GetReceiverBlockStrength(receiver) * GetDefenderBlockDifficulty(edgeTarget);
-            Vector2 toTarget = edgeTarget.Position - receiver.Position;
-            if (toTarget.LengthSquared() > 0.001f)
-            {
-                toTarget = Vector2.Normalize(toTarget);
-            }
+            Vector2 toTarget = SafeNormalize(edgeTarget.Position - receiver.Position);
             receiver.Velocity = toTarget * receiver.Speed;
 
             float contactRange = receiver.Radius + edgeTarget.Radius + 0.9f;
             float distance = Vector2.Distance(receiver.Position, edgeTarget.Position);
             if (distance <= contactRange)
             {
-                ApplyBlockContactWithDrive(receiver, edgeTarget, contactRange, distance, blockMultiplier, runSide, dt, clampToField, ballCarrierPosition);
+                Vector2 driveDir = GetDriveDirection(runSide, 0.85f);
+                ApplyBlockContact(receiver, edgeTarget, contactRange, distance, blockMultiplier, dt, clampToField, ballCarrierPosition, baseSlow: 0.08f, holdStrengthMult: 1.5f, overlapBoost: 8f, driveDir: driveDir, driveStrength: 0.9f);
             }
         }
         else
@@ -145,19 +148,11 @@ public sealed class BlockingController
         if (target != null)
         {
             float blockMultiplier = GetReceiverBlockStrength(receiver) * GetDefenderBlockDifficulty(target);
-            Vector2 toTarget = target.Position - receiver.Position;
-            if (toTarget.LengthSquared() > 0.001f)
-            {
-                toTarget = Vector2.Normalize(toTarget);
-            }
+            Vector2 toTarget = SafeNormalize(target.Position - receiver.Position);
             receiver.Velocity = toTarget * receiver.Speed;
             if (runBlockingBoost && runSide != 0)
             {
-                Vector2 driveDir = new Vector2(runSide * 0.7f, 1f);
-                if (driveDir.LengthSquared() > 0.001f)
-                {
-                    driveDir = Vector2.Normalize(driveDir);
-                }
+                Vector2 driveDir = GetDriveDirection(runSide, 0.7f);
                 receiver.Velocity += driveDir * (receiver.Speed * 0.3f);
             }
 
@@ -165,42 +160,13 @@ public sealed class BlockingController
             float distance = Vector2.Distance(receiver.Position, target.Position);
             if (distance <= contactRange)
             {
-                float holdStrengthBase = runBlockingBoost ? Constants.BlockHoldStrength * 1.4f : Constants.BlockHoldStrength;
-                float overlapBoostBase = runBlockingBoost ? 8f : 6f;
+                float holdStrengthMult = runBlockingBoost ? 1.4f : 1f;
+                float overlapBoost = runBlockingBoost ? 8f : 6f;
                 float baseSlow = runBlockingBoost ? 0.08f : 0.15f;
+                Vector2? driveDir = runBlockingBoost && runSide != 0 ? GetDriveDirection(runSide, 0.7f) : null;
+                float driveStrength = runBlockingBoost && runSide != 0 ? 0.8f : 0f;
 
-                Vector2 pushDir = target.Position - receiver.Position;
-                if (pushDir.LengthSquared() > 0.001f)
-                {
-                    pushDir = Vector2.Normalize(pushDir);
-                }
-                float overlap = contactRange - distance;
-                float holdStrength = holdStrengthBase * blockMultiplier;
-                float overlapBoost = overlapBoostBase * blockMultiplier;
-                float shedBoost = GetTackleShedBoost(target.Position, ballCarrierPosition);
-                if (shedBoost > 0f)
-                {
-                    float shedScale = 1f - (0.65f * shedBoost);
-                    holdStrength *= shedScale;
-                    overlapBoost *= shedScale;
-                }
-                target.Position += pushDir * (holdStrength + overlap * overlapBoost) * dt;
-                if (runBlockingBoost && runSide != 0)
-                {
-                    Vector2 driveDir = new Vector2(runSide * 0.7f, 1f);
-                    if (driveDir.LengthSquared() > 0.001f)
-                    {
-                        driveDir = Vector2.Normalize(driveDir);
-                    }
-                    target.Position += driveDir * 0.8f * dt;
-                }
-                if (shedBoost > 0f)
-                {
-                    baseSlow *= 1f - (0.6f * shedBoost);
-                }
-                target.Velocity *= GetDefenderSlowdown(blockMultiplier, baseSlow);
-                receiver.Velocity *= 0.25f;
-                clampToField(target);
+                ApplyBlockContact(receiver, target, contactRange, distance, blockMultiplier, dt, clampToField, ballCarrierPosition, baseSlow, holdStrengthMult, overlapBoost, driveDir, driveStrength);
             }
         }
         else
@@ -227,13 +193,11 @@ public sealed class BlockingController
         Vector2? ballCarrierPosition,
         float baseSlow,
         float holdStrengthMult,
-        float overlapBoost)
+        float overlapBoost,
+        Vector2? driveDir = null,
+        float driveStrength = 0f)
     {
-        Vector2 pushDir = target.Position - receiver.Position;
-        if (pushDir.LengthSquared() > 0.001f)
-        {
-            pushDir = Vector2.Normalize(pushDir);
-        }
+        Vector2 pushDir = SafeNormalize(target.Position - receiver.Position);
         float overlap = contactRange - distance;
         float holdStrength = (Constants.BlockHoldStrength * holdStrengthMult) * blockMultiplier;
         float overlapBoostFinal = overlapBoost * blockMultiplier;
@@ -245,49 +209,10 @@ public sealed class BlockingController
             overlapBoostFinal *= shedScale;
         }
         target.Position += pushDir * (holdStrength + overlap * overlapBoostFinal) * dt;
-        if (shedBoost > 0f)
+        if (driveDir.HasValue && driveStrength > 0f)
         {
-            baseSlow *= 1f - (0.6f * shedBoost);
+            target.Position += driveDir.Value * driveStrength * dt;
         }
-        target.Velocity *= GetDefenderSlowdown(blockMultiplier, baseSlow);
-        receiver.Velocity *= 0.25f;
-        clampToField(target);
-    }
-
-    private void ApplyBlockContactWithDrive(
-        Receiver receiver,
-        Defender target,
-        float contactRange,
-        float distance,
-        float blockMultiplier,
-        int runSide,
-        float dt,
-        Action<Entity> clampToField,
-        Vector2? ballCarrierPosition)
-    {
-        Vector2 pushDir = target.Position - receiver.Position;
-        if (pushDir.LengthSquared() > 0.001f)
-        {
-            pushDir = Vector2.Normalize(pushDir);
-        }
-        float overlap = contactRange - distance;
-        float holdStrength = Constants.BlockHoldStrength * 1.5f * blockMultiplier;
-        float overlapBoost = 8f * blockMultiplier;
-        float shedBoost = GetTackleShedBoost(target.Position, ballCarrierPosition);
-        if (shedBoost > 0f)
-        {
-            float shedScale = 1f - (0.65f * shedBoost);
-            holdStrength *= shedScale;
-            overlapBoost *= shedScale;
-        }
-        target.Position += pushDir * (holdStrength + overlap * overlapBoost) * dt;
-        Vector2 driveDir = new Vector2(runSide * 0.85f, 1f);
-        if (driveDir.LengthSquared() > 0.001f)
-        {
-            driveDir = Vector2.Normalize(driveDir);
-        }
-        target.Position += driveDir * 0.9f * dt;
-        float baseSlow = 0.08f;
         if (shedBoost > 0f)
         {
             baseSlow *= 1f - (0.6f * shedBoost);
@@ -299,11 +224,7 @@ public sealed class BlockingController
 
     private void MoveTowardSpot(Receiver receiver, Vector2 spot, float speedMult, float arrivalRadius)
     {
-        Vector2 toSpot = spot - receiver.Position;
-        if (toSpot.LengthSquared() > 0.001f)
-        {
-            toSpot = Vector2.Normalize(toSpot);
-        }
+        Vector2 toSpot = SafeNormalize(spot - receiver.Position);
         receiver.Velocity = toSpot * (receiver.Speed * speedMult);
 
         if (Vector2.DistanceSquared(receiver.Position, spot) <= arrivalRadius * arrivalRadius)

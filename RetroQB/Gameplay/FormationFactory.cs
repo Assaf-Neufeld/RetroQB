@@ -63,100 +63,127 @@ public sealed class FormationFactory : IFormationFactory
         switch (formation)
         {
             case FormationType.BaseTripsRight:
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.12f, ClampFormationY(los, 0.3f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.72f, ClampFormationY(los, 1.0f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.88f, ClampFormationY(los, 0.3f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.38f, ClampFormationY(los, 0.05f)), isTightEnd: true);
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 5.0f)), isRunningBack: true);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.12f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.72f, ClampFormationY(los, 1.0f)), ReceiverSlot.WR2);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.88f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR3);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.38f, ClampFormationY(los, 0.05f)), ReceiverSlot.TE1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 5.0f)), ReceiverSlot.RB1);
                 AddBaseLine(blockers, los, extraCount: 0);
                 break;
 
             case FormationType.BaseTripsLeft:
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.12f, ClampFormationY(los, 0.3f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.28f, ClampFormationY(los, 1.0f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.88f, ClampFormationY(los, 0.3f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.62f, ClampFormationY(los, 0.05f)), isTightEnd: true);
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 5.0f)), isRunningBack: true);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.12f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.28f, ClampFormationY(los, 1.0f)), ReceiverSlot.WR2);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.88f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR3);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.62f, ClampFormationY(los, 0.05f)), ReceiverSlot.TE1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 5.0f)), ReceiverSlot.RB1);
                 AddBaseLine(blockers, los, extraCount: 0);
                 break;
 
             case FormationType.BaseSplit:
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.10f, ClampFormationY(los, 0.3f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.26f, ClampFormationY(los, 1.0f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.90f, ClampFormationY(los, 0.3f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.64f, ClampFormationY(los, 0.05f)), isTightEnd: true);
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 5.0f)), isRunningBack: true);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.10f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.26f, ClampFormationY(los, 1.0f)), ReceiverSlot.WR2);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.90f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR3);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.64f, ClampFormationY(los, 0.05f)), ReceiverSlot.TE1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 5.0f)), ReceiverSlot.RB1);
+                AddBaseLine(blockers, los, extraCount: 0);
+                break;
+
+            case FormationType.BaseBunchRight:
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.10f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.74f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR2);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.80f, ClampFormationY(los, 1.2f)), ReceiverSlot.WR3);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.36f, ClampFormationY(los, 0.05f)), ReceiverSlot.TE1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 5.0f)), ReceiverSlot.RB1);
+                AddBaseLine(blockers, los, extraCount: 0);
+                break;
+
+            case FormationType.BaseBunchLeft:
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.20f, ClampFormationY(los, 1.2f)), ReceiverSlot.WR1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.26f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR2);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.90f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR3);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.64f, ClampFormationY(los, 0.05f)), ReceiverSlot.TE1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 5.0f)), ReceiverSlot.RB1);
                 AddBaseLine(blockers, los, extraCount: 0);
                 break;
 
             case FormationType.PassSpread:
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.08f, ClampFormationY(los, 0.3f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.26f, ClampFormationY(los, 1.0f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.74f, ClampFormationY(los, 1.0f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.92f, ClampFormationY(los, 0.3f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.62f, ClampFormationY(los, 0.05f)), isTightEnd: true);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.08f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.26f, ClampFormationY(los, 1.0f)), ReceiverSlot.WR2);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.74f, ClampFormationY(los, 1.0f)), ReceiverSlot.WR3);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.92f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR4);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.62f, ClampFormationY(los, 0.05f)), ReceiverSlot.TE1);
                 AddBaseLine(blockers, los, extraCount: 0);
                 break;
 
-            case FormationType.PassBunch:
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.10f, ClampFormationY(los, 0.3f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.72f, ClampFormationY(los, 0.3f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.78f, ClampFormationY(los, 1.2f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.84f, ClampFormationY(los, 0.6f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.36f, ClampFormationY(los, 0.05f)), isTightEnd: true);
+            case FormationType.PassBunchRight:
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.10f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.72f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR2);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.78f, ClampFormationY(los, 1.2f)), ReceiverSlot.WR3);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.84f, ClampFormationY(los, 0.6f)), ReceiverSlot.WR4);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.36f, ClampFormationY(los, 0.05f)), ReceiverSlot.TE1);
+                AddBaseLine(blockers, los, extraCount: 0);
+                break;
+
+            case FormationType.PassBunchLeft:
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.16f, ClampFormationY(los, 0.6f)), ReceiverSlot.WR1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.22f, ClampFormationY(los, 1.2f)), ReceiverSlot.WR2);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.28f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR3);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.90f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR4);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.64f, ClampFormationY(los, 0.05f)), ReceiverSlot.TE1);
                 AddBaseLine(blockers, los, extraCount: 0);
                 break;
 
             case FormationType.PassEmpty:
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.06f, ClampFormationY(los, 0.3f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.24f, ClampFormationY(los, 1.0f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.76f, ClampFormationY(los, 1.0f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.94f, ClampFormationY(los, 0.3f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 1.5f)), isTightEnd: true);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.06f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.24f, ClampFormationY(los, 1.0f)), ReceiverSlot.WR2);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.76f, ClampFormationY(los, 1.0f)), ReceiverSlot.WR3);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.94f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR4);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 1.5f)), ReceiverSlot.TE1);
                 AddBaseLine(blockers, los, extraCount: 0);
                 break;
 
             case FormationType.RunPowerRight:
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.10f, ClampFormationY(los, 0.3f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.55f, ClampFormationY(los, 4.0f)), isRunningBack: true);
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.66f, ClampFormationY(los, 0.05f)), isTightEnd: true);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.10f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.55f, ClampFormationY(los, 4.0f)), ReceiverSlot.RB1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.66f, ClampFormationY(los, 0.05f)), ReceiverSlot.TE1);
                 AddBaseLine(blockers, los, extraCount: 2);
                 break;
 
             case FormationType.RunPowerLeft:
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.90f, ClampFormationY(los, 0.3f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.45f, ClampFormationY(los, 4.0f)), isRunningBack: true);
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.34f, ClampFormationY(los, 0.05f)), isTightEnd: true);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.90f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.45f, ClampFormationY(los, 4.0f)), ReceiverSlot.RB1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.34f, ClampFormationY(los, 0.05f)), ReceiverSlot.TE1);
                 AddBaseLine(blockers, los, extraCount: 2);
                 break;
 
             case FormationType.RunIForm:
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.12f, ClampFormationY(los, 0.3f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 3.5f)), isRunningBack: true);
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.64f, ClampFormationY(los, 0.05f)), isTightEnd: true);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.12f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 3.5f)), ReceiverSlot.RB1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.64f, ClampFormationY(los, 0.05f)), ReceiverSlot.TE1);
                 AddBaseLine(blockers, los, extraCount: 2);
                 break;
 
             case FormationType.RunSweepRight:
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.10f, ClampFormationY(los, 0.3f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.70f, ClampFormationY(los, 4.6f)), isRunningBack: true);
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.72f, ClampFormationY(los, 0.05f)), isTightEnd: true);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.10f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.70f, ClampFormationY(los, 4.6f)), ReceiverSlot.RB1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.72f, ClampFormationY(los, 0.05f)), ReceiverSlot.TE1);
                 AddBaseLine(blockers, los, extraCount: 2);
                 break;
 
             case FormationType.RunSweepLeft:
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.90f, ClampFormationY(los, 0.3f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.30f, ClampFormationY(los, 4.6f)), isRunningBack: true);
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.28f, ClampFormationY(los, 0.05f)), isTightEnd: true);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.90f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.30f, ClampFormationY(los, 4.6f)), ReceiverSlot.RB1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.28f, ClampFormationY(los, 0.05f)), ReceiverSlot.TE1);
                 AddBaseLine(blockers, los, extraCount: 2);
                 break;
 
             default:
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.12f, ClampFormationY(los, 0.3f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.72f, ClampFormationY(los, 1.0f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.88f, ClampFormationY(los, 0.3f)));
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.38f, ClampFormationY(los, 0.05f)), isTightEnd: true);
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 5.0f)), isRunningBack: true);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.12f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.72f, ClampFormationY(los, 1.0f)), ReceiverSlot.WR2);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.88f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR3);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.38f, ClampFormationY(los, 0.05f)), ReceiverSlot.TE1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 5.0f)), ReceiverSlot.RB1);
                 AddBaseLine(blockers, los, extraCount: 0);
                 break;
         }
@@ -180,9 +207,9 @@ public sealed class FormationFactory : IFormationFactory
         AddFormation(receivers, blockers, formation, los);
     }
 
-    private void AddReceiver(List<Receiver> receivers, Vector2 position, bool isRunningBack = false, bool isTightEnd = false)
+    private void AddReceiver(List<Receiver> receivers, Vector2 position, ReceiverSlot slot)
     {
-        receivers.Add(new Receiver(receivers.Count, position, isRunningBack, isTightEnd, _currentTeamAttributes));
+        receivers.Add(new Receiver(receivers.Count, slot, position, _currentTeamAttributes));
     }
 
     private void AddBaseLine(List<Blocker> blockers, float los, int extraCount)

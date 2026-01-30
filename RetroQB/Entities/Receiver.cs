@@ -15,6 +15,7 @@ public enum OffensivePosition
 public sealed class Receiver : Entity
 {
     public int Index { get; }
+    public ReceiverSlot Slot { get; }
     public bool IsRunningBack { get; }
     public bool IsTightEnd { get; }
     public OffensivePosition PositionRole { get; }
@@ -34,26 +35,27 @@ public sealed class Receiver : Entity
     /// </summary>
     public OffensiveTeamAttributes TeamAttributes { get; }
 
-    public Receiver(int index, Vector2 position, bool isRunningBack = false, bool isTightEnd = false, OffensiveTeamAttributes? teamAttributes = null) 
-        : base(position, Constants.ReceiverRadius, ResolveGlyph(isRunningBack, isTightEnd), ResolveColor(isRunningBack, isTightEnd, teamAttributes))
+    public Receiver(int index, ReceiverSlot slot, Vector2 position, OffensiveTeamAttributes? teamAttributes = null) 
+        : base(position, Constants.ReceiverRadius, ResolveGlyph(slot), ResolveColor(slot, teamAttributes))
     {
         TeamAttributes = teamAttributes ?? OffensiveTeamAttributes.Default;
         Index = index;
-        IsRunningBack = isRunningBack;
-        IsTightEnd = isTightEnd && !isRunningBack;
+        Slot = slot;
+        IsRunningBack = slot.IsRunningBackSlot();
+        IsTightEnd = slot.IsTightEndSlot() && !IsRunningBack;
         PositionRole = IsRunningBack ? OffensivePosition.RB : IsTightEnd ? OffensivePosition.TE : OffensivePosition.WR;
-        Speed = TeamAttributes.GetReceiverSpeed(IsRunningBack, IsTightEnd);
+        Speed = TeamAttributes.GetReceiverSpeed(slot);
         RouteStart = position;
     }
 
-    private static string ResolveGlyph(bool isRunningBack, bool isTightEnd)
+    private static string ResolveGlyph(ReceiverSlot slot)
     {
-        if (isRunningBack) return "RB";
-        if (isTightEnd) return "TE";
+        if (slot.IsRunningBackSlot()) return "RB";
+        if (slot.IsTightEndSlot()) return "TE";
         return "WR";
     }
 
-    private static Color ResolveColor(bool isRunningBack, bool isTightEnd, OffensiveTeamAttributes? teamAttributes)
+    private static Color ResolveColor(ReceiverSlot slot, OffensiveTeamAttributes? teamAttributes)
     {
         return teamAttributes?.SecondaryColor ?? Palette.Receiver;
     }

@@ -114,7 +114,7 @@ public sealed class BallController
         {
             if (!receiver.Eligible) continue;
 
-            float catchRadius = Constants.CatchRadius * offensiveTeam.CatchRadiusMultiplier;
+            float catchRadius = Constants.CatchRadius * offensiveTeam.GetReceiverCatchRadiusMultiplier(receiver.Slot);
             float receiverDist = Vector2.Distance(receiver.Position, ball.Position);
 
             if (receiverDist <= catchRadius)
@@ -145,7 +145,7 @@ public sealed class BallController
                 // Check for contested catch drop
                 if (closestDefenderDist <= Constants.ContestedCatchRadius)
                 {
-                    float dropRate = 1.0f - offensiveTeam.CatchingAbility;
+                    float dropRate = 1.0f - offensiveTeam.GetReceiverCatchingAbility(receiver.Slot);
                     if (_rng.NextDouble() < dropRate)
                     {
                         return BallUpdateResult.Incomplete;
@@ -159,7 +159,7 @@ public sealed class BallController
                 {
                     _passCompletedThisPlay = true;
                     _passCatcher = receiver;
-                    _statsTracker.RecordCompletion(receiver.Index);
+                    _statsTracker.RecordCompletion(receiver.Slot);
                 }
                 return BallUpdateResult.Continue;
             }

@@ -324,7 +324,7 @@ public sealed class HudRenderer
         y += 15;
         Raylib.DrawText("Throw: 1-5", x, y, 12, Palette.White);
         y += 15;
-        Raylib.DrawText("Restart: R | Pause: Esc", x, y, 12, Palette.White);
+        Raylib.DrawText("Pause: Esc", x, y, 12, Palette.White);
     }
 
     public void DrawMainMenu(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams)

@@ -87,10 +87,19 @@ public sealed class PlayExecutionController
     {
         bool isRunPlayPreHandoff = IsRunPlayActivePreHandoff(playManager.SelectedPlayType, ball);
         bool isRunPlayWithRb = IsRunPlayActiveWithRunningBack(playManager.SelectedPlayType, ball);
+        bool isBallHeldByReceiver = ball.State == BallState.HeldByReceiver;
 
         foreach (var receiver in receivers)
         {
-            if (receiver.IsBlocking)
+            bool isBallCarrier = isBallHeldByReceiver && ball.Holder == receiver;
+            bool autoBlockWr = !receiver.IsBlocking
+                && !receiver.IsRunningBack
+                && !receiver.IsTightEnd
+                && !isBallCarrier
+                && receiver != controlledReceiver
+                && (isRunPlayWithRb || isBallHeldByReceiver);
+
+            if (receiver.IsBlocking || autoBlockWr)
             {
                 _blockingController.UpdateBlockingReceiver(
                     receiver, qb, ball, defenders,

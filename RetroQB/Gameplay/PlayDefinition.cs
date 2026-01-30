@@ -25,10 +25,13 @@ public enum FormationType
     BaseTripsRight,    // 3 WR trips right, TE left, RB in backfield
     BaseTripsLeft,     // 3 WR trips left, TE right, RB in backfield
     BaseSplit,         // 2 WR left, 1 WR right, TE right, RB in backfield
+    BaseBunchRight,    // 3 WR bunched right, TE left, RB in backfield
+    BaseBunchLeft,     // 3 WR bunched left, TE right, RB in backfield
 
     // Pass formations: 4 WR, 1 TE
     PassSpread,        // 4 WR spread wide, TE inline
-    PassBunch,         // 3 WR bunched, 1 WR isolated, TE inline
+    PassBunchRight,    // 3 WR bunched right, 1 WR isolated left, TE inline
+    PassBunchLeft,     // 3 WR bunched left, 1 WR isolated right, TE inline
     PassEmpty,         // 4 WR spread, TE detached as receiver
 
     // Run formations: 1 WR, 1 TE, 1 RB (heavy with extra OL)

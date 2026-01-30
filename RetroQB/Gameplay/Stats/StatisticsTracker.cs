@@ -1,23 +1,25 @@
+using RetroQB.Entities;
+
 namespace RetroQB.Gameplay.Stats;
 
 public interface IStatisticsTracker
 {
     void Reset();
     void RecordPassAttempt();
-    void RecordCompletion(int receiverIndex);
-    void RecordPassYards(int receiverIndex, int yards, bool isTouchdown);
+    void RecordCompletion(ReceiverSlot receiverSlot);
+    void RecordPassYards(ReceiverSlot receiverSlot, int yards, bool isTouchdown);
     void RecordInterception();
     void RecordRushYards(int yards, bool isTouchdown);
     void RecordQbRushYards(int yards, bool isTouchdown);
-    SkillStatLine GetReceiverStats(int receiverIndex);
-    GameStatsSnapshot BuildSnapshot(Func<int, bool> tryGetReceiverIndex);
+    SkillStatLine GetReceiverStats(ReceiverSlot receiverSlot);
+    GameStatsSnapshot BuildSnapshot();
 }
 
 public sealed class StatisticsTracker : IStatisticsTracker
 {
     private readonly QbStatLine _qbStats = new();
     private readonly RushStatLine _rbStats = new();
-    private readonly Dictionary<int, SkillStatLine> _receiverStats = new();
+    private readonly Dictionary<ReceiverSlot, SkillStatLine> _receiverStats = new();
 
     public void Reset()
     {
@@ -31,13 +33,13 @@ public sealed class StatisticsTracker : IStatisticsTracker
         _qbStats.Attempts++;
     }
 
-    public void RecordCompletion(int receiverIndex)
+    public void RecordCompletion(ReceiverSlot receiverSlot)
     {
         _qbStats.Completions++;
-        GetOrCreateReceiverStats(receiverIndex).Receptions++;
+        GetOrCreateReceiverStats(receiverSlot).Receptions++;
     }
 
-    public void RecordPassYards(int receiverIndex, int yards, bool isTouchdown)
+    public void RecordPassYards(ReceiverSlot receiverSlot, int yards, bool isTouchdown)
     {
         _qbStats.PassYards += yards;
         if (isTouchdown)
@@ -45,7 +47,7 @@ public sealed class StatisticsTracker : IStatisticsTracker
             _qbStats.PassTds++;
         }
 
-        var receiverStats = GetOrCreateReceiverStats(receiverIndex);
+        var receiverStats = GetOrCreateReceiverStats(receiverSlot);
         receiverStats.Yards += yards;
         if (isTouchdown)
         {
@@ -76,26 +78,23 @@ public sealed class StatisticsTracker : IStatisticsTracker
         }
     }
 
-    public SkillStatLine GetReceiverStats(int receiverIndex)
+    public SkillStatLine GetReceiverStats(ReceiverSlot receiverSlot)
     {
-        return GetOrCreateReceiverStats(receiverIndex);
+        return GetOrCreateReceiverStats(receiverSlot);
     }
 
-    public GameStatsSnapshot BuildSnapshot(Func<int, bool> tryGetReceiverIndex)
+    public GameStatsSnapshot BuildSnapshot()
     {
-        var receivers = new List<ReceiverStatsSnapshot>(5);
-        for (int i = 1; i <= 5; i++)
+        var receivers = new List<ReceiverStatsSnapshot>(ReceiverSlotExtensions.DefaultReceivingStatOrder.Count);
+        foreach (var slot in ReceiverSlotExtensions.DefaultReceivingStatOrder)
         {
-            int receiverIndex = i - 1;
-            bool hasIndex = tryGetReceiverIndex(i);
-            
-            if (hasIndex && _receiverStats.TryGetValue(receiverIndex, out var stats))
+            if (_receiverStats.TryGetValue(slot, out var stats))
             {
-                receivers.Add(new ReceiverStatsSnapshot($"WR{i}", stats.Receptions, stats.Yards, stats.Tds));
+                receivers.Add(new ReceiverStatsSnapshot(slot.GetLabel(), stats.Receptions, stats.Yards, stats.Tds));
             }
             else
             {
-                receivers.Add(new ReceiverStatsSnapshot($"WR{i}", 0, 0, 0));
+                receivers.Add(new ReceiverStatsSnapshot(slot.GetLabel(), 0, 0, 0));
             }
         }
 
@@ -111,12 +110,12 @@ public sealed class StatisticsTracker : IStatisticsTracker
         return new GameStatsSnapshot(qb, receivers, rb);
     }
 
-    private SkillStatLine GetOrCreateReceiverStats(int receiverIndex)
+    private SkillStatLine GetOrCreateReceiverStats(ReceiverSlot receiverSlot)
     {
-        if (!_receiverStats.TryGetValue(receiverIndex, out var stats))
+        if (!_receiverStats.TryGetValue(receiverSlot, out var stats))
         {
             stats = new SkillStatLine();
-            _receiverStats[receiverIndex] = stats;
+            _receiverStats[receiverSlot] = stats;
         }
         return stats;
     }

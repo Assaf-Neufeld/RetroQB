@@ -193,12 +193,6 @@ public sealed class GameSession
             _playOverTimer += dt;
         }
 
-        if (Raylib.IsKeyPressed(KeyboardKey.R))
-        {
-            HandleRestart();
-            return;
-        }
-
         switch (_stateManager.State)
         {
             case GameState.MainMenu:
@@ -470,7 +464,7 @@ public sealed class GameSession
             gain = MathF.Round(_entities.Ball.Holder.Position.Y - _ballController.PlayStartLos);
             if (_ballController.PassCompletedThisPlay && _ballController.PassCatcher != null)
             {
-                _statsTracker.RecordPassYards(_ballController.PassCatcher.Index, (int)gain, touchdown);
+                _statsTracker.RecordPassYards(_ballController.PassCatcher.Slot, (int)gain, touchdown);
                 catcherLabel = GetCatcherLabel(_ballController.PassCatcher);
                 catcherRoute = _ballController.PassCatcher.Route;
             }
@@ -538,16 +532,7 @@ public sealed class GameSession
 
     private string GetCatcherLabel(Receiver catcher)
     {
-        if (catcher.IsRunningBack) return "RB";
-        if (catcher.IsTightEnd) return "TE";
-
-        var wrs = _entities.Receivers
-            .Where(r => !r.IsRunningBack && !r.IsTightEnd && r.Eligible)
-            .OrderBy(r => r.Position.X)
-            .ToList();
-
-        int wrIndex = wrs.FindIndex(r => r.Index == catcher.Index);
-        return wrIndex >= 0 ? $"WR{wrIndex + 1}" : "WR";
+        return catcher.Slot.GetLabel();
     }
 
     public void Draw()
@@ -589,9 +574,6 @@ public sealed class GameSession
 
     private GameStatsSnapshot BuildStatsSnapshot()
     {
-        return _statsTracker.BuildSnapshot(priority =>
-        {
-            return _receiverPriorityManager.TryGetReceiverIndexForPriority(priority, out _);
-        });
+        return _statsTracker.BuildSnapshot();
     }
 }

@@ -14,8 +14,11 @@ public static class PlaybookBuilder
         FormationType.BaseTripsRight,
         FormationType.BaseTripsLeft,
         FormationType.BaseSplit,
+        FormationType.BaseBunchRight,
+        FormationType.BaseBunchLeft,
         FormationType.PassSpread,
-        FormationType.PassBunch,
+        FormationType.PassBunchRight,
+        FormationType.PassBunchLeft,
         FormationType.PassEmpty
     };
 
@@ -61,7 +64,7 @@ public static class PlaybookBuilder
             new(
                 "Bunch Quick",
                 PlayType.Pass,
-                FormationType.PassBunch,
+                FormationType.PassBunchRight,
                 RunningBackRole.Route,
                 TightEndRole.Route,
                 new Dictionary<int, RouteType>
@@ -94,7 +97,7 @@ public static class PlaybookBuilder
             new(
                 "Deep Ins",
                 PlayType.Pass,
-                FormationType.BaseTripsLeft,
+                FormationType.BaseBunchLeft,
                 RunningBackRole.Block,
                 TightEndRole.Route,
                 new Dictionary<int, RouteType>
@@ -109,7 +112,7 @@ public static class PlaybookBuilder
             new(
                 "Flood",
                 PlayType.Pass,
-                FormationType.PassSpread,
+                FormationType.PassBunchLeft,
                 RunningBackRole.Route,
                 TightEndRole.Route,
                 new Dictionary<int, RouteType>
@@ -140,7 +143,7 @@ public static class PlaybookBuilder
             new(
                 "Slant Flat",
                 PlayType.Pass,
-                FormationType.BaseTripsRight,
+                FormationType.BaseBunchRight,
                 RunningBackRole.Route,
                 TightEndRole.Route,
                 new Dictionary<int, RouteType>

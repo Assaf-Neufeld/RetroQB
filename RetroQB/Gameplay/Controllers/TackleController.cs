@@ -68,7 +68,7 @@ public sealed class TackleController
                 // Check for tackle break if carrier is a running back
                 if (carrier is Receiver receiver && receiver.IsRunningBack)
                 {
-                    if (TryBreakTackle(defender, ball.Holder, offensiveTeam, clampToField))
+                    if (TryBreakTackle(defender, receiver, offensiveTeam, clampToField))
                     {
                         continue;
                     }
@@ -83,7 +83,7 @@ public sealed class TackleController
 
     private bool TryBreakTackle(
         Defender defender,
-        Entity? ballHolder,
+        Receiver ballCarrier,
         OffensiveTeamAttributes offensiveTeam,
         Action<Entity> clampToField)
     {
@@ -93,18 +93,18 @@ public sealed class TackleController
             return true;
         }
 
-        float breakChance = offensiveTeam.RbTackleBreakChance;
+        float breakChance = offensiveTeam.GetRbTackleBreakChance(ballCarrier.Slot);
         if (_rng.NextDouble() < breakChance)
         {
             _overlapResolver.AddBrokenTackleDefender(defender);
 
             // Push defender away from the ball carrier
-            if (ballHolder != null)
+            if (ballCarrier != null)
             {
-                Vector2 pushDir = defender.Position - ballHolder.Position;
+                Vector2 pushDir = defender.Position - ballCarrier.Position;
                 if (pushDir.LengthSquared() <= 0.001f)
                 {
-                    Vector2 fallback = ballHolder.Velocity;
+                    Vector2 fallback = ballCarrier.Velocity;
                     if (fallback.LengthSquared() <= 0.001f)
                     {
                         fallback = new Vector2(0, -1f);
@@ -116,13 +116,13 @@ public sealed class TackleController
                     pushDir = Vector2.Normalize(pushDir);
                 }
 
-                float minSeparation = defender.Radius + ballHolder.Radius + 0.7f;
+                float minSeparation = defender.Radius + ballCarrier.Radius + 0.7f;
                 if (pushDir.Y < 0f)
                 {
                     minSeparation += 0.8f;
                 }
 
-                defender.Position = ballHolder.Position + pushDir * minSeparation;
+                defender.Position = ballCarrier.Position + pushDir * minSeparation;
                 defender.Velocity = pushDir * (defender.Speed * 0.6f);
                 clampToField(defender);
             }

@@ -22,7 +22,7 @@ public sealed class Quarterback : Entity
 
     public void ApplyInput(Vector2 inputDir, bool sprinting, bool aimMode, float dt)
     {
-        float maxSpeed = sprinting ? TeamAttributes.QbSprintSpeed : TeamAttributes.QbMaxSpeed;
+        float maxSpeed = sprinting ? TeamAttributes.GetQbSprintSpeed() : TeamAttributes.GetQbMaxSpeed();
         if (aimMode)
         {
             maxSpeed *= 0.55f;
@@ -31,7 +31,7 @@ public sealed class Quarterback : Entity
         if (inputDir.LengthSquared() > 0.001f)
         {
             inputDir = Vector2.Normalize(inputDir);
-            Velocity += inputDir * TeamAttributes.QbAcceleration * dt;
+            Velocity += inputDir * TeamAttributes.GetQbAcceleration() * dt;
             if (Velocity.Length() > maxSpeed)
             {
                 Velocity = Vector2.Normalize(Velocity) * maxSpeed;
@@ -42,7 +42,7 @@ public sealed class Quarterback : Entity
             float speed = Velocity.Length();
             if (speed > 0.1f)
             {
-                Vector2 decel = Vector2.Normalize(Velocity) * TeamAttributes.QbFriction * dt;
+                Vector2 decel = Vector2.Normalize(Velocity) * TeamAttributes.GetQbFriction() * dt;
                 if (decel.Length() > speed)
                 {
                     Velocity = Vector2.Zero;

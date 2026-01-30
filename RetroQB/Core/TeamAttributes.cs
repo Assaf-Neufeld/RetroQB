@@ -1,4 +1,6 @@
+using System;
 using Raylib_cs;
+using RetroQB.Entities;
 
 namespace RetroQB.Core;
 
@@ -25,6 +27,11 @@ public abstract class TeamAttributes
 /// </summary>
 public sealed class OffensiveTeamAttributes : TeamAttributes
 {
+    /// <summary>
+    /// Offensive roster with per-player skill ratings.
+    /// </summary>
+    public OffensiveRoster Roster { get; init; } = OffensiveRoster.Default;
+
     // Quarterback attributes
     public float QbMaxSpeed { get; init; } = Constants.QbMaxSpeed;
     public float QbSprintSpeed { get; init; } = Constants.QbSprintSpeed;
@@ -96,7 +103,8 @@ public sealed class OffensiveTeamAttributes : TeamAttributes
     {
         Name = "Home",
         PrimaryColor = Palette.QB,
-        SecondaryColor = Palette.Receiver
+        SecondaryColor = Palette.Receiver,
+        Roster = OffensiveRoster.Default
     };
 
     /// <summary>
@@ -107,6 +115,95 @@ public sealed class OffensiveTeamAttributes : TeamAttributes
         if (isRunningBack) return RbSpeed;
         if (isTightEnd) return TeSpeed;
         return WrSpeed;
+    }
+
+    /// <summary>
+    /// Gets the speed for a receiver based on roster slot.
+    /// </summary>
+    public float GetReceiverSpeed(ReceiverSlot slot)
+    {
+        float baseSpeed = slot switch
+        {
+            _ when slot.IsRunningBackSlot() => RbSpeed,
+            _ when slot.IsTightEndSlot() => TeSpeed,
+            _ => WrSpeed
+        };
+
+        return baseSpeed * Roster.GetReceiverSkillMultiplier(slot);
+    }
+
+    /// <summary>
+    /// Gets the catching ability for a receiver based on roster slot.
+    /// </summary>
+    public float GetReceiverCatchingAbility(ReceiverSlot slot)
+    {
+        float ability = CatchingAbility * Roster.GetReceiverSkillMultiplier(slot);
+        return Math.Clamp(ability, 0.4f, 0.95f);
+    }
+
+    /// <summary>
+    /// Gets the catch radius multiplier for a receiver based on roster slot.
+    /// </summary>
+    public float GetReceiverCatchRadiusMultiplier(ReceiverSlot slot)
+    {
+        float multiplier = CatchRadiusMultiplier * Roster.GetReceiverSkillMultiplier(slot);
+        return Math.Clamp(multiplier, 0.8f, 1.25f);
+    }
+
+    /// <summary>
+    /// Gets the tackle break chance for a running back based on roster slot.
+    /// </summary>
+    public float GetRbTackleBreakChance(ReceiverSlot slot)
+    {
+        float multiplier = slot.IsRunningBackSlot() ? Roster.GetReceiverSkillMultiplier(slot) : 1.0f;
+        float chance = RbTackleBreakChance * multiplier;
+        return Math.Clamp(chance, 0.05f, 0.65f);
+    }
+
+    /// <summary>
+    /// Gets the QB max speed adjusted by roster skill.
+    /// </summary>
+    public float GetQbMaxSpeed() => QbMaxSpeed * Roster.GetQuarterbackSkillMultiplier();
+
+    /// <summary>
+    /// Gets the QB sprint speed adjusted by roster skill.
+    /// </summary>
+    public float GetQbSprintSpeed() => QbSprintSpeed * Roster.GetQuarterbackSkillMultiplier();
+
+    /// <summary>
+    /// Gets the QB acceleration adjusted by roster skill.
+    /// </summary>
+    public float GetQbAcceleration() => QbAcceleration * Roster.GetQuarterbackSkillMultiplier();
+
+    /// <summary>
+    /// Gets the QB friction adjusted by roster skill.
+    /// </summary>
+    public float GetQbFriction() => QbFriction * Roster.GetQuarterbackSkillMultiplier();
+
+    /// <summary>
+    /// Gets the QB inaccuracy multiplier adjusted by roster skill.
+    /// Higher skill reduces inaccuracy.
+    /// </summary>
+    public float GetQbThrowInaccuracyMultiplier()
+    {
+        float skill = Roster.GetQuarterbackSkillMultiplier();
+        float multiplier = ThrowInaccuracyMultiplier / skill;
+        return Math.Clamp(multiplier, 0.6f, 1.6f);
+    }
+
+    /// <summary>
+    /// Gets the distance accuracy multiplier adjusted by roster skill.
+    /// </summary>
+    public float GetQbDistanceAccuracyMultiplier(float distance)
+    {
+        float baseMultiplier = distance <= Constants.ShortPassMaxDistance
+            ? ShortAccuracyMultiplier
+            : distance <= Constants.MediumPassMaxDistance
+                ? MediumAccuracyMultiplier
+                : LongAccuracyMultiplier;
+
+        float skill = Roster.GetQuarterbackSkillMultiplier();
+        return Math.Clamp(baseMultiplier / skill, 0.6f, 1.6f);
     }
 }
 
