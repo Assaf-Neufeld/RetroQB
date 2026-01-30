@@ -25,6 +25,8 @@ public sealed class DefenseFactory : IDefenseFactory
         var blitzers = new List<string>();
 
         ResolveCoverageIndices(receivers, out int left, out int leftSlot, out int middle, out int rightSlot, out int right);
+        int wrCount = receivers.Count(receiver => receiver.PositionRole == OffensivePosition.WR);
+        bool useNickel = wrCount >= 3;
 
         // Distance-based man coverage probability: 95% at 1 yard, 30% at 10 yards
         float manChance = GetManCoverageChance(distance);
@@ -46,23 +48,49 @@ public sealed class DefenseFactory : IDefenseFactory
         // Linebackers with blitz chance (adjusted by team's blitz frequency)
         float baseBlitzChance = 0.10f * attrs.BlitzFrequency;
         bool lblBlitz = rng.NextDouble() < baseBlitzChance;
-        bool mlbBlitz = rng.NextDouble() < baseBlitzChance;
         bool lbrBlitz = rng.NextDouble() < baseBlitzChance;
+        bool mlbBlitz = !useNickel && rng.NextDouble() < baseBlitzChance;
 
         if (lblBlitz) blitzers.Add("LB");
-        if (mlbBlitz) blitzers.Add("MLB");
         if (lbrBlitz) blitzers.Add("LB");
+        if (mlbBlitz) blitzers.Add("MLB");
 
         float lbDepth = ClampDefenderY(lineOfScrimmage + 7.6f * depthScale, maxY);
-        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.38f, lbDepth), DefensivePosition.LB, attrs) { IsRusher = lblBlitz, CoverageReceiverIndex = leftSlot, ZoneRole = CoverageRole.HookLeft, RushLaneOffsetX = -7.0f });
-        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.50f, lbDepth), DefensivePosition.LB, attrs) { IsRusher = mlbBlitz, CoverageReceiverIndex = middle, ZoneRole = CoverageRole.HookMiddle, RushLaneOffsetX = 0f });
-        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.62f, lbDepth), DefensivePosition.LB, attrs) { IsRusher = lbrBlitz, CoverageReceiverIndex = rightSlot, ZoneRole = CoverageRole.HookRight, RushLaneOffsetX = 7.0f });
+        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, lbDepth), DefensivePosition.LB, attrs) { IsRusher = lblBlitz, CoverageReceiverIndex = leftSlot, ZoneRole = CoverageRole.HookLeft, RushLaneOffsetX = -7.0f });
+        if (!useNickel)
+        {
+            defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.50f, lbDepth), DefensivePosition.LB, attrs) { IsRusher = mlbBlitz, CoverageReceiverIndex = middle, ZoneRole = CoverageRole.HookMiddle, RushLaneOffsetX = 0f });
+        }
+        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, lbDepth), DefensivePosition.LB, attrs) { IsRusher = lbrBlitz, CoverageReceiverIndex = rightSlot, ZoneRole = CoverageRole.HookRight, RushLaneOffsetX = 7.0f });
 
         // DBs
         float baseCbDepth = useZone ? 8.0f : 3.5f;
         float baseSDepth = useZone ? 16.0f : 10.0f;
         float cbDepth = ClampDefenderY(lineOfScrimmage + baseCbDepth * depthScale, maxY);
         float sDepth = ClampDefenderY(lineOfScrimmage + baseSDepth * depthScale, maxY);
+
+        bool alignManNickel = useNickel && !useZone;
+        bool useNickelZone = useNickel && useZone;
+        float leftCbDepth = cbDepth;
+        float rightCbDepth = cbDepth;
+        float leftSafetyDepth = sDepth;
+        float rightSafetyDepth = sDepth;
+        CoverageRole leftCbZoneRole = CoverageRole.FlatLeft;
+        CoverageRole rightCbZoneRole = CoverageRole.FlatRight;
+        CoverageRole leftSafetyZoneRole = CoverageRole.DeepLeft;
+        CoverageRole rightSafetyZoneRole = CoverageRole.DeepRight;
+        float leftCbX = alignManNickel
+            ? GetReceiverXOrDefault(receivers, left, Constants.FieldWidth * 0.18f)
+            : useNickelZone ? Constants.FieldWidth * 0.12f : Constants.FieldWidth * 0.18f;
+        float rightCbX = alignManNickel
+            ? GetReceiverXOrDefault(receivers, right, Constants.FieldWidth * 0.82f)
+            : useNickelZone ? Constants.FieldWidth * 0.88f : Constants.FieldWidth * 0.82f;
+        float leftSafetyX = alignManNickel
+            ? GetReceiverXOrDefault(receivers, leftSlot, Constants.FieldWidth * 0.40f)
+            : useNickelZone ? Constants.FieldWidth * 0.33f : Constants.FieldWidth * 0.40f;
+        float rightSafetyX = alignManNickel
+            ? GetReceiverXOrDefault(receivers, rightSlot, Constants.FieldWidth * 0.60f)
+            : useNickelZone ? Constants.FieldWidth * 0.67f : Constants.FieldWidth * 0.60f;
 
         float cbBlitzChance = !useZone ? 0.05f * attrs.BlitzFrequency : 0f;
         bool leftCbBlitz = rng.NextDouble() < cbBlitzChance;
@@ -71,10 +99,28 @@ public sealed class DefenseFactory : IDefenseFactory
         if (leftCbBlitz) blitzers.Add("CB");
         if (rightCbBlitz) blitzers.Add("CB");
 
-        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.18f, cbDepth), DefensivePosition.DB, attrs) { IsRusher = leftCbBlitz, CoverageReceiverIndex = left, ZoneRole = CoverageRole.FlatLeft, IsPressCoverage = !useZone, RushLaneOffsetX = -10.0f });
-        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.82f, cbDepth), DefensivePosition.DB, attrs) { IsRusher = rightCbBlitz, CoverageReceiverIndex = right, ZoneRole = CoverageRole.FlatRight, IsPressCoverage = !useZone, RushLaneOffsetX = 10.0f });
-        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, sDepth), DefensivePosition.DB, attrs) { CoverageReceiverIndex = leftSlot, ZoneRole = CoverageRole.DeepLeft, IsPressCoverage = false });
-        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, sDepth), DefensivePosition.DB, attrs) { CoverageReceiverIndex = rightSlot, ZoneRole = CoverageRole.DeepRight, IsPressCoverage = false });
+        defenders.Add(new Defender(new Vector2(leftCbX, leftCbDepth), DefensivePosition.DB, attrs) { IsRusher = leftCbBlitz, CoverageReceiverIndex = left, ZoneRole = leftCbZoneRole, IsPressCoverage = !useZone, RushLaneOffsetX = -10.0f });
+        defenders.Add(new Defender(new Vector2(rightCbX, rightCbDepth), DefensivePosition.DB, attrs) { IsRusher = rightCbBlitz, CoverageReceiverIndex = right, ZoneRole = rightCbZoneRole, IsPressCoverage = !useZone, RushLaneOffsetX = 10.0f });
+
+        if (useNickel)
+        {
+            int nickelTarget = middle >= 0 ? middle : leftSlot >= 0 ? leftSlot : rightSlot;
+            float nickelX = alignManNickel
+                ? GetReceiverXOrDefault(receivers, nickelTarget, Constants.FieldWidth * 0.50f)
+                : useNickelZone ? Constants.FieldWidth * 0.50f : (nickelTarget >= 0 ? receivers[nickelTarget].Position.X : Constants.FieldWidth * 0.50f);
+            float nickelDepth = sDepth;
+
+            defenders.Add(new Defender(new Vector2(nickelX, nickelDepth), DefensivePosition.DB, attrs)
+            {
+                CoverageReceiverIndex = nickelTarget,
+                ZoneRole = useZone ? CoverageRole.DeepMiddle : CoverageRole.None,
+                IsPressCoverage = false,
+                RushLaneOffsetX = 0f
+            });
+        }
+
+        defenders.Add(new Defender(new Vector2(leftSafetyX, leftSafetyDepth), DefensivePosition.DB, attrs) { CoverageReceiverIndex = leftSlot, ZoneRole = leftSafetyZoneRole, IsPressCoverage = false });
+        defenders.Add(new Defender(new Vector2(rightSafetyX, rightSafetyDepth), DefensivePosition.DB, attrs) { CoverageReceiverIndex = rightSlot, ZoneRole = rightSafetyZoneRole, IsPressCoverage = false });
 
         return new DefenseResult
         {
@@ -125,5 +171,15 @@ public sealed class DefenseFactory : IDefenseFactory
         middle = ordered[ordered.Count / 2];
         leftSlot = ordered.Count > 2 ? ordered[1] : left;
         rightSlot = ordered.Count > 3 ? ordered[^2] : right;
+    }
+
+    private static float GetReceiverXOrDefault(IReadOnlyList<Receiver> receivers, int receiverIndex, float fallbackX)
+    {
+        if (receiverIndex >= 0 && receiverIndex < receivers.Count)
+        {
+            return receivers[receiverIndex].Position.X;
+        }
+
+        return fallbackX;
     }
 }

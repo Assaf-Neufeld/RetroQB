@@ -39,7 +39,9 @@ public enum FormationType
     RunPowerLeft,      // WR right, TE left, RB offset left
     RunIForm,          // WR split, TE inline, RB directly behind QB
     RunSweepRight,     // WR left, TE right, RB wide right
-    RunSweepLeft       // WR right, TE left, RB wide left
+    RunSweepLeft,      // WR right, TE left, RB wide left
+    RunTossRight,      // WR left, TE right, RB closer right (toss)
+    RunTossLeft        // WR right, TE left, RB closer left (toss)
 }
 
 public sealed class PlayDefinition

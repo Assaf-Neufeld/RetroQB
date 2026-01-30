@@ -27,125 +27,37 @@ public static class OffensiveLinemanAI
     {
         if (blockers.Count == 0) return;
 
-        bool isRunPlay = playFamily == PlayType.Run;
-        int runSide = Math.Sign(runningBackSide);
-        bool isSweep = isRunPlay && IsSweepFormation(formation);
-        float lateralPush = isRunPlay && runSide != 0 ? runSide * (isSweep ? 3.1f : 2.4f) : 0f;
-        float targetY = isRunPlay ? lineOfScrimmage + 2.4f : lineOfScrimmage - 1.4f;
-        var pullingGuards = isRunPlay && runSide != 0
-            ? IdentifyPullingGuards(blockers, runSide, isSweep)
-            : EmptyPullerSet;
+        RunContext context = BuildRunContext(
+            blockers,
+            playFamily,
+            formation,
+            lineOfScrimmage,
+            runningBackSide,
+            sweepPush: 3.1f,
+            basePush: 2.4f,
+            runTargetOffset: 2.4f,
+            passTargetOffset: -1.4f);
 
         foreach (var blocker in blockers)
         {
-            bool isPuller = isRunPlay && pullingGuards.Contains(blocker);
-            bool isBackside = isRunPlay && !isPuller && IsBacksideBlocker(blocker.HomeX, runSide);
-            float laneShift = isRunPlay ? GetRunLaneShift(blocker.HomeX, runSide, isSweep) : 0f;
-            float backsideShift = isRunPlay ? GetBacksideSealShift(isBackside, runSide) : 0f;
-            float pullShift = isPuller ? runSide * (isSweep ? 3.6f : 2.6f) : 0f;
-            float pullForward = isPuller ? (isSweep ? 1.6f : 1.1f) : 0f;
-            Vector2 targetAnchor = new Vector2(
-                Math.Clamp(blocker.HomeX + lateralPush + laneShift + backsideShift + pullShift, 1.5f, Constants.FieldWidth - 1.5f),
-                targetY + pullForward);
+            RunProfile profile = GetRunProfile(blocker, context);
+            float pullShift = profile.IsPuller ? context.RunSide * (context.IsSweep ? 3.6f : 2.6f) : 0f;
+            float pullForward = profile.IsPuller ? (context.IsSweep ? 1.6f : 1.1f) : 0f;
+            Vector2 targetAnchor = ComputeAnchorForBlocker(blocker, context, profile, pullShift, pullForward);
 
             Defender? target = GetClosestDefender(defenders, blocker.Position, Constants.BlockEngageRadius, preferRushers: true);
-            float anchorDistSq = Vector2.DistanceSquared(blocker.Position, targetAnchor);
-            bool closeToAnchor = anchorDistSq <= 0.75f * 0.75f;
+            bool closeToAnchor = IsWithinEngageRange(blocker.Position, targetAnchor, 0.75f);
+            bool shouldEngage = target != null
+                && (closeToAnchor || IsWithinEngageRange(blocker.Position, target.Position, Constants.BlockEngageRadius));
 
-            if (target != null && (closeToAnchor || Vector2.DistanceSquared(blocker.Position, target.Position) <= Constants.BlockEngageRadius * Constants.BlockEngageRadius))
+            if (shouldEngage)
             {
-                Vector2 toTarget = target.Position - blocker.Position;
-                if (toTarget.LengthSquared() > 0.001f)
-                {
-                    toTarget = Vector2.Normalize(toTarget);
-                }
-                Vector2 baseVelocity = toTarget * blocker.Speed;
-                if (runBlockingBoost)
-                {
-                    baseVelocity += new Vector2(0f, blocker.Speed * 0.45f);
-                }
-                if (isRunPlay)
-                {
-                    Vector2 driveDir = isBackside
-                        ? new Vector2(-runSide * 0.6f, 1f)
-                        : new Vector2(runSide * (isPuller ? 0.9f : 0.7f), 1f);
-                    if (driveDir.LengthSquared() > 0.001f)
-                    {
-                        driveDir = Vector2.Normalize(driveDir);
-                    }
-                    baseVelocity += driveDir * (blocker.Speed * 0.35f);
-                }
-                blocker.Velocity = baseVelocity;
-
-                float contactRange = blocker.Radius + target.Radius + (runBlockingBoost ? 1.0f : 0.6f);
-                float distance = Vector2.Distance(blocker.Position, target.Position);
-                if (distance <= contactRange)
-                {
-                    Vector2 pushDir = target.Position - blocker.Position;
-                    if (pushDir.LengthSquared() > 0.001f)
-                    {
-                        pushDir = Vector2.Normalize(pushDir);
-                    }
-                    float overlap = contactRange - distance;
-                    float blockMultiplier = GetOlBlockStrength(target);
-                    float holdStrength = runBlockingBoost ? Constants.BlockHoldStrength * 1.6f : Constants.BlockHoldStrength;
-                    float overlapBoost = runBlockingBoost ? 9f : 6f;
-                    holdStrength *= blockMultiplier;
-                    overlapBoost *= blockMultiplier;
-                    float shedBoost = GetTackleShedBoost(target.Position, ballCarrierPosition);
-                    if (shedBoost > 0f)
-                    {
-                        float shedScale = 1f - (0.65f * shedBoost);
-                        holdStrength *= shedScale;
-                        overlapBoost *= shedScale;
-                    }
-                    target.Position += pushDir * (holdStrength + overlap * overlapBoost) * dt;
-                    if (isRunPlay)
-                    {
-                        Vector2 driveDir = isBackside
-                            ? new Vector2(-runSide * 0.55f, 1f)
-                            : new Vector2(runSide * (isPuller ? 0.95f : 0.7f), 1f);
-                        if (driveDir.LengthSquared() > 0.001f)
-                        {
-                            driveDir = Vector2.Normalize(driveDir);
-                        }
-                        target.Position += driveDir * (runBlockingBoost ? 1.2f : 0.8f) * dt;
-                    }
-                    float baseSlow = runBlockingBoost ? 0.05f : 0.15f;
-                    if (shedBoost > 0f)
-                    {
-                        baseSlow *= 1f - (0.6f * shedBoost);
-                    }
-                    target.Velocity *= GetDefenderSlowdown(blockMultiplier, baseSlow);
-                    blocker.Velocity *= 0.25f;
-                }
+                blocker.Velocity = ComputeApproachVelocity(blocker, target!, runBlockingBoost, context, profile);
+                ApplyBlockContact(blocker, target!, runBlockingBoost, context, profile, dt, ballCarrierPosition);
             }
             else
             {
-                Vector2 toAnchor = targetAnchor - blocker.Position;
-                if (toAnchor.LengthSquared() > 0.001f)
-                {
-                    toAnchor = Vector2.Normalize(toAnchor);
-                }
-
-                float anchorSpeed = isRunPlay ? blocker.Speed * 0.85f : blocker.Speed * 0.7f;
-                blocker.Velocity = toAnchor * anchorSpeed;
-                if (isRunPlay)
-                {
-                    float lateralBias = isBackside ? -runSide : runSide;
-                    blocker.Velocity += new Vector2(lateralBias * blocker.Speed * 0.2f, blocker.Speed * 0.2f);
-                    if (isPuller)
-                    {
-                        blocker.Velocity += new Vector2(runSide * blocker.Speed * 0.35f, blocker.Speed * 0.1f);
-                    }
-                }
-
-                if (closeToAnchor)
-                {
-                    float settleSpeed = isRunPlay ? blocker.Speed * 0.45f : blocker.Speed * 0.1f;
-                    float lateralBias = isBackside ? -runSide : runSide;
-                    blocker.Velocity = new Vector2(lateralBias * settleSpeed * 0.3f, settleSpeed * (isRunPlay ? 1f : -1f));
-                }
+                MoveTowardAnchor(blocker, targetAnchor, context, profile, closeToAnchor);
             }
 
             blocker.Update(dt);
@@ -162,44 +74,191 @@ public static class OffensiveLinemanAI
     {
         if (blockers.Count == 0) return;
 
-        bool isRunPlay = playFamily == PlayType.Run;
-        int runSide = Math.Sign(runningBackSide);
-        bool isSweep = isRunPlay && IsSweepFormation(formation);
-        float lateralPush = isRunPlay && runSide != 0 ? runSide * (isSweep ? 2.8f : 2.1f) : 0f;
-        float targetY = isRunPlay ? lineOfScrimmage + 1.6f : lineOfScrimmage - 1.4f;
-        var pullingGuards = isRunPlay && runSide != 0
-            ? IdentifyPullingGuards(blockers, runSide, isSweep)
-            : EmptyPullerSet;
+        RunContext context = BuildRunContext(
+            blockers,
+            playFamily,
+            formation,
+            lineOfScrimmage,
+            runningBackSide,
+            sweepPush: 2.8f,
+            basePush: 2.1f,
+            runTargetOffset: 1.6f,
+            passTargetOffset: -1.4f);
 
         foreach (var blocker in blockers)
         {
             Vector2 start = blocker.Position;
-            bool isPuller = isRunPlay && pullingGuards.Contains(blocker);
-            bool isBackside = isRunPlay && !isPuller && IsBacksideBlocker(blocker.HomeX, runSide);
-            float laneShift = isRunPlay ? GetRunLaneShift(blocker.HomeX, runSide, isSweep) : 0f;
-            float backsideShift = isRunPlay ? GetBacksideSealShift(isBackside, runSide) : 0f;
-            float pullShift = isPuller ? runSide * (isSweep ? 3.4f : 2.4f) : 0f;
-            float pullForward = isPuller ? (isSweep ? 1.2f : 0.8f) : 0f;
-            Vector2 end = new Vector2(
-                Math.Clamp(blocker.HomeX + lateralPush + laneShift + backsideShift + pullShift, 1.5f, Constants.FieldWidth - 1.5f),
-                targetY + pullForward);
+            RunProfile profile = GetRunProfile(blocker, context);
+            float pullShift = profile.IsPuller ? context.RunSide * (context.IsSweep ? 3.4f : 2.4f) : 0f;
+            float pullForward = profile.IsPuller ? (context.IsSweep ? 1.2f : 0.8f) : 0f;
+            Vector2 end = ComputeAnchorForBlocker(blocker, context, profile, pullShift, pullForward);
 
-            Vector2 a = Constants.WorldToScreen(start);
-            Vector2 b = Constants.WorldToScreen(end);
-            Raylib.DrawLineEx(a, b, 2.0f, Palette.RouteBlocking);
+            DrawRoute(start, end);
+        }
+    }
 
-            Vector2 dir = end - start;
-            if (dir.LengthSquared() > 0.001f)
+    private static RunContext BuildRunContext(
+        IReadOnlyList<Blocker> blockers,
+        PlayType playFamily,
+        FormationType formation,
+        float lineOfScrimmage,
+        int runningBackSide,
+        float sweepPush,
+        float basePush,
+        float runTargetOffset,
+        float passTargetOffset)
+    {
+        bool isRunPlay = playFamily == PlayType.Run;
+        int runSide = Math.Sign(runningBackSide);
+        bool isSweep = isRunPlay && IsSweepFormation(formation);
+        float lateralPush = isRunPlay && runSide != 0 ? runSide * (isSweep ? sweepPush : basePush) : 0f;
+        float targetY = isRunPlay ? lineOfScrimmage + runTargetOffset : lineOfScrimmage + passTargetOffset;
+        var pullingGuards = isRunPlay && runSide != 0
+            ? IdentifyPullingGuards(blockers, runSide, isSweep)
+            : EmptyPullerSet;
+
+        return new RunContext(isRunPlay, runSide, isSweep, lateralPush, targetY, pullingGuards);
+    }
+
+    private static RunProfile GetRunProfile(Blocker blocker, RunContext context)
+    {
+        bool isPuller = context.IsRunPlay && context.PullingGuards.Contains(blocker);
+        bool isBackside = context.IsRunPlay && !isPuller && IsBacksideBlocker(blocker.HomeX, context.RunSide);
+        float laneShift = context.IsRunPlay ? GetRunLaneShift(blocker.HomeX, context.RunSide, context.IsSweep) : 0f;
+        float backsideShift = context.IsRunPlay ? GetBacksideSealShift(isBackside, context.RunSide) : 0f;
+
+        return new RunProfile(isPuller, isBackside, laneShift, backsideShift);
+    }
+
+    private static Vector2 ComputeAnchorForBlocker(Blocker blocker, RunContext context, RunProfile profile, float pullShift, float pullForward)
+    {
+        return ComputeTargetAnchor(
+            blocker.HomeX,
+            context.LateralPush,
+            profile.LaneShift,
+            profile.BacksideShift,
+            pullShift,
+            context.TargetY,
+            pullForward);
+    }
+
+    private static Vector2 ComputeApproachVelocity(
+        Blocker blocker,
+        Defender target,
+        bool runBlockingBoost,
+        RunContext context,
+        RunProfile profile)
+    {
+        Vector2 baseVelocity = NormalizeOrZero(target.Position - blocker.Position) * blocker.Speed;
+        if (runBlockingBoost)
+        {
+            baseVelocity += new Vector2(0f, blocker.Speed * 0.45f);
+        }
+
+        if (context.IsRunPlay)
+        {
+            Vector2 driveDir = profile.IsBackside
+                ? new Vector2(-context.RunSide * 0.6f, 1f)
+                : new Vector2(context.RunSide * (profile.IsPuller ? 0.9f : 0.7f), 1f);
+            baseVelocity += NormalizeOrZero(driveDir) * (blocker.Speed * 0.35f);
+        }
+
+        return baseVelocity;
+    }
+
+    private static void ApplyBlockContact(
+        Blocker blocker,
+        Defender target,
+        bool runBlockingBoost,
+        RunContext context,
+        RunProfile profile,
+        float dt,
+        Vector2? ballCarrierPosition)
+    {
+        float contactRange = blocker.Radius + target.Radius + (runBlockingBoost ? 1.0f : 0.6f);
+        float distance = Vector2.Distance(blocker.Position, target.Position);
+        if (distance > contactRange)
+        {
+            return;
+        }
+
+        Vector2 pushDir = NormalizeOrZero(target.Position - blocker.Position);
+        float overlap = contactRange - distance;
+        float blockMultiplier = GetOlBlockStrength(target);
+        float holdStrength = runBlockingBoost ? Constants.BlockHoldStrength * 1.6f : Constants.BlockHoldStrength;
+        float overlapBoost = runBlockingBoost ? 9f : 6f;
+        holdStrength *= blockMultiplier;
+        overlapBoost *= blockMultiplier;
+        float shedBoost = GetTackleShedBoost(target.Position, ballCarrierPosition);
+        if (shedBoost > 0f)
+        {
+            float shedScale = 1f - (0.65f * shedBoost);
+            holdStrength *= shedScale;
+            overlapBoost *= shedScale;
+        }
+        target.Position += pushDir * (holdStrength + overlap * overlapBoost) * dt;
+        if (context.IsRunPlay)
+        {
+            Vector2 driveDir = profile.IsBackside
+                ? new Vector2(-context.RunSide * 0.55f, 1f)
+                : new Vector2(context.RunSide * (profile.IsPuller ? 0.95f : 0.7f), 1f);
+            target.Position += NormalizeOrZero(driveDir) * (runBlockingBoost ? 1.2f : 0.8f) * dt;
+        }
+        float baseSlow = runBlockingBoost ? 0.05f : 0.15f;
+        if (shedBoost > 0f)
+        {
+            baseSlow *= 1f - (0.6f * shedBoost);
+        }
+        target.Velocity *= GetDefenderSlowdown(blockMultiplier, baseSlow);
+        blocker.Velocity *= 0.25f;
+    }
+
+    private static void MoveTowardAnchor(Blocker blocker, Vector2 targetAnchor, RunContext context, RunProfile profile, bool closeToAnchor)
+    {
+        Vector2 toAnchor = NormalizeOrZero(targetAnchor - blocker.Position);
+        float anchorSpeed = context.IsRunPlay ? blocker.Speed * 0.85f : blocker.Speed * 0.7f;
+        blocker.Velocity = toAnchor * anchorSpeed;
+        if (context.IsRunPlay)
+        {
+            float lateralBias = profile.IsBackside ? -context.RunSide : context.RunSide;
+            blocker.Velocity += new Vector2(lateralBias * blocker.Speed * 0.2f, blocker.Speed * 0.2f);
+            if (profile.IsPuller)
             {
-                dir = Vector2.Normalize(dir);
-                Vector2 perp = new Vector2(-dir.Y, dir.X);
-                Vector2 orthoStart = end - perp * 0.8f;
-                Vector2 orthoEnd = end + perp * 0.8f;
-                Vector2 oA = Constants.WorldToScreen(orthoStart);
-                Vector2 oB = Constants.WorldToScreen(orthoEnd);
-                Raylib.DrawLineEx(oA, oB, 2.0f, Palette.RouteBlocking);
+                blocker.Velocity += new Vector2(context.RunSide * blocker.Speed * 0.35f, blocker.Speed * 0.1f);
             }
         }
+
+        if (closeToAnchor)
+        {
+            float settleSpeed = context.IsRunPlay ? blocker.Speed * 0.45f : blocker.Speed * 0.1f;
+            float lateralBias = profile.IsBackside ? -context.RunSide : context.RunSide;
+            blocker.Velocity = new Vector2(lateralBias * settleSpeed * 0.3f, settleSpeed * (context.IsRunPlay ? 1f : -1f));
+        }
+    }
+
+    private static void DrawRoute(Vector2 start, Vector2 end)
+    {
+        Vector2 a = Constants.WorldToScreen(start);
+        Vector2 b = Constants.WorldToScreen(end);
+        Raylib.DrawLineEx(a, b, 2.0f, Palette.RouteBlocking);
+
+        Vector2 dir = end - start;
+        if (dir.LengthSquared() > 0.001f)
+        {
+            dir = Vector2.Normalize(dir);
+            Vector2 perp = new Vector2(-dir.Y, dir.X);
+            Vector2 orthoStart = end - perp * 0.8f;
+            Vector2 orthoEnd = end + perp * 0.8f;
+            Vector2 oA = Constants.WorldToScreen(orthoStart);
+            Vector2 oB = Constants.WorldToScreen(orthoEnd);
+            Raylib.DrawLineEx(oA, oB, 2.0f, Palette.RouteBlocking);
+        }
+    }
+
+    private static bool IsWithinEngageRange(Vector2 a, Vector2 b, float range)
+    {
+        float rangeSq = range * range;
+        return Vector2.DistanceSquared(a, b) <= rangeSq;
     }
 
     private static Defender? GetClosestDefender(
@@ -271,6 +330,24 @@ public static class OffensiveLinemanAI
         return Math.Clamp(t, 0f, 1f);
     }
 
+    private static Vector2 NormalizeOrZero(Vector2 vector)
+    {
+        return vector.LengthSquared() > 0.001f ? Vector2.Normalize(vector) : Vector2.Zero;
+    }
+
+    private static Vector2 ComputeTargetAnchor(
+        float homeX,
+        float lateralPush,
+        float laneShift,
+        float backsideShift,
+        float pullShift,
+        float targetY,
+        float pullForward)
+    {
+        float clampedX = Math.Clamp(homeX + lateralPush + laneShift + backsideShift + pullShift, 1.5f, Constants.FieldWidth - 1.5f);
+        return new Vector2(clampedX, targetY + pullForward);
+    }
+
     private static bool IsBacksideBlocker(float homeX, int runSide)
     {
         if (runSide == 0)
@@ -323,7 +400,52 @@ public static class OffensiveLinemanAI
 
     private static bool IsSweepFormation(FormationType formation)
     {
-        return formation is FormationType.RunSweepLeft or FormationType.RunSweepRight;
+        return formation is FormationType.RunSweepLeft
+            or FormationType.RunSweepRight
+            or FormationType.RunTossLeft
+            or FormationType.RunTossRight;
+    }
+
+    private readonly struct RunContext
+    {
+        public RunContext(
+            bool isRunPlay,
+            int runSide,
+            bool isSweep,
+            float lateralPush,
+            float targetY,
+            HashSet<Blocker> pullingGuards)
+        {
+            IsRunPlay = isRunPlay;
+            RunSide = runSide;
+            IsSweep = isSweep;
+            LateralPush = lateralPush;
+            TargetY = targetY;
+            PullingGuards = pullingGuards;
+        }
+
+        public bool IsRunPlay { get; }
+        public int RunSide { get; }
+        public bool IsSweep { get; }
+        public float LateralPush { get; }
+        public float TargetY { get; }
+        public HashSet<Blocker> PullingGuards { get; }
+    }
+
+    private readonly struct RunProfile
+    {
+        public RunProfile(bool isPuller, bool isBackside, float laneShift, float backsideShift)
+        {
+            IsPuller = isPuller;
+            IsBackside = isBackside;
+            LaneShift = laneShift;
+            BacksideShift = backsideShift;
+        }
+
+        public bool IsPuller { get; }
+        public bool IsBackside { get; }
+        public float LaneShift { get; }
+        public float BacksideShift { get; }
     }
 
     private static readonly HashSet<Blocker> EmptyPullerSet = new();

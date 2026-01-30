@@ -159,7 +159,7 @@ public static class PlaybookBuilder
             new(
                 "PA Deep",
                 PlayType.Pass,
-                FormationType.PassEmpty,
+                FormationType.PassSpread,
                 RunningBackRole.Route,
                 TightEndRole.Route,
                 new Dictionary<int, RouteType>
@@ -305,7 +305,7 @@ public static class PlaybookBuilder
             new(
                 "Toss Right",
                 PlayType.Run,
-                FormationType.RunSweepRight,
+                FormationType.RunTossRight,
                 RunningBackRole.Route,
                 TightEndRole.Block,
                 new Dictionary<int, RouteType>
@@ -319,7 +319,7 @@ public static class PlaybookBuilder
             new(
                 "Toss Left",
                 PlayType.Run,
-                FormationType.RunSweepLeft,
+                FormationType.RunTossLeft,
                 RunningBackRole.Route,
                 TightEndRole.Block,
                 new Dictionary<int, RouteType>

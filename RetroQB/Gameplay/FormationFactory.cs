@@ -139,7 +139,7 @@ public sealed class FormationFactory : IFormationFactory
                 AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.24f, ClampFormationY(los, 1.0f)), ReceiverSlot.WR2);
                 AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.76f, ClampFormationY(los, 1.0f)), ReceiverSlot.WR3);
                 AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.94f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR4);
-                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.50f, ClampFormationY(los, 1.5f)), ReceiverSlot.TE1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.64f, ClampFormationY(los, 0.6f)), ReceiverSlot.TE1);
                 AddBaseLine(blockers, los, extraCount: 0);
                 break;
 
@@ -178,6 +178,20 @@ public sealed class FormationFactory : IFormationFactory
                 AddBaseLine(blockers, los, extraCount: 2);
                 break;
 
+            case FormationType.RunTossRight:
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.10f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.70f, ClampFormationY(los, 4.1f)), ReceiverSlot.RB1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.72f, ClampFormationY(los, 0.05f)), ReceiverSlot.TE1);
+                AddBaseLine(blockers, los, extraCount: 2);
+                break;
+
+            case FormationType.RunTossLeft:
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.90f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.30f, ClampFormationY(los, 4.1f)), ReceiverSlot.RB1);
+                AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.28f, ClampFormationY(los, 0.05f)), ReceiverSlot.TE1);
+                AddBaseLine(blockers, los, extraCount: 2);
+                break;
+
             default:
                 AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.12f, ClampFormationY(los, 0.3f)), ReceiverSlot.WR1);
                 AddReceiver(receivers, new Vector2(Constants.FieldWidth * 0.72f, ClampFormationY(los, 1.0f)), ReceiverSlot.WR2);
@@ -195,7 +209,9 @@ public sealed class FormationFactory : IFormationFactory
             && formation is not FormationType.RunPowerLeft
             && formation is not FormationType.RunIForm
             && formation is not FormationType.RunSweepRight
-            && formation is not FormationType.RunSweepLeft)
+            && formation is not FormationType.RunSweepLeft
+            && formation is not FormationType.RunTossRight
+            && formation is not FormationType.RunTossLeft)
         {
             formation = runningBackSide switch
             {

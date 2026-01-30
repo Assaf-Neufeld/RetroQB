@@ -235,7 +235,10 @@ public sealed class BlockingController
 
     public static bool IsSweepFormation(FormationType formation)
     {
-        return formation is FormationType.RunSweepLeft or FormationType.RunSweepRight;
+        return formation is FormationType.RunSweepLeft
+            or FormationType.RunSweepRight
+            or FormationType.RunTossLeft
+            or FormationType.RunTossRight;
     }
 
     public static float GetReceiverBlockStrength(Receiver receiver)

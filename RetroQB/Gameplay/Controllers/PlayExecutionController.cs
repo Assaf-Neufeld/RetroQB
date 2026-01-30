@@ -40,7 +40,7 @@ public sealed class PlayExecutionController
         Receiver? controlledReceiver = ball.State == BallState.HeldByReceiver ? ball.Holder as Receiver : null;
 
         // Update QB
-        UpdateQuarterback(qb, ball, inputDir, sprint, dt, clampToField);
+        UpdateQuarterback(qb, ball, playManager, inputDir, sprint, dt, clampToField);
 
         // Update receivers
         UpdateReceivers(receivers, qb, ball, defenders, controlledReceiver, inputDir, sprint, qbPastLos, playManager, dt, clampToField);
@@ -55,6 +55,7 @@ public sealed class PlayExecutionController
     private void UpdateQuarterback(
         Quarterback qb,
         Ball ball,
+        PlayManager playManager,
         Vector2 inputDir,
         bool sprint,
         float dt,
@@ -63,6 +64,11 @@ public sealed class PlayExecutionController
         if (ball.State == BallState.HeldByQB)
         {
             qb.ApplyInput(inputDir, sprint, false, dt);
+        }
+        else if (IsRunPlayActiveWithRunningBack(playManager.SelectedPlayType, ball))
+        {
+            Vector2 clearOutDir = GetQbClearOutDirection(qb, ball, playManager);
+            qb.ApplyInput(clearOutDir, sprinting: false, aimMode: false, dt);
         }
         else
         {
@@ -328,6 +334,29 @@ public sealed class PlayExecutionController
         if (selectedPlayType != PlayType.Run) return false;
         if (ball.State != BallState.HeldByReceiver) return false;
         return ball.Holder is Receiver receiver && receiver.IsRunningBack;
+    }
+
+    private static Vector2 GetQbClearOutDirection(Quarterback qb, Ball ball, PlayManager playManager)
+    {
+        if (ball.Holder is not Receiver runningBack)
+        {
+            return Vector2.Zero;
+        }
+
+        Vector2 awayFromRb = qb.Position - runningBack.Position;
+        if (awayFromRb.LengthSquared() < 0.001f)
+        {
+            awayFromRb = new Vector2(-playManager.SelectedPlay.RunningBackSide, -0.6f);
+        }
+
+        Vector2 backfieldBias = new Vector2(0f, -0.4f);
+        Vector2 clearOut = awayFromRb + backfieldBias;
+        if (clearOut.LengthSquared() > 0.001f)
+        {
+            clearOut = Vector2.Normalize(clearOut);
+        }
+
+        return clearOut;
     }
 
     private static Defender? GetClosestDefender(IReadOnlyList<Defender> defenders, Vector2 position, float maxDistance, bool preferRushers)

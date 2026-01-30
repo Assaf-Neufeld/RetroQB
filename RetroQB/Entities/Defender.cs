@@ -8,6 +8,7 @@ public enum CoverageRole
 {
     None,
     DeepLeft,
+    DeepMiddle,
     DeepRight,
     FlatLeft,
     FlatRight,
