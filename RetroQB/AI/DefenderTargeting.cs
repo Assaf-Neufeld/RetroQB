@@ -72,11 +72,59 @@ public static class DefenderTargeting
 
     private static Vector2 GetRushTarget(Defender defender, Quarterback qb, float lineOfScrimmage)
     {
+        // Defensive Ends use a circular outside rush path to bypass blockers
+        if (defender.PositionRole == DefensivePosition.DE)
+        {
+            return GetEdgeRushTarget(defender, qb, lineOfScrimmage);
+        }
+
+        // Standard DL rush - straight at the QB with lane offset
         float stuntBlend = Math.Clamp((defender.Position.Y - (lineOfScrimmage + 1.0f)) / 4.5f, 0f, 1f);
         float lateralOffset = defender.RushLaneOffsetX * (0.55f + 0.45f * stuntBlend);
         float closeIn = defender.RushLaneOffsetX * -0.35f * (1f - stuntBlend);
 
         return qb.Position + new Vector2(lateralOffset + closeIn, 0f);
+    }
+
+    /// <summary>
+    /// Calculates edge rush target for Defensive Ends.
+    /// DEs take a circular arc path around the outside to bypass blockers.
+    /// </summary>
+    private static Vector2 GetEdgeRushTarget(Defender defender, Quarterback qb, float lineOfScrimmage)
+    {
+        float distToQb = Vector2.Distance(defender.Position, qb.Position);
+        
+        // Determine which side the DE is on (left = negative X offset, right = positive)
+        bool isLeftSide = defender.RushLaneOffsetX < 0;
+        float sideMultiplier = isLeftSide ? -1f : 1f;
+        
+        // Once close to QB, go straight at him
+        float closeRange = 5f;
+        if (distToQb < closeRange)
+        {
+            return qb.Position;
+        }
+        
+        // Calculate arc based on distance to QB (not distance from LOS)
+        // This ensures continuous pursuit regardless of field position
+        float maxArcDistance = 18f;
+        float arcProgress = Math.Clamp(1f - (distToQb / maxArcDistance), 0f, 1f);
+        
+        // Outside offset decreases as we get closer to QB (arc tightens)
+        // Start at 10 yards wide, shrink to 2 yards as we approach
+        float maxOutsideOffset = 10f;
+        float minOutsideOffset = 2f;
+        float outsideOffset = maxOutsideOffset - (arcProgress * (maxOutsideOffset - minOutsideOffset));
+        
+        // Target point is offset from QB position toward the outside
+        float targetX = qb.Position.X + (sideMultiplier * outsideOffset);
+        
+        // Y target leads slightly ahead of QB to create the rushing arc
+        // As we get closer, target becomes more directly at QB
+        float yLead = (1f - arcProgress) * 3f;
+        float targetY = qb.Position.Y - yLead;
+        
+        return new Vector2(targetX, targetY);
     }
 
     private static Vector2 GetCoverageTarget(

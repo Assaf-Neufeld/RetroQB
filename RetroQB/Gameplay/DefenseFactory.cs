@@ -38,12 +38,12 @@ public sealed class DefenseFactory : IDefenseFactory
         float depthScale = availableDepth < 18f ? availableDepth / 18f : 1f;
         depthScale = MathF.Max(depthScale, 0.3f);
 
-        // Defensive line
-        float dlDepth = ClampDefenderY(lineOfScrimmage + 2.8f * depthScale, maxY);
-        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, dlDepth), DefensivePosition.DL, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -5.0f });
+        // Defensive line - DEs on the outside (circular rush), DTs inside (straight rush)
+        float dlDepth = ClampDefenderY(lineOfScrimmage + 1.8f * depthScale, maxY);
+        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, dlDepth), DefensivePosition.DE, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -5.0f });
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.46f, dlDepth), DefensivePosition.DL, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -2.0f });
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.54f, dlDepth), DefensivePosition.DL, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 2.0f });
-        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, dlDepth), DefensivePosition.DL, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 5.0f });
+        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, dlDepth), DefensivePosition.DE, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 5.0f });
 
         // Linebackers with blitz chance (adjusted by team's blitz frequency)
         float baseBlitzChance = 0.10f * attrs.BlitzFrequency;

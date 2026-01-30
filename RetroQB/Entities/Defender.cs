@@ -20,6 +20,7 @@ public enum CoverageRole
 public enum DefensivePosition
 {
     DL,
+    DE,
     LB,
     DB
 }

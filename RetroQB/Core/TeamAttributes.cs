@@ -215,6 +215,7 @@ public sealed class DefensiveTeamAttributes : TeamAttributes
 {
     // Position-specific speeds
     public float DlSpeed { get; init; } = Constants.DlSpeed;
+    public float DeSpeed { get; init; } = Constants.DeSpeed;
     public float LbSpeed { get; init; } = Constants.LbSpeed;
     public float DbSpeed { get; init; } = Constants.DbSpeed;
     
@@ -236,6 +237,7 @@ public sealed class DefensiveTeamAttributes : TeamAttributes
     /// </summary>
     public float DbInterceptionMultiplier { get; init; } = 1.0f;
     public float LbInterceptionMultiplier { get; init; } = 0.6f;
+    public float DeInterceptionMultiplier { get; init; } = 0.2f;
     public float DlInterceptionMultiplier { get; init; } = 0.15f;
     
     /// <summary>
@@ -278,6 +280,7 @@ public sealed class DefensiveTeamAttributes : TeamAttributes
         return position switch
         {
             Entities.DefensivePosition.DL => DlSpeed,
+            Entities.DefensivePosition.DE => DeSpeed,
             Entities.DefensivePosition.LB => LbSpeed,
             _ => DbSpeed
         };
@@ -308,6 +311,7 @@ public sealed class DefensiveTeamAttributes : TeamAttributes
         {
             Entities.DefensivePosition.DB => DbInterceptionMultiplier,
             Entities.DefensivePosition.LB => LbInterceptionMultiplier,
+            Entities.DefensivePosition.DE => DeInterceptionMultiplier,
             _ => DlInterceptionMultiplier
         };
     }

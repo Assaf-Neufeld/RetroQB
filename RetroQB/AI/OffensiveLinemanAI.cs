@@ -41,14 +41,29 @@ public static class OffensiveLinemanAI
         foreach (var blocker in blockers)
         {
             RunProfile profile = GetRunProfile(blocker, context);
-            float pullShift = profile.IsPuller ? context.RunSide * (context.IsSweep ? 3.6f : 2.6f) : 0f;
-            float pullForward = profile.IsPuller ? (context.IsSweep ? 1.6f : 1.1f) : 0f;
-            Vector2 targetAnchor = ComputeAnchorForBlocker(blocker, context, profile, pullShift, pullForward);
+            Vector2 targetAnchor = ComputeAnchorForBlocker(blocker, context, profile);
 
-            Defender? target = GetClosestDefender(defenders, blocker.Position, Constants.BlockEngageRadius, preferRushers: true);
+            // Scale engagement radius by team's blocking strength
+            float engageRadius = Constants.BlockEngageRadius * blocker.TeamAttributes.BlockingStrength;
+            Defender? target = GetClosestDefender(defenders, blocker.Position, engageRadius, preferRushers: true);
             bool closeToAnchor = IsWithinEngageRange(blocker.Position, targetAnchor, 0.75f);
-            bool shouldEngage = target != null
-                && (closeToAnchor || IsWithinEngageRange(blocker.Position, target.Position, Constants.BlockEngageRadius));
+            
+            // For pass plays, prioritize getting to anchor position first before engaging
+            // Only engage early if defender is very close (about to get past)
+            bool shouldEngage;
+            if (context.IsRunPlay)
+            {
+                // Run plays: engage if close to anchor OR close to defender
+                shouldEngage = target != null
+                    && (closeToAnchor || IsWithinEngageRange(blocker.Position, target.Position, engageRadius));
+            }
+            else
+            {
+                // Pass plays: must be close to anchor first, OR defender is extremely close (emergency)
+                float emergencyEngageRadius = 1.8f * blocker.TeamAttributes.BlockingStrength;
+                bool defenderVeryClose = target != null && IsWithinEngageRange(blocker.Position, target.Position, emergencyEngageRadius);
+                shouldEngage = target != null && (closeToAnchor || defenderVeryClose);
+            }
 
             if (shouldEngage)
             {
@@ -89,9 +104,7 @@ public static class OffensiveLinemanAI
         {
             Vector2 start = blocker.Position;
             RunProfile profile = GetRunProfile(blocker, context);
-            float pullShift = profile.IsPuller ? context.RunSide * (context.IsSweep ? 3.4f : 2.4f) : 0f;
-            float pullForward = profile.IsPuller ? (context.IsSweep ? 1.2f : 0.8f) : 0f;
-            Vector2 end = ComputeAnchorForBlocker(blocker, context, profile, pullShift, pullForward);
+            Vector2 end = ComputeAnchorForBlocker(blocker, context, profile);
 
             DrawRoute(start, end);
         }
@@ -113,33 +126,49 @@ public static class OffensiveLinemanAI
         bool isSweep = isRunPlay && IsSweepFormation(formation);
         float lateralPush = isRunPlay && runSide != 0 ? runSide * (isSweep ? sweepPush : basePush) : 0f;
         float targetY = isRunPlay ? lineOfScrimmage + runTargetOffset : lineOfScrimmage + passTargetOffset;
-        var pullingGuards = isRunPlay && runSide != 0
-            ? IdentifyPullingGuards(blockers, runSide, isSweep)
-            : EmptyPullerSet;
 
-        return new RunContext(isRunPlay, runSide, isSweep, lateralPush, targetY, pullingGuards);
+        return new RunContext(isRunPlay, runSide, isSweep, lateralPush, targetY);
+    }
+
+    /// <summary>
+    /// Calculates how far back a blocker should drop for pass protection.
+    /// Outside tackles drop back more to protect the edges from DEs.
+    /// </summary>
+    private static float GetPassBlockDropback(float homeX)
+    {
+        float centerX = Constants.FieldWidth * 0.5f;
+        float distFromCenter = MathF.Abs(homeX - centerX);
+        
+        // Tackles (further from center) drop back more to form pocket
+        // Guards and center hold closer to the line
+        float maxDropback = 2.5f;  // Max dropback for outside tackles
+        float minDropback = 0.8f;  // Min dropback for center
+        float dropbackRange = 8f;  // Distance from center where max dropback kicks in
+        
+        float t = Math.Clamp(distFromCenter / dropbackRange, 0f, 1f);
+        return minDropback + (maxDropback - minDropback) * t;
     }
 
     private static RunProfile GetRunProfile(Blocker blocker, RunContext context)
     {
-        bool isPuller = context.IsRunPlay && context.PullingGuards.Contains(blocker);
-        bool isBackside = context.IsRunPlay && !isPuller && IsBacksideBlocker(blocker.HomeX, context.RunSide);
+        bool isBackside = context.IsRunPlay && IsBacksideBlocker(blocker.HomeX, context.RunSide);
         float laneShift = context.IsRunPlay ? GetRunLaneShift(blocker.HomeX, context.RunSide, context.IsSweep) : 0f;
         float backsideShift = context.IsRunPlay ? GetBacksideSealShift(isBackside, context.RunSide) : 0f;
 
-        return new RunProfile(isPuller, isBackside, laneShift, backsideShift);
+        return new RunProfile(isBackside, laneShift, backsideShift);
     }
 
-    private static Vector2 ComputeAnchorForBlocker(Blocker blocker, RunContext context, RunProfile profile, float pullShift, float pullForward)
+    private static Vector2 ComputeAnchorForBlocker(Blocker blocker, RunContext context, RunProfile profile)
     {
+        // For pass plays, calculate position-specific dropback for pocket formation
+        float passDropback = context.IsRunPlay ? 0f : GetPassBlockDropback(blocker.HomeX);
+        
         return ComputeTargetAnchor(
             blocker.HomeX,
             context.LateralPush,
             profile.LaneShift,
             profile.BacksideShift,
-            pullShift,
-            context.TargetY,
-            pullForward);
+            context.TargetY - passDropback);
     }
 
     private static Vector2 ComputeApproachVelocity(
@@ -150,17 +179,25 @@ public static class OffensiveLinemanAI
         RunProfile profile)
     {
         Vector2 baseVelocity = NormalizeOrZero(target.Position - blocker.Position) * blocker.Speed;
-        if (runBlockingBoost)
+        float blockStrength = blocker.TeamAttributes.BlockingStrength;
+        
+        // Only add forward push on run plays, not pass plays
+        if (runBlockingBoost && context.IsRunPlay)
         {
-            baseVelocity += new Vector2(0f, blocker.Speed * 0.45f);
+            baseVelocity += new Vector2(0f, blocker.Speed * 0.45f * blockStrength);
         }
 
         if (context.IsRunPlay)
         {
             Vector2 driveDir = profile.IsBackside
                 ? new Vector2(-context.RunSide * 0.6f, 1f)
-                : new Vector2(context.RunSide * (profile.IsPuller ? 0.9f : 0.7f), 1f);
-            baseVelocity += NormalizeOrZero(driveDir) * (blocker.Speed * 0.35f);
+                : new Vector2(context.RunSide * 0.7f, 1f);
+            baseVelocity += NormalizeOrZero(driveDir) * (blocker.Speed * 0.35f * blockStrength);
+        }
+        else
+        {
+            // Pass blocking: stay between defender and QB, slight backward drift
+            baseVelocity += new Vector2(0f, -blocker.Speed * 0.15f);
         }
 
         return baseVelocity;
@@ -175,7 +212,9 @@ public static class OffensiveLinemanAI
         float dt,
         Vector2? ballCarrierPosition)
     {
-        float contactRange = blocker.Radius + target.Radius + (runBlockingBoost ? 1.0f : 0.6f);
+        float blockStrength = blocker.TeamAttributes.BlockingStrength;
+        float contactRangeBoost = runBlockingBoost ? 1.0f * blockStrength : 0.6f * blockStrength;
+        float contactRange = blocker.Radius + target.Radius + contactRangeBoost;
         float distance = Vector2.Distance(blocker.Position, target.Position);
         if (distance > contactRange)
         {
@@ -184,7 +223,7 @@ public static class OffensiveLinemanAI
 
         Vector2 pushDir = NormalizeOrZero(target.Position - blocker.Position);
         float overlap = contactRange - distance;
-        float blockMultiplier = GetOlBlockStrength(target);
+        float blockMultiplier = GetOlBlockStrength(blocker, target);
         float holdStrength = runBlockingBoost ? Constants.BlockHoldStrength * 1.6f : Constants.BlockHoldStrength;
         float overlapBoost = runBlockingBoost ? 9f : 6f;
         holdStrength *= blockMultiplier;
@@ -197,12 +236,23 @@ public static class OffensiveLinemanAI
             overlapBoost *= shedScale;
         }
         target.Position += pushDir * (holdStrength + overlap * overlapBoost) * dt;
+        
+        // Only drive forward on run plays
         if (context.IsRunPlay)
         {
             Vector2 driveDir = profile.IsBackside
                 ? new Vector2(-context.RunSide * 0.55f, 1f)
-                : new Vector2(context.RunSide * (profile.IsPuller ? 0.95f : 0.7f), 1f);
-            target.Position += NormalizeOrZero(driveDir) * (runBlockingBoost ? 1.2f : 0.8f) * dt;
+                : new Vector2(context.RunSide * 0.7f, 1f);
+            float driveStrength = (runBlockingBoost ? 1.2f : 0.8f) * blockStrength;
+            target.Position += NormalizeOrZero(driveDir) * driveStrength * dt;
+        }
+        // Pass blocking: push defender laterally away from QB, not forward
+        else
+        {
+            float centerX = Constants.FieldWidth * 0.5f;
+            float lateralDir = Math.Sign(target.Position.X - centerX);
+            if (lateralDir == 0) lateralDir = Math.Sign(blocker.Position.X - centerX);
+            target.Position += new Vector2(lateralDir * 0.8f, -0.3f) * dt;
         }
         float baseSlow = runBlockingBoost ? 0.05f : 0.15f;
         if (shedBoost > 0f)
@@ -216,23 +266,33 @@ public static class OffensiveLinemanAI
     private static void MoveTowardAnchor(Blocker blocker, Vector2 targetAnchor, RunContext context, RunProfile profile, bool closeToAnchor)
     {
         Vector2 toAnchor = NormalizeOrZero(targetAnchor - blocker.Position);
-        float anchorSpeed = context.IsRunPlay ? blocker.Speed * 0.85f : blocker.Speed * 0.7f;
+        float anchorSpeed = context.IsRunPlay ? blocker.Speed * 0.85f : blocker.Speed * 0.6f;
         blocker.Velocity = toAnchor * anchorSpeed;
+        
         if (context.IsRunPlay)
         {
             float lateralBias = profile.IsBackside ? -context.RunSide : context.RunSide;
             blocker.Velocity += new Vector2(lateralBias * blocker.Speed * 0.2f, blocker.Speed * 0.2f);
-            if (profile.IsPuller)
-            {
-                blocker.Velocity += new Vector2(context.RunSide * blocker.Speed * 0.35f, blocker.Speed * 0.1f);
-            }
+        }
+        else
+        {
+            // Pass blocking: drift backward to maintain pocket depth
+            blocker.Velocity += new Vector2(0f, -blocker.Speed * 0.25f);
         }
 
         if (closeToAnchor)
         {
-            float settleSpeed = context.IsRunPlay ? blocker.Speed * 0.45f : blocker.Speed * 0.1f;
-            float lateralBias = profile.IsBackside ? -context.RunSide : context.RunSide;
-            blocker.Velocity = new Vector2(lateralBias * settleSpeed * 0.3f, settleSpeed * (context.IsRunPlay ? 1f : -1f));
+            if (context.IsRunPlay)
+            {
+                float settleSpeed = blocker.Speed * 0.45f;
+                float lateralBias = profile.IsBackside ? -context.RunSide : context.RunSide;
+                blocker.Velocity = new Vector2(lateralBias * settleSpeed * 0.3f, settleSpeed);
+            }
+            else
+            {
+                // Pass blocking: hold position, slight backward drift
+                blocker.Velocity = new Vector2(0f, -blocker.Speed * 0.1f);
+            }
         }
     }
 
@@ -293,7 +353,7 @@ public static class OffensiveLinemanAI
         return closest;
     }
 
-    private static float GetOlBlockStrength(Defender defender)
+    private static float GetOlBlockStrength(Blocker blocker, Defender defender)
     {
         float defenderEase = defender.PositionRole switch
         {
@@ -302,7 +362,8 @@ public static class OffensiveLinemanAI
             _ => 1.15f
         };
 
-        return 1.35f * defenderEase;
+        float teamStrength = blocker.TeamAttributes.BlockingStrength;
+        return 1.35f * defenderEase * teamStrength;
     }
 
     private static float GetDefenderSlowdown(float blockMultiplier, float baseSlow)
@@ -340,12 +401,10 @@ public static class OffensiveLinemanAI
         float lateralPush,
         float laneShift,
         float backsideShift,
-        float pullShift,
-        float targetY,
-        float pullForward)
+        float targetY)
     {
-        float clampedX = Math.Clamp(homeX + lateralPush + laneShift + backsideShift + pullShift, 1.5f, Constants.FieldWidth - 1.5f);
-        return new Vector2(clampedX, targetY + pullForward);
+        float clampedX = Math.Clamp(homeX + lateralPush + laneShift + backsideShift, 1.5f, Constants.FieldWidth - 1.5f);
+        return new Vector2(clampedX, targetY);
     }
 
     private static bool IsBacksideBlocker(float homeX, int runSide)
@@ -413,15 +472,13 @@ public static class OffensiveLinemanAI
             int runSide,
             bool isSweep,
             float lateralPush,
-            float targetY,
-            HashSet<Blocker> pullingGuards)
+            float targetY)
         {
             IsRunPlay = isRunPlay;
             RunSide = runSide;
             IsSweep = isSweep;
             LateralPush = lateralPush;
             TargetY = targetY;
-            PullingGuards = pullingGuards;
         }
 
         public bool IsRunPlay { get; }
@@ -429,57 +486,19 @@ public static class OffensiveLinemanAI
         public bool IsSweep { get; }
         public float LateralPush { get; }
         public float TargetY { get; }
-        public HashSet<Blocker> PullingGuards { get; }
     }
 
     private readonly struct RunProfile
     {
-        public RunProfile(bool isPuller, bool isBackside, float laneShift, float backsideShift)
+        public RunProfile(bool isBackside, float laneShift, float backsideShift)
         {
-            IsPuller = isPuller;
             IsBackside = isBackside;
             LaneShift = laneShift;
             BacksideShift = backsideShift;
         }
 
-        public bool IsPuller { get; }
         public bool IsBackside { get; }
         public float LaneShift { get; }
         public float BacksideShift { get; }
-    }
-
-    private static readonly HashSet<Blocker> EmptyPullerSet = new();
-
-    private static HashSet<Blocker> IdentifyPullingGuards(IReadOnlyList<Blocker> blockers, int runSide, bool isSweep)
-    {
-        var pullers = new HashSet<Blocker>();
-        if (blockers.Count < 3 || runSide == 0)
-        {
-            return pullers;
-        }
-
-        float centerX = Constants.FieldWidth * 0.5f;
-        var ordered = blockers.OrderBy(b => Math.Abs(b.HomeX - centerX)).ToList();
-        Blocker center = ordered[0];
-        Blocker? leftGuard = ordered.FirstOrDefault(b => b.HomeX < centerX && b != center);
-        Blocker? rightGuard = ordered.FirstOrDefault(b => b.HomeX > centerX && b != center);
-
-        if (isSweep)
-        {
-            if (leftGuard != null) pullers.Add(leftGuard);
-            if (rightGuard != null) pullers.Add(rightGuard);
-            return pullers;
-        }
-
-        if (runSide > 0)
-        {
-            if (leftGuard != null) pullers.Add(leftGuard);
-        }
-        else
-        {
-            if (rightGuard != null) pullers.Add(rightGuard);
-        }
-
-        return pullers;
     }
 }

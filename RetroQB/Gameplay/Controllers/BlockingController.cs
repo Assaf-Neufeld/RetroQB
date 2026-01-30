@@ -243,9 +243,12 @@ public sealed class BlockingController
 
     public static float GetReceiverBlockStrength(Receiver receiver)
     {
-        if (receiver.IsTightEnd) return 1.1f;
-        if (receiver.IsRunningBack) return 1.0f;
-        return 0.75f;
+        float baseStrength;
+        if (receiver.IsTightEnd) baseStrength = 1.1f;
+        else if (receiver.IsRunningBack) baseStrength = 1.0f;
+        else baseStrength = 0.75f;
+        
+        return baseStrength * receiver.TeamAttributes.BlockingStrength;
     }
 
     public static float GetDefenderBlockDifficulty(Defender defender)
