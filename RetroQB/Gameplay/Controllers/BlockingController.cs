@@ -253,12 +253,18 @@ public sealed class BlockingController
 
     public static float GetDefenderBlockDifficulty(Defender defender)
     {
-        return defender.PositionRole switch
+        // Base difficulty by position (lower = harder to block)
+        float baseDifficulty = defender.PositionRole switch
         {
             DefensivePosition.DL => 0.75f,
-            DefensivePosition.LB => 0.95f,
-            _ => 1.15f
+            DefensivePosition.DE => 0.80f,
+            DefensivePosition.LB => 0.70f,  // LBs are harder to block (better at shedding)
+            _ => 1.20f  // DBs are easier to block
         };
+        
+        // Apply team's position-specific block shed multiplier
+        float shedMultiplier = defender.TeamAttributes.GetPositionBlockShedMultiplier(defender.PositionRole);
+        return baseDifficulty / shedMultiplier;  // Higher shed = lower difficulty value = harder to block
     }
 
     public static float GetDefenderSlowdown(float blockMultiplier, float baseSlow)

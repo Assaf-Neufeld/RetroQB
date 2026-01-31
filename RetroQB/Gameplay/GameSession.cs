@@ -291,11 +291,11 @@ public sealed class GameSession
 
     /// <summary>
     /// Returns pass play index (0-9) from number keys.
-    /// Keys 1-9 map to indices 0-8, key 0 maps to index 9 (wildcard).
+    /// Key 1 maps to index 0 (wildcard), keys 2-9 map to indices 1-8, key 0 maps to index 9.
     /// </summary>
     private static int? GetPassPlaySelection()
     {
-        if (Raylib.IsKeyPressed(KeyboardKey.One)) return 0;
+        if (Raylib.IsKeyPressed(KeyboardKey.One)) return 0;   // Wildcard
         if (Raylib.IsKeyPressed(KeyboardKey.Two)) return 1;
         if (Raylib.IsKeyPressed(KeyboardKey.Three)) return 2;
         if (Raylib.IsKeyPressed(KeyboardKey.Four)) return 3;
@@ -304,26 +304,26 @@ public sealed class GameSession
         if (Raylib.IsKeyPressed(KeyboardKey.Seven)) return 6;
         if (Raylib.IsKeyPressed(KeyboardKey.Eight)) return 7;
         if (Raylib.IsKeyPressed(KeyboardKey.Nine)) return 8;
-        if (Raylib.IsKeyPressed(KeyboardKey.Zero)) return 9;  // Wildcard
+        if (Raylib.IsKeyPressed(KeyboardKey.Zero)) return 9;
         return null;
     }
 
     /// <summary>
     /// Returns run play index (0-9) from Q-P keys.
-    /// W=0, E=1, R=2, T=3, Y=4, U=5, I=6, O=7, P=8, Q=9 (wildcard)
+    /// Q=0 (wildcard), W=1, E=2, R=3, T=4, Y=5, U=6, I=7, O=8, P=9
     /// </summary>
     private static int? GetRunPlaySelection()
     {
-        if (Raylib.IsKeyPressed(KeyboardKey.W)) return 0;
-        if (Raylib.IsKeyPressed(KeyboardKey.E)) return 1;
-        if (Raylib.IsKeyPressed(KeyboardKey.R)) return 2;
-        if (Raylib.IsKeyPressed(KeyboardKey.T)) return 3;
-        if (Raylib.IsKeyPressed(KeyboardKey.Y)) return 4;
-        if (Raylib.IsKeyPressed(KeyboardKey.U)) return 5;
-        if (Raylib.IsKeyPressed(KeyboardKey.I)) return 6;
-        if (Raylib.IsKeyPressed(KeyboardKey.O)) return 7;
-        if (Raylib.IsKeyPressed(KeyboardKey.P)) return 8;
-        if (Raylib.IsKeyPressed(KeyboardKey.Q)) return 9;  // Wildcard
+        if (Raylib.IsKeyPressed(KeyboardKey.Q)) return 0;   // Wildcard
+        if (Raylib.IsKeyPressed(KeyboardKey.W)) return 1;
+        if (Raylib.IsKeyPressed(KeyboardKey.E)) return 2;
+        if (Raylib.IsKeyPressed(KeyboardKey.R)) return 3;
+        if (Raylib.IsKeyPressed(KeyboardKey.T)) return 4;
+        if (Raylib.IsKeyPressed(KeyboardKey.Y)) return 5;
+        if (Raylib.IsKeyPressed(KeyboardKey.U)) return 6;
+        if (Raylib.IsKeyPressed(KeyboardKey.I)) return 7;
+        if (Raylib.IsKeyPressed(KeyboardKey.O)) return 8;
+        if (Raylib.IsKeyPressed(KeyboardKey.P)) return 9;
         return null;
     }
 

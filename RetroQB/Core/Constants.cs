@@ -71,8 +71,8 @@ public static class Constants
     public const float OlSpeed = 6.5f;
     public const float DlSpeed = 6.3f;
     public const float DeSpeed = 6.0f;
-    public const float LbSpeed = 6.8f;
-    public const float DbSpeed = 7.4f;
+    public const float LbSpeed = 6.6f;
+    public const float DbSpeed = 7.8f;
 
     public const float BallMinSpeed = 14f;
     public const float BallMaxSpeed = 26f;

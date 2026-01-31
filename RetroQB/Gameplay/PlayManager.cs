@@ -18,12 +18,12 @@ public enum PlayOutcome
 
 /// <summary>
 /// Manages play selection and coordinates game state.
-/// Pass plays: 10 plays (1-9 keys plus 0 as wildcard)
-/// Run plays: 10 plays (W-P keys plus Q as wildcard)
+/// Pass plays: 10 plays (1 as wildcard, 2-9 plus 0 as regular plays)
+/// Run plays: 10 plays (Q as wildcard, W-P as regular plays)
 /// </summary>
 public sealed class PlayManager
 {
-    private const int WildcardIndex = 9;
+    private const int WildcardIndex = 0;
     public const int PassPlayCount = 10;
     public const int RunPlayCount = 10;
 

@@ -4,8 +4,8 @@ namespace RetroQB.Gameplay;
 
 /// <summary>
 /// Builds the game's playbook with all available plays.
-/// Pass plays: 10 plays (1-9 keys plus 0 as wildcard)
-/// Run plays: 10 plays (W-P keys plus Q as wildcard)
+/// Pass plays: 10 plays (1 as wildcard, 2-9 plus 0 as regular plays)
+/// Run plays: 10 plays (Q as wildcard, W-P as regular plays)
 /// </summary>
 public static class PlaybookBuilder
 {
@@ -35,7 +35,16 @@ public static class PlaybookBuilder
     {
         return new List<PlayDefinition>
         {
-            // 1 - Mesh (quick crossing routes)
+            // 1 - Wildcard (regenerated at selection time)
+            new(
+                "Wildcard",
+                PlayType.Pass,
+                FormationType.BaseTripsRight,
+                RunningBackRole.Route,
+                TightEndRole.Route,
+                new Dictionary<int, RouteType>()),
+
+            // 2 - Mesh (quick crossing routes)
             new(
                 "Mesh",
                 PlayType.Pass,
@@ -51,7 +60,7 @@ public static class PlaybookBuilder
                     [4] = RouteType.Flat
                 }),
 
-            // 2 - Bunch Quick (tight formation, quick release)
+            // 3 - Bunch Quick (tight formation, quick release)
             new(
                 "Bunch Quick",
                 PlayType.Pass,
@@ -68,7 +77,7 @@ public static class PlaybookBuilder
                 },
                 slantDirections: new Dictionary<int, bool> { [1] = true }),
 
-            // 3 - Four Verts (deep stretch)
+            // 4 - Four Verts (deep stretch)
             new(
                 "Four Verts",
                 PlayType.Pass,
@@ -84,7 +93,7 @@ public static class PlaybookBuilder
                     [4] = RouteType.Go
                 }),
 
-            // 4 - Deep Ins (crossing patterns)
+            // 5 - Deep Ins (crossing patterns)
             new(
                 "Deep Ins",
                 PlayType.Pass,
@@ -99,7 +108,7 @@ public static class PlaybookBuilder
                     [3] = RouteType.OutShallow
                 }),
 
-            // 5 - Flood (sideline attack)
+            // 6 - Flood (sideline attack)
             new(
                 "Flood",
                 PlayType.Pass,
@@ -108,14 +117,14 @@ public static class PlaybookBuilder
                 TightEndRole.Route,
                 new Dictionary<int, RouteType>
                 {
-                    [0] = RouteType.InDeep,
-                    [1] = RouteType.Curl,
+                    [0] = RouteType.Flat,
+                    [1] = RouteType.OutShallow,
                     [2] = RouteType.OutDeep,
                     [3] = RouteType.Go,
-                    [4] = RouteType.Flat
+                    [4] = RouteType.InShallow
                 }),
 
-            // 6 - Smash (corner/flat combo)
+            // 7 - Smash (corner/flat combo)
             new(
                 "Smash",
                 PlayType.Pass,
@@ -130,7 +139,7 @@ public static class PlaybookBuilder
                     [3] = RouteType.InShallow
                 }),
 
-            // 7 - Slant Flat (quick slants with flat option)
+            // 8 - Slant Flat (quick slants with flat option)
             new(
                 "Slant Flat",
                 PlayType.Pass,
@@ -146,7 +155,7 @@ public static class PlaybookBuilder
                 },
                 slantDirections: new Dictionary<int, bool> { [0] = true, [1] = true }),
 
-            // 8 - PA Deep (play action deep routes)
+            // 9 - PA Deep (play action deep routes)
             new(
                 "PA Deep",
                 PlayType.Pass,
@@ -162,7 +171,7 @@ public static class PlaybookBuilder
                     [4] = RouteType.Curl
                 }),
 
-            // 9 - Curl Flat (timing routes)
+            // 0 - Curl Flat (timing routes)
             new(
                 "Curl Flat",
                 PlayType.Pass,
@@ -175,16 +184,7 @@ public static class PlaybookBuilder
                     [1] = RouteType.Flat,
                     [2] = RouteType.Curl,
                     [3] = RouteType.Go
-                }),
-
-            // 0 - Wildcard (regenerated at selection time)
-            new(
-                "Wildcard",
-                PlayType.Pass,
-                FormationType.BaseTripsRight,
-                RunningBackRole.Route,
-                TightEndRole.Route,
-                new Dictionary<int, RouteType>())
+                })
         };
     }
 
@@ -192,6 +192,16 @@ public static class PlaybookBuilder
     {
         return new List<PlayDefinition>
         {
+            // Q - Wildcard (regenerated at selection time)
+            new(
+                "Wildcard",
+                PlayType.Run,
+                FormationType.RunPowerRight,
+                RunningBackRole.Route,
+                TightEndRole.Block,
+                new Dictionary<int, RouteType>(),
+                runningBackSide: 1),
+
             // W - Power Right (strong side run)
             new(
                 "Power Right",
@@ -317,17 +327,7 @@ public static class PlaybookBuilder
                     [0] = RouteType.OutShallow,
                     [1] = RouteType.Go
                 },
-                runningBackSide: -1),
-
-            // Q - Wildcard (regenerated at selection time)
-            new(
-                "Wildcard",
-                PlayType.Run,
-                FormationType.RunPowerRight,
-                RunningBackRole.Route,
-                TightEndRole.Block,
-                new Dictionary<int, RouteType>(),
-                runningBackSide: 1)
+                runningBackSide: -1)
         };
     }
 

@@ -210,10 +210,31 @@ public sealed class OffensiveTeamAttributes : TeamAttributes
 /// <summary>
 /// Attributes specific to the defensive team.
 /// Controls defender speed, coverage, and interception capabilities.
+/// Uses DefensiveRoster for per-player and position-specific attributes.
 /// </summary>
 public sealed class DefensiveTeamAttributes : TeamAttributes
 {
-    // Position-specific speeds
+    /// <summary>
+    /// Defensive roster with per-player profiles and position baselines.
+    /// </summary>
+    public DefensiveRoster Roster { get; init; } = DefensiveRoster.Default;
+    
+    /// <summary>
+    /// Short description for menu display.
+    /// </summary>
+    public string Description { get; init; } = string.Empty;
+    
+    /// <summary>
+    /// Primary team color (used for defenders and UI accents).
+    /// </summary>
+    public Color PrimaryColor { get; init; } = Palette.Red;
+    
+    /// <summary>
+    /// Secondary team color (used for UI accents).
+    /// </summary>
+    public Color SecondaryColor { get; init; } = new Color(140, 140, 145, 255);
+
+    // Base position speeds (can be overridden per-team)
     public float DlSpeed { get; init; } = Constants.DlSpeed;
     public float DeSpeed { get; init; } = Constants.DeSpeed;
     public float LbSpeed { get; init; } = Constants.LbSpeed;
@@ -225,20 +246,9 @@ public sealed class DefensiveTeamAttributes : TeamAttributes
     public float SpeedMultiplier { get; init; } = 1.0f;
     
     /// <summary>
-    /// Overall interception ability multiplier. Higher = better chance to intercept.
-    /// Affects the intercept radius: actual = base * position multiplier * InterceptionAbility.
-    /// Range: 0.5 - 1.5, where 1.0 is baseline.
+    /// Overall interception ability multiplier. 1.0 = baseline.
     /// </summary>
     public float InterceptionAbility { get; init; } = 1.0f;
-    
-    /// <summary>
-    /// Position-specific interception multipliers. DBs are best at intercepting,
-    /// LBs are decent, and DL are poor at catching passes.
-    /// </summary>
-    public float DbInterceptionMultiplier { get; init; } = 1.0f;
-    public float LbInterceptionMultiplier { get; init; } = 0.6f;
-    public float DeInterceptionMultiplier { get; init; } = 0.2f;
-    public float DlInterceptionMultiplier { get; init; } = 0.15f;
     
     /// <summary>
     /// Coverage tightness. Higher = defenders stick closer to receivers.
@@ -259,8 +269,7 @@ public sealed class DefensiveTeamAttributes : TeamAttributes
     public float BlitzFrequency { get; init; } = 1.0f;
     
     /// <summary>
-    /// Tackle ability. Affects how reliably defenders make tackles.
-    /// Range: 0.5 - 1.5, where 1.0 is baseline.
+    /// Overall tackle ability multiplier. 1.0 = baseline.
     /// </summary>
     public float TackleAbility { get; init; } = 1.0f;
 
@@ -287,7 +296,7 @@ public sealed class DefensiveTeamAttributes : TeamAttributes
     }
     
     /// <summary>
-    /// Gets the effective speed for a defender (base speed * multiplier).
+    /// Gets the effective speed for a defender (base speed * team multiplier).
     /// </summary>
     public float GetEffectiveSpeed(Entities.DefensivePosition position)
     {
@@ -295,33 +304,42 @@ public sealed class DefensiveTeamAttributes : TeamAttributes
     }
     
     /// <summary>
-    /// Gets the effective intercept radius based on interception ability (team-wide).
-    /// </summary>
-    public float GetEffectiveInterceptRadius()
-    {
-        return Constants.InterceptRadius * InterceptionAbility;
-    }
-    
-    /// <summary>
-    /// Gets the position-specific interception multiplier.
+    /// Gets the position-specific interception multiplier from roster.
     /// </summary>
     public float GetPositionInterceptionMultiplier(Entities.DefensivePosition position)
     {
-        return position switch
-        {
-            Entities.DefensivePosition.DB => DbInterceptionMultiplier,
-            Entities.DefensivePosition.LB => LbInterceptionMultiplier,
-            Entities.DefensivePosition.DE => DeInterceptionMultiplier,
-            _ => DlInterceptionMultiplier
-        };
+        return Roster.GetInterceptionMultiplier(position);
     }
     
     /// <summary>
     /// Gets the effective intercept radius for a specific defender position.
-    /// DBs have the best interception ability, LBs are moderate, DL are poor.
     /// </summary>
     public float GetEffectiveInterceptRadius(Entities.DefensivePosition position)
     {
         return Constants.InterceptRadius * InterceptionAbility * GetPositionInterceptionMultiplier(position);
+    }
+    
+    /// <summary>
+    /// Gets the position-specific tackle multiplier from roster.
+    /// </summary>
+    public float GetPositionTackleMultiplier(Entities.DefensivePosition position)
+    {
+        return Roster.GetTackleMultiplier(position);
+    }
+    
+    /// <summary>
+    /// Gets the effective tackle ability for a specific defender position.
+    /// </summary>
+    public float GetEffectiveTackleAbility(Entities.DefensivePosition position)
+    {
+        return TackleAbility * GetPositionTackleMultiplier(position);
+    }
+    
+    /// <summary>
+    /// Gets the position-specific block shed multiplier from roster.
+    /// </summary>
+    public float GetPositionBlockShedMultiplier(Entities.DefensivePosition position)
+    {
+        return Roster.GetBlockShedMultiplier(position);
     }
 }
