@@ -101,12 +101,12 @@ public sealed class HudRenderer
         int qbCol2Right = contentX + (int)(innerWidth * 0.72f);
         int qbCol3Right = contentX + (int)(innerWidth * 0.86f);
         int qbCol4Right = contentX + innerWidth;
-        Raylib.DrawText("QB", contentX + 2, contentY, 14, panelText);
-        DrawRightText("CMP/ATT", qbCol1Right, contentY - 2, 12, panelAccent);
-        DrawRightText("YDS", qbCol2Right, contentY - 2, 12, panelAccent);
-        DrawRightText("TD", qbCol3Right, contentY - 2, 12, panelAccent);
-        DrawRightText("INT", qbCol4Right, contentY - 2, 12, panelAccent);
+        DrawRightText("CMP/ATT", qbCol1Right, contentY, 12, panelAccent);
+        DrawRightText("YDS", qbCol2Right, contentY, 12, panelAccent);
+        DrawRightText("TD", qbCol3Right, contentY, 12, panelAccent);
+        DrawRightText("INT", qbCol4Right, contentY, 12, panelAccent);
         contentY += 16;
+        Raylib.DrawText("QB", contentX + 2, contentY, 14, panelText);
         DrawRightText($"{stats.Qb.Completions}/{stats.Qb.Attempts}", qbCol1Right, contentY, 14, panelText);
         DrawRightText($"{stats.Qb.PassYards}", qbCol2Right, contentY, 14, panelText);
         DrawRightText($"{stats.Qb.PassTds}", qbCol3Right, contentY, 14, panelText);
@@ -276,24 +276,22 @@ public sealed class HudRenderer
             y += 18;
 
             var passPlays = play.PassPlays;
-            string[] passKeys = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
+            string[] passKeys = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0" };
             for (int i = 0; i < passPlays.Count && i < 10; i++)
             {
-                int displayIndex = i == 0 ? 0 : i;
-                string key = passKeys[displayIndex];
                 bool isSelected = play.SelectedPlayType == PlayType.Pass && play.SelectedPlayIndex == i;
-                Raylib.DrawText($"{key}) {passPlays[i].Name}", x, y, 14, isSelected ? Palette.Gold : Palette.White);
+                Raylib.DrawText($"{passKeys[i]}) {passPlays[i].Name}", x, y, 14, isSelected ? Palette.Gold : Palette.White);
                 y += 16;
             }
 
             y += 8;
 
             // Run plays header
-            Raylib.DrawText("RUN (Q-P):", x, y, 14, Palette.Orange);
+            Raylib.DrawText("RUN (W-P, Q):", x, y, 14, Palette.Orange);
             y += 18;
 
             var runPlays = play.RunPlays;
-            string[] runKeys = { "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P" };
+            string[] runKeys = { "W", "E", "R", "T", "Y", "U", "I", "O", "P", "Q" };
             for (int i = 0; i < runPlays.Count && i < 10; i++)
             {
                 bool isSelected = play.SelectedPlayType == PlayType.Run && play.SelectedPlayIndex == i;
@@ -327,7 +325,7 @@ public sealed class HudRenderer
         y += 15;
         Raylib.DrawText("Pass Plays: 1-9, 0", x, y, 12, Palette.White);
         y += 15;
-        Raylib.DrawText("Run Plays: Q-P", x, y, 12, Palette.White);
+        Raylib.DrawText("Run Plays: W-P, Q", x, y, 12, Palette.White);
         y += 15;
         Raylib.DrawText("Snap Ball: Space", x, y, 12, Palette.White);
         y += 15;

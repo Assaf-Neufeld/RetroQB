@@ -87,16 +87,22 @@ public sealed class TackleController
         OffensiveTeamAttributes offensiveTeam,
         Action<Entity> clampToField)
     {
-        // Each defender only gets one tackle attempt per play
+        // Check if defender who previously broke a tackle has separated enough to re-engage
         if (_overlapResolver.HasBrokenTackle(defender))
         {
-            return true;
+            // Check if they've moved far enough to get another tackle attempt
+            if (!_overlapResolver.CanReengageAfterBrokenTackle(defender, ballCarrier.Position))
+            {
+                // Still too close to the break point - can't tackle yet
+                return true;
+            }
+            // Otherwise, they've re-engaged and can attempt a new tackle below
         }
 
         float breakChance = offensiveTeam.GetRbTackleBreakChance(ballCarrier.Slot);
         if (_rng.NextDouble() < breakChance)
         {
-            _overlapResolver.AddBrokenTackleDefender(defender);
+            _overlapResolver.AddBrokenTackleDefender(defender, ballCarrier.Position);
 
             // Push defender away from the ball carrier
             if (ballCarrier != null)

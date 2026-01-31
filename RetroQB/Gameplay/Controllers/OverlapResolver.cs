@@ -10,6 +10,12 @@ namespace RetroQB.Gameplay.Controllers;
 public sealed class OverlapResolver
 {
     private readonly HashSet<Defender> _brokenTackleDefenders = new();
+    private readonly Dictionary<Defender, Vector2> _brokenTacklePositions = new();
+    
+    /// <summary>
+    /// Minimum separation distance required before a defender can attempt another tackle.
+    /// </summary>
+    private const float ReengageSeparationDistance = 3.5f;
 
     /// <summary>
     /// Clears the set of defenders who have had their tackles broken this play.
@@ -17,14 +23,16 @@ public sealed class OverlapResolver
     public void Reset()
     {
         _brokenTackleDefenders.Clear();
+        _brokenTacklePositions.Clear();
     }
 
     /// <summary>
-    /// Marks a defender as having their tackle broken (they won't block the carrier again).
+    /// Marks a defender as having their tackle broken at a specific position.
     /// </summary>
-    public void AddBrokenTackleDefender(Defender defender)
+    public void AddBrokenTackleDefender(Defender defender, Vector2 breakPosition)
     {
         _brokenTackleDefenders.Add(defender);
+        _brokenTacklePositions[defender] = breakPosition;
     }
 
     /// <summary>
@@ -33,6 +41,29 @@ public sealed class OverlapResolver
     public bool HasBrokenTackle(Defender defender)
     {
         return _brokenTackleDefenders.Contains(defender);
+    }
+    
+    /// <summary>
+    /// Checks if a defender who broke a tackle has separated enough to re-engage.
+    /// If the defender has moved far enough from where they broke the tackle, they can try again.
+    /// </summary>
+    public bool CanReengageAfterBrokenTackle(Defender defender, Vector2 currentCarrierPosition)
+    {
+        if (!_brokenTacklePositions.TryGetValue(defender, out var breakPosition))
+        {
+            return true; // No record, can engage
+        }
+        
+        float distanceFromBreak = Vector2.Distance(currentCarrierPosition, breakPosition);
+        if (distanceFromBreak >= ReengageSeparationDistance)
+        {
+            // Enough separation - remove from broken tackle set to allow fresh attempt
+            _brokenTackleDefenders.Remove(defender);
+            _brokenTacklePositions.Remove(defender);
+            return true;
+        }
+        
+        return false;
     }
 
     /// <summary>

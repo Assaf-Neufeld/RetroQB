@@ -66,38 +66,44 @@ internal sealed class StadiumBackdropRenderer
         int seatSize = Math.Max(2, width / 10);
         int seatSpacing = seatSize + 4;
 
-        DrawCrowd(x, upperY + 6, width, upperHeight - 12, c1, c2, c3, 3, seatSize, seatSpacing);
-        DrawCrowd(x, lowerY + 4, width, lowerHeight - 8, c1, c2, c3, 4, seatSize, seatSpacing);
+        DrawCrowd(x, upperY + 6, width, upperHeight - 12, c1, c2, c3, seatSize, seatSpacing);
+        DrawCrowd(x, lowerY + 4, width, lowerHeight - 8, c1, c2, c3, seatSize, seatSpacing);
     }
 
-    private static void DrawCrowd(int x, int y, int width, int height, Color c1, Color c2, Color c3, int rows, int dotSize, int spacing)
+    private static void DrawCrowd(int x, int y, int width, int height, Color c1, Color c2, Color c3, int dotSize, int spacing)
     {
         if (height <= 0 || width <= 0)
         {
             return;
         }
 
-        int columns = Math.Max(3, width / spacing);
-        int totalWidth = columns * spacing - (spacing - dotSize);
-        int startX = x + Math.Max(2, (width - totalWidth) / 2);
+        // Bleachers are on LEFT and RIGHT sides of field
+        // Rows run VERTICALLY (parallel to field edge) so spectators face the field
+        // Multiple rows stack HORIZONTALLY (away from the field)
+        int numRows = Math.Max(1, width / spacing);  // rows stack horizontally (width)
+        int seatsPerRow = Math.Max(3, height / spacing);  // seats run vertically (height)
 
-        for (int r = 0; r < rows; r++)
+        for (int row = 0; row < numRows; row++)
         {
-            int rowOffset = r % 2 == 0 ? 0 : spacing / 2;
-            int rowY = y + r * spacing;
-            for (int c = 0; c < columns; c++)
+            int rowX = x + row * spacing + spacing / 2;
+            // Offset alternate rows vertically for staggered seating
+            int rowOffset = row % 2 == 0 ? 0 : spacing / 2;
+
+            for (int seat = 0; seat < seatsPerRow; seat++)
             {
-                int seatX = startX + c * spacing + rowOffset / 2;
-                for (int seatY = rowY; seatY < y + height; seatY += rows * spacing)
+                int seatY = y + seat * spacing + rowOffset;
+                if (seatY + dotSize > y + height)
                 {
-                    Color crowdColor = ((seatY / spacing + c + r) % 3) switch
-                    {
-                        0 => c1,
-                        1 => c2,
-                        _ => c3
-                    };
-                    Raylib.DrawRectangle(seatX, seatY, dotSize, dotSize, crowdColor);
+                    continue; // Don't draw seats outside the bleacher area
                 }
+
+                Color crowdColor = ((row + seat) % 3) switch
+                {
+                    0 => c1,
+                    1 => c2,
+                    _ => c3
+                };
+                Raylib.DrawRectangle(rowX, seatY, dotSize, dotSize, crowdColor);
             }
         }
     }

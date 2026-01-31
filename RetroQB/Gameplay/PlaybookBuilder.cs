@@ -4,8 +4,8 @@ namespace RetroQB.Gameplay;
 
 /// <summary>
 /// Builds the game's playbook with all available plays.
-/// Pass plays: 10 plays (0-9 keys, with 0 as wildcard)
-/// Run plays: 10 plays (Q-P keys, with Q as wildcard)
+/// Pass plays: 10 plays (1-9 keys plus 0 as wildcard)
+/// Run plays: 10 plays (W-P keys plus Q as wildcard)
 /// </summary>
 public static class PlaybookBuilder
 {
@@ -35,15 +35,6 @@ public static class PlaybookBuilder
     {
         return new List<PlayDefinition>
         {
-            // 0 - Wildcard (regenerated at selection time)
-            new(
-                "Wildcard",
-                PlayType.Pass,
-                FormationType.BaseTripsRight,
-                RunningBackRole.Route,
-                TightEndRole.Route,
-                new Dictionary<int, RouteType>()),
-
             // 1 - Mesh (quick crossing routes)
             new(
                 "Mesh",
@@ -184,7 +175,16 @@ public static class PlaybookBuilder
                     [1] = RouteType.Flat,
                     [2] = RouteType.Curl,
                     [3] = RouteType.Go
-                })
+                }),
+
+            // 0 - Wildcard (regenerated at selection time)
+            new(
+                "Wildcard",
+                PlayType.Pass,
+                FormationType.BaseTripsRight,
+                RunningBackRole.Route,
+                TightEndRole.Route,
+                new Dictionary<int, RouteType>())
         };
     }
 
@@ -192,16 +192,6 @@ public static class PlaybookBuilder
     {
         return new List<PlayDefinition>
         {
-            // Q - Wildcard (regenerated at selection time)
-            new(
-                "Wildcard",
-                PlayType.Run,
-                FormationType.RunPowerRight,
-                RunningBackRole.Route,
-                TightEndRole.Block,
-                new Dictionary<int, RouteType>(),
-                runningBackSide: 1),
-
             // W - Power Right (strong side run)
             new(
                 "Power Right",
@@ -327,7 +317,17 @@ public static class PlaybookBuilder
                     [0] = RouteType.OutShallow,
                     [1] = RouteType.Go
                 },
-                runningBackSide: -1)
+                runningBackSide: -1),
+
+            // Q - Wildcard (regenerated at selection time)
+            new(
+                "Wildcard",
+                PlayType.Run,
+                FormationType.RunPowerRight,
+                RunningBackRole.Route,
+                TightEndRole.Block,
+                new Dictionary<int, RouteType>(),
+                runningBackSide: 1)
         };
     }
 

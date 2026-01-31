@@ -26,11 +26,32 @@ RetroQB is a fast-paced retro-style 2D American football game where YOU are the 
 
 ## ⚡ Features
 
-- **Classic Arcade Feel** — Simple controls, pure gameplay
-- **Dynamic Defense** — AI defenders with realistic coverage and pursuit
-- **Multiple Play Types** — Quick passes, deep bombs, or scramble for yards
-- **Progressive Difficulty** — Defense gets faster as you score
-- **Drive Tracking** — Watch your plays unfold in the drive summary
+### 🎮 Core Gameplay
+- **Classic Arcade Feel** — Simple controls, pure football action
+- **Multiple Play Types** — Quick passes, deep bombs, scrambles, and dedicated run plays
+- **Drive Tracking** — Watch your plays unfold in the drive summary with detailed stats
+- **Player Statistics** — Track QB, rushing, and skill position stats on the scoreboard
+
+### 🏈 Offensive Systems
+- **Team Selection** — Choose from 3 unique teams with different offensive rosters
+- **Slot-Based Skills** — Receivers have unique attributes based on their position
+- **Smart Route Running** — Deep posts, curls, and dynamic route progression
+- **Run Game Mechanics** — OL lane creation, backside sealing, and RB cut boosts
+- **Offensive Line AI** — Pass blocking pocket formation and run blocking assignments
+
+### 🛡️ Defensive AI
+- **Zone Coverage** — Cover 2 zone with realistic depth adjustments
+- **Man Coverage** — Defenders track and pursue receivers intelligently  
+- **Blitz Concepts** — Varied pass rush schemes including edge rush
+- **DE Position** — Dedicated defensive ends with edge rush capabilities
+- **Endzone Awareness** — Defense adjusts depth near the goal line
+
+### 🎨 Presentation
+- **Retro Stadium Visuals** — Bleachers, sidelines, and field markings
+- **Resizable Window** — Play at your preferred screen size
+- **Side Panel HUD** — Clean scoreboard and play information
+- **Position Labels** — See receiver assignments at a glance
+- **Auto Target System** — Highlights the best available receiver
 
 ---
 

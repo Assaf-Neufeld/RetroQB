@@ -112,9 +112,9 @@ public static class OffensiveTeamPresets
             }
         },
         OverallRating = 1.05f,
-        QbMaxSpeed = Constants.QbMaxSpeed * 1.2f,
-        QbSprintSpeed = Constants.QbSprintSpeed * 1.2f,
-        QbAcceleration = Constants.QbAcceleration * 1.2f,
+        QbMaxSpeed = Constants.QbMaxSpeed * 1.1f,
+        QbSprintSpeed = Constants.QbSprintSpeed * 1.1f,
+        QbAcceleration = Constants.QbAcceleration * 1.1f,
         ThrowInaccuracyMultiplier = 1.05f,
         ShortAccuracyMultiplier = 1.0f,
         MediumAccuracyMultiplier = 1.05f,
