@@ -28,10 +28,9 @@ public sealed class Quarterback : Entity
 
     private static bool IsDefenseRed(Color color)
     {
-         return color.R == Palette.Red.R
-             && color.G == Palette.Red.G
-             && color.B == Palette.Red.B
-             && color.A == Palette.Red.A;
+        // Check if color is "reddish" enough to be confused with defense red
+        // Defense red is around (220, 70, 60) - we detect similar reds
+        return color.R > 180 && color.G < 120 && color.B < 120;
     }
 
     public void ApplyInput(Vector2 inputDir, bool sprinting, bool aimMode, float dt)
