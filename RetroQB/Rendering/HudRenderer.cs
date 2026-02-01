@@ -560,7 +560,7 @@ public sealed class HudRenderer
         contentY += 34;
 
         // Continue prompt
-        string prompt = "PRESS ENTER FOR NEW GAME";
+        string prompt = "PRESS ENTER TO CHOOSE TEAM";
         int promptSize = 16;
         int promptWidth = Raylib.MeasureText(prompt, promptSize);
         Raylib.DrawText(prompt, x + (bannerWidth - promptWidth) / 2, y + bannerHeight - 28, promptSize, Palette.Yellow);

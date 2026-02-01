@@ -103,7 +103,7 @@ public sealed class DrawingController
             }
             else
             {
-                DrawDriveOverBanner(driveOverText, "PRESS ENTER FOR NEW GAME");
+                DrawDriveOverBanner(driveOverText, "PRESS ENTER TO CHOOSE TEAM");
             }
         }
 

@@ -53,9 +53,10 @@ public static class OffensiveLinemanAI
             bool shouldEngage;
             if (context.IsRunPlay)
             {
-                // Run plays: engage if close to anchor OR close to defender
-                shouldEngage = target != null
-                    && (closeToAnchor || IsWithinEngageRange(blocker.Position, target.Position, engageRadius));
+                // Run plays: prioritize pulling to anchor before engaging.
+                bool targetNearAnchor = target != null && IsWithinEngageRange(target.Position, targetAnchor, engageRadius * 1.1f);
+                bool defenderVeryClose = target != null && IsWithinEngageRange(blocker.Position, target.Position, engageRadius * 0.6f);
+                shouldEngage = target != null && (closeToAnchor || targetNearAnchor || defenderVeryClose);
             }
             else
             {
@@ -95,9 +96,9 @@ public static class OffensiveLinemanAI
             formation,
             lineOfScrimmage,
             runningBackSide,
-            sweepPush: 2.8f,
-            basePush: 2.1f,
-            runTargetOffset: 1.6f,
+            sweepPush: 3.1f,
+            basePush: 2.4f,
+            runTargetOffset: 2.4f,
             passTargetOffset: -1.4f);
 
         foreach (var blocker in blockers)

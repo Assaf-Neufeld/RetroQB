@@ -442,8 +442,9 @@ public sealed class GameSession
     {
         if (Raylib.IsKeyPressed(KeyboardKey.Enter))
         {
-            InitializeGame();
-            _stateManager.SetState(GameState.PreSnap);
+            ResetPlayState();
+            _drawingController.Fireworks.Clear();
+            _stateManager.SetState(GameState.MainMenu);
         }
     }
 

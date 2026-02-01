@@ -109,7 +109,11 @@ public sealed class BlockingController
         Vector2 edgeSpot = new Vector2(edgeX, edgeY);
 
         Defender? edgeTarget = getClosestDefender(edgeSpot, Constants.BlockEngageRadius + 2.2f, true);
-        if (edgeTarget != null)
+        float closeToEdgeRadius = 1.2f;
+        bool closeToEdge = Vector2.DistanceSquared(receiver.Position, edgeSpot) <= closeToEdgeRadius * closeToEdgeRadius;
+        bool targetNearEdge = edgeTarget != null && Vector2.DistanceSquared(edgeTarget.Position, edgeSpot) <= (Constants.BlockEngageRadius * 0.9f) * (Constants.BlockEngageRadius * 0.9f);
+
+        if (edgeTarget != null && (closeToEdge || targetNearEdge))
         {
             float blockMultiplier = GetReceiverBlockStrength(receiver) * GetDefenderBlockDifficulty(edgeTarget);
             Vector2 toTarget = SafeNormalize(edgeTarget.Position - receiver.Position);
