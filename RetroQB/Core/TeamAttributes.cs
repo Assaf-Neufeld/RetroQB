@@ -23,20 +23,14 @@ public abstract class TeamAttributes
 
 /// <summary>
 /// Attributes specific to the offensive team.
-/// Controls QB, receiver, and blocker capabilities.
+/// Controls QB, receiver, and blocker capabilities via roster profiles.
 /// </summary>
 public sealed class OffensiveTeamAttributes : TeamAttributes
 {
     /// <summary>
-    /// Offensive roster with per-player skill ratings.
+    /// Offensive roster with per-player profiles.
     /// </summary>
     public OffensiveRoster Roster { get; init; } = OffensiveRoster.Default;
-
-    // Quarterback attributes
-    public float QbMaxSpeed { get; init; } = Constants.QbMaxSpeed;
-    public float QbSprintSpeed { get; init; } = Constants.QbSprintSpeed;
-    public float QbAcceleration { get; init; } = Constants.QbAcceleration;
-    public float QbFriction { get; init; } = Constants.QbFriction;
 
     /// <summary>
     /// Short description for menu display.
@@ -52,49 +46,6 @@ public sealed class OffensiveTeamAttributes : TeamAttributes
     /// Secondary team color (used for receivers/OL and UI accents).
     /// </summary>
     public Color SecondaryColor { get; init; } = Palette.Receiver;
-    
-    /// <summary>
-    /// Throwing accuracy multiplier (lower = more accurate). 1.0 = baseline.
-    /// </summary>
-    public float ThrowInaccuracyMultiplier { get; init; } = 1.0f;
-
-    /// <summary>
-    /// Distance-based QB accuracy multipliers (lower = more accurate).
-    /// Applied in addition to ThrowInaccuracyMultiplier.
-    /// </summary>
-    public float ShortAccuracyMultiplier { get; init; } = 0.9f;
-    public float MediumAccuracyMultiplier { get; init; } = 1.0f;
-    public float LongAccuracyMultiplier { get; init; } = 1.15f;
-
-    // Receiver attributes
-    public float WrSpeed { get; init; } = Constants.WrSpeed;
-    public float TeSpeed { get; init; } = Constants.TeSpeed;
-    public float RbSpeed { get; init; } = Constants.RbSpeed;
-    
-    /// <summary>
-    /// Catching ability (higher = better). Affects contested catch success rate.
-    /// Range: 0.0 - 1.0, where 0.7 is baseline (70% contested catch rate).
-    /// </summary>
-    public float CatchingAbility { get; init; } = 0.7f;
-    
-    /// <summary>
-    /// RB tackle-breaking ability. Chance to break a tackle attempt.
-    /// Range: 0.0 - 0.5, where 0.25 is baseline (25% chance to break tackle).
-    /// </summary>
-    public float RbTackleBreakChance { get; init; } = 0.25f;
-    
-    /// <summary>
-    /// Catch radius multiplier. 1.0 = baseline.
-    /// </summary>
-    public float CatchRadiusMultiplier { get; init; } = 1.0f;
-
-    // Blocker attributes
-    public float OlSpeed { get; init; } = Constants.OlSpeed;
-    
-    /// <summary>
-    /// Blocking effectiveness multiplier. 1.0 = baseline.
-    /// </summary>
-    public float BlockingStrength { get; init; } = 1.0f;
 
     /// <summary>
     /// Creates default offensive attributes (baseline team).
@@ -107,104 +58,26 @@ public sealed class OffensiveTeamAttributes : TeamAttributes
         Roster = OffensiveRoster.Default
     };
 
-    /// <summary>
-    /// Gets the speed for a receiver based on position type.
-    /// </summary>
-    public float GetReceiverSpeed(bool isRunningBack, bool isTightEnd)
-    {
-        if (isRunningBack) return RbSpeed;
-        if (isTightEnd) return TeSpeed;
-        return WrSpeed;
-    }
+    // QB delegations
+    public float GetQbMaxSpeed() => Roster.GetQbMaxSpeed();
+    public float GetQbSprintSpeed() => Roster.GetQbSprintSpeed();
+    public float GetQbAcceleration() => Roster.GetQbAcceleration();
+    public float GetQbFriction() => Roster.GetQbFriction();
+    public float GetQbThrowInaccuracyMultiplier() => Roster.GetQbThrowInaccuracy();
+    public float GetQbDistanceAccuracyMultiplier(float distance) => Roster.GetQbDistanceAccuracy(distance);
 
-    /// <summary>
-    /// Gets the speed for a receiver based on roster slot.
-    /// </summary>
-    public float GetReceiverSpeed(ReceiverSlot slot)
-    {
-        float baseSpeed = slot switch
-        {
-            _ when slot.IsRunningBackSlot() => RbSpeed,
-            _ when slot.IsTightEndSlot() => TeSpeed,
-            _ => WrSpeed
-        };
+    // Receiver delegations
+    public float GetReceiverSpeed(ReceiverSlot slot) => Roster.GetReceiverSpeed(slot);
+    public float GetReceiverCatchingAbility(ReceiverSlot slot) => Roster.GetReceiverCatchingAbility(slot);
+    public float GetReceiverCatchRadiusMultiplier(ReceiverSlot slot) => Roster.GetReceiverCatchRadius(slot);
+    public float GetRbTackleBreakChance(ReceiverSlot slot) => Roster.GetRbTackleBreakChance(slot);
 
-        return baseSpeed * Roster.GetReceiverSkillMultiplier(slot);
-    }
-
-    /// <summary>
-    /// Gets the catching ability for a receiver based on roster slot.
-    /// </summary>
-    public float GetReceiverCatchingAbility(ReceiverSlot slot)
-    {
-        float ability = CatchingAbility * Roster.GetReceiverSkillMultiplier(slot);
-        return Math.Clamp(ability, 0.4f, 0.95f);
-    }
-
-    /// <summary>
-    /// Gets the catch radius multiplier for a receiver based on roster slot.
-    /// </summary>
-    public float GetReceiverCatchRadiusMultiplier(ReceiverSlot slot)
-    {
-        float multiplier = CatchRadiusMultiplier * Roster.GetReceiverSkillMultiplier(slot);
-        return Math.Clamp(multiplier, 0.8f, 1.25f);
-    }
-
-    /// <summary>
-    /// Gets the tackle break chance for a running back based on roster slot.
-    /// </summary>
-    public float GetRbTackleBreakChance(ReceiverSlot slot)
-    {
-        float multiplier = slot.IsRunningBackSlot() ? Roster.GetReceiverSkillMultiplier(slot) : 1.0f;
-        float chance = RbTackleBreakChance * multiplier;
-        return Math.Clamp(chance, 0.05f, 0.65f);
-    }
-
-    /// <summary>
-    /// Gets the QB max speed adjusted by roster skill.
-    /// </summary>
-    public float GetQbMaxSpeed() => QbMaxSpeed * Roster.GetQuarterbackSkillMultiplier();
-
-    /// <summary>
-    /// Gets the QB sprint speed adjusted by roster skill.
-    /// </summary>
-    public float GetQbSprintSpeed() => QbSprintSpeed * Roster.GetQuarterbackSkillMultiplier();
-
-    /// <summary>
-    /// Gets the QB acceleration adjusted by roster skill.
-    /// </summary>
-    public float GetQbAcceleration() => QbAcceleration * Roster.GetQuarterbackSkillMultiplier();
-
-    /// <summary>
-    /// Gets the QB friction adjusted by roster skill.
-    /// </summary>
-    public float GetQbFriction() => QbFriction * Roster.GetQuarterbackSkillMultiplier();
-
-    /// <summary>
-    /// Gets the QB inaccuracy multiplier adjusted by roster skill.
-    /// Higher skill reduces inaccuracy.
-    /// </summary>
-    public float GetQbThrowInaccuracyMultiplier()
-    {
-        float skill = Roster.GetQuarterbackSkillMultiplier();
-        float multiplier = ThrowInaccuracyMultiplier / skill;
-        return Math.Clamp(multiplier, 0.6f, 1.6f);
-    }
-
-    /// <summary>
-    /// Gets the distance accuracy multiplier adjusted by roster skill.
-    /// </summary>
-    public float GetQbDistanceAccuracyMultiplier(float distance)
-    {
-        float baseMultiplier = distance <= Constants.ShortPassMaxDistance
-            ? ShortAccuracyMultiplier
-            : distance <= Constants.MediumPassMaxDistance
-                ? MediumAccuracyMultiplier
-                : LongAccuracyMultiplier;
-
-        float skill = Roster.GetQuarterbackSkillMultiplier();
-        return Math.Clamp(baseMultiplier / skill, 0.6f, 1.6f);
-    }
+    // OLine delegations
+    public float OlSpeed => Roster.GetOLineSpeed();
+    public float BlockingStrength => Roster.GetOLineBlockingStrength();
+    
+    // TE blocking delegation
+    public float GetTeBlockingStrength(ReceiverSlot slot) => Roster.GetTeBlockingStrength(slot);
 }
 
 /// <summary>

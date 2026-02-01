@@ -110,13 +110,20 @@ public sealed class OverlapResolver
                         var defender = aIsDefender ? (Defender)a : (Defender)b;
                         if (_brokenTackleDefenders.Contains(defender))
                         {
-                            Entity carrier = a == ballCarrier ? a : b;
-                            Vector2 deltaToDefender = defender.Position - carrier.Position;
+                            // Check if carrier has moved far enough for defender to re-engage
+                            if (CanReengageAfterBrokenTackle(defender, ballCarrier.Position))
+                            {
+                                // Defender can re-engage - don't push, allow tackle check
+                                continue;
+                            }
+                            
+                            // Still in immunity zone - push defender away
+                            Vector2 deltaToDefender = defender.Position - ballCarrier.Position;
                             if (deltaToDefender.LengthSquared() > 0.0001f)
                             {
                                 Vector2 pushDir = Vector2.Normalize(deltaToDefender);
-                                float minSeparation = defender.Radius + carrier.Radius + 0.6f;
-                                defender.Position = carrier.Position + pushDir * minSeparation;
+                                float minSeparation = defender.Radius + ballCarrier.Radius + 0.6f;
+                                defender.Position = ballCarrier.Position + pushDir * minSeparation;
                                 defender.Velocity = pushDir * (defender.Speed * 0.6f);
                                 clampToField(defender);
                             }

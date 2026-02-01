@@ -20,33 +20,35 @@ public static class OffensiveTeamPresets
         SecondaryColor = new Color(200, 180, 130, 255),
         Roster = new OffensiveRoster
         {
-            Quarterback = new QuarterbackProfile("Ace", 1.05f),
-            Receivers = new Dictionary<ReceiverSlot, ReceiverProfile>
+            Quarterback = new QbProfile
             {
-                [ReceiverSlot.WR1] = new ReceiverProfile("Stone", 1.05f),
-                [ReceiverSlot.WR2] = new ReceiverProfile("Flynn", 1.0f),
-                [ReceiverSlot.WR3] = new ReceiverProfile("Reed", 0.98f),
-                [ReceiverSlot.WR4] = new ReceiverProfile("North", 0.96f),
-                [ReceiverSlot.TE1] = new ReceiverProfile("Griff", 1.0f),
-                [ReceiverSlot.RB1] = new ReceiverProfile("Jet", 1.05f)
-            }
+                Name = "Ace",
+                MaxSpeed = Constants.QbMaxSpeed * 1.05f,
+                SprintSpeed = Constants.QbSprintSpeed * 1.05f,
+                Acceleration = Constants.QbAcceleration * 1.05f,
+                ThrowInaccuracy = 0.9f,
+                ShortAccuracy = 0.85f,
+                MediumAccuracy = 0.9f,
+                LongAccuracy = 1.0f
+            },
+            WideReceivers = new Dictionary<ReceiverSlot, WrProfile>
+            {
+                [ReceiverSlot.WR1] = new WrProfile { Name = "Stone", Speed = Constants.WrSpeed * 1.08f, CatchingAbility = 0.8f, CatchRadius = 1.05f },
+                [ReceiverSlot.WR2] = new WrProfile { Name = "Flynn", Speed = Constants.WrSpeed * 1.02f, CatchingAbility = 0.75f, CatchRadius = 1.0f },
+                [ReceiverSlot.WR3] = new WrProfile { Name = "Reed", Speed = Constants.WrSpeed * 1.0f, CatchingAbility = 0.72f, CatchRadius = 0.98f },
+                [ReceiverSlot.WR4] = new WrProfile { Name = "North", Speed = Constants.WrSpeed * 0.98f, CatchingAbility = 0.7f, CatchRadius = 0.95f }
+            },
+            TightEnds = new Dictionary<ReceiverSlot, TeProfile>
+            {
+                [ReceiverSlot.TE1] = new TeProfile { Name = "Griff", Speed = Constants.TeSpeed * 1.05f, CatchingAbility = 0.7f, CatchRadius = 1.0f, BlockingStrength = 1.05f }
+            },
+            RunningBacks = new Dictionary<ReceiverSlot, RbProfile>
+            {
+                [ReceiverSlot.RB1] = new RbProfile { Name = "Jet", Speed = Constants.RbSpeed * 1.08f, CatchingAbility = 0.65f, CatchRadius = 1.0f, TackleBreakChance = 0.28f }
+            },
+            OffensiveLine = new OLineProfile { Speed = Constants.OlSpeed * 1.05f, BlockingStrength = 1.05f }
         },
-        OverallRating = 1.05f,
-        QbMaxSpeed = Constants.QbMaxSpeed * 1.05f,
-        QbSprintSpeed = Constants.QbSprintSpeed * 1.05f,
-        QbAcceleration = Constants.QbAcceleration * 1.05f,
-        ThrowInaccuracyMultiplier = 0.9f,
-        ShortAccuracyMultiplier = 0.9f,
-        MediumAccuracyMultiplier = 0.95f,
-        LongAccuracyMultiplier = 1.0f,
-        WrSpeed = Constants.WrSpeed * 1.05f,
-        TeSpeed = Constants.TeSpeed * 1.05f,
-        RbSpeed = Constants.RbSpeed * 1.05f,
-        CatchingAbility = 0.78f,
-        RbTackleBreakChance = 0.28f,
-        CatchRadiusMultiplier = 1.05f,
-        OlSpeed = Constants.OlSpeed * 1.05f,
-        BlockingStrength = 1.05f
+        OverallRating = 1.05f
     };
 
     /// <summary>
@@ -60,33 +62,35 @@ public static class OffensiveTeamPresets
         SecondaryColor = new Color(180, 170, 140, 255),
         Roster = new OffensiveRoster
         {
-            Quarterback = new QuarterbackProfile("Spark", 1.12f),
-            Receivers = new Dictionary<ReceiverSlot, ReceiverProfile>
+            Quarterback = new QbProfile
             {
-                [ReceiverSlot.WR1] = new ReceiverProfile("Flash", 1.18f),
-                [ReceiverSlot.WR2] = new ReceiverProfile("Bolt", 1.12f),
-                [ReceiverSlot.WR3] = new ReceiverProfile("Blaze", 1.08f),
-                [ReceiverSlot.WR4] = new ReceiverProfile("Surge", 1.05f),
-                [ReceiverSlot.TE1] = new ReceiverProfile("Arc", 1.0f),
-                [ReceiverSlot.RB1] = new ReceiverProfile("Dash", 1.12f)
-            }
+                Name = "Spark",
+                MaxSpeed = Constants.QbMaxSpeed * 0.85f,
+                SprintSpeed = Constants.QbSprintSpeed * 0.9f,
+                Acceleration = Constants.QbAcceleration * 0.9f,
+                ThrowInaccuracy = 0.75f,
+                ShortAccuracy = 0.7f,
+                MediumAccuracy = 0.75f,
+                LongAccuracy = 0.85f
+            },
+            WideReceivers = new Dictionary<ReceiverSlot, WrProfile>
+            {
+                [ReceiverSlot.WR1] = new WrProfile { Name = "Flash", Speed = Constants.WrSpeed * 1.25f, CatchingAbility = 0.85f, CatchRadius = 1.12f },
+                [ReceiverSlot.WR2] = new WrProfile { Name = "Bolt", Speed = Constants.WrSpeed * 1.2f, CatchingAbility = 0.82f, CatchRadius = 1.08f },
+                [ReceiverSlot.WR3] = new WrProfile { Name = "Blaze", Speed = Constants.WrSpeed * 1.15f, CatchingAbility = 0.78f, CatchRadius = 1.05f },
+                [ReceiverSlot.WR4] = new WrProfile { Name = "Surge", Speed = Constants.WrSpeed * 1.1f, CatchingAbility = 0.75f, CatchRadius = 1.02f }
+            },
+            TightEnds = new Dictionary<ReceiverSlot, TeProfile>
+            {
+                [ReceiverSlot.TE1] = new TeProfile { Name = "Arc", Speed = Constants.TeSpeed * 1.1f, CatchingAbility = 0.72f, CatchRadius = 1.05f, BlockingStrength = 0.85f }
+            },
+            RunningBacks = new Dictionary<ReceiverSlot, RbProfile>
+            {
+                [ReceiverSlot.RB1] = new RbProfile { Name = "Dash", Speed = Constants.RbSpeed * 1.2f, CatchingAbility = 0.7f, CatchRadius = 1.05f, TackleBreakChance = 0.3f }
+            },
+            OffensiveLine = new OLineProfile { Speed = Constants.OlSpeed * 0.8f, BlockingStrength = 0.8f }
         },
-        OverallRating = 1.0f,
-        QbMaxSpeed = Constants.QbMaxSpeed * 0.85f,
-        QbSprintSpeed = Constants.QbSprintSpeed * 0.9f,
-        QbAcceleration = Constants.QbAcceleration * 0.9f,
-        ThrowInaccuracyMultiplier = 0.75f,
-        ShortAccuracyMultiplier = 0.75f,
-        MediumAccuracyMultiplier = 0.8f,
-        LongAccuracyMultiplier = 0.9f,
-        WrSpeed = Constants.WrSpeed * 1.25f,
-        TeSpeed = Constants.TeSpeed * 1.15f,
-        RbSpeed = Constants.RbSpeed * 1.25f,
-        CatchingAbility = 0.82f,
-        RbTackleBreakChance = 0.3f,
-        CatchRadiusMultiplier = 1.1f,
-        OlSpeed = Constants.OlSpeed * 0.8f,
-        BlockingStrength = 0.8f
+        OverallRating = 1.0f
     };
 
     /// <summary>
@@ -100,33 +104,35 @@ public static class OffensiveTeamPresets
         SecondaryColor = new Color(140, 135, 130, 255),
         Roster = new OffensiveRoster
         {
-            Quarterback = new QuarterbackProfile("Hammer", 1.05f),
-            Receivers = new Dictionary<ReceiverSlot, ReceiverProfile>
+            Quarterback = new QbProfile
             {
-                [ReceiverSlot.WR1] = new ReceiverProfile("Brick", 0.86f),
-                [ReceiverSlot.WR2] = new ReceiverProfile("Stone", 0.82f),
-                [ReceiverSlot.WR3] = new ReceiverProfile("Grind", 0.78f),
-                [ReceiverSlot.WR4] = new ReceiverProfile("Forge", 0.75f),
-                [ReceiverSlot.TE1] = new ReceiverProfile("Anvil", 0.92f),
-                [ReceiverSlot.RB1] = new ReceiverProfile("Pound", 1.2f)
-            }
+                Name = "Hammer",
+                MaxSpeed = Constants.QbMaxSpeed * 1.1f,
+                SprintSpeed = Constants.QbSprintSpeed * 1.1f,
+                Acceleration = Constants.QbAcceleration * 1.1f,
+                ThrowInaccuracy = 1.05f,
+                ShortAccuracy = 0.95f,
+                MediumAccuracy = 1.0f,
+                LongAccuracy = 1.1f
+            },
+            WideReceivers = new Dictionary<ReceiverSlot, WrProfile>
+            {
+                [ReceiverSlot.WR1] = new WrProfile { Name = "Brick", Speed = Constants.WrSpeed * 0.88f, CatchingAbility = 0.6f, CatchRadius = 0.9f },
+                [ReceiverSlot.WR2] = new WrProfile { Name = "Stone", Speed = Constants.WrSpeed * 0.85f, CatchingAbility = 0.58f, CatchRadius = 0.88f },
+                [ReceiverSlot.WR3] = new WrProfile { Name = "Grind", Speed = Constants.WrSpeed * 0.82f, CatchingAbility = 0.55f, CatchRadius = 0.85f },
+                [ReceiverSlot.WR4] = new WrProfile { Name = "Forge", Speed = Constants.WrSpeed * 0.8f, CatchingAbility = 0.52f, CatchRadius = 0.82f }
+            },
+            TightEnds = new Dictionary<ReceiverSlot, TeProfile>
+            {
+                [ReceiverSlot.TE1] = new TeProfile { Name = "Anvil", Speed = Constants.TeSpeed * 0.9f, CatchingAbility = 0.62f, CatchRadius = 0.95f, BlockingStrength = 1.25f }
+            },
+            RunningBacks = new Dictionary<ReceiverSlot, RbProfile>
+            {
+                [ReceiverSlot.RB1] = new RbProfile { Name = "Pound", Speed = Constants.RbSpeed * 1.15f, CatchingAbility = 0.55f, CatchRadius = 0.9f, TackleBreakChance = 0.4f }
+            },
+            OffensiveLine = new OLineProfile { Speed = Constants.OlSpeed * 1.2f, BlockingStrength = 1.3f }
         },
-        OverallRating = 1.05f,
-        QbMaxSpeed = Constants.QbMaxSpeed * 1.1f,
-        QbSprintSpeed = Constants.QbSprintSpeed * 1.1f,
-        QbAcceleration = Constants.QbAcceleration * 1.1f,
-        ThrowInaccuracyMultiplier = 1.05f,
-        ShortAccuracyMultiplier = 1.0f,
-        MediumAccuracyMultiplier = 1.05f,
-        LongAccuracyMultiplier = 1.1f,
-        WrSpeed = Constants.WrSpeed * 0.8f,
-        TeSpeed = Constants.TeSpeed * 0.75f,
-        RbSpeed = Constants.RbSpeed * 1.25f,
-        CatchingAbility = 0.6f,
-        RbTackleBreakChance = 0.4f,
-        CatchRadiusMultiplier = 0.9f,
-        OlSpeed = Constants.OlSpeed * 1.25f,
-        BlockingStrength = 1.3f
+        OverallRating = 1.05f
     };
 
     /// <summary>
