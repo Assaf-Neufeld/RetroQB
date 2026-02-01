@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Numerics;
 using RetroQB.AI;
 using RetroQB.Core;
@@ -43,7 +44,7 @@ public sealed class PlayExecutionController
         UpdateQuarterback(qb, ball, playManager, inputDir, sprint, dt, clampToField);
 
         // Update receivers
-        UpdateReceivers(receivers, qb, ball, defenders, controlledReceiver, inputDir, sprint, qbPastLos, playManager, dt, clampToField);
+        UpdateReceivers(receivers, qb, ball, defenders, controlledReceiver, inputDir, sprint, qbPastLos, isZoneCoverage, playManager, dt, clampToField);
 
         // Update defenders
         UpdateDefenders(defenders, qb, receivers, ball, playManager, qbPastLos, isZoneCoverage, clampToField, dt);
@@ -87,6 +88,7 @@ public sealed class PlayExecutionController
         Vector2 inputDir,
         bool sprint,
         bool qbPastLos,
+        bool isZoneCoverage,
         PlayManager playManager,
         float dt,
         Action<Entity> clampToField)
@@ -130,7 +132,7 @@ public sealed class PlayExecutionController
                 continue;
             }
 
-            UpdateRouteReceiver(receiver, qb, ball, defenders, qbPastLos, dt, clampToField);
+            UpdateRouteReceiver(receiver, qb, ball, defenders, qbPastLos, isZoneCoverage, dt, clampToField);
         }
     }
 
@@ -183,7 +185,7 @@ public sealed class PlayExecutionController
         clampToField(receiver);
     }
 
-    private void UpdateRouteReceiver(Receiver receiver, Quarterback qb, Ball ball, IReadOnlyList<Defender> defenders, bool qbPastLos, float dt, Action<Entity> clampToField)
+    private void UpdateRouteReceiver(Receiver receiver, Quarterback qb, Ball ball, IReadOnlyList<Defender> defenders, bool qbPastLos, bool isZoneCoverage, float dt, Action<Entity> clampToField)
     {
         ReceiverAI.UpdateRoute(receiver, dt);
 
@@ -206,10 +208,74 @@ public sealed class PlayExecutionController
             // Adjust toward ball
             AdjustReceiverToBall(receiver, ball);
         }
+        else if (!isZoneCoverage && receiver.Eligible)
+        {
+            Defender? manDefender = defenders.FirstOrDefault(d => d.CoverageReceiverIndex == receiver.Index);
+            if (manDefender != null && manDefender.PositionRole == DefensivePosition.DB)
+            {
+                if (receiver.PositionRole == OffensivePosition.WR)
+                {
+                    float shakeSkill = receiver.TeamAttributes.GetReceiverCatchingAbility(receiver.Slot);
+                    ApplyManCoverageShake(receiver, manDefender, shakeSkill);
+                }
+            }
+        }
 
         receiver.Update(dt);
         clampToField(receiver);
     }
+
+    private static void ApplyManCoverageShake(Receiver receiver, Defender defender, float shakeSkill)
+    {
+        // Bad receivers can't execute the shake
+        float skillThreshold = 0.62f;
+        if (shakeSkill < skillThreshold)
+        {
+            return;
+        }
+
+        Vector2 toDefender = defender.Position - receiver.Position;
+        float distSq = toDefender.LengthSquared();
+        if (distSq < 0.001f)
+        {
+            return;
+        }
+
+        float triggerDistance = 2.4f;
+        if (distSq > triggerDistance * triggerDistance)
+        {
+            return;
+        }
+
+        // Defender must be mostly in front of the receiver
+        Vector2 baseDir = receiver.Velocity.LengthSquared() > 0.001f
+            ? Vector2.Normalize(receiver.Velocity)
+            : new Vector2(0, 1);
+        Vector2 toDefNorm = Vector2.Normalize(toDefender);
+        float frontDot = Vector2.Dot(baseDir, toDefNorm);
+        if (frontDot < 0.65f)
+        {
+            return;
+        }
+
+        // Small lateral shake away from the defender, scaled by skill
+        float skillScale = Math.Clamp((shakeSkill - skillThreshold) / (0.92f - skillThreshold), 0.25f, 1.0f);
+        Vector2 lateral = new Vector2(-baseDir.Y, baseDir.X);
+        float awaySign = MathF.Sign(Vector2.Dot(lateral, receiver.Position - defender.Position));
+        if (awaySign == 0)
+        {
+            awaySign = receiver.RouteSide != 0 ? receiver.RouteSide : 1;
+        }
+
+        Vector2 shakeDir = baseDir * (0.65f + 0.1f * skillScale) + lateral * (0.75f * awaySign * skillScale);
+        if (shakeDir.LengthSquared() > 0.001f)
+        {
+            shakeDir = Vector2.Normalize(shakeDir);
+        }
+
+        receiver.Velocity = shakeDir * receiver.Speed;
+    }
+
 
     private void AdjustReceiverToBall(Receiver receiver, Ball ball)
     {
