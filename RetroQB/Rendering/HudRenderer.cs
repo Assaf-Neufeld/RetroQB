@@ -50,14 +50,14 @@ public sealed class HudRenderer
         _banner.DrawStageCompleteBanner(finalScore, awayScore, completedStage, _stats);
     }
 
-    public void DrawChampionBanner(int finalScore, int awayScore, SeasonStage stage)
+    public void DrawChampionBanner(int finalScore, int awayScore, SeasonStage stage, SeasonSummary seasonSummary)
     {
-        _banner.DrawChampionBanner(finalScore, awayScore, _stats);
+        _banner.DrawChampionBanner(finalScore, awayScore, _stats, seasonSummary);
     }
 
-    public void DrawEliminationBanner(int finalScore, int awayScore, SeasonStage stage)
+    public void DrawEliminationBanner(int finalScore, int awayScore, SeasonStage stage, SeasonSummary seasonSummary)
     {
-        _banner.DrawEliminationBanner(finalScore, awayScore, stage, _stats);
+        _banner.DrawEliminationBanner(finalScore, awayScore, stage, _stats, seasonSummary);
     }
 
     public void DrawTouchdownPopup()

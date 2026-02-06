@@ -59,7 +59,8 @@ public sealed class DrawingController
         OffensiveTeamAttributes offensiveTeam,
         int selectedTeamIndex,
         bool isPaused,
-        SeasonStage currentStage)
+        SeasonStage currentStage,
+        SeasonSummary seasonSummary)
     {
         // Apply camera shake offset
         Vector2 shake = _screenEffects.ShakeOffset;
@@ -119,11 +120,11 @@ public sealed class DrawingController
         {
             if (playManager.Score >= 21)
             {
-                _hudRenderer.DrawChampionBanner(playManager.Score, playManager.AwayScore, currentStage);
+                _hudRenderer.DrawChampionBanner(playManager.Score, playManager.AwayScore, currentStage, seasonSummary);
             }
             else
             {
-                _hudRenderer.DrawEliminationBanner(playManager.Score, playManager.AwayScore, currentStage);
+                _hudRenderer.DrawEliminationBanner(playManager.Score, playManager.AwayScore, currentStage, seasonSummary);
             }
         }
 

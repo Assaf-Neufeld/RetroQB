@@ -2,6 +2,7 @@ using System;
 using Raylib_cs;
 using RetroQB.Core;
 using RetroQB.Gameplay;
+using RetroQB.Stats;
 
 namespace RetroQB.Rendering;
 
@@ -97,14 +98,15 @@ public sealed class BannerRenderer
 
     /// <summary>
     /// Draws the ultimate champion banner when all 3 stages are won.
+    /// Shows season summary: QB rating, stage reached, all game scores.
     /// </summary>
-    public void DrawChampionBanner(int finalScore, int awayScore, GameStatsSnapshot stats)
+    public void DrawChampionBanner(int finalScore, int awayScore, GameStatsSnapshot stats, SeasonSummary seasonSummary)
     {
         int screenW = Raylib.GetScreenWidth();
         int screenH = Raylib.GetScreenHeight();
 
-        int bannerWidth = Math.Min(560, screenW - 80);
-        int bannerHeight = 380;
+        int bannerWidth = Math.Min(600, screenW - 60);
+        int bannerHeight = Math.Min(520, screenH - 40);
         int x = (screenW - bannerWidth) / 2;
         int y = (screenH - bannerHeight) / 2;
 
@@ -116,76 +118,22 @@ public sealed class BannerRenderer
 
         // Champion header
         string title = "CHAMPION!";
-        int titleSize = 52;
+        int titleSize = 48;
         int titleWidth = Raylib.MeasureText(title, titleSize);
-        Raylib.DrawText(title, x + (bannerWidth - titleWidth) / 2, y + 16, titleSize, Palette.Gold);
+        Raylib.DrawText(title, x + (bannerWidth - titleWidth) / 2, y + 14, titleSize, Palette.Gold);
 
         string subtitle = "SUPER BOWL WINNER";
-        int subSize = 20;
+        int subSize = 18;
         int subWidth = Raylib.MeasureText(subtitle, subSize);
-        Raylib.DrawText(subtitle, x + (bannerWidth - subWidth) / 2, y + 72, subSize, Palette.Lime);
-
-        // Final score
-        string scoreText = $"FINAL: {finalScore} - {awayScore}";
-        int scoreSize = 22;
-        int scoreWidth = Raylib.MeasureText(scoreText, scoreSize);
-        Raylib.DrawText(scoreText, x + (bannerWidth - scoreWidth) / 2, y + 100, scoreSize, Palette.White);
+        Raylib.DrawText(subtitle, x + (bannerWidth - subWidth) / 2, y + 66, subSize, Palette.Lime);
 
         // Divider
-        int divY = y + 130;
+        int divY = y + 92;
         Raylib.DrawLine(x + 30, divY, x + bannerWidth - 30, divY, Palette.Gold);
 
-        // QB Stats
-        int contentY = divY + 12;
-        string qbHeader = "SUPER BOWL QB STATS";
-        int headerSize = 18;
-        int headerWidth = Raylib.MeasureText(qbHeader, headerSize);
-        Raylib.DrawText(qbHeader, x + (bannerWidth - headerWidth) / 2, contentY, headerSize, Palette.Blue);
-        contentY += 28;
-
-        int leftCol = x + 40;
-        int rightCol = x + bannerWidth / 2 + 20;
-        int labelSize = 16;
-        int valueSize = 20;
-        Color labelColor = new(140, 160, 180, 255);
-        Color valueColor = Palette.White;
-
-        // Passing stats
-        Raylib.DrawText("PASSING", leftCol, contentY, labelSize, labelColor);
-        contentY += 20;
-        string compAtt = $"{stats.Qb.Completions}/{stats.Qb.Attempts}";
-        Raylib.DrawText("CMP/ATT:", leftCol, contentY, labelSize, labelColor);
-        Raylib.DrawText(compAtt, leftCol + 90, contentY, valueSize, valueColor);
-        Raylib.DrawText("YARDS:", rightCol, contentY, labelSize, labelColor);
-        Raylib.DrawText($"{stats.Qb.PassYards}", rightCol + 70, contentY, valueSize, valueColor);
-        contentY += 24;
-
-        Raylib.DrawText("TD:", leftCol, contentY, labelSize, labelColor);
-        Raylib.DrawText($"{stats.Qb.PassTds}", leftCol + 90, contentY, valueSize, stats.Qb.PassTds > 0 ? Palette.Gold : valueColor);
-        Raylib.DrawText("INT:", rightCol, contentY, labelSize, labelColor);
-        Raylib.DrawText($"{stats.Qb.Interceptions}", rightCol + 70, contentY, valueSize, stats.Qb.Interceptions > 0 ? Palette.Red : valueColor);
-        contentY += 28;
-
-        // Rushing
-        Raylib.DrawText("RUSHING", leftCol, contentY, labelSize, labelColor);
-        contentY += 20;
-        Raylib.DrawText("YARDS:", leftCol, contentY, labelSize, labelColor);
-        Raylib.DrawText($"{stats.Qb.RushYards}", leftCol + 90, contentY, valueSize, valueColor);
-        Raylib.DrawText("TD:", rightCol, contentY, labelSize, labelColor);
-        Raylib.DrawText($"{stats.Qb.RushTds}", rightCol + 70, contentY, valueSize, stats.Qb.RushTds > 0 ? Palette.Gold : valueColor);
-        contentY += 30;
-
-        // Stage progress - all 3 complete
-        int barWidth = bannerWidth - 100;
-        int barX = x + 50;
-        int barHeight = 18;
-        Raylib.DrawRectangle(barX, contentY, barWidth, barHeight, new Color(30, 30, 40, 220));
-        Raylib.DrawRectangleLines(barX, contentY, barWidth, barHeight, Palette.Gold);
-        Raylib.DrawRectangle(barX + 1, contentY + 1, barWidth - 2, barHeight - 2, Palette.Gold);
-        string progressText = "3/3 COMPLETE - CHAMPION!";
-        int progSize = 12;
-        int progWidth = Raylib.MeasureText(progressText, progSize);
-        Raylib.DrawText(progressText, barX + (barWidth - progWidth) / 2, contentY + 3, progSize, new Color(18, 24, 36, 255));
+        // Draw shared season summary content
+        int contentY = divY + 10;
+        DrawSeasonSummaryContent(x, contentY, bannerWidth, seasonSummary, Palette.Gold);
 
         // Continue prompt
         string prompt = "PRESS ENTER TO CHOOSE TEAM";
@@ -196,14 +144,15 @@ public sealed class BannerRenderer
 
     /// <summary>
     /// Draws a banner when the player is eliminated (away team wins).
+    /// Shows season summary: QB rating, stage reached, all game scores.
     /// </summary>
-    public void DrawEliminationBanner(int finalScore, int awayScore, SeasonStage stage, GameStatsSnapshot stats)
+    public void DrawEliminationBanner(int finalScore, int awayScore, SeasonStage stage, GameStatsSnapshot stats, SeasonSummary seasonSummary)
     {
         int screenW = Raylib.GetScreenWidth();
         int screenH = Raylib.GetScreenHeight();
 
-        int bannerWidth = Math.Min(520, screenW - 80);
-        int bannerHeight = 260;
+        int bannerWidth = Math.Min(600, screenW - 60);
+        int bannerHeight = Math.Min(480, screenH - 40);
         int x = (screenW - bannerWidth) / 2;
         int y = (screenH - bannerHeight) / 2;
 
@@ -216,52 +165,123 @@ public sealed class BannerRenderer
         string title = "ELIMINATED";
         int titleSize = 44;
         int titleWidth = Raylib.MeasureText(title, titleSize);
-        Raylib.DrawText(title, x + (bannerWidth - titleWidth) / 2, y + 18, titleSize, Palette.Red);
+        Raylib.DrawText(title, x + (bannerWidth - titleWidth) / 2, y + 14, titleSize, Palette.Red);
 
         // Stage info
         string stageText = $"Fell in the {stage.GetDisplayName()}";
         int stageSize = 18;
         int stageWidth = Raylib.MeasureText(stageText, stageSize);
-        Raylib.DrawText(stageText, x + (bannerWidth - stageWidth) / 2, y + 68, stageSize, Palette.Orange);
-
-        // Final score
-        string scoreText = $"FINAL: {finalScore} - {awayScore}";
-        int scoreSize = 22;
-        int scoreWidth = Raylib.MeasureText(scoreText, scoreSize);
-        Raylib.DrawText(scoreText, x + (bannerWidth - scoreWidth) / 2, y + 98, scoreSize, Palette.White);
+        Raylib.DrawText(stageText, x + (bannerWidth - stageWidth) / 2, y + 62, stageSize, Palette.Orange);
 
         // Divider
-        int divY = y + 128;
+        int divY = y + 88;
         Raylib.DrawLine(x + 30, divY, x + bannerWidth - 30, divY, Palette.Red);
 
-        // Brief stats
-        int contentY = divY + 12;
-        string compAtt = $"QB: {stats.Qb.Completions}/{stats.Qb.Attempts}, {stats.Qb.PassYards} yds, {stats.Qb.PassTds} TD, {stats.Qb.Interceptions} INT";
-        int statSize = 14;
-        int statWidth = Raylib.MeasureText(compAtt, statSize);
-        Raylib.DrawText(compAtt, x + (bannerWidth - statWidth) / 2, contentY, statSize, new Color(160, 170, 180, 255));
-        contentY += 24;
-
-        // Stage progress
-        int stageNum = stage.GetStageNumber() - 1; // didn't complete this one
-        int barWidth = bannerWidth - 100;
-        int barX = x + 50;
-        int barHeight = 18;
-        Raylib.DrawRectangle(barX, contentY, barWidth, barHeight, new Color(30, 30, 40, 220));
-        Raylib.DrawRectangleLines(barX, contentY, barWidth, barHeight, Palette.Red);
-        int filledWidth = stageNum > 0 ? (int)(barWidth * stageNum / 3f) : 0;
-        if (filledWidth > 2)
-            Raylib.DrawRectangle(barX + 1, contentY + 1, filledWidth - 2, barHeight - 2, Palette.Orange);
-        string progressText = $"{stageNum}/3 COMPLETE";
-        int progSize = 12;
-        int progWidth = Raylib.MeasureText(progressText, progSize);
-        Raylib.DrawText(progressText, barX + (barWidth - progWidth) / 2, contentY + 3, progSize, Palette.White);
+        // Draw shared season summary content
+        int contentY = divY + 10;
+        DrawSeasonSummaryContent(x, contentY, bannerWidth, seasonSummary, Palette.Red);
 
         // Continue prompt
         string prompt = "PRESS ENTER TO CHOOSE TEAM";
         int promptSize = 16;
         int promptWidth = Raylib.MeasureText(prompt, promptSize);
         Raylib.DrawText(prompt, x + (bannerWidth - promptWidth) / 2, y + bannerHeight - 28, promptSize, Palette.Yellow);
+    }
+
+    /// <summary>
+    /// Draws the shared season summary content: QB rating, game scores, cumulative stats.
+    /// </summary>
+    private void DrawSeasonSummaryContent(int bannerX, int startY, int bannerWidth, SeasonSummary summary, Color accentColor)
+    {
+        int contentY = startY;
+        int leftCol = bannerX + 30;
+        Color labelColor = new(140, 160, 180, 255);
+        Color valueColor = Palette.White;
+
+        // ── QB RATING ──
+        float qbRating = summary.ComputeQbRating();
+        string ratingHeader = "QB RATING";
+        int ratingHeaderSize = 16;
+        int ratingHeaderWidth = Raylib.MeasureText(ratingHeader, ratingHeaderSize);
+        Raylib.DrawText(ratingHeader, bannerX + (bannerWidth - ratingHeaderWidth) / 2, contentY, ratingHeaderSize, Palette.Blue);
+        contentY += 22;
+
+        string ratingValue = $"{qbRating:F1}";
+        int ratingValueSize = 36;
+        int ratingValueWidth = Raylib.MeasureText(ratingValue, ratingValueSize);
+        Color ratingColor = qbRating >= 100f ? Palette.Gold
+                          : qbRating >= 80f ? Palette.Lime
+                          : qbRating >= 60f ? Palette.White
+                          : Palette.Orange;
+        Raylib.DrawText(ratingValue, bannerX + (bannerWidth - ratingValueWidth) / 2, contentY, ratingValueSize, ratingColor);
+        contentY += 42;
+
+        // ── CUMULATIVE PASSING STATS ──
+        var qb = summary.CumulativeQbStats;
+        string passLine = $"{qb.Completions}/{qb.Attempts}  {qb.PassYards} YDS  {qb.PassTds} TD  {qb.Interceptions} INT";
+        int passLineSize = 14;
+        int passLineWidth = Raylib.MeasureText(passLine, passLineSize);
+        Raylib.DrawText(passLine, bannerX + (bannerWidth - passLineWidth) / 2, contentY, passLineSize, labelColor);
+        contentY += 18;
+
+        if (qb.RushYards != 0 || qb.RushTds != 0)
+        {
+            string rushLine = $"RUSH: {qb.RushYards} YDS  {qb.RushTds} TD";
+            int rushLineWidth = Raylib.MeasureText(rushLine, passLineSize);
+            Raylib.DrawText(rushLine, bannerX + (bannerWidth - rushLineWidth) / 2, contentY, passLineSize, labelColor);
+            contentY += 18;
+        }
+
+        contentY += 6;
+
+        // ── DIVIDER ──
+        Raylib.DrawLine(bannerX + 40, contentY, bannerX + bannerWidth - 40, contentY, new Color(60, 70, 80, 180));
+        contentY += 10;
+
+        // ── GAME SCORES ──
+        string scoresHeader = "GAME SCORES";
+        int scoresHeaderSize = 16;
+        int scoresHeaderWidth = Raylib.MeasureText(scoresHeader, scoresHeaderSize);
+        Raylib.DrawText(scoresHeader, bannerX + (bannerWidth - scoresHeaderWidth) / 2, contentY, scoresHeaderSize, Palette.Cyan);
+        contentY += 24;
+
+        foreach (var game in summary.Games)
+        {
+            string stageLabel = game.Stage.GetShortLabel();
+            string result = game.Won ? "W" : "L";
+            Color resultColor = game.Won ? Palette.Lime : Palette.Red;
+
+            string scoreLine = $"{stageLabel}:  {game.PlayerScore} - {game.AwayScore}";
+            int scoreLineSize = 16;
+
+            // Draw stage label + score
+            Raylib.DrawText(scoreLine, leftCol, contentY, scoreLineSize, valueColor);
+
+            // Draw W/L badge
+            int scoreLineWidth = Raylib.MeasureText(scoreLine, scoreLineSize);
+            Raylib.DrawText($"  {result}", leftCol + scoreLineWidth, contentY, scoreLineSize, resultColor);
+
+            contentY += 22;
+        }
+
+        // ── STAGE PROGRESS BAR ──
+        contentY += 4;
+        int stagesWon = summary.Games.Count(g => g.Won);
+        int totalGames = summary.Games.Count;
+        int barWidth = bannerWidth - 100;
+        int barX = bannerX + 50;
+        int barHeight = 18;
+        Raylib.DrawRectangle(barX, contentY, barWidth, barHeight, new Color(30, 30, 40, 220));
+        Raylib.DrawRectangleLines(barX, contentY, barWidth, barHeight, accentColor);
+        int filledWidth = totalGames > 0 ? (int)(barWidth * stagesWon / 3f) : 0;
+        if (filledWidth > 2)
+            Raylib.DrawRectangle(barX + 1, contentY + 1, filledWidth - 2, barHeight - 2, accentColor);
+        string progressText = $"{stagesWon}/3 COMPLETE";
+        int progSize = 12;
+        int progWidth = Raylib.MeasureText(progressText, progSize);
+        // Text color: dark on filled bar for champion, white otherwise
+        Color progTextColor = stagesWon >= 3 ? new Color(18, 24, 36, 255) : Palette.White;
+        Raylib.DrawText(progressText, barX + (barWidth - progWidth) / 2, contentY + 3, progSize, progTextColor);
     }
 
     public void DrawTouchdownPopup()

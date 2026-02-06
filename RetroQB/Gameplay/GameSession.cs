@@ -40,6 +40,7 @@ public sealed class GameSession
     // Season progression
     private SeasonStage _currentStage = SeasonStage.RegularSeason;
     public SeasonStage CurrentStage => _currentStage;
+    private readonly SeasonSummary _seasonSummary = new();
 
     // Entity state (managed by PlayEntities)
     private readonly PlayEntities _entities = new();
@@ -319,6 +320,7 @@ public sealed class GameSession
             }
             SetOffensiveTeam(teams[_selectedTeamIndex]);
             _currentStage = SeasonStage.RegularSeason;
+            _seasonSummary.Reset();
             InitializeGame();
             _stateManager.SetState(GameState.PreSnap);
             _manualPlaySelection = false;
@@ -492,6 +494,7 @@ public sealed class GameSession
             ResetPlayState();
             _drawingController.Fireworks.Clear();
             _currentStage = SeasonStage.RegularSeason;
+            _seasonSummary.Reset();
             _stateManager.SetState(GameState.MainMenu);
         }
     }
@@ -587,6 +590,10 @@ public sealed class GameSession
 
         if (_playManager.Score >= WinningScore || _playManager.AwayScore >= WinningScore)
         {
+            // Record the game result for the season summary
+            var snap = _statsTracker.BuildSnapshot();
+            _seasonSummary.RecordGame(_currentStage, _playManager.Score, _playManager.AwayScore, snap.Qb);
+
             if (_playManager.Score >= WinningScore)
             {
                 // Player won this stage
@@ -642,7 +649,8 @@ public sealed class GameSession
             _offensiveTeam,
             _selectedTeamIndex,
             _stateManager.IsPaused,
-            _currentStage);
+            _currentStage,
+            _seasonSummary);
     }
 
     private void ClampToField(Entity entity)
