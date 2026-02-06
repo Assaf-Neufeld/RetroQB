@@ -185,7 +185,15 @@ public static class DefenderTargeting
                 }
             }
             
-            return receiver.Position;
+            // Trail slightly behind the receiver so the DB shadows rather than
+            // running into the receiver and physically stalling them.
+            Vector2 recvPos = receiver.Position;
+            if (receiver.Velocity.LengthSquared() > 0.01f)
+            {
+                Vector2 trailOffset = Vector2.Normalize(receiver.Velocity) * -0.6f;
+                recvPos += trailOffset;
+            }
+            return recvPos;
         }
 
         return qb.Position;

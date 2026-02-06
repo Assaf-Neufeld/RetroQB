@@ -56,9 +56,9 @@ public static class PlaybookBuilder
                 new Dictionary<int, RouteType>
                 {
                     [0] = RouteType.InShallow,
-                    [1] = RouteType.InShallow,
-                    [2] = RouteType.DoubleMove,
-                    [3] = RouteType.OutShallow,
+                    [1] = RouteType.DoubleMove,
+                    [2] = RouteType.InShallow,
+                    [3] = RouteType.Go,
                     [4] = RouteType.Flat
                 }),
 
@@ -169,7 +169,7 @@ public static class PlaybookBuilder
                     [0] = RouteType.PostDeep,
                     [1] = RouteType.Go,
                     [2] = RouteType.InDeep,
-                    [3] = RouteType.OutDeep,
+                    [3] = RouteType.Go,
                     [4] = RouteType.DoubleMove
                 }),
 

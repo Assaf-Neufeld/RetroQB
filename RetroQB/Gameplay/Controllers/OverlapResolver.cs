@@ -73,7 +73,14 @@ public sealed class OverlapResolver
     /// Maximum distance past the line of scrimmage where defenders can physically
     /// impede (press/jam) receivers. Beyond this, only the defender is pushed.
     /// </summary>
-    private const float PressZoneYards = 5f;
+    private const float PressZoneYards = 2f;
+
+    /// <summary>
+    /// How much of the overlap push goes to the defender vs the receiver
+    /// inside the press zone (0 = all receiver, 1 = all defender).
+    /// 0.8 means 80% of the push goes to the defender, 20% to the receiver.
+    /// </summary>
+    private const float PressReceiverAdvantage = 0.8f;
 
     public void ResolveOverlaps(
         Quarterback qb,
@@ -174,6 +181,17 @@ public sealed class OverlapResolver
                             clampToField(b);
                             continue;
                         }
+                        // Inside press zone: receiver gets release advantage
+                        if (!recv.IsBlocking)
+                        {
+                            float recvPush = push * 2f * (1f - PressReceiverAdvantage);
+                            float defPush = push * 2f * PressReceiverAdvantage;
+                            a.Position -= pushDir * recvPush;
+                            b.Position += pushDir * defPush;
+                            clampToField(a);
+                            clampToField(b);
+                            continue;
+                        }
                     }
                     else if (bIsReceiver && aIsDefender)
                     {
@@ -183,6 +201,17 @@ public sealed class OverlapResolver
                             // Only push the defender (a) away
                             a.Position -= pushDir * (push * 2f);
                             clampToField(a);
+                            continue;
+                        }
+                        // Inside press zone: receiver gets release advantage
+                        if (!recv.IsBlocking)
+                        {
+                            float defPush = push * 2f * PressReceiverAdvantage;
+                            float recvPush = push * 2f * (1f - PressReceiverAdvantage);
+                            a.Position -= pushDir * defPush;
+                            b.Position += pushDir * recvPush;
+                            clampToField(a);
+                            clampToField(b);
                             continue;
                         }
                     }
