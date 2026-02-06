@@ -18,8 +18,8 @@ public static class OffensiveTeamPresets
     {
         Name = "Ballers",
         Description = "Balanced",
-        PrimaryColor = new Color(110, 140, 180, 255),
-        SecondaryColor = new Color(200, 180, 130, 255),
+        PrimaryColor = new Color(70, 130, 220, 255),
+        SecondaryColor = new Color(230, 195, 70, 255),
         Roster = new OffensiveRoster
         {
             Quarterback = new QbProfile
@@ -60,8 +60,8 @@ public static class OffensiveTeamPresets
     {
         Name = "Lightning",
         Description = "Speed & passing",
-        PrimaryColor = new Color(225, 220, 200, 255),
-        SecondaryColor = new Color(180, 170, 140, 255),
+        PrimaryColor = new Color(255, 215, 50, 255),
+        SecondaryColor = new Color(140, 80, 210, 255),
         Roster = new OffensiveRoster
         {
             Quarterback = new QbProfile
@@ -102,8 +102,8 @@ public static class OffensiveTeamPresets
     {
         Name = "Bulldozers",
         Description = "Power running",
-        PrimaryColor = new Color(60, 58, 65, 255),
-        SecondaryColor = new Color(140, 135, 130, 255),
+        PrimaryColor = new Color(190, 40, 55, 255),
+        SecondaryColor = new Color(75, 80, 95, 255),
         Roster = new OffensiveRoster
         {
             Quarterback = new QbProfile

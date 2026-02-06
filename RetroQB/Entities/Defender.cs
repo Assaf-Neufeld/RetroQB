@@ -46,6 +46,12 @@ public sealed class Defender : Entity
     /// </summary>
     public bool IsPressCoverage { get; set; }
 
+    /// <summary>
+    /// Set each frame by blocking logic. True when a blocker has active contact with this defender.
+    /// Reset at the start of each blocking update cycle.
+    /// </summary>
+    public bool IsBeingBlocked { get; set; }
+
     public Defender(Vector2 position, DefensivePosition role, DefensiveTeamAttributes? teamAttributes = null) 
         : base(position, Constants.DefenderRadius, role.ToString(), Palette.Red)
     {

@@ -59,11 +59,11 @@ public sealed class SidePanelRenderer
             y += 8;
 
             // Run plays header
-            Raylib.DrawText("RUN (W-P, Q):", x, y, 14, Palette.Orange);
+            Raylib.DrawText("RUN (Q-P):", x, y, 14, Palette.Orange);
             y += 18;
 
             var runPlays = play.RunPlays;
-            string[] runKeys = { "W", "E", "R", "T", "Y", "U", "I", "O", "P", "Q" };
+            string[] runKeys = { "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P" };
             for (int i = 0; i < runPlays.Count && i < 10; i++)
             {
                 bool isSelected = play.SelectedPlayType == PlayType.Run && play.SelectedPlayIndex == i;
@@ -108,7 +108,7 @@ public sealed class SidePanelRenderer
         y += 15;
         Raylib.DrawText("Pass Plays: 1-9, 0", x, y, 12, Palette.White);
         y += 15;
-        Raylib.DrawText("Run Plays: W-P, Q", x, y, 12, Palette.White);
+        Raylib.DrawText("Run Plays: Q-P", x, y, 12, Palette.White);
         y += 15;
         Raylib.DrawText("Snap Ball: Space", x, y, 12, Palette.White);
         y += 15;

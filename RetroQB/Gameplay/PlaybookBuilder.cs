@@ -28,7 +28,9 @@ public static class PlaybookBuilder
         FormationType.RunPowerLeft,
         FormationType.RunIForm,
         FormationType.RunSweepRight,
-        FormationType.RunSweepLeft
+        FormationType.RunSweepLeft,
+        FormationType.RunStretchRight,
+        FormationType.RunStretchLeft
     };
 
     public static List<PlayDefinition> BuildPassPlays()
@@ -301,31 +303,31 @@ public static class PlaybookBuilder
                 },
                 runningBackSide: -1),
 
-            // O - Toss Right (pitch play)
+            // O - Stretch Right (outside zone)
             new(
-                "Toss Right",
+                "Stretch Right",
                 PlayType.Run,
-                FormationType.RunTossRight,
+                FormationType.RunStretchRight,
                 RunningBackRole.Route,
                 TightEndRole.Block,
                 new Dictionary<int, RouteType>
                 {
-                    [0] = RouteType.OutShallow,
-                    [1] = RouteType.Go
+                    [0] = RouteType.Go,
+                    [1] = RouteType.OutShallow
                 },
                 runningBackSide: 1),
 
-            // P - Toss Left (pitch play)
+            // P - Stretch Left (outside zone)
             new(
-                "Toss Left",
+                "Stretch Left",
                 PlayType.Run,
-                FormationType.RunTossLeft,
+                FormationType.RunStretchLeft,
                 RunningBackRole.Route,
                 TightEndRole.Block,
                 new Dictionary<int, RouteType>
                 {
-                    [0] = RouteType.OutShallow,
-                    [1] = RouteType.Go
+                    [0] = RouteType.Go,
+                    [1] = RouteType.OutShallow
                 },
                 runningBackSide: -1)
         };
@@ -355,6 +357,8 @@ public static class PlaybookBuilder
             FormationType.RunPowerLeft => -1,
             FormationType.RunSweepRight => 1,
             FormationType.RunSweepLeft => -1,
+            FormationType.RunStretchRight => 1,
+            FormationType.RunStretchLeft => -1,
             _ => 0
         };
 

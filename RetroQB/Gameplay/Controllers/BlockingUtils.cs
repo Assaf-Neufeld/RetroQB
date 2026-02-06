@@ -44,14 +44,23 @@ public static class BlockingUtils
     }
 
     /// <summary>
-    /// Returns true if the formation is a sweep or toss play.
+    /// Returns true if the formation is a sweep or outside-zone play.
     /// </summary>
     public static bool IsSweepFormation(FormationType formation)
     {
         return formation is FormationType.RunSweepLeft
             or FormationType.RunSweepRight
-            or FormationType.RunTossLeft
-            or FormationType.RunTossRight;
+            or FormationType.RunStretchLeft
+            or FormationType.RunStretchRight;
+    }
+
+    /// <summary>
+    /// Returns true if the formation is an outside zone / stretch play.
+    /// </summary>
+    public static bool IsStretchFormation(FormationType formation)
+    {
+        return formation is FormationType.RunStretchLeft
+            or FormationType.RunStretchRight;
     }
 
     /// <summary>

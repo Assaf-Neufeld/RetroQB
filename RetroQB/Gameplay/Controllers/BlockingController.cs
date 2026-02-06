@@ -104,7 +104,8 @@ public sealed class BlockingController
         float edgeY = lineOfScrimmage + (isSweep ? 3.2f : 2.6f);
         Vector2 edgeSpot = new Vector2(edgeX, edgeY);
 
-        Defender? edgeTarget = getClosestDefender(edgeSpot, Constants.BlockEngageRadius + 2.2f, true);
+        // Search for any defender near the edge — don't limit to rushers so DBs get picked up
+        Defender? edgeTarget = getClosestDefender(edgeSpot, Constants.BlockEngageRadius + 2.2f, false);
         float closeToEdgeRadius = 1.2f;
         bool closeToEdge = Vector2.DistanceSquared(receiver.Position, edgeSpot) <= closeToEdgeRadius * closeToEdgeRadius;
         bool targetNearEdge = edgeTarget != null && Vector2.DistanceSquared(edgeTarget.Position, edgeSpot) <= (Constants.BlockEngageRadius * 0.9f) * (Constants.BlockEngageRadius * 0.9f);
@@ -144,7 +145,8 @@ public sealed class BlockingController
         bool runBlockingBoost = BlockingUtils.IsRunPlayActiveWithRunningBack(selectedPlayType, ball);
         int runSide = Math.Sign(selectedPlay.RunningBackSide);
 
-        Defender? target = getClosestDefender(receiver.Position, Constants.BlockEngageRadius, true);
+        // On run plays, pick up any defender (including DBs coming downhill)
+        Defender? target = getClosestDefender(receiver.Position, Constants.BlockEngageRadius, !runBlockingBoost);
         if (target != null)
         {
             float blockMultiplier = GetReceiverBlockStrength(receiver) * GetDefenderBlockDifficulty(target);
@@ -197,6 +199,9 @@ public sealed class BlockingController
         Vector2? driveDir = null,
         float driveStrength = 0f)
     {
+        // Mark the defender as actively being blocked
+        target.IsBeingBlocked = true;
+
         Vector2 pushDir = BlockingUtils.SafeNormalize(target.Position - receiver.Position);
         float overlap = contactRange - distance;
         float holdStrength = (Constants.BlockHoldStrength * holdStrengthMult) * blockMultiplier;

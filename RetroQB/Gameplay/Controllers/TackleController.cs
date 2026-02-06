@@ -65,6 +65,16 @@ public sealed class TackleController
         {
             if (Vector2.Distance(defender.Position, carrier.Position) <= defender.Radius + carrier.Radius)
             {
+                // Defenders actively being blocked have a reduced chance of making the tackle
+                if (defender.IsBeingBlocked)
+                {
+                    float blockedTackleChance = 0.15f; // Only 15% chance to tackle while blocked
+                    if (_rng.NextDouble() >= blockedTackleChance)
+                    {
+                        continue; // Block absorbed the tackle attempt
+                    }
+                }
+
                 // Check for tackle break if carrier is a running back
                 if (carrier is Receiver receiver && receiver.IsRunningBack)
                 {

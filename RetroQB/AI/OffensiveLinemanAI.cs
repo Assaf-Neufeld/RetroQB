@@ -28,6 +28,12 @@ public static class OffensiveLinemanAI
     {
         if (blockers.Count == 0) return;
 
+        // Reset blocked state each frame — will be set by contact checks below
+        foreach (var defender in defenders)
+        {
+            defender.IsBeingBlocked = false;
+        }
+
         RunContext context = BuildRunContext(
             blockers,
             playFamily,
@@ -51,7 +57,8 @@ public static class OffensiveLinemanAI
             {
                 engageRadius *= 1.15f;
             }
-            Defender? target = GetClosestDefender(defenders, blocker.Position, engageRadius, preferRushers: true);
+            // On run plays, engage any defender (including DBs coming up); on pass plays prefer rushers
+            Defender? target = GetClosestDefender(defenders, blocker.Position, engageRadius, preferRushers: !context.IsRunPlay);
             bool closeToAnchor = IsWithinEngageRange(blocker.Position, targetAnchor, 0.9f);
             
             // For pass plays, prioritize getting to anchor position first before engaging
@@ -131,10 +138,14 @@ public static class OffensiveLinemanAI
         bool isRunPlay = playFamily == PlayType.Run;
         int runSide = Math.Sign(runningBackSide);
         bool isSweep = isRunPlay && BlockingUtils.IsSweepFormation(formation);
-        float lateralPush = isRunPlay && runSide != 0 ? runSide * (isSweep ? sweepPush : basePush) : 0f;
+        bool isStretch = isRunPlay && BlockingUtils.IsStretchFormation(formation);
+        float stretchPush = (basePush + sweepPush) * 0.5f; // midpoint between power and sweep
+        float lateralPush = isRunPlay && runSide != 0
+            ? runSide * (isStretch ? stretchPush : isSweep ? sweepPush : basePush)
+            : 0f;
         float targetY = isRunPlay ? lineOfScrimmage + runTargetOffset : lineOfScrimmage + passTargetOffset;
 
-        return new RunContext(isRunPlay, runSide, isSweep, lateralPush, targetY);
+        return new RunContext(isRunPlay, runSide, isSweep, isStretch, lateralPush, targetY);
     }
 
     /// <summary>
@@ -159,7 +170,7 @@ public static class OffensiveLinemanAI
     private static RunProfile GetRunProfile(Blocker blocker, RunContext context)
     {
         bool isBackside = context.IsRunPlay && IsBacksideBlocker(blocker.HomeX, context.RunSide);
-        float laneShift = context.IsRunPlay ? GetRunLaneShift(blocker.HomeX, context.RunSide, context.IsSweep) : 0f;
+        float laneShift = context.IsRunPlay ? GetRunLaneShift(blocker.HomeX, context.RunSide, context.IsSweep, context.IsStretch) : 0f;
         float backsideShift = context.IsRunPlay ? GetBacksideSealShift(isBackside, context.RunSide) : 0f;
 
         return new RunProfile(isBackside, laneShift, backsideShift);
@@ -236,6 +247,9 @@ public static class OffensiveLinemanAI
         {
             return;
         }
+
+        // Mark the defender as actively being blocked
+        target.IsBeingBlocked = true;
 
         Vector2 pushDir = BlockingUtils.SafeNormalize(target.Position - blocker.Position);
         float overlap = contactRange - distance;
@@ -447,7 +461,7 @@ public static class OffensiveLinemanAI
         return -runSide * sealAmount;
     }
 
-    private static float GetRunLaneShift(float homeX, int runSide, bool isSweep)
+    private static float GetRunLaneShift(float homeX, int runSide, bool isSweep, bool isStretch)
     {
         if (runSide == 0)
         {
@@ -455,7 +469,9 @@ public static class OffensiveLinemanAI
         }
 
         float centerX = Constants.FieldWidth * 0.5f;
-        float laneCenterX = centerX + (runSide * (isSweep ? 5.2f : 3.8f));
+        // Stretch: tighter wall (4.4) between power (3.8) and sweep (5.2)
+        float laneOffset = isStretch ? 4.4f : isSweep ? 5.2f : 3.8f;
+        float laneCenterX = centerX + (runSide * laneOffset);
         float deltaFromLane = homeX - laneCenterX;
         int laneSide = Math.Sign(deltaFromLane);
         if (laneSide == 0)
@@ -463,9 +479,10 @@ public static class OffensiveLinemanAI
             laneSide = -runSide;
         }
 
-        float baseSeparation = 1.4f;
+        // Stretch: tighter separation so blockers form a cohesive wall
+        float baseSeparation = isStretch ? 1.1f : 1.4f;
         float distanceBias = Math.Clamp(MathF.Abs(deltaFromLane) / 5.5f, 0f, 1f);
-        float separation = baseSeparation + (distanceBias * 0.7f);
+        float separation = baseSeparation + (distanceBias * (isStretch ? 0.5f : 0.7f));
         return laneSide * separation;
     }
 
@@ -477,12 +494,14 @@ public static class OffensiveLinemanAI
             bool isRunPlay,
             int runSide,
             bool isSweep,
+            bool isStretch,
             float lateralPush,
             float targetY)
         {
             IsRunPlay = isRunPlay;
             RunSide = runSide;
             IsSweep = isSweep;
+            IsStretch = isStretch;
             LateralPush = lateralPush;
             TargetY = targetY;
         }
@@ -490,6 +509,7 @@ public static class OffensiveLinemanAI
         public bool IsRunPlay { get; }
         public int RunSide { get; }
         public bool IsSweep { get; }
+        public bool IsStretch { get; }
         public float LateralPush { get; }
         public float TargetY { get; }
     }

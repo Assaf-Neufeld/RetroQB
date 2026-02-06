@@ -141,29 +141,29 @@ public sealed class FormationFactory : IFormationFactory
         [FormationType.RunSweepRight] = new(new ReceiverPlacement[]
         {
             new(0.10f, 0.3f, ReceiverSlot.WR1),
-            new(0.70f, 4.6f, ReceiverSlot.RB1),
+            new(0.60f, 4.6f, ReceiverSlot.RB1),
             new(0.72f, 0.05f, ReceiverSlot.TE1),
         }, ExtraLinemen: 2),
 
         [FormationType.RunSweepLeft] = new(new ReceiverPlacement[]
         {
             new(0.90f, 0.3f, ReceiverSlot.WR1),
-            new(0.30f, 4.6f, ReceiverSlot.RB1),
+            new(0.40f, 4.6f, ReceiverSlot.RB1),
             new(0.28f, 0.05f, ReceiverSlot.TE1),
         }, ExtraLinemen: 2),
 
-        [FormationType.RunTossRight] = new(new ReceiverPlacement[]
+        [FormationType.RunStretchRight] = new(new ReceiverPlacement[]
         {
             new(0.10f, 0.3f, ReceiverSlot.WR1),
-            new(0.70f, 4.1f, ReceiverSlot.RB1),
-            new(0.72f, 0.05f, ReceiverSlot.TE1),
+            new(0.56f, 3.2f, ReceiverSlot.RB1),
+            new(0.66f, 0.05f, ReceiverSlot.TE1),
         }, ExtraLinemen: 2),
 
-        [FormationType.RunTossLeft] = new(new ReceiverPlacement[]
+        [FormationType.RunStretchLeft] = new(new ReceiverPlacement[]
         {
             new(0.90f, 0.3f, ReceiverSlot.WR1),
-            new(0.30f, 4.1f, ReceiverSlot.RB1),
-            new(0.28f, 0.05f, ReceiverSlot.TE1),
+            new(0.44f, 3.2f, ReceiverSlot.RB1),
+            new(0.34f, 0.05f, ReceiverSlot.TE1),
         }, ExtraLinemen: 2),
     };
 
@@ -226,8 +226,8 @@ public sealed class FormationFactory : IFormationFactory
             or FormationType.RunIForm
             or FormationType.RunSweepRight
             or FormationType.RunSweepLeft
-            or FormationType.RunTossRight
-            or FormationType.RunTossLeft)
+            or FormationType.RunStretchRight
+            or FormationType.RunStretchLeft)
         {
             return formation;
         }
