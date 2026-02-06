@@ -72,6 +72,12 @@ public sealed class PlayExecutionController
             Vector2 clearOutDir = GetQbClearOutDirection(qb, ball, playManager);
             qb.ApplyInput(clearOutDir, sprinting: false, aimMode: false, dt);
         }
+        else if (ball.State == BallState.HeldByReceiver)
+        {
+            // After completion, QB jogs toward the ball carrier
+            Vector2 trackDir = GetTrackDirectionToward(qb.Position, ball.Holder!.Position);
+            qb.ApplyInput(trackDir, sprinting: false, aimMode: true, dt);
+        }
         else
         {
             qb.ApplyInput(Vector2.Zero, false, false, dt);
@@ -186,4 +192,17 @@ public sealed class PlayExecutionController
         return clearOut;
     }
 
+    /// <summary>
+    /// Returns a normalized direction from <paramref name="from"/> toward <paramref name="to"/>,
+    /// or Vector2.Zero if they overlap.
+    /// </summary>
+    internal static Vector2 GetTrackDirectionToward(Vector2 from, Vector2 to)
+    {
+        Vector2 delta = to - from;
+        if (delta.LengthSquared() < 0.001f)
+        {
+            return Vector2.Zero;
+        }
+        return Vector2.Normalize(delta);
+    }
 }

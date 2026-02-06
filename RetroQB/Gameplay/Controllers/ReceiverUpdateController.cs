@@ -39,10 +39,19 @@ public sealed class ReceiverUpdateController
         bool isRunPlayPreHandoff = IsRunPlayActivePreHandoff(playManager.SelectedPlayType, ball);
         bool isRunPlayWithRb = BlockingUtils.IsRunPlayActiveWithRunningBack(playManager.SelectedPlayType, ball);
         bool isBallHeldByReceiver = ball.State == BallState.HeldByReceiver;
+        bool isPassCompletion = isBallHeldByReceiver && !isRunPlayWithRb;
 
         foreach (var receiver in receivers)
         {
             bool isBallCarrier = isBallHeldByReceiver && ball.Holder == receiver;
+
+            // After a pass completion, non-catching receivers track toward the ball carrier
+            if (isPassCompletion && !isBallCarrier && receiver != controlledReceiver)
+            {
+                UpdateReceiverTrackingBallCarrier(receiver, ball.Holder!, dt, clampToField);
+                continue;
+            }
+
             bool autoBlockWr = !receiver.IsBlocking
                 && !receiver.IsRunningBack
                 && !receiver.IsTightEnd
@@ -303,6 +312,18 @@ public sealed class ReceiverUpdateController
         }
 
         return closest;
+    }
+
+    /// <summary>
+    /// After a pass completion, non-catching receivers jog toward the ball carrier.
+    /// </summary>
+    private static void UpdateReceiverTrackingBallCarrier(Receiver receiver, Entity ballCarrier, float dt, Action<Entity> clampToField)
+    {
+        Vector2 trackDir = PlayExecutionController.GetTrackDirectionToward(receiver.Position, ballCarrier.Position);
+        float trackSpeed = receiver.Speed * 0.75f;
+        receiver.Velocity = trackDir * trackSpeed;
+        receiver.Update(dt);
+        clampToField(receiver);
     }
 
     private static bool IsRunPlayActivePreHandoff(PlayType selectedPlayType, Ball ball)
