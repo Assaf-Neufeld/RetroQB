@@ -174,8 +174,10 @@ public sealed class GameSession
                 break;
         }
 
-        // Apply stage difficulty multiplier to create a scaled-up version
+        // Apply stage difficulty multiplier to create a scaled-up version.
+        // Pass-rush / DE speed uses a softer curve so the QB isn't instantly sacked.
         float stageMult = stage.GetDifficultyMultiplier();
+        float rushMult  = stage.GetPassRushMultiplier();
         var scaledDefense = new DefensiveTeamAttributes
         {
             Name = baseDefense.Name,
@@ -188,12 +190,12 @@ public sealed class GameSession
             InterceptionAbility = baseDefense.InterceptionAbility * MathF.Sqrt(stageMult),
             TackleAbility = baseDefense.TackleAbility * stageMult,
             CoverageTightness = baseDefense.CoverageTightness * MathF.Sqrt(stageMult),
-            PassRushAbility = baseDefense.PassRushAbility * stageMult,
-            BlitzFrequency = baseDefense.BlitzFrequency * stageMult,
-            DlSpeed = baseDefense.DlSpeed > 0 ? baseDefense.DlSpeed * stageMult : Constants.DlSpeed * stageMult,
-            DeSpeed = baseDefense.DeSpeed > 0 ? baseDefense.DeSpeed * stageMult : Constants.DeSpeed * stageMult,
-            LbSpeed = baseDefense.LbSpeed > 0 ? baseDefense.LbSpeed * stageMult : Constants.LbSpeed * stageMult,
-            DbSpeed = baseDefense.DbSpeed > 0 ? baseDefense.DbSpeed * stageMult : Constants.DbSpeed * stageMult
+            PassRushAbility = baseDefense.PassRushAbility * rushMult,
+            BlitzFrequency = baseDefense.BlitzFrequency * rushMult,
+            DlSpeed = (baseDefense.DlSpeed > 0 ? baseDefense.DlSpeed : Constants.DlSpeed) * rushMult,
+            DeSpeed = (baseDefense.DeSpeed > 0 ? baseDefense.DeSpeed : Constants.DeSpeed) * rushMult,
+            LbSpeed = (baseDefense.LbSpeed > 0 ? baseDefense.LbSpeed : Constants.LbSpeed) * stageMult,
+            DbSpeed = (baseDefense.DbSpeed > 0 ? baseDefense.DbSpeed : Constants.DbSpeed) * stageMult
         };
 
         SetDefensiveTeam(scaledDefense);

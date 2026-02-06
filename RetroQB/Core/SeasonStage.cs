@@ -59,8 +59,21 @@ public static class SeasonStageExtensions
     public static float GetDifficultyMultiplier(this SeasonStage stage) => stage switch
     {
         SeasonStage.RegularSeason => 1.0f,
-        SeasonStage.Playoff => 1.12f,
-        SeasonStage.SuperBowl => 1.25f,
+        SeasonStage.Playoff => 1.06f,
+        SeasonStage.SuperBowl => 1.13f,
+        _ => 1.0f
+    };
+
+    /// <summary>
+    /// Returns a softer multiplier for pass-rush / DE speed so the QB isn't
+    /// instantly sacked in later stages.  Scales at roughly half the rate of
+    /// the general difficulty multiplier.
+    /// </summary>
+    public static float GetPassRushMultiplier(this SeasonStage stage) => stage switch
+    {
+        SeasonStage.RegularSeason => 1.0f,
+        SeasonStage.Playoff => 1.03f,
+        SeasonStage.SuperBowl => 1.06f,
         _ => 1.0f
     };
 }
