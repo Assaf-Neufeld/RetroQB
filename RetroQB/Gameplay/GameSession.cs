@@ -231,9 +231,11 @@ public sealed class GameSession
 
     private void HandleMainMenu()
     {
-        if (_menuController.UpdateMainMenu())
+        bool confirmed = _menuController.UpdateMainMenu();
+        _selectedTeamIndex = _menuController.SelectedTeamIndex;
+
+        if (confirmed)
         {
-            _selectedTeamIndex = _menuController.SelectedTeamIndex;
             var teams = OffensiveTeamPresets.All;
             if (_selectedTeamIndex < 0 || _selectedTeamIndex >= teams.Count)
             {
