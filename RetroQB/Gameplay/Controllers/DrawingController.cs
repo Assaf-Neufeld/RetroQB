@@ -16,6 +16,7 @@ public sealed class DrawingController
     private readonly HudRenderer _hudRenderer;
     private readonly FireworksEffect _fireworks;
     private readonly ReceiverPriorityManager _priorityManager;
+    private readonly ScreenEffects _screenEffects;
 
     public DrawingController(
         FieldRenderer fieldRenderer,
@@ -27,16 +28,19 @@ public sealed class DrawingController
         _hudRenderer = hudRenderer;
         _fireworks = fireworks;
         _priorityManager = priorityManager;
+        _screenEffects = new ScreenEffects();
     }
 
     public FireworksEffect Fireworks => _fireworks;
+    public ScreenEffects ScreenEffects => _screenEffects;
 
     /// <summary>
-    /// Updates the fireworks effect.
+    /// Updates the fireworks and screen effects.
     /// </summary>
     public void UpdateFireworks(float dt)
     {
         _fireworks.Update(dt);
+        _screenEffects.Update(dt);
     }
 
     /// <summary>
@@ -54,8 +58,17 @@ public sealed class DrawingController
         string driveOverText,
         OffensiveTeamAttributes offensiveTeam,
         int selectedTeamIndex,
-        bool isPaused)
+        bool isPaused,
+        SeasonStage currentStage)
     {
+        // Apply camera shake offset
+        Vector2 shake = _screenEffects.ShakeOffset;
+        if (shake != Vector2.Zero)
+        {
+            Rlgl.PushMatrix();
+            Rlgl.Translatef(shake.X, shake.Y, 0f);
+        }
+
         _fieldRenderer.DrawField(playManager.LineOfScrimmage, playManager.FirstDownLine);
 
         _fireworks.Draw();
@@ -87,23 +100,30 @@ public sealed class DrawingController
 
         // Draw scoreboard and side panel HUD
         string targetLabel = GetSelectedReceiverPriorityLabel(playManager.SelectedReceiver, receivers);
-        _hudRenderer.DrawScoreboard(playManager, lastPlayText, gameState, offensiveTeam);
-        _hudRenderer.DrawSidePanel(playManager, lastPlayText, targetLabel, gameState);
+        _hudRenderer.DrawScoreboard(playManager, lastPlayText, gameState, offensiveTeam, currentStage);
+        _hudRenderer.DrawSidePanel(playManager, lastPlayText, targetLabel, gameState, currentStage);
 
         if (gameState == GameState.DriveOver)
         {
             DrawDriveOverBanner(driveOverText, "PRESS ENTER FOR NEXT DRIVE");
         }
 
+        if (gameState == GameState.StageComplete)
+        {
+            var nextStage = currentStage.GetNextStage();
+            string nextName = nextStage?.GetDisplayName() ?? "???";
+            _hudRenderer.DrawStageCompleteBanner(playManager.Score, playManager.AwayScore, currentStage);
+        }
+
         if (gameState == GameState.GameOver)
         {
             if (playManager.Score >= 21)
             {
-                _hudRenderer.DrawVictoryBanner(playManager.Score, playManager.AwayScore);
+                _hudRenderer.DrawChampionBanner(playManager.Score, playManager.AwayScore, currentStage);
             }
             else
             {
-                DrawDriveOverBanner(driveOverText, "PRESS ENTER TO CHOOSE TEAM");
+                _hudRenderer.DrawEliminationBanner(playManager.Score, playManager.AwayScore, currentStage);
             }
         }
 
@@ -116,6 +136,15 @@ public sealed class DrawingController
         {
             _hudRenderer.DrawPause();
         }
+
+        // Pop shake transform before drawing flash overlay
+        if (shake != Vector2.Zero)
+        {
+            Rlgl.PopMatrix();
+        }
+
+        // Draw flash overlay on top of everything
+        _screenEffects.DrawFlash();
     }
 
     /// <summary>
@@ -162,14 +191,19 @@ public sealed class DrawingController
             string priorityLabel = _priorityManager.GetPriorityLabel(receiver.Index);
             if (priorityLabel == "-") continue;
 
-            Vector2 labelPos = Constants.WorldToScreen(receiver.Position);
-            int fontSize = 20;
-            Color shadow = new Color(10, 10, 12, 220);
+            Vector2 center = Constants.WorldToScreen(receiver.Position);
+            int fontSize = 16;
             int textWidth = Raylib.MeasureText(priorityLabel, fontSize);
-            int drawX = (int)labelPos.X - textWidth / 2;
-            int drawY = (int)labelPos.Y - 20;
-            Raylib.DrawText(priorityLabel, drawX + 1, drawY + 1, fontSize, shadow);
-            Raylib.DrawText(priorityLabel, drawX, drawY, fontSize, Palette.Lime);
+
+            // Position at upper-right of the player circle
+            int offsetX = 8;
+            int offsetY = -18;
+            int drawX = (int)center.X + offsetX;
+            int drawY = (int)center.Y + offsetY;
+
+            // Drop shadow + gold text
+            Raylib.DrawText(priorityLabel, drawX + 1, drawY + 1, fontSize, new Color(10, 10, 14, 180));
+            Raylib.DrawText(priorityLabel, drawX, drawY, fontSize, Palette.Gold);
         }
     }
 

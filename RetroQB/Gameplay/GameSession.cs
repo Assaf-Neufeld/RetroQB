@@ -21,6 +21,7 @@ public sealed class GameSession
     private readonly PlayManager _playManager;
     private readonly IStatisticsTracker _statsTracker;
     private readonly InputManager _input;
+    private readonly Random _sessionRng = new();
 
     // Controllers (Single Responsibility)
     private readonly PlaySetupController _playSetupController;
@@ -35,6 +36,10 @@ public sealed class GameSession
     // Team attributes
     private OffensiveTeamAttributes _offensiveTeam = OffensiveTeamAttributes.Default;
     private DefensiveTeamAttributes _defensiveTeam = DefensiveTeamAttributes.Default;
+
+    // Season progression
+    private SeasonStage _currentStage = SeasonStage.RegularSeason;
+    public SeasonStage CurrentStage => _currentStage;
 
     // Entity state (managed by PlayEntities)
     private readonly PlayEntities _entities = new();
@@ -137,9 +142,75 @@ public sealed class GameSession
     {
         _statsTracker.Reset();
         _playManager.StartNewGame();
+        SetDefensiveTeamForStage(_currentStage);
         SetupEntities();
         ResetPlayState();
         _drawingController.Fireworks.Clear();
+    }
+
+    /// <summary>
+    /// Selects and applies a defensive team appropriate to the current season stage.
+    /// Higher stages get harder defenses with boosted attributes.
+    /// </summary>
+    private void SetDefensiveTeamForStage(SeasonStage stage)
+    {
+        var allDefenses = DefensiveTeamPresets.All;
+        DefensiveTeamAttributes baseDefense;
+
+        switch (stage)
+        {
+            case SeasonStage.Playoff:
+                // Pick from the more challenging defenses
+                var playoffPool = new[] { allDefenses[1], allDefenses[2] }; // Blitzkrieg, Lockdown
+                baseDefense = playoffPool[_sessionRng.Next(playoffPool.Length)];
+                break;
+            case SeasonStage.SuperBowl:
+                // Use the toughest defensive preset
+                baseDefense = allDefenses[3]; // Iron Curtain
+                break;
+            default:
+                // Regular season: balanced defense
+                baseDefense = allDefenses[0]; // Sentinels
+                break;
+        }
+
+        // Apply stage difficulty multiplier to create a scaled-up version
+        float stageMult = stage.GetDifficultyMultiplier();
+        var scaledDefense = new DefensiveTeamAttributes
+        {
+            Name = baseDefense.Name,
+            Description = baseDefense.Description,
+            PrimaryColor = baseDefense.PrimaryColor,
+            SecondaryColor = baseDefense.SecondaryColor,
+            Roster = baseDefense.Roster,
+            OverallRating = baseDefense.OverallRating * stageMult,
+            SpeedMultiplier = baseDefense.SpeedMultiplier * stageMult,
+            InterceptionAbility = baseDefense.InterceptionAbility * MathF.Sqrt(stageMult),
+            TackleAbility = baseDefense.TackleAbility * stageMult,
+            CoverageTightness = baseDefense.CoverageTightness * MathF.Sqrt(stageMult),
+            PassRushAbility = baseDefense.PassRushAbility * stageMult,
+            BlitzFrequency = baseDefense.BlitzFrequency * stageMult,
+            DlSpeed = baseDefense.DlSpeed > 0 ? baseDefense.DlSpeed * stageMult : Constants.DlSpeed * stageMult,
+            DeSpeed = baseDefense.DeSpeed > 0 ? baseDefense.DeSpeed * stageMult : Constants.DeSpeed * stageMult,
+            LbSpeed = baseDefense.LbSpeed > 0 ? baseDefense.LbSpeed * stageMult : Constants.LbSpeed * stageMult,
+            DbSpeed = baseDefense.DbSpeed > 0 ? baseDefense.DbSpeed * stageMult : Constants.DbSpeed * stageMult
+        };
+
+        SetDefensiveTeam(scaledDefense);
+    }
+
+    /// <summary>
+    /// Advances to the next season stage and starts a fresh game for that stage.
+    /// </summary>
+    private void AdvanceToNextStage()
+    {
+        var nextStage = _currentStage.GetNextStage();
+        if (nextStage.HasValue)
+        {
+            _currentStage = nextStage.Value;
+            InitializeGame();
+            _stateManager.SetState(GameState.PreSnap);
+        }
     }
 
     private void ResetPlayState()
@@ -210,6 +281,9 @@ public sealed class GameSession
             case GameState.DriveOver:
                 HandleDriveOver();
                 break;
+            case GameState.StageComplete:
+                HandleStageComplete();
+                break;
             case GameState.GameOver:
                 HandleGameOver();
                 break;
@@ -242,6 +316,7 @@ public sealed class GameSession
                 _selectedTeamIndex = 0;
             }
             SetOffensiveTeam(teams[_selectedTeamIndex]);
+            _currentStage = SeasonStage.RegularSeason;
             InitializeGame();
             _stateManager.SetState(GameState.PreSnap);
             _manualPlaySelection = false;
@@ -400,12 +475,21 @@ public sealed class GameSession
         }
     }
 
+    private void HandleStageComplete()
+    {
+        if (_menuController.IsConfirmPressed())
+        {
+            AdvanceToNextStage();
+        }
+    }
+
     private void HandleGameOver()
     {
         if (_menuController.IsConfirmPressed())
         {
             ResetPlayState();
             _drawingController.Fireworks.Clear();
+            _currentStage = SeasonStage.RegularSeason;
             _stateManager.SetState(GameState.MainMenu);
         }
     }
@@ -464,7 +548,31 @@ public sealed class GameSession
         if (touchdown)
         {
             _drawingController.Fireworks.Trigger();
+            _drawingController.ScreenEffects.TriggerShake(5f, 0.15f);
+            _drawingController.ScreenEffects.TriggerFlash(new Raylib_cs.Color(255, 255, 255, 255), 60, 0.15f);
             _playOverDuration = 2.6f;
+        }
+        else if (intercepted)
+        {
+            _drawingController.ScreenEffects.TriggerShake(6f, 0.18f);
+            _drawingController.ScreenEffects.TriggerFlash(new Raylib_cs.Color(220, 70, 60, 255), 45, 0.12f);
+            _playOverDuration = 1.25f;
+        }
+        else if (tackle)
+        {
+            bool isSack = _entities.Ball.State == BallState.HeldByQB || _entities.Ball.Holder is Quarterback;
+            bool isBigPlay = gain >= 20f;
+
+            if (isSack)
+            {
+                _drawingController.ScreenEffects.TriggerShake(5f, 0.15f);
+            }
+            else if (isBigPlay)
+            {
+                _drawingController.ScreenEffects.TriggerShake(4f, 0.12f);
+            }
+
+            _playOverDuration = 1.25f;
         }
         else
         {
@@ -477,8 +585,26 @@ public sealed class GameSession
 
         if (_playManager.Score >= WinningScore || _playManager.AwayScore >= WinningScore)
         {
-            _driveOverText = _playManager.Score >= WinningScore ? "HOME WINS!" : "AWAY WINS!";
-            _stateManager.SetState(GameState.GameOver);
+            if (_playManager.Score >= WinningScore)
+            {
+                // Player won this stage
+                var nextStage = _currentStage.GetNextStage();
+                if (nextStage.HasValue)
+                {
+                    _driveOverText = $"{_currentStage.GetDisplayName()} WON!";
+                    _stateManager.SetState(GameState.StageComplete);
+                }
+                else
+                {
+                    _driveOverText = "CHAMPION!";
+                    _stateManager.SetState(GameState.GameOver);
+                }
+            }
+            else
+            {
+                _driveOverText = $"ELIMINATED IN {_currentStage.GetDisplayName()}!";
+                _stateManager.SetState(GameState.GameOver);
+            }
             return;
         }
 
@@ -513,7 +639,8 @@ public sealed class GameSession
             _driveOverText,
             _offensiveTeam,
             _selectedTeamIndex,
-            _stateManager.IsPaused);
+            _stateManager.IsPaused,
+            _currentStage);
     }
 
     private void ClampToField(Entity entity)

@@ -53,11 +53,24 @@ public sealed class MenuRenderer
         contentY += 20;
 
         // GAME RULES SECTION
-        string goalText = "★ FIRST TO 21 WINS ★";
-        int goalSize = 20;
+        string goalText = "★ WIN 3 STAGES TO BECOME CHAMPION ★";
+        int goalSize = 18;
         int goalWidth = Raylib.MeasureText(goalText, goalSize);
         Raylib.DrawText(goalText, panelX + (panelWidth - goalWidth) / 2, contentY, goalSize, Palette.Lime);
-        contentY += goalSize + 20;
+        contentY += goalSize + 6;
+
+        // Stage descriptions
+        string[] stageLines = {
+            "1. Regular Season  →  2. Playoff  →  3. Super Bowl",
+            "Score 21 each round. Defense gets harder!"
+        };
+        foreach (var line in stageLines)
+        {
+            int lineWidth = Raylib.MeasureText(line, 14);
+            Raylib.DrawText(line, panelX + (panelWidth - lineWidth) / 2, contentY, 14, new Color(180, 200, 220, 255));
+            contentY += 18;
+        }
+        contentY += 8;
 
         // TEAM SELECTION SECTION
         string selectHeader = "SELECT YOUR TEAM";

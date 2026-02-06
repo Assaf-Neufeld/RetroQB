@@ -13,7 +13,7 @@ public sealed class ScoreboardRenderer
     private static int ScoreboardWidth => (int)Constants.ScoreboardPanelWidth;
     private static int ScoreboardHeight => Raylib.GetScreenHeight() - (int)(Constants.OuterMargin * 2);
 
-    public void Draw(PlayManager play, string resultText, GameState state, OffensiveTeamAttributes offensiveTeam, GameStatsSnapshot stats)
+    public void Draw(PlayManager play, string resultText, GameState state, OffensiveTeamAttributes offensiveTeam, GameStatsSnapshot stats, SeasonStage stage)
     {
         int x = Raylib.GetScreenWidth() - ScoreboardWidth - (int)Constants.OuterMargin;
         int y = ScoreboardY;
@@ -41,6 +41,23 @@ public sealed class ScoreboardRenderer
             int textWidth = Raylib.MeasureText(text, fontSize);
             Raylib.DrawText(text, rightX - textWidth, drawY, fontSize, color);
         }
+
+        // Stage indicator
+        string stageText = stage.GetDisplayName();
+        int stageNum = stage.GetStageNumber();
+        Color stageColor = stage switch
+        {
+            SeasonStage.RegularSeason => Palette.Lime,
+            SeasonStage.Playoff => Palette.Yellow,
+            SeasonStage.SuperBowl => Palette.Gold,
+            _ => Palette.White
+        };
+        Raylib.DrawRectangle(contentX - 4, contentY - 4, ScoreboardWidth - 24, 26, new Color(18, 26, 40, 220));
+        Raylib.DrawRectangleLines(contentX - 4, contentY - 4, ScoreboardWidth - 24, 26, stageColor);
+        string stageDisplay = $"STAGE {stageNum}/3: {stageText}";
+        int stageWidth = Raylib.MeasureText(stageDisplay, 14);
+        Raylib.DrawText(stageDisplay, contentX + (ScoreboardWidth - 24 - stageWidth) / 2, contentY, 14, stageColor);
+        contentY += 30;
 
         // Score block
         Raylib.DrawRectangleLines(contentX - 4, contentY - 4, ScoreboardWidth - 24, 48, panelAccent);

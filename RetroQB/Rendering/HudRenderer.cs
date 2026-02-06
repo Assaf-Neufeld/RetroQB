@@ -25,14 +25,14 @@ public sealed class HudRenderer
         _stats = stats;
     }
 
-    public void DrawScoreboard(PlayManager play, string resultText, GameState state, OffensiveTeamAttributes offensiveTeam)
+    public void DrawScoreboard(PlayManager play, string resultText, GameState state, OffensiveTeamAttributes offensiveTeam, SeasonStage stage)
     {
-        _scoreboard.Draw(play, resultText, state, offensiveTeam, _stats);
+        _scoreboard.Draw(play, resultText, state, offensiveTeam, _stats, stage);
     }
 
-    public void DrawSidePanel(PlayManager play, string resultText, string selectedReceiverLabel, GameState state)
+    public void DrawSidePanel(PlayManager play, string resultText, string selectedReceiverLabel, GameState state, SeasonStage stage)
     {
-        _sidePanel.Draw(play, resultText, selectedReceiverLabel, state);
+        _sidePanel.Draw(play, resultText, selectedReceiverLabel, state, stage);
     }
 
     public void DrawMainMenu(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams)
@@ -45,9 +45,19 @@ public sealed class HudRenderer
         _menu.DrawPause();
     }
 
-    public void DrawVictoryBanner(int finalScore, int awayScore)
+    public void DrawStageCompleteBanner(int finalScore, int awayScore, SeasonStage completedStage)
     {
-        _banner.DrawVictoryBanner(finalScore, awayScore, _stats);
+        _banner.DrawStageCompleteBanner(finalScore, awayScore, completedStage, _stats);
+    }
+
+    public void DrawChampionBanner(int finalScore, int awayScore, SeasonStage stage)
+    {
+        _banner.DrawChampionBanner(finalScore, awayScore, _stats);
+    }
+
+    public void DrawEliminationBanner(int finalScore, int awayScore, SeasonStage stage)
+    {
+        _banner.DrawEliminationBanner(finalScore, awayScore, stage, _stats);
     }
 
     public void DrawTouchdownPopup()

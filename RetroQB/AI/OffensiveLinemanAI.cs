@@ -298,11 +298,13 @@ public static class OffensiveLinemanAI
         }
     }
 
+    private static readonly Color OlRouteColor = new(255, 214, 74, 100);
+
     private static void DrawRoute(Vector2 start, Vector2 end)
     {
         Vector2 a = Constants.WorldToScreen(start);
         Vector2 b = Constants.WorldToScreen(end);
-        Raylib.DrawLineEx(a, b, 2.0f, Palette.RouteBlocking);
+        Raylib.DrawLineEx(a, b, 2.0f, OlRouteColor);
 
         Vector2 dir = end - start;
         if (dir.LengthSquared() > 0.001f)
@@ -313,7 +315,7 @@ public static class OffensiveLinemanAI
             Vector2 orthoEnd = end + perp * 0.8f;
             Vector2 oA = Constants.WorldToScreen(orthoStart);
             Vector2 oB = Constants.WorldToScreen(orthoEnd);
-            Raylib.DrawLineEx(oA, oB, 2.0f, Palette.RouteBlocking);
+            Raylib.DrawLineEx(oA, oB, 2.0f, OlRouteColor);
         }
     }
 

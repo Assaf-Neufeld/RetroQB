@@ -27,6 +27,8 @@ RetroQB is a fast-paced retro-style 2D American football game where YOU are the 
 ## ⚡ Features
 
 ### 🎮 Core Gameplay
+- **3-Stage Season Mode** — Win the Regular Season, Playoff, and Super Bowl to become Champion
+- **Increasing Difficulty** — Each stage features tougher defensive opponents
 - **Classic Arcade Feel** — Simple controls, pure football action
 - **Multiple Play Types** — Quick passes, deep bombs, scrambles, and dedicated run plays
 - **Drive Tracking** — Watch your plays unfold in the drive summary with detailed stats
@@ -71,13 +73,19 @@ RetroQB is a fast-paced retro-style 2D American football game where YOU are the 
 
 ## 🏃 How to Play
 
-1. **Pre-Snap**: Choose your play type (Quick Pass, Long Pass, or QB Run)
-2. **Snap**: Press `Space` to start the play
-3. **Read the Defense**: Receivers are labeled by priority `1`-`5`
-4. **Make Your Move**: 
-  - Throw with `1`-`5` before crossing the line of scrimmage
+1. **Choose Your Team**: Select from 3 unique offensive teams
+2. **Win 3 Stages**: Beat each stage by scoring 21 points
+   - **Regular Season** — Balanced defense, learn the ropes
+   - **Playoff** — Tougher defense with aggressive schemes
+   - **Super Bowl** — Elite defense, the ultimate challenge
+3. **Pre-Snap**: Choose your play (pass or run)
+4. **Snap**: Press `Space` to start the play
+5. **Read the Defense**: Receivers are labeled by priority `1`-`5`
+6. **Make Your Move**: 
+   - Throw with `1`-`5` before crossing the line of scrimmage
    - Or tuck it and run! Sprint past defenders for big gains
-5. **Score Touchdowns**: Reach the end zone for 7 points
+7. **Score Touchdowns**: Reach the end zone for 7 points
+8. **Become Champion**: Win all 3 stages to hoist the trophy!
 
 ---
 

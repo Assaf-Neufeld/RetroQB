@@ -7,5 +7,6 @@ public enum GameState
     PlayActive,
     PlayOver,
     DriveOver,
+    StageComplete,
     GameOver
 }

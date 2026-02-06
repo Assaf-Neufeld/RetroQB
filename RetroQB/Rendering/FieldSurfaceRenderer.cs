@@ -5,10 +5,38 @@ namespace RetroQB.Rendering;
 
 internal sealed class FieldSurfaceRenderer
 {
+    private static readonly Color StripeDark = new(10, 70, 30, 255);
+    private static readonly Color StripeLight = Palette.Field;
+
     public void Draw()
     {
         Rectangle rect = Constants.FieldRect;
+
+        // Base fill
         Raylib.DrawRectangleRec(rect, Palette.Field);
+
+        // Alternating mowed-grass stripes every 5 yards (playing field only)
+        for (int yard = 0; yard < 100; yard += 5)
+        {
+            float topWorld = Constants.EndZoneDepth + yard;
+            float botWorld = Constants.EndZoneDepth + yard + 5f;
+            float topScreen = Constants.WorldToScreenY(botWorld);  // world Y is inverted vs screen Y
+            float botScreen = Constants.WorldToScreenY(topWorld);
+
+            // Clamp to field rect
+            topScreen = MathF.Max(topScreen, rect.Y);
+            botScreen = MathF.Min(botScreen, rect.Y + rect.Height);
+
+            if (botScreen <= topScreen) continue;
+
+            bool isDark = (yard / 5) % 2 == 0;
+            if (isDark)
+            {
+                Raylib.DrawRectangle((int)rect.X, (int)topScreen, (int)rect.Width, (int)(botScreen - topScreen), StripeDark);
+            }
+            // Light stripes are already the base fill color — no draw needed
+        }
+
         DrawEndZones(rect);
     }
 

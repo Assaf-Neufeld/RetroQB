@@ -12,7 +12,7 @@ public sealed class SidePanelRenderer
     private static int PanelX => (int)Constants.OuterMargin;
     private static int PanelWidth => (int)Constants.SidePanelWidth;
 
-    public void Draw(PlayManager play, string resultText, string selectedReceiverLabel, GameState state)
+    public void Draw(PlayManager play, string resultText, string selectedReceiverLabel, GameState state, SeasonStage stage)
     {
         int screenH = Raylib.GetScreenHeight();
         int panelHeight = screenH - (int)(Constants.OuterMargin * 2);
@@ -81,9 +81,20 @@ public sealed class SidePanelRenderer
         }
 
         // Goal
-        y = screenH - 160;
-        Raylib.DrawRectangle(x - 4, y - 4, PanelWidth - 22, 22, new Color(30, 50, 30, 200));
-        Raylib.DrawText("GOAL: First to 21 wins!", x, y, 14, Palette.Gold);
+        y = screenH - 180;
+        Raylib.DrawRectangle(x - 4, y - 4, PanelWidth - 22, 42, new Color(30, 50, 30, 200));
+        string stageLabel = stage.GetDisplayName();
+        int stageNum = stage.GetStageNumber();
+        Color stageColor = stage switch
+        {
+            SeasonStage.RegularSeason => Palette.Lime,
+            SeasonStage.Playoff => Palette.Yellow,
+            SeasonStage.SuperBowl => Palette.Gold,
+            _ => Palette.White
+        };
+        Raylib.DrawText($"STAGE {stageNum}/3: {stageLabel}", x, y, 14, stageColor);
+        y += 18;
+        Raylib.DrawText("Score 21 to advance!", x, y, 14, Palette.Gold);
         y += 26;
 
         // Controls at bottom
