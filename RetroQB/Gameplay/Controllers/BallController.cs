@@ -1,8 +1,6 @@
 using System.Numerics;
-using Raylib_cs;
 using RetroQB.Core;
 using RetroQB.Entities;
-using RetroQB.Gameplay.Stats;
 
 namespace RetroQB.Gameplay.Controllers;
 
@@ -169,7 +167,8 @@ public sealed class BallController
     }
 
     /// <summary>
-    /// Handles keyboard input for throwing to receivers.
+    /// Handles throw input for a given target priority (1-based).
+    /// Pass null if no throw key was pressed.
     /// </summary>
     public void HandleThrowInput(
         Ball ball,
@@ -178,18 +177,18 @@ public sealed class BallController
         IReadOnlyList<Defender> defenders,
         PlayManager playManager,
         OffensiveTeamAttributes offensiveTeam,
-        bool qbPastLos)
+        bool qbPastLos,
+        int? throwTarget)
     {
         if (ball.State != BallState.HeldByQB || qbPastLos)
         {
             return;
         }
 
-        if (Raylib.IsKeyPressed(KeyboardKey.One)) TryThrowToPriority(1, ball, qb, receivers, defenders, playManager, offensiveTeam);
-        if (Raylib.IsKeyPressed(KeyboardKey.Two)) TryThrowToPriority(2, ball, qb, receivers, defenders, playManager, offensiveTeam);
-        if (Raylib.IsKeyPressed(KeyboardKey.Three)) TryThrowToPriority(3, ball, qb, receivers, defenders, playManager, offensiveTeam);
-        if (Raylib.IsKeyPressed(KeyboardKey.Four)) TryThrowToPriority(4, ball, qb, receivers, defenders, playManager, offensiveTeam);
-        if (Raylib.IsKeyPressed(KeyboardKey.Five)) TryThrowToPriority(5, ball, qb, receivers, defenders, playManager, offensiveTeam);
+        if (throwTarget.HasValue)
+        {
+            TryThrowToPriority(throwTarget.Value + 1, ball, qb, receivers, defenders, playManager, offensiveTeam);
+        }
     }
 
     private void TryThrowToPriority(

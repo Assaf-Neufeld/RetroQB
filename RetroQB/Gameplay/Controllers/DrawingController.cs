@@ -132,7 +132,7 @@ public sealed class DrawingController
         {
             if (!receiver.Eligible) continue;
 
-            var points = ReceiverAI.GetRouteWaypoints(receiver);
+            var points = RouteVisualizer.GetRouteWaypoints(receiver);
             if (points.Count < 2) continue;
 
             for (int i = 0; i < points.Count - 1; i++)

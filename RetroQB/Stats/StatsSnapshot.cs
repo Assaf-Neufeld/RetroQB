@@ -1,4 +1,4 @@
-namespace RetroQB.Gameplay;
+namespace RetroQB.Stats;
 
 public readonly record struct QbStatsSnapshot(
     int Completions,

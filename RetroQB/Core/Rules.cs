@@ -1,7 +1,7 @@
 using RetroQB.Core;
 using System.Numerics;
 
-namespace RetroQB.Gameplay;
+namespace RetroQB.Core;
 
 public static class Rules
 {

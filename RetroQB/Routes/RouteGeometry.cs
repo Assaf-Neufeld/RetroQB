@@ -1,7 +1,7 @@
 using System.Numerics;
 using RetroQB.Entities;
 
-namespace RetroQB.AI;
+namespace RetroQB.Routes;
 
 /// <summary>
 /// Shared route geometry values used by both movement and visualization.

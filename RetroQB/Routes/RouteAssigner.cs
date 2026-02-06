@@ -2,7 +2,7 @@ using RetroQB.Entities;
 using RetroQB.Gameplay;
 using RetroQB.Core;
 
-namespace RetroQB.AI;
+namespace RetroQB.Routes;
 
 /// <summary>
 /// Handles assigning routes to receivers based on play definitions.

@@ -1,6 +1,6 @@
 using RetroQB.Entities;
 
-namespace RetroQB.Gameplay.Stats;
+namespace RetroQB.Stats;
 
 public interface IStatisticsTracker
 {

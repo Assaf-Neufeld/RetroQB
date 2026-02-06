@@ -1,7 +1,9 @@
 using System;
 using RetroQB.Entities;
 
-namespace RetroQB.Core;
+using RetroQB.Core;
+
+namespace RetroQB.Data;
 
 /// <summary>
 /// QB profile with individual speed, acceleration, and accuracy attributes.
@@ -211,3 +213,4 @@ public sealed class OffensiveRoster
         return 0.8f; // Non-TEs have reduced blocking
     }
 }
+

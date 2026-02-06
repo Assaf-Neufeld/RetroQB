@@ -24,8 +24,8 @@ public sealed class BlockingController
         Func<Vector2, float, bool, Defender?> getClosestDefender,
         Action<Entity> clampToField)
     {
-        bool isRunPlay = IsRunPlayActiveWithRunningBack(selectedPlayType, ball);
-        Vector2? ballCarrierPosition = GetBallCarrierPosition(ball, qb);
+        bool isRunPlay = BlockingUtils.IsRunPlayActiveWithRunningBack(selectedPlayType, ball);
+        Vector2? ballCarrierPosition = BlockingUtils.GetBallCarrierPosition(ball, qb);
 
         if (receiver.IsRunningBack && receiver.IsBlocking)
         {
@@ -47,14 +47,9 @@ public sealed class BlockingController
         UpdateGenericBlocking(receiver, qb, ball, defenders, selectedPlay, selectedPlayType, dt, getClosestDefender, clampToField, ballCarrierPosition);
     }
 
-    private static Vector2 SafeNormalize(Vector2 vector)
-    {
-        return vector.LengthSquared() > 0.001f ? Vector2.Normalize(vector) : Vector2.Zero;
-    }
-
     private static Vector2 GetDriveDirection(int runSide, float xFactor)
     {
-        return SafeNormalize(new Vector2(runSide * xFactor, 1f));
+        return BlockingUtils.SafeNormalize(new Vector2(runSide * xFactor, 1f));
     }
 
     private void UpdateRbBlocking(
@@ -75,7 +70,7 @@ public sealed class BlockingController
         if (rbTarget != null)
         {
             float blockMultiplier = GetReceiverBlockStrength(receiver) * GetDefenderBlockDifficulty(rbTarget);
-            Vector2 toTarget = SafeNormalize(rbTarget.Position - receiver.Position);
+            Vector2 toTarget = BlockingUtils.SafeNormalize(rbTarget.Position - receiver.Position);
             receiver.Velocity = toTarget * (receiver.Speed * 0.9f);
 
             float contactRange = receiver.Radius + rbTarget.Radius + 0.8f;
@@ -103,7 +98,7 @@ public sealed class BlockingController
         Action<Entity> clampToField,
         Vector2? ballCarrierPosition)
     {
-        bool isSweep = IsSweepFormation(selectedPlay.Formation);
+        bool isSweep = BlockingUtils.IsSweepFormation(selectedPlay.Formation);
         float edgeX = Math.Clamp(qb.Position.X + (runSide * (isSweep ? 5.0f : 4.1f)), 1.1f, Constants.FieldWidth - 1.1f);
         float edgeY = lineOfScrimmage + (isSweep ? 2.8f : 2.2f);
         Vector2 edgeSpot = new Vector2(edgeX, edgeY);
@@ -116,7 +111,7 @@ public sealed class BlockingController
         if (edgeTarget != null && (closeToEdge || targetNearEdge))
         {
             float blockMultiplier = GetReceiverBlockStrength(receiver) * GetDefenderBlockDifficulty(edgeTarget);
-            Vector2 toTarget = SafeNormalize(edgeTarget.Position - receiver.Position);
+            Vector2 toTarget = BlockingUtils.SafeNormalize(edgeTarget.Position - receiver.Position);
             receiver.Velocity = toTarget * receiver.Speed;
 
             float contactRange = receiver.Radius + edgeTarget.Radius + 0.9f;
@@ -145,14 +140,14 @@ public sealed class BlockingController
         Action<Entity> clampToField,
         Vector2? ballCarrierPosition)
     {
-        bool runBlockingBoost = IsRunPlayActiveWithRunningBack(selectedPlayType, ball);
+        bool runBlockingBoost = BlockingUtils.IsRunPlayActiveWithRunningBack(selectedPlayType, ball);
         int runSide = Math.Sign(selectedPlay.RunningBackSide);
 
         Defender? target = getClosestDefender(receiver.Position, Constants.BlockEngageRadius, true);
         if (target != null)
         {
             float blockMultiplier = GetReceiverBlockStrength(receiver) * GetDefenderBlockDifficulty(target);
-            Vector2 toTarget = SafeNormalize(target.Position - receiver.Position);
+            Vector2 toTarget = BlockingUtils.SafeNormalize(target.Position - receiver.Position);
             receiver.Velocity = toTarget * receiver.Speed;
             if (runBlockingBoost && runSide != 0)
             {
@@ -201,11 +196,11 @@ public sealed class BlockingController
         Vector2? driveDir = null,
         float driveStrength = 0f)
     {
-        Vector2 pushDir = SafeNormalize(target.Position - receiver.Position);
+        Vector2 pushDir = BlockingUtils.SafeNormalize(target.Position - receiver.Position);
         float overlap = contactRange - distance;
         float holdStrength = (Constants.BlockHoldStrength * holdStrengthMult) * blockMultiplier;
         float overlapBoostFinal = overlapBoost * blockMultiplier;
-        float shedBoost = GetTackleShedBoost(target.Position, ballCarrierPosition);
+        float shedBoost = BlockingUtils.GetTackleShedBoost(target.Position, ballCarrierPosition);
         if (shedBoost > 0f)
         {
             float shedScale = 1f - (0.65f * shedBoost);
@@ -221,28 +216,20 @@ public sealed class BlockingController
         {
             baseSlow *= 1f - (0.6f * shedBoost);
         }
-        target.Velocity *= GetDefenderSlowdown(blockMultiplier, baseSlow);
+        target.Velocity *= BlockingUtils.GetDefenderSlowdown(blockMultiplier, baseSlow);
         receiver.Velocity *= 0.25f;
         clampToField(target);
     }
 
     private void MoveTowardSpot(Receiver receiver, Vector2 spot, float speedMult, float arrivalRadius)
     {
-        Vector2 toSpot = SafeNormalize(spot - receiver.Position);
+        Vector2 toSpot = BlockingUtils.SafeNormalize(spot - receiver.Position);
         receiver.Velocity = toSpot * (receiver.Speed * speedMult);
 
         if (Vector2.DistanceSquared(receiver.Position, spot) <= arrivalRadius * arrivalRadius)
         {
             receiver.Velocity = Vector2.Zero;
         }
-    }
-
-    public static bool IsSweepFormation(FormationType formation)
-    {
-        return formation is FormationType.RunSweepLeft
-            or FormationType.RunSweepRight
-            or FormationType.RunTossLeft
-            or FormationType.RunTossRight;
     }
 
     public static float GetReceiverBlockStrength(Receiver receiver)
@@ -269,41 +256,5 @@ public sealed class BlockingController
         // Apply team's position-specific block shed multiplier
         float shedMultiplier = defender.TeamAttributes.GetPositionBlockShedMultiplier(defender.PositionRole);
         return baseDifficulty / shedMultiplier;  // Higher shed = lower difficulty value = harder to block
-    }
-
-    public static float GetDefenderSlowdown(float blockMultiplier, float baseSlow)
-    {
-        float bonus = Math.Clamp(blockMultiplier - 1f, -0.6f, 0.6f);
-        float adjusted = baseSlow - bonus * 0.06f;
-        return Math.Clamp(adjusted, 0.05f, 0.22f);
-    }
-
-    public static float GetTackleShedBoost(Vector2 defenderPosition, Vector2? ballCarrierPosition)
-    {
-        if (ballCarrierPosition == null) return 0f;
-
-        float distance = Vector2.Distance(defenderPosition, ballCarrierPosition.Value);
-        const float shedRange = 6.0f;
-        if (distance >= shedRange) return 0f;
-
-        float t = 1f - (distance / shedRange);
-        return Math.Clamp(t, 0f, 1f);
-    }
-
-    public static Vector2? GetBallCarrierPosition(Ball ball, Quarterback qb)
-    {
-        return ball.State switch
-        {
-            BallState.HeldByQB => qb.Position,
-            BallState.HeldByReceiver => ball.Holder?.Position,
-            _ => null
-        };
-    }
-
-    public static bool IsRunPlayActiveWithRunningBack(PlayType selectedPlayType, Ball ball)
-    {
-        if (selectedPlayType != PlayType.Run) return false;
-        if (ball.State != BallState.HeldByReceiver) return false;
-        return ball.Holder is Receiver receiver && receiver.IsRunningBack;
     }
 }

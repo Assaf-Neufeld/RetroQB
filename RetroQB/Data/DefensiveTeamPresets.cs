@@ -2,7 +2,9 @@ using System.Collections.Generic;
 using Raylib_cs;
 using RetroQB.Entities;
 
-namespace RetroQB.Core;
+using RetroQB.Core;
+
+namespace RetroQB.Data;
 
 /// <summary>
 /// Catalog of predefined defensive team presets.
@@ -206,3 +208,4 @@ public static class DefensiveTeamPresets
         IronCurtain
     };
 }
+

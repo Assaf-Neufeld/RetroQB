@@ -1,7 +1,7 @@
 using System.Numerics;
 using RetroQB.Entities;
 
-namespace RetroQB.AI;
+namespace RetroQB.Routes;
 
 /// <summary>
 /// Provides route visualization data including waypoints and labels.

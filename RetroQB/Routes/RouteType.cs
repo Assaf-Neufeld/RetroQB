@@ -1,4 +1,4 @@
-namespace RetroQB.AI;
+namespace RetroQB.Routes;
 
 public enum RouteType
 {

@@ -47,7 +47,7 @@ public sealed class PlaySetupController
             defensiveTeam);
 
         // Assign routes to receivers
-        ReceiverAI.AssignRoutes(formationResult.Receivers, selectedPlay, _rng);
+        RouteAssigner.AssignRoutes(formationResult.Receivers, selectedPlay, _rng);
 
         return new PlaySetupResult(
             formationResult.Qb,

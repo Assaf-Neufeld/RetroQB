@@ -1,4 +1,4 @@
-namespace RetroQB.Gameplay.Stats;
+namespace RetroQB.Stats;
 
 public sealed class QbStatLine
 {

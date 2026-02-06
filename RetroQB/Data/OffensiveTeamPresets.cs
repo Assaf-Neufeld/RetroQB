@@ -2,7 +2,9 @@ using System.Collections.Generic;
 using Raylib_cs;
 using RetroQB.Entities;
 
-namespace RetroQB.Core;
+using RetroQB.Core;
+
+namespace RetroQB.Data;
 
 /// <summary>
 /// Catalog of predefined offensive team presets.
@@ -145,3 +147,4 @@ public static class OffensiveTeamPresets
         Bulldozers
     };
 }
+

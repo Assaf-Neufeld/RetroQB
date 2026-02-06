@@ -75,7 +75,7 @@ public sealed class DriveState
     /// <summary>
     /// Finalizes the current PlayRecord with result information.
     /// </summary>
-    public void FinalizePlayRecord(PlayOutcome outcome, float gain, string? catcherLabel, RetroQB.AI.RouteType? catcherRoute, bool wasRun)
+    public void FinalizePlayRecord(PlayOutcome outcome, float gain, string? catcherLabel, RouteType? catcherRoute, bool wasRun)
     {
         if (CurrentPlayRecord != null)
         {

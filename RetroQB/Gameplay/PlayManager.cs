@@ -71,7 +71,7 @@ public sealed class PlayManager
     /// <summary>
     /// Finalizes the current play record with result information.
     /// </summary>
-    public void FinalizePlayRecord(PlayOutcome outcome, float gain, string? catcherLabel, AI.RouteType? catcherRoute, bool wasRun)
+    public void FinalizePlayRecord(PlayOutcome outcome, float gain, string? catcherLabel, RouteType? catcherRoute, bool wasRun)
     {
         _driveState.FinalizePlayRecord(outcome, gain, catcherLabel, catcherRoute, wasRun);
     }

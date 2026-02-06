@@ -2,7 +2,9 @@ using System;
 using Raylib_cs;
 using RetroQB.Entities;
 
-namespace RetroQB.Core;
+using RetroQB.Core;
+
+namespace RetroQB.Data;
 
 /// <summary>
 /// Base attributes for a team, providing configurable player qualities.
@@ -216,3 +218,4 @@ public sealed class DefensiveTeamAttributes : TeamAttributes
         return Roster.GetBlockShedMultiplier(position);
     }
 }
+

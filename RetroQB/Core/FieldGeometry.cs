@@ -1,6 +1,6 @@
 using RetroQB.Core;
 
-namespace RetroQB.Gameplay;
+namespace RetroQB.Core;
 
 /// <summary>
 /// Constants and utilities for field geometry calculations.

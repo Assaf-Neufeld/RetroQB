@@ -1,10 +1,8 @@
 using System.Numerics;
-using Raylib_cs;
 using RetroQB.AI;
 using RetroQB.Core;
 using RetroQB.Entities;
 using RetroQB.Gameplay.Controllers;
-using RetroQB.Gameplay.Stats;
 using RetroQB.Input;
 using RetroQB.Rendering;
 
@@ -22,6 +20,7 @@ public sealed class GameSession
     private readonly GameStateManager _stateManager;
     private readonly PlayManager _playManager;
     private readonly IStatisticsTracker _statsTracker;
+    private readonly InputManager _input;
 
     // Controllers (Single Responsibility)
     private readonly PlaySetupController _playSetupController;
@@ -31,6 +30,7 @@ public sealed class GameSession
     private readonly OverlapResolver _overlapResolver;
     private readonly ReceiverPriorityManager _receiverPriorityManager;
     private readonly DrawingController _drawingController;
+    private readonly MenuController _menuController;
 
     // Team attributes
     private OffensiveTeamAttributes _offensiveTeam = OffensiveTeamAttributes.Default;
@@ -62,7 +62,6 @@ public sealed class GameSession
         new FormationFactory(),
         new DefenseFactory(),
         new StatisticsTracker(),
-        new CollisionResolver(),
         new ThrowingMechanics())
     {
     }
@@ -78,16 +77,17 @@ public sealed class GameSession
         IFormationFactory formationFactory,
         IDefenseFactory defenseFactory,
         IStatisticsTracker statsTracker,
-        ICollisionResolver collisionResolver,
         IThrowingMechanics throwingMechanics)
     {
         _stateManager = stateManager;
         _playManager = playManager;
         _statsTracker = statsTracker;
+        _input = input;
 
         // Initialize controllers
         _overlapResolver = new OverlapResolver();
         _receiverPriorityManager = new ReceiverPriorityManager();
+        _menuController = new MenuController(input);
         
         _playSetupController = new PlaySetupController(formationFactory, defenseFactory, rng);
         _playExecutionController = new PlayExecutionController(input, new BlockingController());
@@ -176,7 +176,7 @@ public sealed class GameSession
     {
         Constants.UpdateFieldRect();
 
-        if (Raylib.IsKeyPressed(KeyboardKey.Escape))
+        if (_input.IsEscapePressed())
         {
             _stateManager.TogglePause();
         }
@@ -231,12 +231,9 @@ public sealed class GameSession
 
     private void HandleMainMenu()
     {
-        if (Raylib.IsKeyPressed(KeyboardKey.One)) _selectedTeamIndex = 0;
-        if (Raylib.IsKeyPressed(KeyboardKey.Two)) _selectedTeamIndex = 1;
-        if (Raylib.IsKeyPressed(KeyboardKey.Three)) _selectedTeamIndex = 2;
-
-        if (Raylib.IsKeyPressed(KeyboardKey.Enter))
+        if (_menuController.UpdateMainMenu())
         {
+            _selectedTeamIndex = _menuController.SelectedTeamIndex;
             var teams = OffensiveTeamPresets.All;
             if (_selectedTeamIndex < 0 || _selectedTeamIndex >= teams.Count)
             {
@@ -255,7 +252,7 @@ public sealed class GameSession
         bool playChanged = false;
         
         // Check for pass play selection (1-9, 0)
-        int? passSelection = GetPassPlaySelection();
+        int? passSelection = _input.GetPassPlaySelection();
         if (passSelection.HasValue)
         {
             playChanged = _playManager.SelectPassPlay(passSelection.Value, new Random());
@@ -263,7 +260,7 @@ public sealed class GameSession
         }
 
         // Check for run play selection (Q-P)
-        int? runSelection = GetRunPlaySelection();
+        int? runSelection = _input.GetRunPlaySelection();
         if (runSelection.HasValue)
         {
             playChanged = _playManager.SelectRunPlay(runSelection.Value, new Random());
@@ -281,50 +278,12 @@ public sealed class GameSession
             SetupEntities();
         }
 
-        if (Raylib.IsKeyPressed(KeyboardKey.Space))
+        if (_input.IsSpacePressed())
         {
             _playManager.StartPlay();
             _playManager.StartPlayRecord(_isZoneCoverage, _blitzers);
             _stateManager.SetState(GameState.PlayActive);
         }
-    }
-
-    /// <summary>
-    /// Returns pass play index (0-9) from number keys.
-    /// Key 1 maps to index 0 (wildcard), keys 2-9 map to indices 1-8, key 0 maps to index 9.
-    /// </summary>
-    private static int? GetPassPlaySelection()
-    {
-        if (Raylib.IsKeyPressed(KeyboardKey.One)) return 0;   // Wildcard
-        if (Raylib.IsKeyPressed(KeyboardKey.Two)) return 1;
-        if (Raylib.IsKeyPressed(KeyboardKey.Three)) return 2;
-        if (Raylib.IsKeyPressed(KeyboardKey.Four)) return 3;
-        if (Raylib.IsKeyPressed(KeyboardKey.Five)) return 4;
-        if (Raylib.IsKeyPressed(KeyboardKey.Six)) return 5;
-        if (Raylib.IsKeyPressed(KeyboardKey.Seven)) return 6;
-        if (Raylib.IsKeyPressed(KeyboardKey.Eight)) return 7;
-        if (Raylib.IsKeyPressed(KeyboardKey.Nine)) return 8;
-        if (Raylib.IsKeyPressed(KeyboardKey.Zero)) return 9;
-        return null;
-    }
-
-    /// <summary>
-    /// Returns run play index (0-9) from Q-P keys.
-    /// Q=0 (wildcard), W=1, E=2, R=3, T=4, Y=5, U=6, I=7, O=8, P=9
-    /// </summary>
-    private static int? GetRunPlaySelection()
-    {
-        if (Raylib.IsKeyPressed(KeyboardKey.Q)) return 0;   // Wildcard
-        if (Raylib.IsKeyPressed(KeyboardKey.W)) return 1;
-        if (Raylib.IsKeyPressed(KeyboardKey.E)) return 2;
-        if (Raylib.IsKeyPressed(KeyboardKey.R)) return 3;
-        if (Raylib.IsKeyPressed(KeyboardKey.T)) return 4;
-        if (Raylib.IsKeyPressed(KeyboardKey.Y)) return 5;
-        if (Raylib.IsKeyPressed(KeyboardKey.U)) return 6;
-        if (Raylib.IsKeyPressed(KeyboardKey.I)) return 7;
-        if (Raylib.IsKeyPressed(KeyboardKey.O)) return 8;
-        if (Raylib.IsKeyPressed(KeyboardKey.P)) return 9;
-        return null;
     }
 
     private void HandlePlayActive(float dt)
@@ -394,7 +353,8 @@ public sealed class GameSession
             _entities.Defenders,
             _playManager,
             _offensiveTeam,
-            _qbPastLos);
+            _qbPastLos,
+            _input.GetThrowTarget());
     }
 
     private void CheckTackleOrScore()
@@ -431,7 +391,7 @@ public sealed class GameSession
 
     private void HandleDriveOver()
     {
-        if (Raylib.IsKeyPressed(KeyboardKey.Enter))
+        if (_menuController.IsConfirmPressed())
         {
             InitializeDrive();
             _stateManager.SetState(GameState.PreSnap);
@@ -440,7 +400,7 @@ public sealed class GameSession
 
     private void HandleGameOver()
     {
-        if (Raylib.IsKeyPressed(KeyboardKey.Enter))
+        if (_menuController.IsConfirmPressed())
         {
             ResetPlayState();
             _drawingController.Fireworks.Clear();
@@ -458,7 +418,7 @@ public sealed class GameSession
         float gain = 0f;
         bool wasRun = false;
         string? catcherLabel = null;
-        AI.RouteType? catcherRoute = null;
+        RouteType? catcherRoute = null;
 
         if (!incomplete && !intercepted && _entities.Ball.Holder != null)
         {

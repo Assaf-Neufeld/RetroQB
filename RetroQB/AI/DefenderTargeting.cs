@@ -9,6 +9,35 @@ namespace RetroQB.AI;
 public static class DefenderTargeting
 {
     /// <summary>
+    /// Updates a defender's position and velocity based on current game state.
+    /// </summary>
+    public static void UpdateDefender(
+        Defender defender,
+        Quarterback qb,
+        IReadOnlyList<Receiver> receivers,
+        Ball ball,
+        float speedMultiplier,
+        float dt,
+        bool qbIsRunner,
+        bool useZoneCoverage,
+        float lineOfScrimmage)
+    {
+        float speed = defender.Speed * speedMultiplier;
+
+        Vector2 target = GetTarget(
+            defender, qb, receivers, ball,
+            qbIsRunner, useZoneCoverage, lineOfScrimmage);
+
+        Vector2 dir = target - defender.Position;
+        if (dir.LengthSquared() > 0.001f)
+        {
+            dir = Vector2.Normalize(dir);
+        }
+        defender.Velocity = dir * speed;
+        defender.Position += defender.Velocity * dt;
+    }
+
+    /// <summary>
     /// Determines the target position for a defender based on current game state.
     /// </summary>
     public static Vector2 GetTarget(

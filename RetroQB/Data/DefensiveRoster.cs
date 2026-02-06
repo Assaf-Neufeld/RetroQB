@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using RetroQB.Entities;
 
-namespace RetroQB.Core;
+using RetroQB.Core;
+
+namespace RetroQB.Data;
 
 /// <summary>
 /// Profile for an individual defender with position-specific attributes.
@@ -283,3 +285,4 @@ public sealed class PositionBaselineAttributes
         };
     }
 }
+

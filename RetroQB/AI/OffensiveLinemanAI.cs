@@ -5,6 +5,7 @@ using Raylib_cs;
 using RetroQB.Core;
 using RetroQB.Entities;
 using RetroQB.Gameplay;
+using RetroQB.Gameplay.Controllers;
 
 namespace RetroQB.AI;
 
@@ -124,7 +125,7 @@ public static class OffensiveLinemanAI
     {
         bool isRunPlay = playFamily == PlayType.Run;
         int runSide = Math.Sign(runningBackSide);
-        bool isSweep = isRunPlay && IsSweepFormation(formation);
+        bool isSweep = isRunPlay && BlockingUtils.IsSweepFormation(formation);
         float lateralPush = isRunPlay && runSide != 0 ? runSide * (isSweep ? sweepPush : basePush) : 0f;
         float targetY = isRunPlay ? lineOfScrimmage + runTargetOffset : lineOfScrimmage + passTargetOffset;
 
@@ -179,7 +180,7 @@ public static class OffensiveLinemanAI
         RunContext context,
         RunProfile profile)
     {
-        Vector2 baseVelocity = NormalizeOrZero(target.Position - blocker.Position) * blocker.Speed;
+        Vector2 baseVelocity = BlockingUtils.SafeNormalize(target.Position - blocker.Position) * blocker.Speed;
         float blockStrength = blocker.TeamAttributes.BlockingStrength;
         
         // Only add forward push on run plays, not pass plays
@@ -193,7 +194,7 @@ public static class OffensiveLinemanAI
             Vector2 driveDir = profile.IsBackside
                 ? new Vector2(-context.RunSide * 0.6f, 1f)
                 : new Vector2(context.RunSide * 0.7f, 1f);
-            baseVelocity += NormalizeOrZero(driveDir) * (blocker.Speed * 0.35f * blockStrength);
+            baseVelocity += BlockingUtils.SafeNormalize(driveDir) * (blocker.Speed * 0.35f * blockStrength);
         }
         else
         {
@@ -222,14 +223,14 @@ public static class OffensiveLinemanAI
             return;
         }
 
-        Vector2 pushDir = NormalizeOrZero(target.Position - blocker.Position);
+        Vector2 pushDir = BlockingUtils.SafeNormalize(target.Position - blocker.Position);
         float overlap = contactRange - distance;
         float blockMultiplier = GetOlBlockStrength(blocker, target);
         float holdStrength = runBlockingBoost ? Constants.BlockHoldStrength * 1.6f : Constants.BlockHoldStrength;
         float overlapBoost = runBlockingBoost ? 9f : 6f;
         holdStrength *= blockMultiplier;
         overlapBoost *= blockMultiplier;
-        float shedBoost = GetTackleShedBoost(target.Position, ballCarrierPosition);
+        float shedBoost = BlockingUtils.GetTackleShedBoost(target.Position, ballCarrierPosition);
         if (shedBoost > 0f)
         {
             float shedScale = 1f - (0.65f * shedBoost);
@@ -245,7 +246,7 @@ public static class OffensiveLinemanAI
                 ? new Vector2(-context.RunSide * 0.55f, 1f)
                 : new Vector2(context.RunSide * 0.7f, 1f);
             float driveStrength = (runBlockingBoost ? 1.2f : 0.8f) * blockStrength;
-            target.Position += NormalizeOrZero(driveDir) * driveStrength * dt;
+            target.Position += BlockingUtils.SafeNormalize(driveDir) * driveStrength * dt;
         }
         // Pass blocking: push defender laterally away from QB, not forward
         else
@@ -260,13 +261,13 @@ public static class OffensiveLinemanAI
         {
             baseSlow *= 1f - (0.6f * shedBoost);
         }
-        target.Velocity *= GetDefenderSlowdown(blockMultiplier, baseSlow);
+        target.Velocity *= BlockingUtils.GetDefenderSlowdown(blockMultiplier, baseSlow);
         blocker.Velocity *= 0.25f;
     }
 
     private static void MoveTowardAnchor(Blocker blocker, Vector2 targetAnchor, RunContext context, RunProfile profile, bool closeToAnchor)
     {
-        Vector2 toAnchor = NormalizeOrZero(targetAnchor - blocker.Position);
+        Vector2 toAnchor = BlockingUtils.SafeNormalize(targetAnchor - blocker.Position);
         float anchorSpeed = context.IsRunPlay ? blocker.Speed * 0.85f : blocker.Speed * 0.6f;
         blocker.Velocity = toAnchor * anchorSpeed;
         
@@ -367,35 +368,7 @@ public static class OffensiveLinemanAI
         return 1.35f * defenderEase * teamStrength;
     }
 
-    private static float GetDefenderSlowdown(float blockMultiplier, float baseSlow)
-    {
-        float bonus = Math.Clamp(blockMultiplier - 1f, -0.6f, 0.6f);
-        float adjusted = baseSlow - bonus * 0.06f;
-        return Math.Clamp(adjusted, 0.05f, 0.22f);
-    }
 
-    private static float GetTackleShedBoost(Vector2 defenderPosition, Vector2? ballCarrierPosition)
-    {
-        if (ballCarrierPosition == null)
-        {
-            return 0f;
-        }
-
-        float distance = Vector2.Distance(defenderPosition, ballCarrierPosition.Value);
-        const float shedRange = 6.0f;
-        if (distance >= shedRange)
-        {
-            return 0f;
-        }
-
-        float t = 1f - (distance / shedRange);
-        return Math.Clamp(t, 0f, 1f);
-    }
-
-    private static Vector2 NormalizeOrZero(Vector2 vector)
-    {
-        return vector.LengthSquared() > 0.001f ? Vector2.Normalize(vector) : Vector2.Zero;
-    }
 
     private static Vector2 ComputeTargetAnchor(
         float homeX,
@@ -458,13 +431,7 @@ public static class OffensiveLinemanAI
         return laneSide * separation;
     }
 
-    private static bool IsSweepFormation(FormationType formation)
-    {
-        return formation is FormationType.RunSweepLeft
-            or FormationType.RunSweepRight
-            or FormationType.RunTossLeft
-            or FormationType.RunTossRight;
-    }
+
 
     private readonly struct RunContext
     {

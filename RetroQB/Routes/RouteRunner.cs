@@ -2,7 +2,7 @@ using System.Numerics;
 using RetroQB.Entities;
 using RetroQB.Core;
 
-namespace RetroQB.AI;
+namespace RetroQB.Routes;
 
 /// <summary>
 /// Handles route execution and movement updates for receivers during play.

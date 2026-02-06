@@ -108,12 +108,17 @@ dotnet run
 ```
 RetroQB.csproj    # Project file (run from repo root)
 RetroQB/
-├── AI/           # Defender and receiver AI behaviors
-├── Core/         # Game constants, state, and utilities
-├── Entities/     # QB, receivers, defenders, ball
-├── Gameplay/     # Play management and game session
-├── Input/        # Player input handling
-└── Rendering/    # Field and HUD rendering
+├── AI/           # Defender targeting, offensive line AI, zone coverage
+├── Core/         # Constants, game state, field geometry, rules
+├── Data/         # Team attributes, rosters, and team presets
+├── Entities/     # QB, receivers, defenders, ball, blockers
+├── Gameplay/
+│   ├── Controllers/   # Play execution, blocking, tackling, menus
+│   └── Factories/     # Formation and defense creation
+├── Input/        # Centralized player input handling
+├── Rendering/    # Field, HUD sub-renderers, stadium, fireworks
+├── Routes/       # Route types, geometry, running, and assignment
+└── Stats/        # QB/rush/skill stat lines and tracking
 ```
 
 ---
