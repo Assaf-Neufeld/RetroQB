@@ -69,12 +69,19 @@ public sealed class OverlapResolver
     /// <summary>
     /// Resolves overlaps between all entities.
     /// </summary>
+    /// <summary>
+    /// Maximum distance past the line of scrimmage where defenders can physically
+    /// impede (press/jam) receivers. Beyond this, only the defender is pushed.
+    /// </summary>
+    private const float PressZoneYards = 5f;
+
     public void ResolveOverlaps(
         Quarterback qb,
         Ball ball,
         IReadOnlyList<Receiver> receivers,
         IReadOnlyList<Blocker> blockers,
         IReadOnlyList<Defender> defenders,
+        float lineOfScrimmage,
         Action<Entity> clampToField)
     {
         // Determine who is carrying the ball
@@ -150,6 +157,36 @@ public sealed class OverlapResolver
                 {
                     Vector2 pushDir = delta / dist;
                     float push = (minDist - dist) * 0.5f;
+
+                    // Enforce 5-yard press zone rule: beyond the zone,
+                    // only the defender yields — the receiver runs free.
+                    bool aIsReceiver = a is Receiver;
+                    bool bIsReceiver = b is Receiver;
+                    float pressLimit = lineOfScrimmage + PressZoneYards;
+
+                    if (aIsReceiver && bIsDefender)
+                    {
+                        var recv = (Receiver)a;
+                        if (!recv.IsBlocking && recv.Position.Y > pressLimit)
+                        {
+                            // Only push the defender (b) away
+                            b.Position += pushDir * (push * 2f);
+                            clampToField(b);
+                            continue;
+                        }
+                    }
+                    else if (bIsReceiver && aIsDefender)
+                    {
+                        var recv = (Receiver)b;
+                        if (!recv.IsBlocking && recv.Position.Y > pressLimit)
+                        {
+                            // Only push the defender (a) away
+                            a.Position -= pushDir * (push * 2f);
+                            clampToField(a);
+                            continue;
+                        }
+                    }
+
                     a.Position -= pushDir * push;
                     b.Position += pushDir * push;
                     clampToField(a);

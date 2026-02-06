@@ -57,7 +57,7 @@ public static class PlaybookBuilder
                 {
                     [0] = RouteType.InShallow,
                     [1] = RouteType.InShallow,
-                    [2] = RouteType.Curl,
+                    [2] = RouteType.DoubleMove,
                     [3] = RouteType.OutShallow,
                     [4] = RouteType.Flat
                 }),
@@ -74,7 +74,7 @@ public static class PlaybookBuilder
                     [0] = RouteType.OutShallow,
                     [1] = RouteType.Slant,
                     [2] = RouteType.Flat,
-                    [3] = RouteType.Curl,
+                    [3] = RouteType.DoubleMove,
                     [4] = RouteType.InShallow
                 },
                 slantDirections: new Dictionary<int, bool> { [1] = true }),
@@ -135,7 +135,7 @@ public static class PlaybookBuilder
                 TightEndRole.Route,
                 new Dictionary<int, RouteType>
                 {
-                    [0] = RouteType.Curl,
+                    [0] = RouteType.DoubleMove,
                     [1] = RouteType.OutDeep,
                     [2] = RouteType.Go,
                     [3] = RouteType.InShallow
@@ -170,23 +170,24 @@ public static class PlaybookBuilder
                     [1] = RouteType.Go,
                     [2] = RouteType.InDeep,
                     [3] = RouteType.OutDeep,
-                    [4] = RouteType.Curl
+                    [4] = RouteType.DoubleMove
                 }),
 
-            // 0 - Curl Flat (timing routes)
+            // 0 - Double Move (double-move concept)
             new(
-                "Curl Flat",
+                "Double Move",
                 PlayType.Pass,
                 FormationType.BaseSplit,
                 RunningBackRole.Route,
                 TightEndRole.Route,
                 new Dictionary<int, RouteType>
                 {
-                    [0] = RouteType.Curl,
+                    [0] = RouteType.DoubleMove,
                     [1] = RouteType.Flat,
-                    [2] = RouteType.Curl,
+                    [2] = RouteType.DoubleMove,
                     [3] = RouteType.Go
-                })
+                },
+                slantDirections: new Dictionary<int, bool> { [0] = true, [2] = false })
         };
     }
 
@@ -284,7 +285,7 @@ public static class PlaybookBuilder
                 TightEndRole.Block,
                 new Dictionary<int, RouteType>
                 {
-                    [0] = RouteType.Curl,
+                    [0] = RouteType.DoubleMove,
                     [1] = RouteType.Go
                 },
                 runningBackSide: 1),
@@ -298,7 +299,7 @@ public static class PlaybookBuilder
                 TightEndRole.Block,
                 new Dictionary<int, RouteType>
                 {
-                    [0] = RouteType.Curl,
+                    [0] = RouteType.DoubleMove,
                     [1] = RouteType.Go
                 },
                 runningBackSide: -1),

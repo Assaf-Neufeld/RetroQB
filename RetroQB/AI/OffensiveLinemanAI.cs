@@ -73,8 +73,13 @@ public static class OffensiveLinemanAI
             }
             else
             {
-                // Pass plays: must be close to anchor first, OR defender is extremely close (emergency)
-                float emergencyEngageRadius = 1.8f * blocker.TeamAttributes.BlockingStrength;
+                // Pass plays: must be close to anchor first, OR defender is close (emergency)
+                // Tackles get a wider emergency radius to pick up edge rushers
+                float emergencyEngageRadius = 2.6f * blocker.TeamAttributes.BlockingStrength;
+                if (IsTacklePosition(blocker.HomeX) && target != null && target.PositionRole == DefensivePosition.DE)
+                {
+                    emergencyEngageRadius *= 1.3f;
+                }
                 bool defenderVeryClose = target != null && IsWithinEngageRange(blocker.Position, target.Position, emergencyEngageRadius);
                 shouldEngage = target != null && (closeToAnchor || defenderVeryClose);
             }
@@ -219,7 +224,7 @@ public static class OffensiveLinemanAI
             if (IsTacklePosition(blocker.HomeX) && target.PositionRole == DefensivePosition.DE)
             {
                 float sideDir = MathF.Sign(target.Position.X - blocker.Position.X);
-                baseVelocity += new Vector2(sideDir * blocker.Speed * 0.25f, -blocker.Speed * 0.1f);
+                baseVelocity += new Vector2(sideDir * blocker.Speed * 0.40f, -blocker.Speed * 0.05f);
             }
             else
             {
@@ -282,9 +287,15 @@ public static class OffensiveLinemanAI
             float centerX = Constants.FieldWidth * 0.5f;
             float lateralDir = Math.Sign(target.Position.X - centerX);
             if (lateralDir == 0) lateralDir = Math.Sign(blocker.Position.X - centerX);
-            target.Position += new Vector2(lateralDir * 0.8f, -0.3f) * dt;
+            float lateralPush = target.PositionRole == DefensivePosition.DE ? 1.4f : 0.8f;
+            target.Position += new Vector2(lateralDir * lateralPush, -0.4f) * dt;
         }
-        float baseSlow = runBlockingBoost ? 0.05f : 0.15f;
+        float baseSlow = runBlockingBoost ? 0.05f : 0.12f;
+        // DEs get extra slowdown when contacted — OL should neutralize their speed advantage
+        if (target.PositionRole == DefensivePosition.DE)
+        {
+            baseSlow *= 0.7f;
+        }
         if (shedBoost > 0f)
         {
             baseSlow *= 1f - (0.6f * shedBoost);
@@ -392,19 +403,19 @@ public static class OffensiveLinemanAI
         float defenderEase = defender.PositionRole switch
         {
             DefensivePosition.DL => 0.75f,
-            DefensivePosition.DE => 0.80f,
+            DefensivePosition.DE => 0.90f,
             DefensivePosition.LB => 0.95f,
             _ => 1.15f
         };
 
-        // Tackles get a positional advantage vs DEs — that's their primary matchup
+        // Tackles get a large positional advantage vs DEs — that's their primary matchup
         if (defender.PositionRole == DefensivePosition.DE && IsTacklePosition(blocker.HomeX))
         {
-            defenderEase += 0.25f;
+            defenderEase += 0.40f;
         }
 
         float teamStrength = blocker.TeamAttributes.BlockingStrength;
-        return 1.35f * defenderEase * teamStrength;
+        return 1.45f * defenderEase * teamStrength;
     }
 
     /// <summary>

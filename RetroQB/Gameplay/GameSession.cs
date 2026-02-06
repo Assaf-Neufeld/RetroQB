@@ -396,6 +396,7 @@ public sealed class GameSession
             _entities.Receivers,
             _entities.Blockers,
             _entities.Defenders,
+            _playManager.LineOfScrimmage,
             ClampToField);
 
         // Handle ball state

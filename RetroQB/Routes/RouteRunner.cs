@@ -77,7 +77,7 @@ public static class RouteRunner
             RouteType.InDeep => CalculateInDirection(progress, stems.Deep, receiver.RouteSide),
             RouteType.PostShallow => CalculatePostDirection(progress, stems.Shallow, receiver.RouteSide, RouteGeometry.PostXFactorShallow, stems.PostAngleShallow),
             RouteType.PostDeep => CalculatePostDirection(progress, stems.Deep, receiver.RouteSide, RouteGeometry.PostXFactorDeep, stems.PostAngleDeep),
-            RouteType.Curl => CalculateCurlDirection(receiver, progress),
+            RouteType.DoubleMove => CalculateDoubleMoveDirection(receiver, progress),
             RouteType.Flat => CalculateFlatDirection(receiver.RouteSide),
             _ => Vector2.Zero
         };
@@ -118,24 +118,25 @@ public static class RouteRunner
             : RouteGeometry.GetPostBreakDirection(routeSide, xFactor, postAngle);
     }
 
-    private static Vector2 CalculateCurlDirection(Receiver receiver, float progress)
+    private static Vector2 CalculateDoubleMoveDirection(Receiver receiver, float progress)
     {
-        var curl = RouteGeometry.GetCurlValues(receiver);
-        float curlStem = curl.Stem;
-        float curlReturn = curl.Return;
+        var dm = RouteGeometry.GetDoubleMoveValues(receiver);
+        float totalDist = receiver.RouteProgress;
 
-        if (progress < curlStem)
+        if (totalDist < dm.Stem)
         {
+            // Phase 1: run upfield
             return new Vector2(0, 1);
         }
-        else if (progress < curlStem + curlReturn)
+        else if (totalDist < dm.Stem + dm.Lateral)
         {
-            // Comeback with slight drift toward the sideline for separation
-            return RouteGeometry.GetCurlComebackDirection(receiver.RouteSide);
+            // Phase 2: cut 90° laterally (inside or outside)
+            return RouteGeometry.GetDoubleMoveLateralDirection(receiver.RouteSide, receiver.SlantInside);
         }
         else
         {
-            return Vector2.Zero;
+            // Phase 3: break deep
+            return new Vector2(0, 1);
         }
     }
 

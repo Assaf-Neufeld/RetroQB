@@ -24,7 +24,7 @@ public static class RouteVisualizer
             RouteType.InDeep => GetInWaypoints(start, side, distances.Deep),
             RouteType.PostShallow => GetPostWaypoints(start, side, distances.Shallow, distances.PostXFactorShallow, distances.PostAngleShallow),
             RouteType.PostDeep => GetPostWaypoints(start, side, distances.Deep, distances.PostXFactorDeep, distances.PostAngleDeep),
-            RouteType.Curl => GetCurlWaypoints(start, side, distances),
+            RouteType.DoubleMove => GetDoubleMoveWaypoints(start, side, distances, receiver.SlantInside),
             RouteType.Flat => GetFlatWaypoints(start, side, distances),
             _ => new[] { start, start + new Vector2(0, distances.Deep) }
         };
@@ -42,7 +42,7 @@ public static class RouteVisualizer
             RouteType.InDeep => "In D",
             RouteType.PostShallow => "Post S",
             RouteType.PostDeep => "Post D",
-            RouteType.Curl => "Curl",
+            RouteType.DoubleMove => "Dbl Move",
             RouteType.Flat => "Flat",
             _ => "Route"
         };
@@ -51,7 +51,7 @@ public static class RouteVisualizer
     private static RouteDistances GetRouteDistances(Receiver receiver)
     {
         var stems = RouteGeometry.GetStemDistances(receiver);
-        var curl = RouteGeometry.GetCurlValues(receiver);
+        var dm = RouteGeometry.GetDoubleMoveValues(receiver);
         return new RouteDistances
         {
             Stem = stems.Deep,
@@ -62,8 +62,9 @@ public static class RouteVisualizer
             PostXFactorDeep = RouteGeometry.PostXFactorDeep,
             PostAngleShallow = stems.PostAngleShallow,
             PostAngleDeep = stems.PostAngleDeep,
-            CurlStem = curl.Stem,
-            CurlReturn = curl.Return
+            DoubleMoveStem = dm.Stem,
+            DoubleMoveLateral = dm.Lateral,
+            DoubleMoveDeep = dm.Deep
         };
     }
 
@@ -98,11 +99,13 @@ public static class RouteVisualizer
         return new[] { start, stemPoint, stemPoint + breakDir * RouteGeometry.PostBreakLength };
     }
 
-    private static Vector2[] GetCurlWaypoints(Vector2 start, int side, RouteDistances distances)
+    private static Vector2[] GetDoubleMoveWaypoints(Vector2 start, int side, RouteDistances distances, bool cutInside)
     {
-        Vector2 curlStemPoint = start + new Vector2(0, distances.CurlStem);
-        Vector2 comebackDir = RouteGeometry.GetCurlComebackDirection(side);
-        return new[] { start, curlStemPoint, curlStemPoint + comebackDir * distances.CurlReturn };
+        Vector2 stemEnd = start + new Vector2(0, distances.DoubleMoveStem);
+        int cutDir = cutInside ? -side : side;
+        Vector2 lateralEnd = stemEnd + new Vector2(cutDir * distances.DoubleMoveLateral, 0);
+        Vector2 deepEnd = lateralEnd + new Vector2(0, distances.DoubleMoveDeep);
+        return new[] { start, stemEnd, lateralEnd, deepEnd };
     }
 
     private static Vector2[] GetFlatWaypoints(Vector2 start, int side, RouteDistances distances)
@@ -120,7 +123,8 @@ public static class RouteVisualizer
         public float PostXFactorDeep;
         public float PostAngleShallow;
         public float PostAngleDeep;
-        public float CurlStem;
-        public float CurlReturn;
+        public float DoubleMoveStem;
+        public float DoubleMoveLateral;
+        public float DoubleMoveDeep;
     }
 }

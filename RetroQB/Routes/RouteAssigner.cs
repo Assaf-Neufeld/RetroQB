@@ -122,9 +122,15 @@ public static class RouteAssigner
         receiver.Route = route;
         receiver.SlantInside = true;
 
-        if (receiver.Route == RouteType.Slant && play.TryGetSlantDirection(receiver.Index, out var slantInside))
+        if ((receiver.Route == RouteType.Slant || receiver.Route == RouteType.DoubleMove)
+            && play.TryGetSlantDirection(receiver.Index, out var slantInside))
         {
             receiver.SlantInside = slantInside;
+        }
+        else if (receiver.Route == RouteType.DoubleMove)
+        {
+            // Randomize inside/outside cut when not specified by the play
+            receiver.SlantInside = rng.Next(2) == 0;
         }
     }
 
@@ -137,7 +143,7 @@ public static class RouteAssigner
 
         return route switch
         {
-            RouteType.Curl => RouteType.Flat,
+            RouteType.DoubleMove => RouteType.Flat,
             RouteType.Go => RouteType.Flat,
             RouteType.PostDeep => RouteType.Flat,
             RouteType.PostShallow => RouteType.Flat,
@@ -182,7 +188,7 @@ public static class RouteAssigner
         roll < 20 ? RouteType.Slant :
         roll < 35 ? RouteType.OutShallow :
         roll < 50 ? RouteType.InShallow :
-        roll < 62 ? RouteType.Curl :
+        roll < 62 ? RouteType.DoubleMove :
         roll < 74 ? RouteType.Go :
         roll < 84 ? RouteType.PostShallow :
         roll < 90 ? RouteType.PostDeep :

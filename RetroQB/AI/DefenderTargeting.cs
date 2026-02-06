@@ -128,7 +128,7 @@ public static class DefenderTargeting
         float sideMultiplier = isLeftSide ? -1f : 1f;
         
         // Once close to QB, go straight at him
-        float closeRange = 5f;
+        float closeRange = 3.5f;
         if (distToQb < closeRange)
         {
             return qb.Position;
@@ -136,13 +136,13 @@ public static class DefenderTargeting
         
         // Calculate arc based on distance to QB (not distance from LOS)
         // This ensures continuous pursuit regardless of field position
-        float maxArcDistance = 18f;
+        float maxArcDistance = 16f;
         float arcProgress = Math.Clamp(1f - (distToQb / maxArcDistance), 0f, 1f);
         
         // Outside offset decreases as we get closer to QB (arc tightens)
-        // Start at 10 yards wide, shrink to 2 yards as we approach
-        float maxOutsideOffset = 10f;
-        float minOutsideOffset = 2f;
+        // Start at 7 yards wide, shrink to 1.5 yards as we approach
+        float maxOutsideOffset = 7f;
+        float minOutsideOffset = 1.5f;
         float outsideOffset = maxOutsideOffset - (arcProgress * (maxOutsideOffset - minOutsideOffset));
         
         // Target point is offset from QB position toward the outside

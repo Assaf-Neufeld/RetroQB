@@ -13,8 +13,6 @@ public static class RouteGeometry
     public const float InBreakLength = 6f;
     public const float SlantLength = 9f;
     public const float OutBreakY = 0.18f; // 80° break (slight upfield drift)
-    public const float CurlComebackX = 0.3f;
-
     public const float PostXFactorShallow = 0.6f;
     public const float PostXFactorDeep = 0.9f;
 
@@ -25,11 +23,12 @@ public static class RouteGeometry
         return (stemShallow, stemDeep, 1.2f, 1.0f);
     }
 
-    public static (float Stem, float Return) GetCurlValues(Receiver receiver)
+    public static (float Stem, float Lateral, float Deep) GetDoubleMoveValues(Receiver receiver)
     {
-        float stem = receiver.IsRunningBack ? 6f : receiver.IsTightEnd ? 9f : 12f;
-        float ret = receiver.IsRunningBack ? 2.5f : receiver.IsTightEnd ? 3f : 3.5f;
-        return (stem, ret);
+        float stem = receiver.IsRunningBack ? 3f : receiver.IsTightEnd ? 4f : 5f;
+        float lateral = receiver.IsRunningBack ? 2f : receiver.IsTightEnd ? 2.5f : 3f;
+        float deep = receiver.IsRunningBack ? 8f : receiver.IsTightEnd ? 12f : 16f;
+        return (stem, lateral, deep);
     }
 
     public static Vector2 GetOutBreakDirection(int routeSide)
@@ -37,9 +36,10 @@ public static class RouteGeometry
         return Vector2.Normalize(new Vector2(routeSide, OutBreakY));
     }
 
-    public static Vector2 GetCurlComebackDirection(int routeSide)
+    public static Vector2 GetDoubleMoveLateralDirection(int routeSide, bool cutInside)
     {
-        return Vector2.Normalize(new Vector2(routeSide * CurlComebackX, -1f));
+        int cutDir = cutInside ? -routeSide : routeSide;
+        return new Vector2(cutDir, 0);
     }
 
     public static Vector2 GetPostBreakDirection(int routeSide, float xFactor, float postAngle)

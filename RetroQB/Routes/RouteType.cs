@@ -10,6 +10,6 @@ public enum RouteType
     InDeep,
     PostShallow,
     PostDeep,
-    Curl,
+    DoubleMove,
     Flat
 }

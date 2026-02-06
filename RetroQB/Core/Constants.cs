@@ -70,7 +70,7 @@ public static class Constants
     public const float RbSpeed = 7.1f;
     public const float OlSpeed = 6.5f;
     public const float DlSpeed = 6.3f;
-    public const float DeSpeed = 6.0f;
+    public const float DeSpeed = 5.4f;
     public const float LbSpeed = 6.6f;
     public const float DbSpeed = 7.8f;
 
@@ -103,8 +103,8 @@ public static class Constants
     public const float TouchdownPlayOverDuration = 2.6f;
 
     public const float BlockerSpeed = 6.0f;
-    public const float BlockEngageRadius = 4.2f;
-    public const float BlockHoldStrength = 5.0f;
+    public const float BlockEngageRadius = 4.5f;
+    public const float BlockHoldStrength = 5.8f;
 
     // Defensive coverage tuning
     public const float ZoneCoverageDepth = 14f;

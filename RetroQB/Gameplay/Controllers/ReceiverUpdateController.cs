@@ -233,7 +233,6 @@ public sealed class ReceiverUpdateController
         float flightProgress = ball.GetFlightProgress();
 
         // Blend between predicted landing (early) and actual ball position (late)
-        // Early in flight: run to the landing spot; late: track the ball directly
         float landingWeight = Math.Clamp(1f - flightProgress * 1.3f, 0f, 1f);
         Vector2 targetPos = Vector2.Lerp(ball.Position, predictedLanding, landingWeight);
 
@@ -242,6 +241,23 @@ public sealed class ReceiverUpdateController
         if (distToTarget > 0.001f)
         {
             toTarget /= distToTarget;
+        }
+
+        // --- Early in the flight: keep running the route ---
+        // Only begin adjusting once the ball is past 55% of its flight AND within 10 yards,
+        // or if the ball is already very close (catch window).
+        const float progressThreshold = 0.55f;
+        const float distanceStartAdjust = 10f;   // begin gentle steering
+        const float distanceHardAdjust = 4.5f;   // commit to the ball
+
+        bool closeEnough = distToTarget <= distanceStartAdjust;
+        bool flightLate = flightProgress >= progressThreshold;
+        bool inCatchWindow = distToTarget <= Constants.CatchRadius + 1.5f;
+
+        if (!inCatchWindow && !(closeEnough && flightLate))
+        {
+            // Keep running the route unmodified
+            return;
         }
 
         bool ballAhead = targetPos.Y >= receiver.Position.Y - 1.0f;
@@ -253,10 +269,16 @@ public sealed class ReceiverUpdateController
                 ? Vector2.Normalize(routeVelocity)
                 : toTarget;
 
-            // Stronger adjustment: commit hard to the ball, especially as it gets closer
-            float adjustWeight = Math.Clamp(1f - (distToTarget / 14f), 0.25f, 0.85f);
-            // Ramp up further as flight progresses — receiver should be locked on late
-            adjustWeight = Math.Max(adjustWeight, flightProgress * 0.8f);
+            // Gentle ramp: 0 at distanceStartAdjust → 0.8 at distanceHardAdjust → ~1 at catch radius
+            float distFactor = 1f - Math.Clamp((distToTarget - distanceHardAdjust) / (distanceStartAdjust - distanceHardAdjust), 0f, 1f);
+            float progressFactor = Math.Clamp((flightProgress - progressThreshold) / (1f - progressThreshold), 0f, 1f);
+            float adjustWeight = Math.Clamp(distFactor * 0.8f + progressFactor * 0.2f, 0f, 0.85f);
+
+            // Once very close, lock on fully
+            if (inCatchWindow)
+            {
+                adjustWeight = Math.Max(adjustWeight, 0.75f);
+            }
 
             Vector2 blendedDir = baseDir * (1f - adjustWeight) + toTarget * adjustWeight;
             if (blendedDir.LengthSquared() > 0.001f)

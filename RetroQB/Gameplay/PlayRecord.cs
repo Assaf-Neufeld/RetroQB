@@ -115,7 +115,7 @@ public sealed class PlayRecord
             RouteType.InDeep => "Deep In",
             RouteType.PostShallow => "Post",
             RouteType.PostDeep => "Deep Post",
-            RouteType.Curl => "Curl",
+            RouteType.DoubleMove => "Dbl Move",
             RouteType.Flat => "Flat",
             _ => route.ToString()
         };
