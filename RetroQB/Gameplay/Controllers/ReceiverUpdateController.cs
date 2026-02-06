@@ -218,30 +218,63 @@ public sealed class ReceiverUpdateController
     private static void AdjustReceiverToBall(Receiver receiver, Ball ball)
     {
         Vector2 routeVelocity = receiver.Velocity;
-        Vector2 toBall = ball.Position - receiver.Position;
-        float distToBall = toBall.Length();
-        if (distToBall > 0.001f)
+
+        // Predict where the ball will land based on throw trajectory
+        Vector2 predictedLanding = GetPredictedBallLanding(ball);
+        float flightProgress = ball.GetFlightProgress();
+
+        // Blend between predicted landing (early) and actual ball position (late)
+        // Early in flight: run to the landing spot; late: track the ball directly
+        float landingWeight = Math.Clamp(1f - flightProgress * 1.3f, 0f, 1f);
+        Vector2 targetPos = Vector2.Lerp(ball.Position, predictedLanding, landingWeight);
+
+        Vector2 toTarget = targetPos - receiver.Position;
+        float distToTarget = toTarget.Length();
+        if (distToTarget > 0.001f)
         {
-            toBall /= distToBall;
+            toTarget /= distToTarget;
         }
 
-        bool ballAhead = ball.Position.Y >= receiver.Position.Y - 0.75f;
-        bool allowComeback = distToBall <= Constants.CatchRadius + 0.75f;
+        bool ballAhead = targetPos.Y >= receiver.Position.Y - 1.0f;
+        bool allowComeback = distToTarget <= Constants.CatchRadius + 1.2f;
 
         if (ballAhead || allowComeback)
         {
             Vector2 baseDir = routeVelocity.LengthSquared() > 0.001f
                 ? Vector2.Normalize(routeVelocity)
-                : toBall;
+                : toTarget;
 
-            float adjustWeight = Math.Clamp(1f - (distToBall / 12f), 0.15f, 0.6f);
-            Vector2 blendedDir = baseDir * (1f - adjustWeight) + toBall * adjustWeight;
+            // Stronger adjustment: commit hard to the ball, especially as it gets closer
+            float adjustWeight = Math.Clamp(1f - (distToTarget / 14f), 0.25f, 0.85f);
+            // Ramp up further as flight progresses — receiver should be locked on late
+            adjustWeight = Math.Max(adjustWeight, flightProgress * 0.8f);
+
+            Vector2 blendedDir = baseDir * (1f - adjustWeight) + toTarget * adjustWeight;
             if (blendedDir.LengthSquared() > 0.001f)
             {
                 blendedDir = Vector2.Normalize(blendedDir);
             }
-            receiver.Velocity = blendedDir * receiver.Speed;
+
+            // Slight speed boost when tracking deep into flight to close distance
+            float speedMult = 1f + flightProgress * 0.08f;
+            receiver.Velocity = blendedDir * (receiver.Speed * speedMult);
         }
+    }
+
+    /// <summary>
+    /// Projects where the ball will land based on its throw start, velocity direction,
+    /// and intended distance.
+    /// </summary>
+    private static Vector2 GetPredictedBallLanding(Ball ball)
+    {
+        Vector2 velocity = ball.Velocity;
+        if (velocity.LengthSquared() < 0.001f)
+        {
+            return ball.Position;
+        }
+
+        Vector2 throwDir = Vector2.Normalize(velocity);
+        return ball.ThrowStart + throwDir * ball.IntendedDistance;
     }
 
     internal static Defender? GetClosestDefender(IReadOnlyList<Defender> defenders, Vector2 position, float maxDistance, bool preferRushers)

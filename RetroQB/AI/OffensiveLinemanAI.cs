@@ -34,9 +34,9 @@ public static class OffensiveLinemanAI
             formation,
             lineOfScrimmage,
             runningBackSide,
-            sweepPush: 3.1f,
-            basePush: 2.4f,
-            runTargetOffset: 2.4f,
+            sweepPush: 4.2f,
+            basePush: 3.5f,
+            runTargetOffset: 3.2f,
             passTargetOffset: -1.4f);
 
         foreach (var blocker in blockers)
@@ -45,18 +45,23 @@ public static class OffensiveLinemanAI
             Vector2 targetAnchor = ComputeAnchorForBlocker(blocker, context, profile);
 
             // Scale engagement radius by team's blocking strength
+            // Tackles get a wider engagement zone to pick up edge rushers earlier
             float engageRadius = Constants.BlockEngageRadius * blocker.TeamAttributes.BlockingStrength;
+            if (IsTacklePosition(blocker.HomeX))
+            {
+                engageRadius *= 1.15f;
+            }
             Defender? target = GetClosestDefender(defenders, blocker.Position, engageRadius, preferRushers: true);
-            bool closeToAnchor = IsWithinEngageRange(blocker.Position, targetAnchor, 0.75f);
+            bool closeToAnchor = IsWithinEngageRange(blocker.Position, targetAnchor, 0.9f);
             
             // For pass plays, prioritize getting to anchor position first before engaging
             // Only engage early if defender is very close (about to get past)
             bool shouldEngage;
             if (context.IsRunPlay)
             {
-                // Run plays: prioritize pulling to anchor before engaging.
-                bool targetNearAnchor = target != null && IsWithinEngageRange(target.Position, targetAnchor, engageRadius * 1.1f);
-                bool defenderVeryClose = target != null && IsWithinEngageRange(blocker.Position, target.Position, engageRadius * 0.6f);
+                // Run plays: commit to pulling — only engage once near anchor or defender is right on top
+                bool targetNearAnchor = target != null && IsWithinEngageRange(target.Position, targetAnchor, engageRadius * 0.75f);
+                bool defenderVeryClose = target != null && IsWithinEngageRange(blocker.Position, target.Position, engageRadius * 0.4f);
                 shouldEngage = target != null && (closeToAnchor || targetNearAnchor || defenderVeryClose);
             }
             else
@@ -97,9 +102,9 @@ public static class OffensiveLinemanAI
             formation,
             lineOfScrimmage,
             runningBackSide,
-            sweepPush: 3.1f,
-            basePush: 2.4f,
-            runTargetOffset: 2.4f,
+            sweepPush: 4.2f,
+            basePush: 3.5f,
+            runTargetOffset: 3.2f,
             passTargetOffset: -1.4f);
 
         foreach (var blocker in blockers)
@@ -198,8 +203,17 @@ public static class OffensiveLinemanAI
         }
         else
         {
-            // Pass blocking: stay between defender and QB, slight backward drift
-            baseVelocity += new Vector2(0f, -blocker.Speed * 0.15f);
+            // Pass blocking: stay between defender and QB
+            // Tackles mirror laterally toward edge rushers to cut off the corner
+            if (IsTacklePosition(blocker.HomeX) && target.PositionRole == DefensivePosition.DE)
+            {
+                float sideDir = MathF.Sign(target.Position.X - blocker.Position.X);
+                baseVelocity += new Vector2(sideDir * blocker.Speed * 0.25f, -blocker.Speed * 0.1f);
+            }
+            else
+            {
+                baseVelocity += new Vector2(0f, -blocker.Speed * 0.15f);
+            }
         }
 
         return baseVelocity;
@@ -268,13 +282,15 @@ public static class OffensiveLinemanAI
     private static void MoveTowardAnchor(Blocker blocker, Vector2 targetAnchor, RunContext context, RunProfile profile, bool closeToAnchor)
     {
         Vector2 toAnchor = BlockingUtils.SafeNormalize(targetAnchor - blocker.Position);
-        float anchorSpeed = context.IsRunPlay ? blocker.Speed * 0.85f : blocker.Speed * 0.6f;
+        float anchorSpeed = context.IsRunPlay ? blocker.Speed * 1.1f : blocker.Speed * 0.6f;
         blocker.Velocity = toAnchor * anchorSpeed;
         
         if (context.IsRunPlay)
         {
+            // Strong lateral pull toward the run side — backside blockers pull across, playside push out
             float lateralBias = profile.IsBackside ? -context.RunSide : context.RunSide;
-            blocker.Velocity += new Vector2(lateralBias * blocker.Speed * 0.2f, blocker.Speed * 0.2f);
+            float lateralMult = profile.IsBackside ? 0.45f : 0.3f;  // Backside blockers pull harder
+            blocker.Velocity += new Vector2(lateralBias * blocker.Speed * lateralMult, blocker.Speed * 0.25f);
         }
         else
         {
@@ -286,9 +302,9 @@ public static class OffensiveLinemanAI
         {
             if (context.IsRunPlay)
             {
-                float settleSpeed = blocker.Speed * 0.45f;
+                float settleSpeed = blocker.Speed * 0.65f;
                 float lateralBias = profile.IsBackside ? -context.RunSide : context.RunSide;
-                blocker.Velocity = new Vector2(lateralBias * settleSpeed * 0.3f, settleSpeed);
+                blocker.Velocity = new Vector2(lateralBias * settleSpeed * 0.4f, settleSpeed);
             }
             else
             {
@@ -362,12 +378,31 @@ public static class OffensiveLinemanAI
         float defenderEase = defender.PositionRole switch
         {
             DefensivePosition.DL => 0.75f,
+            DefensivePosition.DE => 0.80f,
             DefensivePosition.LB => 0.95f,
             _ => 1.15f
         };
 
+        // Tackles get a positional advantage vs DEs — that's their primary matchup
+        if (defender.PositionRole == DefensivePosition.DE && IsTacklePosition(blocker.HomeX))
+        {
+            defenderEase += 0.25f;
+        }
+
         float teamStrength = blocker.TeamAttributes.BlockingStrength;
         return 1.35f * defenderEase * teamStrength;
+    }
+
+    /// <summary>
+    /// Returns true if the blocker is positioned as an offensive tackle (outer linemen).
+    /// Tackles are the OL furthest from field center.
+    /// </summary>
+    private static bool IsTacklePosition(float homeX)
+    {
+        float centerX = Constants.FieldWidth * 0.5f;
+        float distFromCenter = MathF.Abs(homeX - centerX);
+        // Base OL at 0.42/0.46/0.50/0.54/0.58 — tackles are ~3.7+ units from center
+        return distFromCenter >= 3.5f;
     }
 
 
@@ -407,7 +442,8 @@ public static class OffensiveLinemanAI
             return 0f;
         }
 
-        float sealAmount = 1.4f;
+        // Backside blockers pull across toward the run side to seal pursuit
+        float sealAmount = 2.8f;
         return -runSide * sealAmount;
     }
 
@@ -419,7 +455,7 @@ public static class OffensiveLinemanAI
         }
 
         float centerX = Constants.FieldWidth * 0.5f;
-        float laneCenterX = centerX + (runSide * (isSweep ? 4.4f : 3.2f));
+        float laneCenterX = centerX + (runSide * (isSweep ? 5.2f : 3.8f));
         float deltaFromLane = homeX - laneCenterX;
         int laneSide = Math.Sign(deltaFromLane);
         if (laneSide == 0)
@@ -427,9 +463,9 @@ public static class OffensiveLinemanAI
             laneSide = -runSide;
         }
 
-        float baseSeparation = 1.2f;
+        float baseSeparation = 1.4f;
         float distanceBias = Math.Clamp(MathF.Abs(deltaFromLane) / 5.5f, 0f, 1f);
-        float separation = baseSeparation + (distanceBias * 0.6f);
+        float separation = baseSeparation + (distanceBias * 0.7f);
         return laneSide * separation;
     }
 

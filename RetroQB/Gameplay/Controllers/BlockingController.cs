@@ -99,8 +99,9 @@ public sealed class BlockingController
         Vector2? ballCarrierPosition)
     {
         bool isSweep = BlockingUtils.IsSweepFormation(selectedPlay.Formation);
-        float edgeX = Math.Clamp(qb.Position.X + (runSide * (isSweep ? 5.0f : 4.1f)), 1.1f, Constants.FieldWidth - 1.1f);
-        float edgeY = lineOfScrimmage + (isSweep ? 2.8f : 2.2f);
+        // Base edge spot on the TE's own position so they block in the correct direction
+        float edgeX = Math.Clamp(receiver.RouteStart.X + (runSide * (isSweep ? 2.0f : 1.2f)), 1.1f, Constants.FieldWidth - 1.1f);
+        float edgeY = lineOfScrimmage + (isSweep ? 3.2f : 2.6f);
         Vector2 edgeSpot = new Vector2(edgeX, edgeY);
 
         Defender? edgeTarget = getClosestDefender(edgeSpot, Constants.BlockEngageRadius + 2.2f, true);
