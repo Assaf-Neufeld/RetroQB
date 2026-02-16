@@ -10,6 +10,8 @@ public enum CoverageRole
     DeepLeft,
     DeepMiddle,
     DeepRight,
+    DeepQuarterLeft,
+    DeepQuarterRight,
     FlatLeft,
     FlatRight,
     HookLeft,
@@ -45,6 +47,12 @@ public sealed class Defender : Entity
     /// If false, DB plays off coverage and maintains cushion before pursuing.
     /// </summary>
     public bool IsPressCoverage { get; set; }
+
+    /// <summary>
+    /// Per-play random horizontal offset applied to zone anchor positions.
+    /// Shifts zone coverage seams to create play-to-play variety.
+    /// </summary>
+    public float ZoneJitterX { get; set; }
 
     /// <summary>
     /// Set each frame by blocking logic. True when a blocker has active contact with this defender.

@@ -42,6 +42,68 @@ public sealed class ScoreboardRenderer
             Raylib.DrawText(text, rightX - textWidth, drawY, fontSize, color);
         }
 
+        static List<string> WrapTextToWidth(string text, int fontSize, int maxWidth)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return new List<string> { string.Empty };
+            }
+
+            var lines = new List<string>();
+            var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            string current = string.Empty;
+
+            foreach (string word in words)
+            {
+                string candidate = string.IsNullOrEmpty(current) ? word : $"{current} {word}";
+                if (Raylib.MeasureText(candidate, fontSize) <= maxWidth)
+                {
+                    current = candidate;
+                    continue;
+                }
+
+                if (!string.IsNullOrEmpty(current))
+                {
+                    lines.Add(current);
+                }
+
+                // Handle a single very-long token by splitting it.
+                if (Raylib.MeasureText(word, fontSize) > maxWidth)
+                {
+                    string segment = string.Empty;
+                    foreach (char ch in word)
+                    {
+                        string next = segment + ch;
+                        if (Raylib.MeasureText(next, fontSize) <= maxWidth)
+                        {
+                            segment = next;
+                        }
+                        else
+                        {
+                            if (!string.IsNullOrEmpty(segment))
+                            {
+                                lines.Add(segment);
+                            }
+                            segment = ch.ToString();
+                        }
+                    }
+
+                    current = segment;
+                }
+                else
+                {
+                    current = word;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(current))
+            {
+                lines.Add(current);
+            }
+
+            return lines;
+        }
+
         // Stage indicator
         string stageText = stage.GetDisplayName();
         int stageNum = stage.GetStageNumber();
@@ -174,9 +236,19 @@ public sealed class ScoreboardRenderer
         }
         else
         {
+            int summaryMaxY = ScoreboardY + ScoreboardHeight - 40;
+            int textMaxWidth = innerWidth - 14;
+
             for (int i = 0; i < play.PlayRecords.Count; i++)
             {
                 var record = play.PlayRecords[i];
+
+                if (contentY > summaryMaxY)
+                {
+                    Raylib.DrawText("...", contentX + 8, summaryMaxY, 12, panelText);
+                    contentY = summaryMaxY + 12;
+                    break;
+                }
                 
                 // Play number and situation
                 string situationLine = $"#{record.PlayNumber}: {record.GetSituationText()}";
@@ -185,28 +257,33 @@ public sealed class ScoreboardRenderer
                 
                 // Play call
                 string playCallLine = record.GetPlayCallText();
-                string? blitzLine = null;
-                int blitzIndex = playCallLine.IndexOf(" (");
-                if (blitzIndex >= 0)
-                {
-                    blitzLine = playCallLine.Substring(blitzIndex + 2).TrimEnd(')');
-                    if (blitzLine.EndsWith(" blitz", StringComparison.OrdinalIgnoreCase))
-                        blitzLine = blitzLine[..^6];
-                    playCallLine = playCallLine.Substring(0, blitzIndex);
-                }
+                string? blitzLine = record.Blitzers.Count > 0
+                    ? string.Join(", ", record.Blitzers)
+                    : null;
 
-                if (playCallLine.Length > 32)
-                    playCallLine = playCallLine.Substring(0, 29) + "...";
-                Raylib.DrawText(playCallLine, contentX + 8, contentY, 12, panelText);
-                contentY += 14;
+                foreach (string line in WrapTextToWidth(playCallLine, 12, textMaxWidth))
+                {
+                    if (contentY > summaryMaxY)
+                    {
+                        break;
+                    }
+                    Raylib.DrawText(line, contentX + 8, contentY, 12, panelText);
+                    contentY += 14;
+                }
 
                 if (!string.IsNullOrWhiteSpace(blitzLine))
                 {
                     string blitzText = $"Blitz: {blitzLine}";
-                    if (blitzText.Length > 32)
-                        blitzText = blitzText.Substring(0, 29) + "...";
-                    Raylib.DrawText(blitzText, contentX + 8, contentY, 12, Palette.Orange);
-                    contentY += 14;
+
+                    foreach (string line in WrapTextToWidth(blitzText, 12, textMaxWidth))
+                    {
+                        if (contentY > summaryMaxY)
+                        {
+                            break;
+                        }
+                        Raylib.DrawText(line, contentX + 8, contentY, 12, Palette.Orange);
+                        contentY += 14;
+                    }
                 }
                 
                 // Result
@@ -221,9 +298,17 @@ public sealed class ScoreboardRenderer
                     _ when record.Gain < 0 => Palette.Orange,
                     _ => panelText
                 };
-                if (resultLine.Length > 35)
-                    resultLine = resultLine.Substring(0, 32) + "...";
-                Raylib.DrawText(resultLine, contentX + 8, contentY, 12, resultColor);
+
+                foreach (string line in WrapTextToWidth(resultLine, 12, textMaxWidth))
+                {
+                    if (contentY > summaryMaxY)
+                    {
+                        break;
+                    }
+                    Raylib.DrawText(line, contentX + 8, contentY, 12, resultColor);
+                    contentY += 14;
+                }
+
                 contentY += 18;
             }
         }

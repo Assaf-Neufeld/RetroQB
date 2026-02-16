@@ -55,6 +55,7 @@ public static class ZoneCoverage
 
     /// <summary>
     /// Gets the anchor position for a zone based on the defender's role.
+    /// Applies per-defender jitter to shift zone seams play-to-play.
     /// </summary>
     public static Vector2 GetZoneAnchor(Defender defender, float lineOfScrimmage)
     {
@@ -62,7 +63,9 @@ public static class ZoneCoverage
             ? Constants.ZoneCoverageDepthDb
             : Constants.ZoneCoverageDepth;
 
-        return defender.ZoneRole switch
+        float jitterX = defender.ZoneJitterX;
+
+        Vector2 anchor = defender.ZoneRole switch
         {
             CoverageRole.DeepLeft => new Vector2(Constants.FieldWidth * 0.30f, lineOfScrimmage + Constants.ZoneCoverageDepthDb),
             CoverageRole.DeepMiddle => new Vector2(Constants.FieldWidth * 0.50f, lineOfScrimmage + Constants.ZoneCoverageDepthDb),
@@ -74,15 +77,20 @@ public static class ZoneCoverage
             CoverageRole.HookRight => new Vector2(Constants.FieldWidth * 0.62f, lineOfScrimmage + Constants.ZoneCoverageDepth),
             _ => new Vector2(Constants.FieldWidth * 0.50f, lineOfScrimmage + depth)
         };
+
+        // Apply horizontal jitter, clamped to field bounds
+        anchor.X = Math.Clamp(anchor.X + jitterX, 0.5f, Constants.FieldWidth - 0.5f);
+        return anchor;
     }
 
     /// <summary>
     /// Gets the bounds for a specific zone role.
     /// </summary>
-    public static ZoneBounds GetZoneBounds(CoverageRole role, float lineOfScrimmage)
+    public static ZoneBounds GetZoneBounds(Defender defender, float lineOfScrimmage)
     {
         float yMin = lineOfScrimmage + 1.0f;
-        var (xCenter, width, yMax) = GetZoneParameters(role, lineOfScrimmage, ref yMin);
+        var (xCenter, width, yMax) = GetZoneParameters(defender.ZoneRole, lineOfScrimmage, ref yMin);
+        xCenter += defender.ZoneJitterX;
 
         float halfWidth = width * 0.5f;
         float xMin = Math.Clamp(xCenter - halfWidth, 0.5f, Constants.FieldWidth - 0.5f);
@@ -97,7 +105,7 @@ public static class ZoneCoverage
     public static bool TryGetZoneMatch(Defender defender, IReadOnlyList<Receiver> receivers, float lineOfScrimmage, out Receiver match)
     {
         match = null!;
-        ZoneBounds bounds = GetZoneBounds(defender.ZoneRole, lineOfScrimmage);
+        ZoneBounds bounds = GetZoneBounds(defender, lineOfScrimmage);
 
         float bestScore = float.NegativeInfinity;
 
@@ -121,7 +129,8 @@ public static class ZoneCoverage
     }
 
     private static bool IsDeepZone(CoverageRole role) =>
-        role is CoverageRole.DeepLeft or CoverageRole.DeepMiddle or CoverageRole.DeepRight;
+        role is CoverageRole.DeepLeft or CoverageRole.DeepMiddle or CoverageRole.DeepRight
+            or CoverageRole.DeepQuarterLeft or CoverageRole.DeepQuarterRight;
 
     private static Vector2 CalculateMatchTarget(Defender defender, Receiver match, Vector2 baseTarget)
     {
@@ -136,7 +145,7 @@ public static class ZoneCoverage
 
     private static float GetDeepZoneDepth(Defender defender, IReadOnlyList<Receiver> receivers, float lineOfScrimmage)
     {
-        ZoneBounds bounds = GetZoneBounds(defender.ZoneRole, lineOfScrimmage);
+        ZoneBounds bounds = GetZoneBounds(defender, lineOfScrimmage);
         float deepest = FindDeepestReceiverInZone(receivers, bounds, lineOfScrimmage);
 
         float baseDepth = lineOfScrimmage + Constants.ZoneCoverageDepthDb;
@@ -276,6 +285,8 @@ public static class ZoneCoverage
             CoverageRole.DeepLeft => GetDeepZoneParameters(0.30f, lineOfScrimmage, ref yMin),
             CoverageRole.DeepMiddle => GetDeepZoneParameters(0.50f, lineOfScrimmage, ref yMin),
             CoverageRole.DeepRight => GetDeepZoneParameters(0.70f, lineOfScrimmage, ref yMin),
+            CoverageRole.DeepQuarterLeft => GetDeepZoneParameters(0.40f, lineOfScrimmage, ref yMin),
+            CoverageRole.DeepQuarterRight => GetDeepZoneParameters(0.60f, lineOfScrimmage, ref yMin),
             _ => (
                 Constants.FieldWidth * 0.50f,
                 Constants.ZoneMatchWidthHook,

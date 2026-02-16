@@ -1,3 +1,5 @@
+using RetroQB.AI;
+
 namespace RetroQB.Gameplay;
 
 public enum PlayType
@@ -63,9 +65,9 @@ public sealed class PlayManager
     /// <summary>
     /// Starts recording a new play with pre-snap information.
     /// </summary>
-    public void StartPlayRecord(bool isZoneCoverage, List<string> blitzers)
+    public void StartPlayRecord(bool isZoneCoverage, CoverageScheme coverageScheme, List<string> blitzers)
     {
-        _driveState.StartPlayRecord(SelectedPlay.Name, SelectedPlayType, isZoneCoverage, blitzers);
+        _driveState.StartPlayRecord(SelectedPlay.Name, SelectedPlayType, isZoneCoverage, coverageScheme, blitzers);
     }
 
     /// <summary>

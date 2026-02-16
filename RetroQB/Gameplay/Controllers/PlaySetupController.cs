@@ -30,18 +30,16 @@ public sealed class PlaySetupController
     /// </summary>
     public PlaySetupResult SetupPlay(
         PlayDefinition selectedPlay,
-        float lineOfScrimmage,
-        float distance,
+        DefensiveContext context,
         OffensiveTeamAttributes offensiveTeam,
         DefensiveTeamAttributes defensiveTeam)
     {
         // Create offensive formation
-        var formationResult = _formationFactory.CreateFormation(selectedPlay, lineOfScrimmage, offensiveTeam);
+        var formationResult = _formationFactory.CreateFormation(selectedPlay, context.LineOfScrimmage, offensiveTeam);
 
         // Create defense
         var defenseResult = _defenseFactory.CreateDefense(
-            lineOfScrimmage,
-            distance,
+            context,
             formationResult.Receivers,
             _rng,
             defensiveTeam);
@@ -56,7 +54,8 @@ public sealed class PlaySetupController
             formationResult.Blockers,
             defenseResult.Defenders,
             defenseResult.IsZoneCoverage,
-            defenseResult.Blitzers);
+            defenseResult.Blitzers,
+            defenseResult.Scheme);
     }
 }
 
@@ -72,6 +71,7 @@ public sealed class PlaySetupResult
     public List<Defender> Defenders { get; }
     public bool IsZoneCoverage { get; }
     public List<string> Blitzers { get; }
+    public CoverageScheme CoverageScheme { get; }
 
     public PlaySetupResult(
         Quarterback qb,
@@ -80,7 +80,8 @@ public sealed class PlaySetupResult
         List<Blocker> blockers,
         List<Defender> defenders,
         bool isZoneCoverage,
-        List<string> blitzers)
+        List<string> blitzers,
+        CoverageScheme coverageScheme)
     {
         Qb = qb;
         Ball = ball;
@@ -89,5 +90,6 @@ public sealed class PlaySetupResult
         Defenders = defenders;
         IsZoneCoverage = isZoneCoverage;
         Blitzers = blitzers;
+        CoverageScheme = coverageScheme;
     }
 }

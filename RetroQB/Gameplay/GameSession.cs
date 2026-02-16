@@ -54,6 +54,7 @@ public sealed class GameSession
     private bool _manualPlaySelection;
     private bool _autoPlaySelectionDone;
     private bool _isZoneCoverage;
+    private CoverageScheme _coverageScheme;
     private List<string> _blitzers = new();
     private int _selectedTeamIndex;
 
@@ -228,15 +229,23 @@ public sealed class GameSession
 
     private void SetupEntities()
     {
-        var result = _playSetupController.SetupPlay(
-            _playManager.SelectedPlay,
+        var context = new DefensiveContext(
             _playManager.LineOfScrimmage,
             _playManager.Distance,
+            _playManager.Down,
+            _playManager.Score,
+            _playManager.AwayScore,
+            _currentStage);
+
+        var result = _playSetupController.SetupPlay(
+            _playManager.SelectedPlay,
+            context,
             _offensiveTeam,
             _defensiveTeam);
 
         _entities.LoadFrom(result);
         _isZoneCoverage = result.IsZoneCoverage;
+        _coverageScheme = result.CoverageScheme;
         _blitzers = result.Blitzers;
 
         // Reset controllers for new play
@@ -362,7 +371,7 @@ public sealed class GameSession
         if (_input.IsSpacePressed())
         {
             _playManager.StartPlay();
-            _playManager.StartPlayRecord(_isZoneCoverage, _blitzers);
+            _playManager.StartPlayRecord(_isZoneCoverage, _coverageScheme, _blitzers);
             _stateManager.SetState(GameState.PlayActive);
         }
     }

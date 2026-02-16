@@ -19,6 +19,7 @@ public sealed class PlayRecord
     
     // Defensive scheme info
     public bool IsZoneCoverage { get; init; }
+    public CoverageScheme CoverageScheme { get; init; }
     public List<string> Blitzers { get; init; } = new();
     
     // Play result
@@ -64,11 +65,12 @@ public sealed class PlayRecord
         };
         
         string coverageType = IsZoneCoverage ? "Zone" : "Man";
+        string coverageShell = GetCoverageShellName(CoverageScheme);
         string blitzInfo = Blitzers.Count > 0 
             ? $" ({string.Join(", ", Blitzers)} blitz)" 
             : "";
         
-        return $"{familyName}: {OffensivePlayName} vs {coverageType}{blitzInfo}";
+        return $"{familyName}: {OffensivePlayName} vs {coverageType} - {coverageShell}{blitzInfo}";
     }
 
     /// <summary>
@@ -118,6 +120,20 @@ public sealed class PlayRecord
             RouteType.DoubleMove => "Dbl Move",
             RouteType.Flat => "Flat",
             _ => route.ToString()
+        };
+    }
+
+    private static string GetCoverageShellName(CoverageScheme scheme)
+    {
+        return scheme switch
+        {
+            CoverageScheme.Cover0 => "Cover 0",
+            CoverageScheme.Cover1 => "Cover 1",
+            CoverageScheme.Cover2Zone => "Cover 2 Zone",
+            CoverageScheme.Cover3Zone => "Cover 3 Zone",
+            CoverageScheme.Cover4Zone => "Cover 4",
+            CoverageScheme.Cover2Man => "Cover 2 Man",
+            _ => scheme.ToString()
         };
     }
 }

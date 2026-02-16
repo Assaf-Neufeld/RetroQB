@@ -1,3 +1,5 @@
+using RetroQB.AI;
+
 namespace RetroQB.Gameplay;
 
 /// <summary>
@@ -56,7 +58,7 @@ public sealed class DriveState
     /// <summary>
     /// Creates a new PlayRecord for the current play with pre-snap information.
     /// </summary>
-    public void StartPlayRecord(string playName, PlayType playFamily, bool isZoneCoverage, List<string> blitzers)
+    public void StartPlayRecord(string playName, PlayType playFamily, bool isZoneCoverage, CoverageScheme coverageScheme, List<string> blitzers)
     {
         float yardLine = FieldGeometry.GetYardLineDisplay(LineOfScrimmage);
         CurrentPlayRecord = new PlayRecord
@@ -68,6 +70,7 @@ public sealed class DriveState
             OffensivePlayName = playName,
             PlayFamily = playFamily,
             IsZoneCoverage = isZoneCoverage,
+            CoverageScheme = coverageScheme,
             Blitzers = new List<string>(blitzers)
         };
     }
