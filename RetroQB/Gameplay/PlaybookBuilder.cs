@@ -280,13 +280,13 @@ public static class PlaybookBuilder
             new(
                 "Counter Right",
                 PlayType.Run,
-                FormationType.RunPowerLeft,
+                FormationType.RunIForm,
                 RunningBackRole.Route,
                 TightEndRole.Block,
                 new Dictionary<int, RouteType>
                 {
-                    [0] = RouteType.DoubleMove,
-                    [1] = RouteType.Go
+                    [0] = RouteType.InShallow,
+                    [1] = RouteType.Flat
                 },
                 runningBackSide: 1),
 
@@ -294,13 +294,13 @@ public static class PlaybookBuilder
             new(
                 "Counter Left",
                 PlayType.Run,
-                FormationType.RunPowerRight,
+                FormationType.RunIForm,
                 RunningBackRole.Route,
                 TightEndRole.Block,
                 new Dictionary<int, RouteType>
                 {
-                    [0] = RouteType.DoubleMove,
-                    [1] = RouteType.Go
+                    [0] = RouteType.InShallow,
+                    [1] = RouteType.Flat
                 },
                 runningBackSide: -1),
 
@@ -363,21 +363,8 @@ public static class PlaybookBuilder
             _ => 0
         };
 
-        Dictionary<int, RouteType> routes = formation == FormationType.RunIForm
-            ? new Dictionary<int, RouteType>
-            {
-                [0] = RouteType.Slant,
-                [1] = RouteType.Go
-            }
-            : new Dictionary<int, RouteType>
-            {
-                [0] = RouteType.Go,
-                [1] = RouteType.OutShallow
-            };
-
-        Dictionary<int, bool>? slantDirections = formation == FormationType.RunIForm
-            ? new Dictionary<int, bool> { [0] = true }
-            : null;
+        Dictionary<int, RouteType> routes = GetRunRoutesForFormation(formation);
+        Dictionary<int, bool>? slantDirections = GetRunSlantDirectionsForFormation(formation);
 
         return new PlayDefinition(
             "Wildcard",
@@ -388,5 +375,39 @@ public static class PlaybookBuilder
             routes,
             runningBackSide: runningBackSide,
             slantDirections: slantDirections);
+    }
+
+    private static Dictionary<int, RouteType> GetRunRoutesForFormation(FormationType formation)
+    {
+        return formation switch
+        {
+            FormationType.RunSweepRight or FormationType.RunSweepLeft => new Dictionary<int, RouteType>
+            {
+                [0] = RouteType.Go,
+                [1] = RouteType.Flat
+            },
+            FormationType.RunIForm => new Dictionary<int, RouteType>
+            {
+                [0] = RouteType.Slant,
+                [1] = RouteType.Go
+            },
+            FormationType.RunStretchRight or FormationType.RunStretchLeft => new Dictionary<int, RouteType>
+            {
+                [0] = RouteType.Go,
+                [1] = RouteType.OutShallow
+            },
+            _ => new Dictionary<int, RouteType>
+            {
+                [0] = RouteType.Go,
+                [1] = RouteType.OutShallow
+            }
+        };
+    }
+
+    private static Dictionary<int, bool>? GetRunSlantDirectionsForFormation(FormationType formation)
+    {
+        return formation == FormationType.RunIForm
+            ? new Dictionary<int, bool> { [0] = true }
+            : null;
     }
 }

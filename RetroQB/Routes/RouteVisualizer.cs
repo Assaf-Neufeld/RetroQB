@@ -24,7 +24,7 @@ public static class RouteVisualizer
             RouteType.InDeep => GetInWaypoints(start, side, distances.Deep),
             RouteType.PostShallow => GetPostWaypoints(start, side, distances.Shallow, distances.PostXFactorShallow, distances.PostAngleShallow),
             RouteType.PostDeep => GetPostWaypoints(start, side, distances.Deep, distances.PostXFactorDeep, distances.PostAngleDeep),
-            RouteType.DoubleMove => GetDoubleMoveWaypoints(start, side, distances, receiver.SlantInside),
+            RouteType.DoubleMove => GetInWaypoints(start, side, distances.Deep),
             RouteType.Flat => GetFlatWaypoints(start, side, distances),
             _ => new[] { start, start + new Vector2(0, distances.Deep) }
         };
@@ -42,7 +42,7 @@ public static class RouteVisualizer
             RouteType.InDeep => "In D",
             RouteType.PostShallow => "Post S",
             RouteType.PostDeep => "Post D",
-            RouteType.DoubleMove => "Dbl Move",
+            RouteType.DoubleMove => "Dig",
             RouteType.Flat => "Flat",
             _ => "Route"
         };
@@ -51,7 +51,6 @@ public static class RouteVisualizer
     private static RouteDistances GetRouteDistances(Receiver receiver)
     {
         var stems = RouteGeometry.GetStemDistances(receiver);
-        var dm = RouteGeometry.GetDoubleMoveValues(receiver);
         return new RouteDistances
         {
             Stem = stems.Deep,
@@ -61,10 +60,7 @@ public static class RouteVisualizer
             PostXFactorShallow = RouteGeometry.PostXFactorShallow,
             PostXFactorDeep = RouteGeometry.PostXFactorDeep,
             PostAngleShallow = stems.PostAngleShallow,
-            PostAngleDeep = stems.PostAngleDeep,
-            DoubleMoveStem = dm.Stem,
-            DoubleMoveLateral = dm.Lateral,
-            DoubleMoveDeep = dm.Deep
+            PostAngleDeep = stems.PostAngleDeep
         };
     }
 
@@ -99,15 +95,6 @@ public static class RouteVisualizer
         return new[] { start, stemPoint, stemPoint + breakDir * RouteGeometry.PostBreakLength };
     }
 
-    private static Vector2[] GetDoubleMoveWaypoints(Vector2 start, int side, RouteDistances distances, bool cutInside)
-    {
-        Vector2 stemEnd = start + new Vector2(0, distances.DoubleMoveStem);
-        int cutDir = cutInside ? -side : side;
-        Vector2 lateralEnd = stemEnd + new Vector2(cutDir * distances.DoubleMoveLateral, 0);
-        Vector2 deepEnd = lateralEnd + new Vector2(0, distances.DoubleMoveDeep);
-        return new[] { start, stemEnd, lateralEnd, deepEnd };
-    }
-
     private static Vector2[] GetFlatWaypoints(Vector2 start, int side, RouteDistances distances)
     {
         return new[] { start, start + new Vector2(distances.FlatWidth * side, 2f) };
@@ -123,8 +110,5 @@ public static class RouteVisualizer
         public float PostXFactorDeep;
         public float PostAngleShallow;
         public float PostAngleDeep;
-        public float DoubleMoveStem;
-        public float DoubleMoveLateral;
-        public float DoubleMoveDeep;
     }
 }

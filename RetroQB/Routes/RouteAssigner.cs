@@ -122,15 +122,10 @@ public static class RouteAssigner
         receiver.Route = route;
         receiver.SlantInside = true;
 
-        if ((receiver.Route == RouteType.Slant || receiver.Route == RouteType.DoubleMove)
+        if (receiver.Route == RouteType.Slant
             && play.TryGetSlantDirection(receiver.Index, out var slantInside))
         {
             receiver.SlantInside = slantInside;
-        }
-        else if (receiver.Route == RouteType.DoubleMove)
-        {
-            // Randomize inside/outside cut when not specified by the play
-            receiver.SlantInside = rng.Next(2) == 0;
         }
     }
 

@@ -17,7 +17,7 @@ public enum TightEndRole
 /// <summary>
 /// Base: 3 WR, 1 RB, 1 TE (5 skill + 5 OL)
 /// Pass: 4 WR, 1 TE (5 skill + 5 OL)  
-/// Run: 1 WR, 1 TE, 1 RB (3 skill + 7 OL)
+/// Run: 1 WR, 2 TE, 1 RB (4 skill + 6 OL)
 /// </summary>
 public enum FormationType
 {
@@ -34,7 +34,7 @@ public enum FormationType
     PassBunchLeft,     // 3 WR bunched left, 1 WR isolated right, TE inline
     PassEmpty,         // 4 WR spread, TE detached as receiver
 
-    // Run formations: 1 WR, 1 TE, 1 RB (heavy with extra OL)
+    // Run formations: 1 WR, 2 TE, 1 RB (heavy to called side)
     RunPowerRight,     // WR left, TE right, RB offset right
     RunPowerLeft,      // WR right, TE left, RB offset left
     RunIForm,          // WR split, TE inline, RB directly behind QB

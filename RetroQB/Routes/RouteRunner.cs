@@ -77,7 +77,7 @@ public static class RouteRunner
             RouteType.InDeep => CalculateInDirection(progress, stems.Deep, receiver.RouteSide),
             RouteType.PostShallow => CalculatePostDirection(progress, stems.Shallow, receiver.RouteSide, RouteGeometry.PostXFactorShallow, stems.PostAngleShallow),
             RouteType.PostDeep => CalculatePostDirection(progress, stems.Deep, receiver.RouteSide, RouteGeometry.PostXFactorDeep, stems.PostAngleDeep),
-            RouteType.DoubleMove => CalculateDoubleMoveDirection(receiver, progress),
+            RouteType.DoubleMove => CalculateInDirection(progress, stems.Deep, receiver.RouteSide),
             RouteType.Flat => CalculateFlatDirection(receiver.RouteSide),
             _ => Vector2.Zero
         };
@@ -116,28 +116,6 @@ public static class RouteRunner
         return progress < stem
             ? new Vector2(0, 1)
             : RouteGeometry.GetPostBreakDirection(routeSide, xFactor, postAngle);
-    }
-
-    private static Vector2 CalculateDoubleMoveDirection(Receiver receiver, float progress)
-    {
-        var dm = RouteGeometry.GetDoubleMoveValues(receiver);
-        float totalDist = receiver.RouteProgress;
-
-        if (totalDist < dm.Stem)
-        {
-            // Phase 1: run upfield
-            return new Vector2(0, 1);
-        }
-        else if (totalDist < dm.Stem + dm.Lateral)
-        {
-            // Phase 2: cut 90° laterally (inside or outside)
-            return RouteGeometry.GetDoubleMoveLateralDirection(receiver.RouteSide, receiver.SlantInside);
-        }
-        else
-        {
-            // Phase 3: break deep
-            return new Vector2(0, 1);
-        }
     }
 
     private static Vector2 CalculateFlatDirection(int routeSide)

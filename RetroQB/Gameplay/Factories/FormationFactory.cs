@@ -32,6 +32,7 @@ internal readonly record struct FormationData(ReceiverPlacement[] Receivers, int
 public sealed class FormationFactory : IFormationFactory
 {
     private static readonly float[] BaseLineX = { 0.42f, 0.46f, 0.50f, 0.54f, 0.58f };
+    private const float TightEndMinBlockerSeparation = Constants.ReceiverRadius * 2.2f;
 
     // ── Formation look-up table ──────────────────────────────────────────
     private static readonly Dictionary<FormationType, FormationData> Formations = new()
@@ -121,50 +122,57 @@ public sealed class FormationFactory : IFormationFactory
         {
             new(0.10f, 0.3f, ReceiverSlot.WR1),
             new(0.55f, 4.0f, ReceiverSlot.RB1),
-            new(0.66f, 0.05f, ReceiverSlot.TE1),
-        }, ExtraLinemen: 2),
+            new(0.70f, 0.05f, ReceiverSlot.TE1),
+            new(0.78f, 0.75f, ReceiverSlot.TE2),
+        }, ExtraLinemen: 1),
 
         [FormationType.RunPowerLeft] = new(new ReceiverPlacement[]
         {
             new(0.90f, 0.3f, ReceiverSlot.WR1),
             new(0.45f, 4.0f, ReceiverSlot.RB1),
-            new(0.34f, 0.05f, ReceiverSlot.TE1),
-        }, ExtraLinemen: 2),
+            new(0.30f, 0.05f, ReceiverSlot.TE1),
+            new(0.22f, 0.75f, ReceiverSlot.TE2),
+        }, ExtraLinemen: 1),
 
         [FormationType.RunIForm] = new(new ReceiverPlacement[]
         {
             new(0.12f, 0.3f, ReceiverSlot.WR1),
             new(0.50f, 3.5f, ReceiverSlot.RB1),
-            new(0.64f, 0.05f, ReceiverSlot.TE1),
-        }, ExtraLinemen: 2),
+            new(0.70f, 0.05f, ReceiverSlot.TE1),
+            new(0.78f, 0.75f, ReceiverSlot.TE2),
+        }, ExtraLinemen: 1),
 
         [FormationType.RunSweepRight] = new(new ReceiverPlacement[]
         {
             new(0.10f, 0.3f, ReceiverSlot.WR1),
             new(0.60f, 4.6f, ReceiverSlot.RB1),
-            new(0.72f, 0.05f, ReceiverSlot.TE1),
-        }, ExtraLinemen: 2),
+            new(0.74f, 0.05f, ReceiverSlot.TE1),
+            new(0.82f, 0.75f, ReceiverSlot.TE2),
+        }, ExtraLinemen: 1),
 
         [FormationType.RunSweepLeft] = new(new ReceiverPlacement[]
         {
             new(0.90f, 0.3f, ReceiverSlot.WR1),
             new(0.40f, 4.6f, ReceiverSlot.RB1),
-            new(0.28f, 0.05f, ReceiverSlot.TE1),
-        }, ExtraLinemen: 2),
+            new(0.26f, 0.05f, ReceiverSlot.TE1),
+            new(0.18f, 0.75f, ReceiverSlot.TE2),
+        }, ExtraLinemen: 1),
 
         [FormationType.RunStretchRight] = new(new ReceiverPlacement[]
         {
             new(0.10f, 0.3f, ReceiverSlot.WR1),
             new(0.56f, 3.2f, ReceiverSlot.RB1),
-            new(0.66f, 0.05f, ReceiverSlot.TE1),
-        }, ExtraLinemen: 2),
+            new(0.70f, 0.05f, ReceiverSlot.TE1),
+            new(0.78f, 0.75f, ReceiverSlot.TE2),
+        }, ExtraLinemen: 1),
 
         [FormationType.RunStretchLeft] = new(new ReceiverPlacement[]
         {
             new(0.90f, 0.3f, ReceiverSlot.WR1),
             new(0.44f, 3.2f, ReceiverSlot.RB1),
-            new(0.34f, 0.05f, ReceiverSlot.TE1),
-        }, ExtraLinemen: 2),
+            new(0.30f, 0.05f, ReceiverSlot.TE1),
+            new(0.22f, 0.75f, ReceiverSlot.TE2),
+        }, ExtraLinemen: 1),
     };
 
     // Default formation used when the requested type is not in the table.
@@ -209,14 +217,77 @@ public sealed class FormationFactory : IFormationFactory
     private void ApplyFormation(List<Receiver> receivers, List<Blocker> blockers, FormationType formation, float los)
     {
         var data = Formations.GetValueOrDefault(formation, DefaultFormation);
+        var blockerXPositions = GetBlockerXPositions(data.ExtraLinemen);
 
         foreach (var p in data.Receivers)
         {
-            var position = new Vector2(Constants.FieldWidth * p.XFraction, ClampFormationY(los, p.YOffset));
+            float receiverX = Constants.FieldWidth * p.XFraction;
+            if (p.Slot.IsTightEndSlot() && !p.Slot.IsRunningBackSlot())
+            {
+                receiverX = ResolveTightEndX(receiverX, blockerXPositions);
+            }
+
+            var position = new Vector2(receiverX, ClampFormationY(los, p.YOffset));
             receivers.Add(new Receiver(receivers.Count, p.Slot, position, _currentTeamAttributes));
         }
 
         AddBaseLine(blockers, los, data.ExtraLinemen);
+    }
+
+    private static List<float> GetBlockerXPositions(int extraCount)
+    {
+        var positions = new List<float>(BaseLineX.Length + Math.Max(0, extraCount));
+        foreach (float xFraction in BaseLineX)
+        {
+            positions.Add(Constants.FieldWidth * xFraction);
+        }
+
+        if (extraCount >= 1)
+        {
+            positions.Add(Constants.FieldWidth * 0.36f);
+        }
+        if (extraCount >= 2)
+        {
+            positions.Add(Constants.FieldWidth * 0.64f);
+        }
+
+        return positions;
+    }
+
+    private static float ResolveTightEndX(float desiredX, List<float> blockerXPositions)
+    {
+        float adjustedX = desiredX;
+        float minX = Constants.ReceiverRadius;
+        float maxX = Constants.FieldWidth - Constants.ReceiverRadius;
+
+        for (int i = 0; i < blockerXPositions.Count; i++)
+        {
+            float nearestOverlapDistance = float.MaxValue;
+            float nearestBlockerX = 0f;
+            bool hasOverlap = false;
+
+            foreach (float blockerX in blockerXPositions)
+            {
+                float distance = MathF.Abs(adjustedX - blockerX);
+                if (distance < TightEndMinBlockerSeparation && distance < nearestOverlapDistance)
+                {
+                    nearestOverlapDistance = distance;
+                    nearestBlockerX = blockerX;
+                    hasOverlap = true;
+                }
+            }
+
+            if (!hasOverlap)
+            {
+                break;
+            }
+
+            float pushDirection = adjustedX >= nearestBlockerX ? 1f : -1f;
+            adjustedX = nearestBlockerX + pushDirection * TightEndMinBlockerSeparation;
+            adjustedX = Math.Clamp(adjustedX, minX, maxX);
+        }
+
+        return adjustedX;
     }
 
     private static FormationType ResolveRunFormation(FormationType formation, int runningBackSide)
