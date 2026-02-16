@@ -29,7 +29,7 @@ public sealed class BlockingController
 
         if (receiver.IsRunningBack && receiver.IsBlocking)
         {
-            UpdateRbBlocking(receiver, qb, ball, defenders, selectedPlay, dt, getClosestDefender, clampToField, ballCarrierPosition);
+            UpdateRbBlocking(receiver, qb, defenders, selectedPlayType, dt, getClosestDefender, clampToField, ballCarrierPosition);
             return;
         }
 
@@ -55,9 +55,8 @@ public sealed class BlockingController
     private void UpdateRbBlocking(
         Receiver receiver,
         Quarterback qb,
-        Ball ball,
         IReadOnlyList<Defender> defenders,
-        PlayDefinition selectedPlay,
+        PlayType selectedPlayType,
         float dt,
         Func<Vector2, float, bool, Defender?> getClosestDefender,
         Action<Entity> clampToField,
@@ -66,7 +65,17 @@ public sealed class BlockingController
         int side = receiver.RouteSide == 0 ? (receiver.Position.X <= qb.Position.X ? -1 : 1) : receiver.RouteSide;
         Vector2 pocketSpot = qb.Position + new Vector2(1.7f * side, -0.4f);
 
-        Defender? rbTarget = getClosestDefender(qb.Position, Constants.BlockEngageRadius + 6.0f, true);
+        Defender? rbTarget;
+        if (selectedPlayType == PlayType.Pass)
+        {
+            rbTarget = GetClosestDefenderByRole(defenders, receiver.Position, Constants.BlockEngageRadius + 8.0f, DefensivePosition.DE)
+                ?? GetClosestDefenderByRole(defenders, qb.Position, Constants.BlockEngageRadius + 8.0f, DefensivePosition.DE);
+        }
+        else
+        {
+            rbTarget = getClosestDefender(qb.Position, Constants.BlockEngageRadius + 6.0f, true);
+        }
+
         if (rbTarget != null)
         {
             float blockMultiplier = GetReceiverBlockStrength(receiver) * GetDefenderBlockDifficulty(rbTarget);
@@ -199,13 +208,13 @@ public sealed class BlockingController
         Vector2? driveDir = null,
         float driveStrength = 0f)
     {
-        // Mark the defender as actively being blocked
-        target.IsBeingBlocked = true;
+        BlockingUtils.RegisterBlockContact(target);
+        float doubleTeamEffectiveness = BlockingUtils.GetDoubleTeamEffectiveness(target);
 
         Vector2 pushDir = BlockingUtils.SafeNormalize(target.Position - receiver.Position);
         float overlap = contactRange - distance;
-        float holdStrength = (Constants.BlockHoldStrength * holdStrengthMult) * blockMultiplier;
-        float overlapBoostFinal = overlapBoost * blockMultiplier;
+        float holdStrength = (Constants.BlockHoldStrength * holdStrengthMult) * blockMultiplier * doubleTeamEffectiveness;
+        float overlapBoostFinal = overlapBoost * blockMultiplier * (0.85f + 0.15f * doubleTeamEffectiveness);
         float shedBoost = BlockingUtils.GetTackleShedBoost(target.Position, ballCarrierPosition);
         if (shedBoost > 0f)
         {
@@ -222,9 +231,40 @@ public sealed class BlockingController
         {
             baseSlow *= 1f - (0.6f * shedBoost);
         }
+        if (doubleTeamEffectiveness > 1f)
+        {
+            baseSlow *= 0.45f;
+        }
         target.Velocity *= BlockingUtils.GetDefenderSlowdown(blockMultiplier, baseSlow);
         receiver.Velocity *= 0.25f;
         clampToField(target);
+    }
+
+    private static Defender? GetClosestDefenderByRole(
+        IReadOnlyList<Defender> defenders,
+        Vector2 position,
+        float maxDistance,
+        DefensivePosition role)
+    {
+        Defender? closest = null;
+        float bestDistSq = maxDistance * maxDistance;
+
+        foreach (var defender in defenders)
+        {
+            if (defender.PositionRole != role)
+            {
+                continue;
+            }
+
+            float distSq = Vector2.DistanceSquared(position, defender.Position);
+            if (distSq < bestDistSq)
+            {
+                bestDistSq = distSq;
+                closest = defender;
+            }
+        }
+
+        return closest;
     }
 
     private void MoveTowardSpot(Receiver receiver, Vector2 spot, float speedMult, float arrivalRadius)

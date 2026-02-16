@@ -28,12 +28,6 @@ public static class OffensiveLinemanAI
     {
         if (blockers.Count == 0) return;
 
-        // Reset blocked state each frame — will be set by contact checks below
-        foreach (var defender in defenders)
-        {
-            defender.IsBeingBlocked = false;
-        }
-
         RunContext context = BuildRunContext(
             blockers,
             playFamily,
@@ -253,16 +247,16 @@ public static class OffensiveLinemanAI
             return;
         }
 
-        // Mark the defender as actively being blocked
-        target.IsBeingBlocked = true;
+        BlockingUtils.RegisterBlockContact(target);
+        float doubleTeamEffectiveness = BlockingUtils.GetDoubleTeamEffectiveness(target);
 
         Vector2 pushDir = BlockingUtils.SafeNormalize(target.Position - blocker.Position);
         float overlap = contactRange - distance;
         float blockMultiplier = GetOlBlockStrength(blocker, target);
         float holdStrength = runBlockingBoost ? Constants.BlockHoldStrength * 1.6f : Constants.BlockHoldStrength;
         float overlapBoost = runBlockingBoost ? 9f : 6f;
-        holdStrength *= blockMultiplier;
-        overlapBoost *= blockMultiplier;
+        holdStrength *= blockMultiplier * doubleTeamEffectiveness;
+        overlapBoost *= blockMultiplier * (0.85f + 0.15f * doubleTeamEffectiveness);
         float shedBoost = BlockingUtils.GetTackleShedBoost(target.Position, ballCarrierPosition);
         if (shedBoost > 0f)
         {
@@ -299,6 +293,10 @@ public static class OffensiveLinemanAI
         if (shedBoost > 0f)
         {
             baseSlow *= 1f - (0.6f * shedBoost);
+        }
+        if (doubleTeamEffectiveness > 1f)
+        {
+            baseSlow *= 0.45f;
         }
         target.Velocity *= BlockingUtils.GetDefenderSlowdown(blockMultiplier, baseSlow);
         blocker.Velocity *= 0.25f;

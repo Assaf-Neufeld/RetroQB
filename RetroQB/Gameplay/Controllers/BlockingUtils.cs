@@ -10,6 +10,35 @@ namespace RetroQB.Gameplay.Controllers;
 public static class BlockingUtils
 {
     /// <summary>
+    /// Resets per-frame blocking state for all defenders.
+    /// </summary>
+    public static void ResetDefenderBlockingState(IReadOnlyList<Defender> defenders)
+    {
+        foreach (var defender in defenders)
+        {
+            defender.IsBeingBlocked = false;
+            defender.ActiveBlockersCount = 0;
+        }
+    }
+
+    /// <summary>
+    /// Registers that a blocker has made active contact with this defender.
+    /// </summary>
+    public static void RegisterBlockContact(Defender defender)
+    {
+        defender.ActiveBlockersCount++;
+        defender.IsBeingBlocked = true;
+    }
+
+    /// <summary>
+    /// Returns a strong effectiveness multiplier when a defender is double-teamed.
+    /// </summary>
+    public static float GetDoubleTeamEffectiveness(Defender defender)
+    {
+        return defender.ActiveBlockersCount >= 2 ? 2.4f : 1f;
+    }
+
+    /// <summary>
     /// Normalizes a vector, returning Vector2.Zero if the vector is too short.
     /// </summary>
     public static Vector2 SafeNormalize(Vector2 vector)

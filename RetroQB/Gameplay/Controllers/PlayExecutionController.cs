@@ -44,6 +44,9 @@ public sealed class PlayExecutionController
         // Update QB
         UpdateQuarterback(qb, ball, playManager, inputDir, sprint, dt, clampToField);
 
+        // Reset per-frame blocking contact state before any blocker logic runs
+        BlockingUtils.ResetDefenderBlockingState(defenders);
+
         // Update receivers
         _receiverController.UpdateAll(receivers, qb, ball, defenders, controlledReceiver, inputDir, sprint, qbPastLos, isZoneCoverage, playManager, dt, clampToField);
 

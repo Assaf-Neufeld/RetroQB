@@ -52,6 +52,12 @@ public sealed class Defender : Entity
     /// </summary>
     public bool IsBeingBlocked { get; set; }
 
+    /// <summary>
+    /// Number of active blockers currently in contact this frame.
+    /// Reset at the start of each blocking update cycle.
+    /// </summary>
+    public int ActiveBlockersCount { get; set; }
+
     public Defender(Vector2 position, DefensivePosition role, DefensiveTeamAttributes? teamAttributes = null) 
         : base(position, Constants.DefenderRadius, role.ToString(), Palette.Red)
     {
