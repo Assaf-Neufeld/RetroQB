@@ -1,5 +1,6 @@
 using System.Numerics;
 using RetroQB.Entities;
+using RetroQB.Routes;
 
 namespace RetroQB.AI;
 
@@ -201,31 +202,89 @@ public static class DefenderTargeting
         if (defender.CoverageReceiverIndex >= 0 && defender.CoverageReceiverIndex < receivers.Count)
         {
             var receiver = receivers[defender.CoverageReceiverIndex];
-            
-            // Off coverage DBs maintain cushion until receiver approaches
-            if (!defender.IsPressCoverage && defender.PositionRole == DefensivePosition.DB)
+
+            if (defender.PositionRole == DefensivePosition.DB)
             {
-                float distToReceiver = Vector2.Distance(defender.Position, receiver.Position);
-                // Only pursue if receiver is within 8 yards or receiver is past the defender
-                if (distToReceiver > 8f && receiver.Position.Y < defender.Position.Y)
-                {
-                    // Stay in current position with slight drift toward receiver's X
-                    float targetX = defender.Position.X * 0.7f + receiver.Position.X * 0.3f;
-                    return new Vector2(targetX, defender.Position.Y);
-                }
+                return GetDbCoverageTarget(defender, receiver);
             }
-            
-            // Trail slightly behind the receiver so the DB shadows rather than
-            // running into the receiver and physically stalling them.
-            Vector2 recvPos = receiver.Position;
-            if (receiver.Velocity.LengthSquared() > 0.01f)
-            {
-                Vector2 trailOffset = Vector2.Normalize(receiver.Velocity) * -0.6f;
-                recvPos += trailOffset;
-            }
-            return recvPos;
+
+            return receiver.Position;
         }
 
         return qb.Position;
+    }
+
+    private static Vector2 GetDbCoverageTarget(Defender defender, Receiver receiver)
+    {
+        // Off coverage DBs maintain cushion until receiver approaches.
+        if (!defender.IsPressCoverage)
+        {
+            float distToReceiver = Vector2.Distance(defender.Position, receiver.Position);
+            // Only pursue if receiver is within 8 yards or receiver is past the defender.
+            if (distToReceiver > 8f && receiver.Position.Y < defender.Position.Y)
+            {
+                float targetX = defender.Position.X * 0.7f + receiver.Position.X * 0.3f;
+                return new Vector2(targetX, defender.Position.Y);
+            }
+        }
+
+        // Route-end behavior: try to undercut from in front (between QB and WR).
+        if (IsNearRouteEnd(receiver))
+        {
+            float xShade = -receiver.RouteSide * 0.25f;
+            return receiver.Position + new Vector2(xShade, -0.95f);
+        }
+
+        // Default behavior: trail the receiver slightly in-phase.
+        Vector2 recvPos = receiver.Position;
+        if (receiver.Velocity.LengthSquared() > 0.01f)
+        {
+            Vector2 trailOffset = Vector2.Normalize(receiver.Velocity) * -0.6f;
+            recvPos += trailOffset;
+        }
+        return recvPos;
+    }
+
+    private static bool IsNearRouteEnd(Receiver receiver)
+    {
+        if (receiver.IsRunningBack || receiver.IsTightEnd)
+        {
+            return false;
+        }
+
+        float yProgress = receiver.Position.Y - receiver.RouteStart.Y;
+        var stems = RouteGeometry.GetStemDistances(receiver);
+
+        return receiver.Route switch
+        {
+            RouteType.Go => yProgress >= stems.Deep,
+            RouteType.Slant => Vector2.Distance(receiver.Position, receiver.RouteStart) >= RouteGeometry.SlantLength * 0.9f,
+            RouteType.OutShallow => HasReachedHorizontalBreakEnd(receiver, stems.Shallow, RouteGeometry.OutBreakLength),
+            RouteType.OutDeep => HasReachedHorizontalBreakEnd(receiver, stems.Deep, RouteGeometry.OutBreakLength),
+            RouteType.InShallow => HasReachedHorizontalBreakEnd(receiver, stems.Shallow, RouteGeometry.InBreakLength),
+            RouteType.InDeep => HasReachedHorizontalBreakEnd(receiver, stems.Deep, RouteGeometry.InBreakLength),
+            RouteType.DoubleMove => HasReachedHorizontalBreakEnd(receiver, stems.Deep, RouteGeometry.InBreakLength),
+            RouteType.PostShallow => yProgress >= stems.Shallow + RouteGeometry.PostBreakLength * 0.75f,
+            RouteType.PostDeep => yProgress >= stems.Deep + RouteGeometry.PostBreakLength * 0.75f,
+            RouteType.Flat => yProgress >= 2.5f,
+            _ => false
+        };
+    }
+
+    private static bool HasReachedHorizontalBreakEnd(Receiver receiver, float stemDistance, float breakLength)
+    {
+        if (receiver.Position.Y - receiver.RouteStart.Y < stemDistance)
+        {
+            return false;
+        }
+
+        float expectedBreakX = receiver.Route switch
+        {
+            RouteType.OutShallow or RouteType.OutDeep => receiver.RouteStart.X + receiver.RouteSide * breakLength,
+            RouteType.InShallow or RouteType.InDeep or RouteType.DoubleMove => receiver.RouteStart.X - receiver.RouteSide * breakLength,
+            _ => receiver.RouteStart.X
+        };
+
+        return MathF.Abs(receiver.Position.X - expectedBreakX) <= 1.0f;
     }
 }
