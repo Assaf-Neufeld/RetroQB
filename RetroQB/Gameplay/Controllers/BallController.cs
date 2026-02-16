@@ -1,6 +1,7 @@
 using System.Numerics;
 using RetroQB.Core;
 using RetroQB.Entities;
+using RetroQB.Routes;
 
 namespace RetroQB.Gameplay.Controllers;
 
@@ -236,20 +237,21 @@ public sealed class BallController
         }
 
         float pressure = GetQbPressureFactor(qb, defenders);
+        Vector2 targetVelocityForThrow = GetTargetVelocityForThrow(qb, receiver);
         Vector2 throwVelocity = _throwingMechanics.CalculateThrowVelocity(
             qb.Position,
             qb.Velocity,
             receiver.Position,
-            receiver.Velocity,
+            targetVelocityForThrow,
             Constants.BallMaxSpeed,
             pressure,
             offensiveTeam,
             _rng);
 
         Vector2 toReceiver = receiver.Position - qb.Position;
-        float leadTime = _throwingMechanics.CalculateInterceptTime(toReceiver, receiver.Velocity, Constants.BallMaxSpeed);
+        float leadTime = _throwingMechanics.CalculateInterceptTime(toReceiver, targetVelocityForThrow, Constants.BallMaxSpeed);
         leadTime = Math.Clamp(leadTime, 0f, Constants.BallMaxAirTime);
-        Vector2 leadTarget = receiver.Position + receiver.Velocity * leadTime;
+        Vector2 leadTarget = receiver.Position + targetVelocityForThrow * leadTime;
         float intendedDistance = Vector2.Distance(qb.Position, leadTarget);
 
         float overthrowAllowance = GetOverthrowAllowance(intendedDistance);
@@ -257,6 +259,26 @@ public sealed class BallController
         float arcApexHeight = GetPassArcApex(intendedDistance);
 
         ball.SetInAir(qb.Position, throwVelocity, intendedDistance, maxTravelDistance, arcApexHeight);
+    }
+
+    private static Vector2 GetTargetVelocityForThrow(Quarterback qb, Receiver receiver)
+    {
+        Vector2 targetVelocity = receiver.Velocity;
+
+        // Short RB checkdowns (flat/hitch-like timing throws) were being over-led.
+        // Damp lead based on distance so the throw stays catchable in the quick game.
+        if (receiver.IsRunningBack && (receiver.Route == RouteType.Flat || receiver.Route == RouteType.OutShallow))
+        {
+            float distance = Vector2.Distance(qb.Position, receiver.Position);
+            const float fullDampingDistance = 4f;
+            const float noDampingDistance = 16f;
+
+            float shortThrowFactor = 1f - Math.Clamp((distance - fullDampingDistance) / (noDampingDistance - fullDampingDistance), 0f, 1f);
+            float dampMultiplier = 1f - (0.58f * shortThrowFactor);
+            targetVelocity *= dampMultiplier;
+        }
+
+        return targetVelocity;
     }
 
     private static float GetOverthrowAllowance(float intendedDistance)

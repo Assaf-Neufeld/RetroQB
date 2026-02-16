@@ -141,6 +141,11 @@ public sealed class ReceiverUpdateController
     {
         RouteRunner.UpdateRoute(receiver, dt);
 
+        if (receiver.IsRunningBack && ball.State == BallState.HeldByQB && !qbPastLos)
+        {
+            ApplyRunningBackQbAvoidance(receiver, qb);
+        }
+
         if (qbPastLos)
         {
             // Block for scrambling QB
@@ -174,6 +179,49 @@ public sealed class ReceiverUpdateController
 
         receiver.Update(dt);
         clampToField(receiver);
+    }
+
+    private static void ApplyRunningBackQbAvoidance(Receiver receiver, Quarterback qb)
+    {
+        Vector2 currentVelocity = receiver.Velocity;
+        if (currentVelocity.LengthSquared() < 0.001f)
+        {
+            return;
+        }
+
+        Vector2 toQb = qb.Position - receiver.Position;
+        float distToQb = toQb.Length();
+        const float avoidRadius = 3.1f;
+        if (distToQb <= 0.001f || distToQb > avoidRadius)
+        {
+            return;
+        }
+
+        // Only steer when the RB is actually moving toward the QB.
+        Vector2 toQbDir = toQb / distToQb;
+        Vector2 moveDir = Vector2.Normalize(currentVelocity);
+        float headingTowardQb = Vector2.Dot(moveDir, toQbDir);
+        if (headingTowardQb < 0.15f)
+        {
+            return;
+        }
+
+        float awaySign = MathF.Sign(receiver.Position.X - qb.Position.X);
+        if (awaySign == 0f)
+        {
+            awaySign = receiver.RouteSide != 0 ? receiver.RouteSide : 1f;
+        }
+
+        Vector2 lateralAway = new Vector2(awaySign, 0f);
+        float proximity = 1f - Math.Clamp(distToQb / avoidRadius, 0f, 1f);
+        float avoidWeight = Math.Clamp(proximity * 0.9f + headingTowardQb * 0.3f, 0f, 0.95f);
+
+        Vector2 blended = moveDir * (1f - avoidWeight) + lateralAway * avoidWeight;
+        if (blended.LengthSquared() > 0.001f)
+        {
+            blended = Vector2.Normalize(blended);
+            receiver.Velocity = blended * receiver.Speed;
+        }
     }
 
     private static void ApplyManCoverageShake(Receiver receiver, Defender defender, float shakeSkill)
@@ -227,14 +275,29 @@ public sealed class ReceiverUpdateController
     private static void AdjustReceiverToBall(Receiver receiver, Ball ball)
     {
         Vector2 routeVelocity = receiver.Velocity;
-
-        // Predict where the ball will land based on throw trajectory
         Vector2 predictedLanding = GetPredictedBallLanding(ball);
         float flightProgress = ball.GetFlightProgress();
 
-        // Blend between predicted landing (early) and actual ball position (late)
-        float landingWeight = Math.Clamp(1f - flightProgress * 1.3f, 0f, 1f);
-        Vector2 targetPos = Vector2.Lerp(ball.Position, predictedLanding, landingWeight);
+        Vector2 ballPath = predictedLanding - ball.Position;
+        Vector2 targetPos;
+
+        // Track the nearest reachable point on the remaining ball path.
+        // This makes receivers react to where the ball is actually going,
+        // not just where their route would have taken them.
+        if (ballPath.LengthSquared() > 0.001f)
+        {
+            float pathLenSq = ballPath.LengthSquared();
+            float along = Vector2.Dot(receiver.Position - ball.Position, ballPath) / pathLenSq;
+            along = Math.Clamp(along, 0f, 1f);
+            Vector2 closestOnPath = ball.Position + ballPath * along;
+
+            float lateBias = Math.Clamp(flightProgress * 0.85f, 0f, 1f);
+            targetPos = Vector2.Lerp(closestOnPath, predictedLanding, lateBias);
+        }
+        else
+        {
+            targetPos = ball.Position;
+        }
 
         Vector2 toTarget = targetPos - receiver.Position;
         float distToTarget = toTarget.Length();
@@ -243,53 +306,41 @@ public sealed class ReceiverUpdateController
             toTarget /= distToTarget;
         }
 
-        // --- Early in the flight: keep running the route ---
-        // Only begin adjusting once the ball is past 55% of its flight AND within 10 yards,
-        // or if the ball is already very close (catch window).
-        const float progressThreshold = 0.55f;
-        const float distanceStartAdjust = 10f;   // begin gentle steering
-        const float distanceHardAdjust = 4.5f;   // commit to the ball
+        const float progressThreshold = 0.20f;
+        const float distanceStartAdjust = 14f;
+        const float distanceHardAdjust = 5f;
 
         bool closeEnough = distToTarget <= distanceStartAdjust;
-        bool flightLate = flightProgress >= progressThreshold;
-        bool inCatchWindow = distToTarget <= Constants.CatchRadius + 1.5f;
+        bool flightReady = flightProgress >= progressThreshold;
+        bool inCatchWindow = distToTarget <= Constants.CatchRadius + 1.6f;
 
-        if (!inCatchWindow && !(closeEnough && flightLate))
+        if (!inCatchWindow && !(closeEnough && flightReady))
         {
-            // Keep running the route unmodified
             return;
         }
 
-        bool ballAhead = targetPos.Y >= receiver.Position.Y - 1.0f;
-        bool allowComeback = distToTarget <= Constants.CatchRadius + 1.2f;
+        Vector2 baseDir = routeVelocity.LengthSquared() > 0.001f
+            ? Vector2.Normalize(routeVelocity)
+            : toTarget;
 
-        if (ballAhead || allowComeback)
+        float distDenominator = Math.Max(0.01f, distanceStartAdjust - distanceHardAdjust);
+        float distFactor = 1f - Math.Clamp((distToTarget - distanceHardAdjust) / distDenominator, 0f, 1f);
+        float progressFactor = Math.Clamp((flightProgress - progressThreshold) / (1f - progressThreshold), 0f, 1f);
+        float adjustWeight = Math.Clamp(distFactor * 0.75f + progressFactor * 0.25f, 0f, 0.92f);
+
+        if (inCatchWindow)
         {
-            Vector2 baseDir = routeVelocity.LengthSquared() > 0.001f
-                ? Vector2.Normalize(routeVelocity)
-                : toTarget;
-
-            // Gentle ramp: 0 at distanceStartAdjust → 0.8 at distanceHardAdjust → ~1 at catch radius
-            float distFactor = 1f - Math.Clamp((distToTarget - distanceHardAdjust) / (distanceStartAdjust - distanceHardAdjust), 0f, 1f);
-            float progressFactor = Math.Clamp((flightProgress - progressThreshold) / (1f - progressThreshold), 0f, 1f);
-            float adjustWeight = Math.Clamp(distFactor * 0.8f + progressFactor * 0.2f, 0f, 0.85f);
-
-            // Once very close, lock on fully
-            if (inCatchWindow)
-            {
-                adjustWeight = Math.Max(adjustWeight, 0.75f);
-            }
-
-            Vector2 blendedDir = baseDir * (1f - adjustWeight) + toTarget * adjustWeight;
-            if (blendedDir.LengthSquared() > 0.001f)
-            {
-                blendedDir = Vector2.Normalize(blendedDir);
-            }
-
-            // Slight speed boost when tracking deep into flight to close distance
-            float speedMult = 1f + flightProgress * 0.08f;
-            receiver.Velocity = blendedDir * (receiver.Speed * speedMult);
+            adjustWeight = Math.Max(adjustWeight, 0.88f);
         }
+
+        Vector2 blendedDir = baseDir * (1f - adjustWeight) + toTarget * adjustWeight;
+        if (blendedDir.LengthSquared() > 0.001f)
+        {
+            blendedDir = Vector2.Normalize(blendedDir);
+        }
+
+        float speedMult = 1f + flightProgress * 0.10f;
+        receiver.Velocity = blendedDir * (receiver.Speed * speedMult);
     }
 
     /// <summary>

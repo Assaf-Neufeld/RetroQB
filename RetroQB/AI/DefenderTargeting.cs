@@ -81,8 +81,16 @@ public static class DefenderTargeting
     {
         float distToBall = Vector2.Distance(defender.Position, ball.Position);
         float maxBreakDistance = defender.PositionRole == DefensivePosition.DB ? 18f : 14f;
-        float ballFocus = Math.Clamp(1f - (distToBall / maxBreakDistance), 0f, 1f);
-        Vector2 ballLead = ball.Position + ball.Velocity * 0.20f;
+        float distanceFocus = Math.Clamp(1f - (distToBall / maxBreakDistance), 0f, 1f);
+
+        // Defenders should break later than receivers to preserve offensive advantage,
+        // but still close decisively once the throw is clearly committed.
+        float flightProgress = ball.GetFlightProgress();
+        float startBreakAt = defender.PositionRole == DefensivePosition.DB ? 0.36f : 0.46f;
+        float progressFocus = Math.Clamp((flightProgress - startBreakAt) / (1f - startBreakAt), 0f, 1f);
+        float ballFocus = distanceFocus * progressFocus;
+
+        Vector2 ballLead = GetDefenderBallLead(ball, flightProgress, ballFocus);
 
         if (useZoneCoverage && defender.ZoneRole != CoverageRole.None)
         {
@@ -97,6 +105,28 @@ public static class DefenderTargeting
         }
 
         return ballLead;
+    }
+
+    private static Vector2 GetDefenderBallLead(Ball ball, float flightProgress, float ballFocus)
+    {
+        if (ball.Velocity.LengthSquared() < 0.001f)
+        {
+            return ball.Position;
+        }
+
+        Vector2 throwDir = Vector2.Normalize(ball.Velocity);
+        Vector2 predictedLanding = ball.ThrowStart + throwDir * ball.IntendedDistance;
+        Vector2 remainingPath = predictedLanding - ball.Position;
+
+        if (remainingPath.LengthSquared() < 0.001f)
+        {
+            return predictedLanding;
+        }
+
+        // Break to an ahead point on the current throw path (not the current ball position).
+        // This keeps defender pursuit focused on where the pass is headed.
+        float lookAhead = Math.Clamp(0.35f + flightProgress * 0.45f + ballFocus * 0.20f, 0.35f, 1f);
+        return ball.Position + remainingPath * lookAhead;
     }
 
     private static Vector2 GetRushTarget(Defender defender, Quarterback qb, float lineOfScrimmage)
