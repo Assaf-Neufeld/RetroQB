@@ -105,14 +105,14 @@ public static class CoverageSchemeSelector
     {
         SchemeWeights filtered = stage switch
         {
-            // Regular season: basic zone shells only.
+            // Regular season: mostly basic zone shells with a small amount of man.
             SeasonStage.RegularSeason => new SchemeWeights(
                 c0: 0f,
-                c1: 0f,
-                c2z: baseWeights.Cover2Zone,
-                c3z: baseWeights.Cover3Zone,
+                c1: baseWeights.Cover1 * 0.35f,
+                c2z: baseWeights.Cover2Zone * 1.20f,
+                c3z: baseWeights.Cover3Zone * 1.05f,
                 c4z: 0f,
-                c2m: 0f),
+                c2m: baseWeights.Cover2Man * 0.25f),
 
             // Playoff: broader mix, but keep out all-out Cover 0 pressure look.
             SeasonStage.Playoff => new SchemeWeights(
