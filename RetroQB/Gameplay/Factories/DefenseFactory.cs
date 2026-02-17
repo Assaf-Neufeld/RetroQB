@@ -71,7 +71,7 @@ public sealed class DefenseFactory : IDefenseFactory
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, dlDepth), DefensivePosition.DE, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 5.0f });
 
         // Linebackers - blitz chance varies by scheme
-        float lbBlitzChance = GetLbBlitzChance(scheme, attrs);
+        float lbBlitzChance = GetLbBlitzChance(scheme, attrs, context);
         bool lblBlitz = rng.NextDouble() < lbBlitzChance;
         bool lbrBlitz = rng.NextDouble() < lbBlitzChance;
         bool mlbBlitz = !useNickel && rng.NextDouble() < lbBlitzChance;
@@ -115,7 +115,7 @@ public sealed class DefenseFactory : IDefenseFactory
         var dbConfig = GetDbConfiguration(scheme, context.LineOfScrimmage, depthScale, maxY,
             receivers, left, leftSlot, middle, rightSlot, right, useNickel, rng);
 
-        float cbBlitzChance = GetCbBlitzChance(scheme, attrs);
+        float cbBlitzChance = GetCbBlitzChance(scheme, attrs, context);
         bool leftCbBlitz = rng.NextDouble() < cbBlitzChance;
         bool rightCbBlitz = rng.NextDouble() < cbBlitzChance;
 
@@ -215,7 +215,7 @@ public sealed class DefenseFactory : IDefenseFactory
 
     // --- Blitz chance helpers ---
 
-    private static float GetLbBlitzChance(CoverageScheme scheme, DefensiveTeamAttributes attrs)
+    private static float GetLbBlitzChance(CoverageScheme scheme, DefensiveTeamAttributes attrs, DefensiveContext context)
     {
         float baseChance = scheme switch
         {
@@ -227,10 +227,13 @@ public sealed class DefenseFactory : IDefenseFactory
             CoverageScheme.Cover4Zone => 0.05f,
             _ => 0.10f
         };
-        return baseChance * attrs.BlitzFrequency;
+
+        float situationalScale = GetBlitzSituationalMultiplier(context);
+        float chance = baseChance * attrs.BlitzFrequency * situationalScale;
+        return Math.Clamp(chance, 0f, 0.70f);
     }
 
-    private static float GetCbBlitzChance(CoverageScheme scheme, DefensiveTeamAttributes attrs)
+    private static float GetCbBlitzChance(CoverageScheme scheme, DefensiveTeamAttributes attrs, DefensiveContext context)
     {
         float baseChance = scheme switch
         {
@@ -238,7 +241,44 @@ public sealed class DefenseFactory : IDefenseFactory
             CoverageScheme.Cover1 => 0.05f,
             _ => 0f // zone schemes don't blitz CBs
         };
-        return baseChance * attrs.BlitzFrequency;
+
+        float situationalScale = GetBlitzSituationalMultiplier(context);
+        float chance = baseChance * attrs.BlitzFrequency * situationalScale;
+        return Math.Clamp(chance, 0f, 0.35f);
+    }
+
+    private static float GetBlitzSituationalMultiplier(DefensiveContext context)
+    {
+        float stageScale = context.Stage switch
+        {
+            SeasonStage.RegularSeason => 0.82f,
+            SeasonStage.Playoff => 1.00f,
+            SeasonStage.SuperBowl => 1.15f,
+            _ => 1.00f
+        };
+
+        float downDistanceScale = 1f;
+        if (context.Down >= 3 && context.Distance >= 7f)
+        {
+            downDistanceScale *= 1.15f;
+        }
+        else if (context.Down >= 3 && context.Distance <= 2f)
+        {
+            downDistanceScale *= 0.92f;
+        }
+
+        bool isRedZone = context.LineOfScrimmage >= FieldGeometry.OpponentGoalLine - 15f;
+        float fieldScale = isRedZone ? 0.94f : 1f;
+
+        int defenseLead = context.AwayScore - context.Score;
+        float scoreScale = defenseLead switch
+        {
+            <= -8 => 1.10f,
+            >= 8 => 0.92f,
+            _ => 1f
+        };
+
+        return stageScale * downDistanceScale * fieldScale * scoreScale;
     }
 
     // --- LB zone role assignment per scheme ---
