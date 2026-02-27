@@ -65,8 +65,9 @@ RetroQB is a fast-paced retro-style 2D American football game where YOU are the 
 | Sprint | `Left Shift` |
 | Snap Ball | `Space` |
 | Throw Pass | `1` `2` `3` `4` `5` |
+| Replay Last Play (dead-ball) | `F` |
 | Select Play | `1` / `2` / `3` |
-| Restart Drive | `R` |
+| Confirm / Next Drive / Continue | `Enter` |
 | Pause | `Esc` |
 
 ---
@@ -86,6 +87,8 @@ RetroQB is a fast-paced retro-style 2D American football game where YOU are the 
    - Or tuck it and run! Sprint past defenders for big gains
 7. **Score Touchdowns**: Reach the end zone for 7 points
 8. **Become Champion**: Win all 3 stages to hoist the trophy!
+
+**Replay Tip**: After a play ends, press `F` during dead-ball screens or at pre-snap to watch the last play replay.
 
 ---
 

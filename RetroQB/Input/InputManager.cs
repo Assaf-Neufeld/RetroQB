@@ -34,6 +34,8 @@ public sealed class InputManager
     public bool IsEscapePressed() => Raylib.IsKeyPressed(KeyboardKey.Escape);
     public bool IsEnterPressed() => Raylib.IsKeyPressed(KeyboardKey.Enter);
     public bool IsSpacePressed() => Raylib.IsKeyPressed(KeyboardKey.Space);
+    public bool IsReplayPressed() => Raylib.IsKeyPressed(KeyboardKey.F);
+    public bool IsReplaySkipPressed() => Raylib.IsKeyPressed(KeyboardKey.Space);
 
     /// <summary>
     /// Returns team selection index (0-2) from number keys 1-3, or null if no team key pressed.

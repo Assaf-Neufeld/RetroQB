@@ -12,7 +12,7 @@ public sealed class SidePanelRenderer
     private static int PanelX => (int)Constants.OuterMargin;
     private static int PanelWidth => (int)Constants.SidePanelWidth;
 
-    public void Draw(PlayManager play, string resultText, string selectedReceiverLabel, GameState state, SeasonStage stage)
+    public void Draw(PlayManager play, string resultText, string selectedReceiverLabel, GameState state, SeasonStage stage, bool replayAvailable)
     {
         int screenH = Raylib.GetScreenHeight();
         int panelHeight = screenH - (int)(Constants.OuterMargin * 2);
@@ -80,8 +80,25 @@ public sealed class SidePanelRenderer
             y += 24;
         }
 
+        bool showReplayHint = replayAvailable && state is GameState.PreSnap or GameState.PlayOver or GameState.DriveOver or GameState.StageComplete or GameState.GameOver;
+
+        // Bottom-anchored controls layout to avoid overflow at smaller heights
+        int controlsLineSpacing = 14;
+        int controlsLines = 8;
+        int controlsBlockHeight = 28 + (controlsLines * controlsLineSpacing);
+        int controlsStartY = screenH - (int)Constants.OuterMargin - controlsBlockHeight;
+
+        // Goal section sits above controls and grows slightly when replay hint is shown
+        int goalSectionHeight = showReplayHint ? 64 : 46;
+        int goalY = controlsStartY - goalSectionHeight - 10;
+        int minGoalY = (int)Constants.OuterMargin + 120;
+        if (goalY < minGoalY)
+        {
+            goalY = minGoalY;
+        }
+
         // Goal
-        y = screenH - 180;
+        y = goalY;
         Raylib.DrawRectangle(x - 4, y - 4, PanelWidth - 22, 42, new Color(30, 50, 30, 200));
         string stageLabel = stage.GetDisplayName();
         int stageNum = stage.GetStageNumber();
@@ -97,23 +114,32 @@ public sealed class SidePanelRenderer
         Raylib.DrawText("Score 21 to advance!", x, y, 14, Palette.Gold);
         y += 26;
 
+        if (showReplayHint)
+        {
+            Raylib.DrawText("Replay Last Play: F", x, y, 14, Palette.Cyan);
+            y += 18;
+        }
+
         // Controls at bottom
+        y = controlsStartY;
         Raylib.DrawLine(x, y, x + PanelWidth - 30, y, Palette.DarkGreen);
         y += 10;
         Raylib.DrawText("CONTROLS", x, y, 14, Palette.Yellow);
         y += 18;
-        Raylib.DrawText("Move: WASD or Arrows", x, y, 12, Palette.White);
-        y += 15;
+        Raylib.DrawText("Move: Arrow Keys", x, y, 12, Palette.White);
+        y += controlsLineSpacing;
         Raylib.DrawText("Sprint: Hold Shift", x, y, 12, Palette.White);
-        y += 15;
+        y += controlsLineSpacing;
         Raylib.DrawText("Pass Plays: 1-9, 0", x, y, 12, Palette.White);
-        y += 15;
+        y += controlsLineSpacing;
         Raylib.DrawText("Run Plays: Q-P", x, y, 12, Palette.White);
-        y += 15;
+        y += controlsLineSpacing;
         Raylib.DrawText("Snap Ball: Space", x, y, 12, Palette.White);
-        y += 15;
+        y += controlsLineSpacing;
         Raylib.DrawText("Throw: 1-5", x, y, 12, Palette.White);
-        y += 15;
+        y += controlsLineSpacing;
+        Raylib.DrawText("Replay (dead-ball): F", x, y, 12, Palette.White);
+        y += controlsLineSpacing;
         Raylib.DrawText("Pause: Esc", x, y, 12, Palette.White);
     }
 }

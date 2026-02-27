@@ -3,6 +3,7 @@ using RetroQB.AI;
 using RetroQB.Core;
 using RetroQB.Entities;
 using RetroQB.Gameplay.Controllers;
+using RetroQB.Gameplay.Replay;
 using RetroQB.Input;
 using RetroQB.Rendering;
 
@@ -32,6 +33,10 @@ public sealed class GameSession
     private readonly ReceiverPriorityManager _receiverPriorityManager;
     private readonly DrawingController _drawingController;
     private readonly MenuController _menuController;
+    private readonly ReplayRecorder _replayRecorder;
+    private readonly ReplayClipStore _replayClipStore;
+    private readonly ReplayPlayer _replayPlayer;
+    private readonly ReplayStateHandler _replayStateHandler;
 
     // Team attributes
     private OffensiveTeamAttributes _offensiveTeam = OffensiveTeamAttributes.Default;
@@ -69,7 +74,11 @@ public sealed class GameSession
         new FormationFactory(),
         new DefenseFactory(),
         new StatisticsTracker(),
-        new ThrowingMechanics())
+        new ThrowingMechanics(),
+        new ReplayRecorder(),
+        new ReplayClipStore(),
+        new ReplayPlayer(),
+        new ReplayStateHandler())
     {
     }
 
@@ -84,12 +93,20 @@ public sealed class GameSession
         IFormationFactory formationFactory,
         IDefenseFactory defenseFactory,
         IStatisticsTracker statsTracker,
-        IThrowingMechanics throwingMechanics)
+        IThrowingMechanics throwingMechanics,
+        ReplayRecorder replayRecorder,
+        ReplayClipStore replayClipStore,
+        ReplayPlayer replayPlayer,
+        ReplayStateHandler replayStateHandler)
     {
         _stateManager = stateManager;
         _playManager = playManager;
         _statsTracker = statsTracker;
         _input = input;
+        _replayRecorder = replayRecorder;
+        _replayClipStore = replayClipStore;
+        _replayPlayer = replayPlayer;
+        _replayStateHandler = replayStateHandler;
 
         // Initialize controllers
         _overlapResolver = new OverlapResolver();
@@ -137,6 +154,7 @@ public sealed class GameSession
         _playManager.StartNewDrive();
         SetupEntities();
         ResetPlayState();
+        _replayRecorder.Reset();
         _drawingController.Fireworks.Clear();
     }
 
@@ -146,6 +164,7 @@ public sealed class GameSession
         SetDefensiveTeamForStage(_currentStage);
         SetupEntities();
         ResetPlayState();
+        _replayRecorder.Reset();
         _drawingController.Fireworks.Clear();
     }
 
@@ -286,6 +305,9 @@ public sealed class GameSession
             case GameState.PlayActive:
                 HandlePlayActive(dt);
                 break;
+            case GameState.Replay:
+                HandleReplay(dt);
+                break;
             case GameState.PlayOver:
                 HandlePlayOver();
                 break;
@@ -339,6 +361,11 @@ public sealed class GameSession
 
     private void HandlePreSnap()
     {
+        if (TryEnterReplayFromState(GameState.PreSnap))
+        {
+            return;
+        }
+
         bool playChanged = false;
         
         // Check for pass play selection (1-9, 0)
@@ -370,8 +397,11 @@ public sealed class GameSession
 
         if (_input.IsSpacePressed())
         {
+            _replayClipStore.Clear();
+            _replayPlayer.Unload();
             _playManager.StartPlay();
             _playManager.StartPlayRecord(_isZoneCoverage, _coverageScheme, _blitzers);
+            _replayRecorder.Begin(_playManager.PlayNumber);
             _stateManager.SetState(GameState.PlayActive);
         }
     }
@@ -407,6 +437,16 @@ public sealed class GameSession
             _entities.Defenders,
             _playManager.LineOfScrimmage,
             ClampToField);
+
+        _replayRecorder.Capture(
+            _entities.Qb,
+            _entities.Ball,
+            _entities.Receivers,
+            _entities.Blockers,
+            _entities.Defenders,
+            _playManager.LineOfScrimmage,
+            _playManager.FirstDownLine,
+            dt);
 
         // Handle ball state
         HandleBall(dt);
@@ -470,6 +510,11 @@ public sealed class GameSession
 
     private void HandlePlayOver()
     {
+        if (TryEnterReplayFromState(GameState.PlayOver))
+        {
+            return;
+        }
+
         if (_playOverTimer >= _playOverDuration)
         {
             _stateManager.SetState(GameState.PreSnap);
@@ -482,6 +527,11 @@ public sealed class GameSession
 
     private void HandleDriveOver()
     {
+        if (TryEnterReplayFromState(GameState.DriveOver))
+        {
+            return;
+        }
+
         if (_menuController.IsConfirmPressed())
         {
             InitializeDrive();
@@ -491,6 +541,11 @@ public sealed class GameSession
 
     private void HandleStageComplete()
     {
+        if (TryEnterReplayFromState(GameState.StageComplete))
+        {
+            return;
+        }
+
         if (_menuController.IsConfirmPressed())
         {
             AdvanceToNextStage();
@@ -499,6 +554,11 @@ public sealed class GameSession
 
     private void HandleGameOver()
     {
+        if (TryEnterReplayFromState(GameState.GameOver))
+        {
+            return;
+        }
+
         if (_menuController.IsConfirmPressed())
         {
             ResetPlayState();
@@ -507,6 +567,11 @@ public sealed class GameSession
             _seasonSummary.Reset();
             _stateManager.SetState(GameState.MainMenu);
         }
+    }
+
+    private void HandleReplay(float dt)
+    {
+        _replayStateHandler.Update(dt, _input, _replayPlayer, _stateManager);
     }
 
     private void EndPlay(bool tackle = false, bool incomplete = false, bool intercepted = false, bool touchdown = false)
@@ -568,6 +633,9 @@ public sealed class GameSession
                               intercepted ? PlayOutcome.Interception :
                               incomplete ? PlayOutcome.Incomplete :
                               PlayOutcome.Tackle;
+
+        ReplayClip? clip = _replayRecorder.FinalizeClip(outcome);
+        _replayClipStore.Store(clip);
 
         _playManager.FinalizePlayRecord(outcome, gain, catcherLabel, catcherRoute, wasRun, isSack, sackYardsLost);
 
@@ -658,6 +726,24 @@ public sealed class GameSession
     public void Draw()
     {
         _drawingController.SetStatsSnapshot(BuildStatsSnapshot());
+        bool replayAvailable = _replayClipStore.HasClip;
+
+        if (_stateManager.State == GameState.Replay && _replayPlayer.CurrentFrame is ReplayFrame replayFrame)
+        {
+            _drawingController.DrawReplay(
+                _playManager,
+                replayFrame,
+                _lastPlayText,
+                _driveOverText,
+                _offensiveTeam,
+                _selectedTeamIndex,
+                _stateManager.IsPaused,
+                _currentStage,
+                _seasonSummary,
+                replayAvailable);
+            return;
+        }
+
         _drawingController.Draw(
             _playManager,
             _entities.Qb,
@@ -672,7 +758,18 @@ public sealed class GameSession
             _selectedTeamIndex,
             _stateManager.IsPaused,
             _currentStage,
-            _seasonSummary);
+            _seasonSummary,
+            replayAvailable);
+    }
+
+    private bool TryEnterReplayFromState(GameState state)
+    {
+        if (!_input.IsReplayPressed())
+        {
+            return false;
+        }
+
+        return _replayStateHandler.TryEnterReplay(state, _replayClipStore, _replayPlayer, _stateManager);
     }
 
     private void ClampToField(Entity entity)

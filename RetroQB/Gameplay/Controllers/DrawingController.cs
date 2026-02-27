@@ -3,6 +3,7 @@ using Raylib_cs;
 using RetroQB.AI;
 using RetroQB.Core;
 using RetroQB.Entities;
+using RetroQB.Gameplay.Replay;
 using RetroQB.Rendering;
 
 namespace RetroQB.Gameplay.Controllers;
@@ -17,6 +18,7 @@ public sealed class DrawingController
     private readonly FireworksEffect _fireworks;
     private readonly ReceiverPriorityManager _priorityManager;
     private readonly ScreenEffects _screenEffects;
+    private readonly ReplayOverlayRenderer _replayOverlayRenderer;
 
     public DrawingController(
         FieldRenderer fieldRenderer,
@@ -29,6 +31,7 @@ public sealed class DrawingController
         _fireworks = fireworks;
         _priorityManager = priorityManager;
         _screenEffects = new ScreenEffects();
+        _replayOverlayRenderer = new ReplayOverlayRenderer();
     }
 
     public FireworksEffect Fireworks => _fireworks;
@@ -60,7 +63,8 @@ public sealed class DrawingController
         int selectedTeamIndex,
         bool isPaused,
         SeasonStage currentStage,
-        SeasonSummary seasonSummary)
+        SeasonSummary seasonSummary,
+        bool replayAvailable)
     {
         // Apply camera shake offset
         Vector2 shake = _screenEffects.ShakeOffset;
@@ -102,7 +106,7 @@ public sealed class DrawingController
         // Draw scoreboard and side panel HUD
         string targetLabel = GetSelectedReceiverPriorityLabel(playManager.SelectedReceiver, receivers);
         _hudRenderer.DrawScoreboard(playManager, lastPlayText, gameState, offensiveTeam, currentStage);
-        _hudRenderer.DrawSidePanel(playManager, lastPlayText, targetLabel, gameState, currentStage);
+        _hudRenderer.DrawSidePanel(playManager, lastPlayText, targetLabel, gameState, currentStage, replayAvailable);
 
         if (gameState == GameState.DriveOver)
         {
@@ -146,6 +150,43 @@ public sealed class DrawingController
 
         // Draw flash overlay on top of everything
         _screenEffects.DrawFlash();
+    }
+
+    public void DrawReplay(
+        PlayManager playManager,
+        ReplayFrame replayFrame,
+        string lastPlayText,
+        string driveOverText,
+        OffensiveTeamAttributes offensiveTeam,
+        int selectedTeamIndex,
+        bool isPaused,
+        SeasonStage currentStage,
+        SeasonSummary seasonSummary,
+        bool replayAvailable)
+    {
+        _fieldRenderer.DrawField(replayFrame.LineOfScrimmage, replayFrame.FirstDownLine);
+
+        foreach (var receiver in replayFrame.Receivers)
+        {
+            DrawReplayActor(receiver);
+        }
+
+        foreach (var blocker in replayFrame.Blockers)
+        {
+            DrawReplayActor(blocker);
+        }
+
+        foreach (var defender in replayFrame.Defenders)
+        {
+            DrawReplayActor(defender);
+        }
+
+        DrawReplayActor(replayFrame.Quarterback);
+        DrawReplayBall(replayFrame.Ball, replayFrame);
+
+        _hudRenderer.DrawScoreboard(playManager, lastPlayText, GameState.Replay, offensiveTeam, currentStage);
+        _hudRenderer.DrawSidePanel(playManager, lastPlayText, "-", GameState.Replay, currentStage, replayAvailable);
+        _replayOverlayRenderer.DrawReplayBadge(isPaused);
     }
 
     /// <summary>
@@ -243,5 +284,164 @@ public sealed class DrawingController
         int subSize = 18;
         int subWidth = Raylib.MeasureText(sub, subSize);
         Raylib.DrawText(sub, x + (bannerWidth - subWidth) / 2, y + bannerHeight - subSize - 14, subSize, Palette.White);
+    }
+
+    private static void DrawReplayActor(ReplayActorFrame actor)
+    {
+        Vector2 screen = Constants.WorldToScreen(actor.Position);
+
+        float baseRadius = actor.Glyph switch
+        {
+            "OL" or "DL" => 11.5f,
+            "DE" or "LB" or "TE" => 10.5f,
+            "QB" => 10f,
+            "WR" or "RB" or "DB" => 9.5f,
+            _ => 10f
+        };
+
+        Raylib.DrawCircleV(screen + new Vector2(1f, 1.5f), baseRadius, new Color(10, 10, 12, 120));
+        Raylib.DrawCircleV(screen, baseRadius, actor.Color);
+        Raylib.DrawCircleLines((int)screen.X, (int)screen.Y, baseRadius, new Color(16, 16, 20, 220));
+
+        int fontSize = 12;
+        int textWidth = Raylib.MeasureText(actor.Glyph, fontSize);
+        int labelX = (int)screen.X - textWidth / 2;
+        int labelY = (int)screen.Y - fontSize / 2;
+        Raylib.DrawText(actor.Glyph, labelX + 1, labelY + 1, fontSize, new Color(10, 10, 12, 160));
+        Raylib.DrawText(actor.Glyph, labelX, labelY, fontSize, Palette.White);
+    }
+
+    private static void DrawReplayBall(ReplayBallFrame ball, ReplayFrame frame)
+    {
+        Vector2 drawPos = ball.Position;
+        if (ball.State is BallState.HeldByQB or BallState.HeldByReceiver)
+        {
+            ReplayActorFrame? holder = FindActorById(frame, ball.HolderId);
+            if (holder.HasValue)
+            {
+                drawPos = holder.Value.Position + new Vector2(0.8f, 0f);
+            }
+        }
+
+        Vector2 screen = Constants.WorldToScreen(drawPos);
+
+        float height = GetBallArcHeight(ball, drawPos);
+        if (height > 0f)
+        {
+            float heightPixels = (height / Constants.FieldLength) * Constants.FieldRect.Height;
+            screen.Y -= heightPixels;
+        }
+
+        float majorRadius = 7f;
+        float minorRadius = 4.5f;
+        if (height > 0f)
+        {
+            float scale = 1f + height * 0.06f;
+            majorRadius *= scale;
+            minorRadius *= scale;
+        }
+
+        float angle = 0f;
+        if (ball.State == BallState.InAir && ball.Velocity.LengthSquared() > 0.1f)
+        {
+            Vector2 screenVel = new Vector2(ball.Velocity.X, -ball.Velocity.Y);
+            angle = MathF.Atan2(screenVel.Y, screenVel.X);
+        }
+
+        Vector2 major = new Vector2(MathF.Cos(angle), MathF.Sin(angle));
+        Vector2 minor = new Vector2(-major.Y, major.X);
+
+        Color brown = new Color(139, 90, 43, 255);
+        Color darkBrown = new Color(100, 60, 25, 255);
+        Color laceWhite = new Color(230, 230, 230, 255);
+
+        Vector2 shadowOff = new Vector2(1f, 2f);
+        DrawFootballBody(screen + shadowOff, major, minor, majorRadius, minorRadius, new Color(10, 10, 12, 100));
+        DrawFootballBody(screen, major, minor, majorRadius, minorRadius, brown);
+
+        Vector2 tipFront = screen + major * majorRadius;
+        Vector2 tipBack = screen - major * majorRadius;
+        Vector2 tipPerp = minor * (minorRadius * 0.4f);
+        Raylib.DrawTriangle(tipFront, screen + major * (majorRadius * 0.6f) - tipPerp, screen + major * (majorRadius * 0.6f) + tipPerp, darkBrown);
+        Raylib.DrawTriangle(tipBack, screen - major * (majorRadius * 0.6f) + tipPerp, screen - major * (majorRadius * 0.6f) - tipPerp, darkBrown);
+
+        float laceLen = majorRadius * 0.5f;
+        Vector2 laceStart = screen - major * laceLen;
+        Vector2 laceEnd = screen + major * laceLen;
+        Raylib.DrawLineEx(laceStart, laceEnd, 1f, laceWhite);
+
+        int stitchCount = 3;
+        float stitchH = minorRadius * 0.35f;
+        for (int i = 0; i < stitchCount; i++)
+        {
+            float t = (i + 0.5f) / stitchCount;
+            Vector2 stitchCenter = Vector2.Lerp(laceStart, laceEnd, t);
+            Raylib.DrawLineV(stitchCenter - minor * stitchH, stitchCenter + minor * stitchH, laceWhite);
+        }
+    }
+
+    private static ReplayActorFrame? FindActorById(ReplayFrame frame, int actorId)
+    {
+        if (frame.Quarterback.Id == actorId)
+        {
+            return frame.Quarterback;
+        }
+
+        foreach (var receiver in frame.Receivers)
+        {
+            if (receiver.Id == actorId)
+            {
+                return receiver;
+            }
+        }
+
+        foreach (var blocker in frame.Blockers)
+        {
+            if (blocker.Id == actorId)
+            {
+                return blocker;
+            }
+        }
+
+        foreach (var defender in frame.Defenders)
+        {
+            if (defender.Id == actorId)
+            {
+                return defender;
+            }
+        }
+
+        return null;
+    }
+
+    private static float GetBallArcHeight(ReplayBallFrame ball, Vector2 drawPos)
+    {
+        if (ball.State != BallState.InAir || ball.ArcApexHeight <= 0f)
+        {
+            return 0f;
+        }
+
+        float progress = 1f;
+        if (ball.IntendedDistance > 0.01f)
+        {
+            progress = Math.Clamp(Vector2.Distance(ball.ThrowStart, drawPos) / ball.IntendedDistance, 0f, 1f);
+        }
+
+        return ball.ArcApexHeight * 4f * progress * (1f - progress);
+    }
+
+    private static void DrawFootballBody(Vector2 center, Vector2 major, Vector2 minor, float majorR, float minorR, Color color)
+    {
+        const int segments = 16;
+        for (int i = 0; i < segments; i++)
+        {
+            float a1 = (i / (float)segments) * MathF.PI * 2f;
+            float a2 = ((i + 1) / (float)segments) * MathF.PI * 2f;
+
+            Vector2 p1 = center + major * (MathF.Cos(a1) * majorR) + minor * (MathF.Sin(a1) * minorR);
+            Vector2 p2 = center + major * (MathF.Cos(a2) * majorR) + minor * (MathF.Sin(a2) * minorR);
+
+            Raylib.DrawTriangle(center, p2, p1, color);
+        }
     }
 }
