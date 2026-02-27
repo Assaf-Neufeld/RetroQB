@@ -6,6 +6,8 @@ public interface IStatisticsTracker
 {
     void Reset();
     void RecordPassAttempt();
+    void RecordTarget(ReceiverSlot receiverSlot);
+    void RecordSack(int yardsLost);
     void RecordCompletion(ReceiverSlot receiverSlot);
     void RecordPassYards(ReceiverSlot receiverSlot, int yards, bool isTouchdown);
     void RecordInterception();
@@ -31,6 +33,17 @@ public sealed class StatisticsTracker : IStatisticsTracker
     public void RecordPassAttempt()
     {
         _qbStats.Attempts++;
+    }
+
+    public void RecordTarget(ReceiverSlot receiverSlot)
+    {
+        GetOrCreateReceiverStats(receiverSlot).Targets++;
+    }
+
+    public void RecordSack(int yardsLost)
+    {
+        _qbStats.Sacks++;
+        _qbStats.SackYardsLost += Math.Max(0, yardsLost);
     }
 
     public void RecordCompletion(ReceiverSlot receiverSlot)
@@ -90,11 +103,11 @@ public sealed class StatisticsTracker : IStatisticsTracker
         {
             if (_receiverStats.TryGetValue(slot, out var stats))
             {
-                receivers.Add(new ReceiverStatsSnapshot(slot.GetLabel(), stats.Receptions, stats.Yards, stats.Tds));
+                receivers.Add(new ReceiverStatsSnapshot(slot.GetLabel(), stats.Targets, stats.Receptions, stats.Yards, stats.Tds));
             }
             else
             {
-                receivers.Add(new ReceiverStatsSnapshot(slot.GetLabel(), 0, 0, 0));
+                receivers.Add(new ReceiverStatsSnapshot(slot.GetLabel(), 0, 0, 0, 0));
             }
         }
 
@@ -104,6 +117,8 @@ public sealed class StatisticsTracker : IStatisticsTracker
             _qbStats.PassYards,
             _qbStats.PassTds,
             _qbStats.Interceptions,
+            _qbStats.Sacks,
+            _qbStats.SackYardsLost,
             _qbStats.RushYards,
             _qbStats.RushTds);
         var rb = new RbStatsSnapshot(_rbStats.Yards, _rbStats.Tds);

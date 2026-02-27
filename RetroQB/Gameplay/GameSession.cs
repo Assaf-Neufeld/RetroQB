@@ -142,7 +142,6 @@ public sealed class GameSession
 
     private void InitializeGame()
     {
-        _statsTracker.Reset();
         _playManager.StartNewGame();
         SetDefensiveTeamForStage(_currentStage);
         SetupEntities();
@@ -329,6 +328,7 @@ public sealed class GameSession
             }
             SetOffensiveTeam(teams[_selectedTeamIndex]);
             _currentStage = SeasonStage.RegularSeason;
+            _statsTracker.Reset();
             _seasonSummary.Reset();
             InitializeGame();
             _stateManager.SetState(GameState.PreSnap);
@@ -518,6 +518,8 @@ public sealed class GameSession
 
         float gain = 0f;
         bool wasRun = false;
+        bool isSack = false;
+        int sackYardsLost = 0;
         string? catcherLabel = null;
         RouteType? catcherRoute = null;
 
@@ -538,8 +540,17 @@ public sealed class GameSession
             }
             else if (_entities.Ball.Holder is Quarterback)
             {
-                _statsTracker.RecordQbRushYards((int)gain, touchdown);
-                wasRun = true;
+                if (tackle && gain < 0f)
+                {
+                    isSack = true;
+                    sackYardsLost = (int)MathF.Abs(gain);
+                    _statsTracker.RecordSack(sackYardsLost);
+                }
+                else
+                {
+                    _statsTracker.RecordQbRushYards((int)gain, touchdown);
+                    wasRun = true;
+                }
             }
         }
 
@@ -558,7 +569,7 @@ public sealed class GameSession
                               incomplete ? PlayOutcome.Incomplete :
                               PlayOutcome.Tackle;
 
-        _playManager.FinalizePlayRecord(outcome, gain, catcherLabel, catcherRoute, wasRun);
+        _playManager.FinalizePlayRecord(outcome, gain, catcherLabel, catcherRoute, wasRun, isSack, sackYardsLost);
 
         if (touchdown)
         {
@@ -575,10 +586,10 @@ public sealed class GameSession
         }
         else if (tackle)
         {
-            bool isSack = _entities.Ball.State == BallState.HeldByQB || _entities.Ball.Holder is Quarterback;
+            bool isQbHit = _entities.Ball.State == BallState.HeldByQB || _entities.Ball.Holder is Quarterback;
             bool isBigPlay = gain >= 20f;
 
-            if (isSack)
+            if (isQbHit)
             {
                 _drawingController.ScreenEffects.TriggerShake(5f, 0.15f);
             }
@@ -594,7 +605,8 @@ public sealed class GameSession
             _playOverDuration = 1.25f;
         }
 
-        PlayResult result = _playManager.ResolvePlay(spot, incomplete, intercepted, touchdown);
+        string? tackleMessageOverride = isSack ? $"SACK! -{sackYardsLost} yds" : null;
+        PlayResult result = _playManager.ResolvePlay(spot, incomplete, intercepted, touchdown, tackleMessageOverride);
         _lastPlayText = result.Message;
         _playOverTimer = 0f;
 

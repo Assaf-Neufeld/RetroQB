@@ -180,6 +180,15 @@ public sealed class ScoreboardRenderer
         DrawRightText($"{stats.Qb.Interceptions}", qbCol4Right, contentY, 14, panelText);
         contentY += 22;
 
+        if (stats.Qb.Sacks > 0)
+        {
+            Raylib.DrawText("SACK", contentX + 2, contentY, 12, panelAccent);
+            DrawRightText($"{stats.Qb.Sacks}", qbCol2Right, contentY, 12, panelText);
+            DrawRightText("YDS LOST", qbCol3Right, contentY, 12, panelAccent);
+            DrawRightText($"-{stats.Qb.SackYardsLost}", qbCol4Right, contentY, 12, panelText);
+            contentY += 16;
+        }
+
         // Receiving
         Raylib.DrawLine(contentX - 2, contentY, contentX + ScoreboardWidth - 30, contentY, panelAccent);
         contentY += 6;
@@ -187,20 +196,23 @@ public sealed class ScoreboardRenderer
         Raylib.DrawText("RECEIVING", contentX + 6, contentY + 2, 14, offensiveTeam.SecondaryColor);
         contentY += 22;
 
-        int recCol1Right = contentX + (int)(innerWidth * 0.46f);
-        int recCol2Right = contentX + (int)(innerWidth * 0.72f);
-        int recCol3Right = contentX + innerWidth;
-        Raylib.DrawText("REC", contentX + 2, contentY, 12, panelAccent);
-        DrawRightText("YDS", recCol2Right, contentY, 12, panelAccent);
-        DrawRightText("TD", recCol3Right, contentY, 12, panelAccent);
+        int recCol1Right = contentX + (int)(innerWidth * 0.42f);
+        int recCol2Right = contentX + (int)(innerWidth * 0.60f);
+        int recCol3Right = contentX + (int)(innerWidth * 0.78f);
+        int recCol4Right = contentX + innerWidth;
+        Raylib.DrawText("TGT", contentX + 2, contentY, 12, panelAccent);
+        DrawRightText("REC", recCol2Right, contentY, 12, panelAccent);
+        DrawRightText("YDS", recCol3Right, contentY, 12, panelAccent);
+        DrawRightText("TD", recCol4Right, contentY, 12, panelAccent);
         contentY += 14;
 
         foreach (var receiver in stats.Receivers)
         {
             Raylib.DrawText($"{receiver.Label}", contentX + 6, contentY, 14, panelText);
-            DrawRightText($"{receiver.Receptions}", recCol1Right, contentY, 14, panelText);
-            DrawRightText($"{receiver.Yards}", recCol2Right, contentY, 14, panelText);
-            DrawRightText($"{receiver.Tds}", recCol3Right, contentY, 14, panelText);
+            DrawRightText($"{receiver.Targets}", recCol1Right, contentY, 14, panelText);
+            DrawRightText($"{receiver.Receptions}", recCol2Right, contentY, 14, panelText);
+            DrawRightText($"{receiver.Yards}", recCol3Right, contentY, 14, panelText);
+            DrawRightText($"{receiver.Tds}", recCol4Right, contentY, 14, panelText);
             contentY += 16;
         }
 

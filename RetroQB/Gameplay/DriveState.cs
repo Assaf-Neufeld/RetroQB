@@ -78,7 +78,14 @@ public sealed class DriveState
     /// <summary>
     /// Finalizes the current PlayRecord with result information.
     /// </summary>
-    public void FinalizePlayRecord(PlayOutcome outcome, float gain, string? catcherLabel, RouteType? catcherRoute, bool wasRun)
+    public void FinalizePlayRecord(
+        PlayOutcome outcome,
+        float gain,
+        string? catcherLabel,
+        RouteType? catcherRoute,
+        bool wasRun,
+        bool isSack = false,
+        int sackYardsLost = 0)
     {
         if (CurrentPlayRecord != null)
         {
@@ -87,6 +94,8 @@ public sealed class DriveState
             CurrentPlayRecord.CatcherLabel = catcherLabel;
             CurrentPlayRecord.CatcherRoute = catcherRoute;
             CurrentPlayRecord.WasRun = wasRun;
+            CurrentPlayRecord.IsSack = isSack;
+            CurrentPlayRecord.SackYardsLost = sackYardsLost;
             PlayRecords.Add(CurrentPlayRecord);
             CurrentPlayRecord = null;
         }
@@ -117,7 +126,7 @@ public sealed class DriveState
         return result;
     }
 
-    public PlayResult ResolveTackle(float newBallY)
+    public PlayResult ResolveTackle(float newBallY, string? tackleMessageOverride = null)
     {
         float gain = newBallY - LineOfScrimmage;
         LineOfScrimmage = MathF.Min(newBallY, FieldGeometry.OpponentGoalLine);
@@ -131,7 +140,8 @@ public sealed class DriveState
         Distance -= gain;
         FirstDownLine = MathF.Min(LineOfScrimmage + Distance, FieldGeometry.OpponentGoalLine);
         
-        var result = CheckTurnoverOnDowns() ?? new PlayResult(PlayOutcome.Tackle, gain, $"+{gain:F0} yds");
+        string defaultMessage = gain >= 0f ? $"+{gain:F0} yds" : $"{gain:F0} yds";
+        var result = CheckTurnoverOnDowns() ?? new PlayResult(PlayOutcome.Tackle, gain, tackleMessageOverride ?? defaultMessage);
         RecordPlay(result);
         return result;
     }

@@ -26,6 +26,8 @@ public sealed class SeasonSummary
         _cumulativeQb.PassYards,
         _cumulativeQb.PassTds,
         _cumulativeQb.Interceptions,
+        _cumulativeQb.Sacks,
+        _cumulativeQb.SackYardsLost,
         _cumulativeQb.RushYards,
         _cumulativeQb.RushTds);
 
@@ -43,13 +45,15 @@ public sealed class SeasonSummary
     public void RecordGame(SeasonStage stage, int playerScore, int awayScore, QbStatsSnapshot qbSnap)
     {
         _games.Add(new GameResult(stage, playerScore, awayScore, playerScore > awayScore));
-        _cumulativeQb.Completions += qbSnap.Completions;
-        _cumulativeQb.Attempts += qbSnap.Attempts;
-        _cumulativeQb.PassYards += qbSnap.PassYards;
-        _cumulativeQb.PassTds += qbSnap.PassTds;
-        _cumulativeQb.Interceptions += qbSnap.Interceptions;
-        _cumulativeQb.RushYards += qbSnap.RushYards;
-        _cumulativeQb.RushTds += qbSnap.RushTds;
+        _cumulativeQb.Completions = qbSnap.Completions;
+        _cumulativeQb.Attempts = qbSnap.Attempts;
+        _cumulativeQb.PassYards = qbSnap.PassYards;
+        _cumulativeQb.PassTds = qbSnap.PassTds;
+        _cumulativeQb.Interceptions = qbSnap.Interceptions;
+        _cumulativeQb.Sacks = qbSnap.Sacks;
+        _cumulativeQb.SackYardsLost = qbSnap.SackYardsLost;
+        _cumulativeQb.RushYards = qbSnap.RushYards;
+        _cumulativeQb.RushTds = qbSnap.RushTds;
     }
 
     /// <summary>
@@ -77,7 +81,13 @@ public sealed class SeasonSummary
         c = Math.Clamp(c, 0f, 2.375f);
         d = Math.Clamp(d, 0f, 2.375f);
 
-        return ((a + b + c + d) / 6f) * 100f;
+        float baseRating = ((a + b + c + d) / 6f) * 100f;
+
+        // Sack penalty (house rule): frequent sacks and larger losses reduce rating.
+        float sackRatePenalty = (qb.Sacks / att) * 20f;
+        float sackYardPenalty = (qb.SackYardsLost / att) * 0.5f;
+
+        return Math.Clamp(baseRating - sackRatePenalty - sackYardPenalty, 0f, 158.3f);
     }
 
     /// <summary>Resets the summary for a new season.</summary>

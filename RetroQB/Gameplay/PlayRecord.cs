@@ -28,6 +28,8 @@ public sealed class PlayRecord
     public string? CatcherLabel { get; set; }
     public RouteType? CatcherRoute { get; set; }
     public bool WasRun { get; set; }
+    public bool IsSack { get; set; }
+    public int SackYardsLost { get; set; }
 
     /// <summary>
     /// Gets a formatted string describing the pre-snap situation.
@@ -89,6 +91,9 @@ public sealed class PlayRecord
             PlayOutcome.Interception => "INTERCEPTED!",
             PlayOutcome.Incomplete => "Incomplete",
             PlayOutcome.Turnover => "Turnover on downs",
+
+            PlayOutcome.Tackle when IsSack =>
+                $"SACK! -{SackYardsLost} yds",
             
             PlayOutcome.Tackle when WasRun => 
                 $"{FormatGain(Gain)} yd run",

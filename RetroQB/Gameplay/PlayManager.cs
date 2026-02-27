@@ -73,9 +73,16 @@ public sealed class PlayManager
     /// <summary>
     /// Finalizes the current play record with result information.
     /// </summary>
-    public void FinalizePlayRecord(PlayOutcome outcome, float gain, string? catcherLabel, RouteType? catcherRoute, bool wasRun)
+    public void FinalizePlayRecord(
+        PlayOutcome outcome,
+        float gain,
+        string? catcherLabel,
+        RouteType? catcherRoute,
+        bool wasRun,
+        bool isSack = false,
+        int sackYardsLost = 0)
     {
-        _driveState.FinalizePlayRecord(outcome, gain, catcherLabel, catcherRoute, wasRun);
+        _driveState.FinalizePlayRecord(outcome, gain, catcherLabel, catcherRoute, wasRun, isSack, sackYardsLost);
     }
 
     public PlayManager()
@@ -186,7 +193,7 @@ public sealed class PlayManager
         return $"{typeName}: {SelectedPlay.Name}";
     }
 
-    public PlayResult ResolvePlay(float newBallY, bool incomplete, bool intercepted, bool touchdown)
+    public PlayResult ResolvePlay(float newBallY, bool incomplete, bool intercepted, bool touchdown, string? tackleMessageOverride = null)
     {
         PlayResult result;
         float gain = newBallY - LineOfScrimmage;
@@ -205,7 +212,7 @@ public sealed class PlayManager
         }
         else
         {
-            result = _driveState.ResolveTackle(newBallY);
+            result = _driveState.ResolveTackle(newBallY, tackleMessageOverride);
         }
 
         return result;

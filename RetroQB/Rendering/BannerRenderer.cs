@@ -133,7 +133,7 @@ public sealed class BannerRenderer
 
         // Draw shared season summary content
         int contentY = divY + 10;
-        DrawSeasonSummaryContent(x, contentY, bannerWidth, seasonSummary, Palette.Gold);
+        DrawSeasonSummaryContent(x, contentY, bannerWidth, seasonSummary, stats, Palette.Gold);
 
         // Continue prompt
         string prompt = "PRESS ENTER TO CHOOSE TEAM";
@@ -179,7 +179,7 @@ public sealed class BannerRenderer
 
         // Draw shared season summary content
         int contentY = divY + 10;
-        DrawSeasonSummaryContent(x, contentY, bannerWidth, seasonSummary, Palette.Red);
+        DrawSeasonSummaryContent(x, contentY, bannerWidth, seasonSummary, stats, Palette.Red);
 
         // Continue prompt
         string prompt = "PRESS ENTER TO CHOOSE TEAM";
@@ -191,7 +191,7 @@ public sealed class BannerRenderer
     /// <summary>
     /// Draws the shared season summary content: QB rating, game scores, cumulative stats.
     /// </summary>
-    private void DrawSeasonSummaryContent(int bannerX, int startY, int bannerWidth, SeasonSummary summary, Color accentColor)
+    private void DrawSeasonSummaryContent(int bannerX, int startY, int bannerWidth, SeasonSummary summary, GameStatsSnapshot stats, Color accentColor)
     {
         int contentY = startY;
         int leftCol = bannerX + 30;
@@ -224,11 +224,42 @@ public sealed class BannerRenderer
         Raylib.DrawText(passLine, bannerX + (bannerWidth - passLineWidth) / 2, contentY, passLineSize, labelColor);
         contentY += 18;
 
+        if (qb.Sacks > 0)
+        {
+            string sackLine = $"SACKS: {qb.Sacks}  YDS LOST: -{qb.SackYardsLost}";
+            int sackLineWidth = Raylib.MeasureText(sackLine, passLineSize);
+            Raylib.DrawText(sackLine, bannerX + (bannerWidth - sackLineWidth) / 2, contentY, passLineSize, labelColor);
+            contentY += 18;
+        }
+
         if (qb.RushYards != 0 || qb.RushTds != 0)
         {
             string rushLine = $"RUSH: {qb.RushYards} YDS  {qb.RushTds} TD";
             int rushLineWidth = Raylib.MeasureText(rushLine, passLineSize);
             Raylib.DrawText(rushLine, bannerX + (bannerWidth - rushLineWidth) / 2, contentY, passLineSize, labelColor);
+            contentY += 18;
+        }
+
+        if (stats.Rb.Yards != 0 || stats.Rb.Tds != 0)
+        {
+            string rbLine = $"RB: {stats.Rb.Yards} YDS  {stats.Rb.Tds} TD";
+            int rbLineWidth = Raylib.MeasureText(rbLine, passLineSize);
+            Raylib.DrawText(rbLine, bannerX + (bannerWidth - rbLineWidth) / 2, contentY, passLineSize, labelColor);
+            contentY += 18;
+        }
+
+        var topReceiver = stats.Receivers
+            .OrderByDescending(r => r.Yards)
+            .ThenByDescending(r => r.Receptions)
+            .ThenByDescending(r => r.Targets)
+            .FirstOrDefault();
+
+        if (!string.IsNullOrWhiteSpace(topReceiver.Label) &&
+            (topReceiver.Targets > 0 || topReceiver.Receptions > 0 || topReceiver.Yards > 0 || topReceiver.Tds > 0))
+        {
+            string wrLine = $"TOP REC: {topReceiver.Label}  {topReceiver.Targets} TGT  {topReceiver.Receptions} REC  {topReceiver.Yards} YDS  {topReceiver.Tds} TD";
+            int wrLineWidth = Raylib.MeasureText(wrLine, passLineSize);
+            Raylib.DrawText(wrLine, bannerX + (bannerWidth - wrLineWidth) / 2, contentY, passLineSize, labelColor);
             contentY += 18;
         }
 

@@ -234,6 +234,7 @@ public sealed class BallController
         {
             _passAttemptedThisPlay = true;
             _statsTracker.RecordPassAttempt();
+            _statsTracker.RecordTarget(receiver.Slot);
         }
 
         float pressure = GetQbPressureFactor(qb, defenders);
