@@ -242,6 +242,19 @@ public sealed class DefenseFactory : IDefenseFactory
                 continue;
             }
 
+            if (IsLinebackerSlot(defender.Slot))
+            {
+                lbCount++;
+                continue;
+            }
+
+            if (IsDefensiveBackSlot(defender.Slot))
+            {
+                dbCount++;
+                continue;
+            }
+
+            // Fallback classification for any non-standard slot mapping.
             switch (defender.PositionRole)
             {
                 case DefensivePosition.LB:
@@ -265,6 +278,16 @@ public sealed class DefenseFactory : IDefenseFactory
         }
 
         return blitzers;
+    }
+
+    private static bool IsLinebackerSlot(DefenderSlot slot)
+    {
+        return slot is DefenderSlot.MLB or DefenderSlot.OLB1 or DefenderSlot.OLB2;
+    }
+
+    private static bool IsDefensiveBackSlot(DefenderSlot slot)
+    {
+        return slot is DefenderSlot.CB1 or DefenderSlot.CB2 or DefenderSlot.FS or DefenderSlot.SS or DefenderSlot.NB;
     }
 
     // --- Scheme classification helpers ---
