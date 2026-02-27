@@ -183,10 +183,8 @@ public sealed class ScoreboardRenderer
 
         if (stats.Qb.Sacks > 0)
         {
-            Raylib.DrawText("SACK", contentX + 2, contentY, 12, panelAccent);
-            DrawRightText($"{stats.Qb.Sacks}", qbCol2Right, contentY, 12, panelText);
-            DrawRightText("YDS LOST", qbCol3Right, contentY, 12, panelAccent);
-            DrawRightText($"-{stats.Qb.SackYardsLost}", qbCol4Right, contentY, 12, panelText);
+            Raylib.DrawText("SACKS/YDS LOST", contentX + 2, contentY, 12, panelAccent);
+            DrawRightText($"{stats.Qb.Sacks} / -{stats.Qb.SackYardsLost}", qbCol4Right, contentY, 12, panelText);
             contentY += 16;
         }
 
@@ -201,7 +199,7 @@ public sealed class ScoreboardRenderer
         int recCol2Right = contentX + (int)(innerWidth * 0.60f);
         int recCol3Right = contentX + (int)(innerWidth * 0.78f);
         int recCol4Right = contentX + innerWidth;
-        Raylib.DrawText("TGT", contentX + 2, contentY, 12, panelAccent);
+        DrawRightText("TGT", recCol1Right, contentY, 12, panelAccent);
         DrawRightText("REC", recCol2Right, contentY, 12, panelAccent);
         DrawRightText("YDS", recCol3Right, contentY, 12, panelAccent);
         DrawRightText("TD", recCol4Right, contentY, 12, panelAccent);
@@ -224,10 +222,10 @@ public sealed class ScoreboardRenderer
         Raylib.DrawRectangle(contentX - 2, contentY, innerWidth + 4, 18, new Color(18, 26, 40, 220));
         Raylib.DrawText("RUNNING", contentX + 6, contentY + 2, 14, offensiveTeam.SecondaryColor);
         contentY += 22;
+        DrawRightText("YDS", recCol2Right, contentY, 12, panelAccent);
+        DrawRightText("TD", recCol3Right, contentY, 12, panelAccent);
+        contentY += 14;
         Raylib.DrawText("QB", contentX + 2, contentY, 14, panelText);
-        DrawRightText("YDS", recCol2Right, contentY - 2, 12, panelAccent);
-        DrawRightText("TD", recCol3Right, contentY - 2, 12, panelAccent);
-        contentY += 16;
         DrawRightText($"{stats.Qb.RushYards}", recCol2Right, contentY, 14, panelText);
         DrawRightText($"{stats.Qb.RushTds}", recCol3Right, contentY, 14, panelText);
         contentY += 16;
