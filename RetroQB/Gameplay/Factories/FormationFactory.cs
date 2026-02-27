@@ -231,7 +231,7 @@ public sealed class FormationFactory : IFormationFactory
             receivers.Add(new Receiver(receivers.Count, p.Slot, position, _currentTeamAttributes));
         }
 
-        AddBaseLine(blockers, los, data.ExtraLinemen);
+        AddBaseLine(blockers, los, data.ExtraLinemen, _currentTeamAttributes);
     }
 
     private static List<float> GetBlockerXPositions(int extraCount)

@@ -8,7 +8,7 @@ internal sealed class FieldSurfaceRenderer
     private static readonly Color StripeDark = new(10, 70, 30, 255);
     private static readonly Color StripeLight = Palette.Field;
 
-    public void Draw()
+    public void Draw(string homeTeamName, Color homeTeamColor, string awayTeamName, Color awayTeamColor)
     {
         Rectangle rect = Constants.FieldRect;
 
@@ -37,10 +37,10 @@ internal sealed class FieldSurfaceRenderer
             // Light stripes are already the base fill color — no draw needed
         }
 
-        DrawEndZones(rect);
+        DrawEndZones(rect, homeTeamName, homeTeamColor, awayTeamName, awayTeamColor);
     }
 
-    private static void DrawEndZones(Rectangle rect)
+    private static void DrawEndZones(Rectangle rect, string homeTeamName, Color homeTeamColor, string awayTeamName, Color awayTeamColor)
     {
         float bottom = rect.Y + rect.Height;
         float ownEndY = Constants.WorldToScreenY(Constants.EndZoneDepth);
@@ -49,19 +49,77 @@ internal sealed class FieldSurfaceRenderer
         int endzoneHeight = (int)(bottom - ownEndY);
         int topEndzoneHeight = (int)(oppEndY - rect.Y);
 
-        Raylib.DrawRectangle((int)rect.X, (int)ownEndY, (int)rect.Width, endzoneHeight, Palette.EndZone);
-        Raylib.DrawRectangle((int)rect.X, (int)rect.Y, (int)rect.Width, topEndzoneHeight, Palette.EndZone);
+        Color homeEndZoneFill = Tint(homeTeamColor, 0.7f);
+        Color awayEndZoneFill = Tint(awayTeamColor, 0.7f);
+
+        Raylib.DrawRectangle((int)rect.X, (int)ownEndY, (int)rect.Width, endzoneHeight, homeEndZoneFill);
+        Raylib.DrawRectangle((int)rect.X, (int)rect.Y, (int)rect.Width, topEndzoneHeight, awayEndZoneFill);
 
         int stripeCount = 6;
         int stripeHeight = Math.Max(2, endzoneHeight / (stripeCount * 2));
+        Color homeStripe = Tint(homeTeamColor, 0.9f);
+        Color awayStripe = Tint(awayTeamColor, 0.9f);
+
         for (int i = 0; i < stripeCount; i++)
         {
             int yOffset = i * stripeHeight * 2;
-            Raylib.DrawRectangle((int)rect.X, (int)ownEndY + yOffset, (int)rect.Width, stripeHeight, Palette.EndZoneAccent);
-            Raylib.DrawRectangle((int)rect.X, (int)oppEndY - stripeHeight - yOffset, (int)rect.Width, stripeHeight, Palette.EndZoneAccent);
+            Raylib.DrawRectangle((int)rect.X, (int)ownEndY + yOffset, (int)rect.Width, stripeHeight, homeStripe);
+            Raylib.DrawRectangle((int)rect.X, (int)oppEndY - stripeHeight - yOffset, (int)rect.Width, stripeHeight, awayStripe);
         }
 
-        Raylib.DrawText("END ZONE", (int)rect.X + 20, (int)bottom - 30, 18, Palette.EndZoneText);
-        Raylib.DrawText("END ZONE", (int)rect.X + 20, (int)rect.Y + 8, 18, Palette.EndZoneText);
+        DrawEndZoneTeamName(
+            homeTeamName,
+            (int)rect.X,
+            (int)ownEndY,
+            (int)rect.Width,
+            endzoneHeight,
+            ContrastTextColor(homeEndZoneFill));
+
+        DrawEndZoneTeamName(
+            awayTeamName,
+            (int)rect.X,
+            (int)rect.Y,
+            (int)rect.Width,
+            topEndzoneHeight,
+            ContrastTextColor(awayEndZoneFill));
+    }
+
+    private static void DrawEndZoneTeamName(string teamName, int x, int y, int width, int height, Color textColor)
+    {
+        string label = string.IsNullOrWhiteSpace(teamName)
+            ? "TEAM"
+            : teamName.ToUpperInvariant();
+
+        int fontSize = Math.Clamp(height - 10, 16, 34);
+        int textWidth = Raylib.MeasureText(label, fontSize);
+
+        while (textWidth > width - 18 && fontSize > 14)
+        {
+            fontSize -= 1;
+            textWidth = Raylib.MeasureText(label, fontSize);
+        }
+
+        int drawX = x + (width - textWidth) / 2;
+        int drawY = y + (height - fontSize) / 2;
+
+        Color shadow = new(8, 8, 8, 150);
+        Raylib.DrawText(label, drawX + 2, drawY + 2, fontSize, shadow);
+        Raylib.DrawText(label, drawX, drawY, fontSize, textColor);
+    }
+
+    private static Color ContrastTextColor(Color background)
+    {
+        int luma = (background.R * 299 + background.G * 587 + background.B * 114) / 1000;
+        return luma > 130 ? new Color(20, 20, 22, 255) : new Color(244, 244, 244, 255);
+    }
+
+    private static Color Tint(Color color, float factor)
+    {
+        factor = Math.Clamp(factor, 0f, 1f);
+        return new Color(
+            (byte)Math.Clamp((int)(color.R * factor), 0, 255),
+            (byte)Math.Clamp((int)(color.G * factor), 0, 255),
+            (byte)Math.Clamp((int)(color.B * factor), 0, 255),
+            color.A);
     }
 }

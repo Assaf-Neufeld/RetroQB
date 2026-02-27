@@ -27,10 +27,16 @@ public sealed class FieldRenderer
         _sidelineRenderer = sidelineRenderer;
     }
 
-    public void DrawField(float lineOfScrimmage, float firstDownLine)
+    public void DrawField(
+        float lineOfScrimmage,
+        float firstDownLine,
+        string homeTeamName,
+        Color homeTeamColor,
+        string awayTeamName,
+        Color awayTeamColor)
     {
         _stadiumBackdrop.Draw();
-        _fieldSurface.Draw();
+        _fieldSurface.Draw(homeTeamName, homeTeamColor, awayTeamName, awayTeamColor);
         _fieldMarkings.Draw(lineOfScrimmage, firstDownLine);
         _sidelineRenderer.Draw();
         DrawBoundary();
