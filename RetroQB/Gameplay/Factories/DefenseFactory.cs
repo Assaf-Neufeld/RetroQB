@@ -46,7 +46,6 @@ public sealed class DefenseFactory : IDefenseFactory
     {
         var attrs = teamAttributes ?? DefensiveTeamAttributes.Default;
         var defenders = new List<Defender>();
-        var blitzers = new List<string>();
 
         ResolveCoverageIndices(receivers, out int left, out int leftSlot, out int middle, out int rightSlot, out int right);
         int wrCount = receivers.Count(receiver => receiver.PositionRole == OffensivePosition.WR);
@@ -75,10 +74,6 @@ public sealed class DefenseFactory : IDefenseFactory
         bool lblBlitz = rng.NextDouble() < lbBlitzChance;
         bool lbrBlitz = rng.NextDouble() < lbBlitzChance;
         bool mlbBlitz = !useNickel && rng.NextDouble() < lbBlitzChance;
-
-        if (lblBlitz) blitzers.Add("LB");
-        if (lbrBlitz) blitzers.Add("LB");
-        if (mlbBlitz) blitzers.Add("MLB");
 
         float lbDepth = ClampDefenderY(context.LineOfScrimmage + 7.6f * depthScale, maxY);
         var lbRoles = GetLbZoneRoles(scheme);
@@ -118,9 +113,6 @@ public sealed class DefenseFactory : IDefenseFactory
         float cbBlitzChance = GetCbBlitzChance(scheme, attrs, context);
         bool leftCbBlitz = rng.NextDouble() < cbBlitzChance;
         bool rightCbBlitz = rng.NextDouble() < cbBlitzChance;
-
-        if (leftCbBlitz) blitzers.Add("CB");
-        if (rightCbBlitz) blitzers.Add("CB");
 
         // Cornerbacks
         defenders.Add(new Defender(new Vector2(dbConfig.LeftCbX, dbConfig.LeftCbDepth), DefensivePosition.DB, attrs)
@@ -180,9 +172,47 @@ public sealed class DefenseFactory : IDefenseFactory
         {
             Defenders = defenders,
             IsZoneCoverage = useZone,
-            Blitzers = blitzers,
+            Blitzers = BuildBlitzerSummary(defenders),
             Scheme = scheme
         };
+    }
+
+    private static List<string> BuildBlitzerSummary(IReadOnlyList<Defender> defenders)
+    {
+        int lbCount = 0;
+        int dbCount = 0;
+
+        for (int i = 0; i < defenders.Count; i++)
+        {
+            Defender defender = defenders[i];
+            if (!defender.IsRusher)
+            {
+                continue;
+            }
+
+            switch (defender.PositionRole)
+            {
+                case DefensivePosition.LB:
+                    lbCount++;
+                    break;
+                case DefensivePosition.DB:
+                    dbCount++;
+                    break;
+            }
+        }
+
+        var blitzers = new List<string>(lbCount + dbCount);
+        for (int i = 0; i < lbCount; i++)
+        {
+            blitzers.Add("LB");
+        }
+
+        for (int i = 0; i < dbCount; i++)
+        {
+            blitzers.Add("DB");
+        }
+
+        return blitzers;
     }
 
     // --- Scheme classification helpers ---
