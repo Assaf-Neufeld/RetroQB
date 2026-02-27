@@ -32,6 +32,8 @@ public sealed class DefenseResult
 
 public sealed class DefenseFactory : IDefenseFactory
 {
+    private readonly IBlitzDecisionStrategy _blitzDecisionStrategy;
+
     private enum CoverageUnit
     {
         Linebacker,
@@ -43,19 +45,23 @@ public sealed class DefenseFactory : IDefenseFactory
     /// </summary>
     private const float MaxZoneJitter = 1.8f;
 
+    public DefenseFactory(IBlitzDecisionStrategy? blitzDecisionStrategy = null)
+    {
+        _blitzDecisionStrategy = blitzDecisionStrategy ?? new DefaultBlitzDecisionStrategy();
+    }
+
     public DefenseResult CreateDefense(DefensiveContext context, List<Receiver> receivers, Random rng, DefensiveTeamAttributes? teamAttributes = null)
     {
         var attrs = teamAttributes ?? DefensiveTeamAttributes.Default;
         var defenders = new List<Defender>();
 
         ResolveCoverageIndices(receivers, out int left, out int leftSlot, out int middle, out int rightSlot, out int right);
-        int wrCount = receivers.Count(receiver => receiver.PositionRole == OffensivePosition.WR);
-        bool useNickel = wrCount >= 3;
 
         // Select coverage scheme based on game situation
         CoverageScheme scheme = CoverageSchemeSelector.SelectScheme(
             context.Down, context.Distance, context.LineOfScrimmage,
             context.Score, context.AwayScore, context.Stage, rng);
+        bool hasNickelPackage = UsesNickelPackage(scheme);
 
         bool useZone = IsZoneScheme(scheme);
 
@@ -70,28 +76,24 @@ public sealed class DefenseFactory : IDefenseFactory
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.54f, dlDepth), DefensivePosition.DL, DefenderSlot.DT2, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 2.0f });
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, dlDepth), DefensivePosition.DE, DefenderSlot.DE2, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 5.0f });
 
-        // Linebackers - blitz chance varies by scheme
-        float lbBlitzChance = GetLbBlitzChance(scheme, attrs, context);
-        bool lblBlitz = rng.NextDouble() < lbBlitzChance;
-        bool lbrBlitz = rng.NextDouble() < lbBlitzChance;
-        bool mlbBlitz = !useNickel && rng.NextDouble() < lbBlitzChance;
+        BlitzDecision blitzDecision = _blitzDecisionStrategy.DecideBlitzers(scheme, attrs, context, rng);
 
         float lbDepth = ClampDefenderY(context.LineOfScrimmage + GetSituationalDepthOffset(7.6f, 4.8f, depthScale), maxY);
         var lbRoles = GetLbZoneRoles(scheme);
 
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, lbDepth), DefensivePosition.LB, DefenderSlot.OLB1, attrs)
         {
-            IsRusher = lblBlitz,
+            IsRusher = blitzDecision.IsBlitzer(DefenderSlot.OLB1),
             CoverageReceiverIndex = IsManForPosition(scheme, CoverageUnit.Linebacker) ? leftSlot : -1,
             ZoneRole = lbRoles.left,
             ZoneJitterX = GetJitter(rng),
             RushLaneOffsetX = -7.0f
         });
-        if (!useNickel)
+        if (!hasNickelPackage)
         {
             defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.50f, lbDepth), DefensivePosition.LB, DefenderSlot.MLB, attrs)
             {
-                IsRusher = mlbBlitz,
+                IsRusher = blitzDecision.IsBlitzer(DefenderSlot.MLB),
                 CoverageReceiverIndex = IsManForPosition(scheme, CoverageUnit.Linebacker) ? middle : -1,
                 ZoneRole = lbRoles.middle,
                 ZoneJitterX = GetJitter(rng),
@@ -100,7 +102,7 @@ public sealed class DefenseFactory : IDefenseFactory
         }
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, lbDepth), DefensivePosition.LB, DefenderSlot.OLB2, attrs)
         {
-            IsRusher = lbrBlitz,
+            IsRusher = blitzDecision.IsBlitzer(DefenderSlot.OLB2),
             CoverageReceiverIndex = IsManForPosition(scheme, CoverageUnit.Linebacker) ? rightSlot : -1,
             ZoneRole = lbRoles.right,
             ZoneJitterX = GetJitter(rng),
@@ -109,16 +111,12 @@ public sealed class DefenseFactory : IDefenseFactory
 
         // DBs - positioning and roles vary by scheme
         var dbConfig = GetDbConfiguration(scheme, context.LineOfScrimmage, depthScale, maxY,
-            receivers, left, leftSlot, middle, rightSlot, right, useNickel, rng);
-
-        float cbBlitzChance = GetCbBlitzChance(scheme, attrs, context);
-        bool leftCbBlitz = rng.NextDouble() < cbBlitzChance;
-        bool rightCbBlitz = rng.NextDouble() < cbBlitzChance;
+            receivers, left, leftSlot, middle, rightSlot, right, rng);
 
         // Cornerbacks
         defenders.Add(new Defender(new Vector2(dbConfig.LeftCbX, dbConfig.LeftCbDepth), DefensivePosition.DB, DefenderSlot.CB1, attrs)
         {
-            IsRusher = leftCbBlitz,
+            IsRusher = blitzDecision.IsBlitzer(DefenderSlot.CB1),
             CoverageReceiverIndex = left,
             ZoneRole = dbConfig.LeftCbZone,
             IsPressCoverage = dbConfig.CbPress,
@@ -127,7 +125,7 @@ public sealed class DefenseFactory : IDefenseFactory
         });
         defenders.Add(new Defender(new Vector2(dbConfig.RightCbX, dbConfig.RightCbDepth), DefensivePosition.DB, DefenderSlot.CB2, attrs)
         {
-            IsRusher = rightCbBlitz,
+            IsRusher = blitzDecision.IsBlitzer(DefenderSlot.CB2),
             CoverageReceiverIndex = right,
             ZoneRole = dbConfig.RightCbZone,
             IsPressCoverage = dbConfig.CbPress,
@@ -136,7 +134,7 @@ public sealed class DefenseFactory : IDefenseFactory
         });
 
         // Nickel DB (extra DB replacing MLB in nickel packages)
-        if (useNickel)
+        if (hasNickelPackage)
         {
             int nickelTarget = middle >= 0 ? middle : leftSlot >= 0 ? leftSlot : rightSlot;
             float nickelX = dbConfig.NickelX >= 0
@@ -145,6 +143,7 @@ public sealed class DefenseFactory : IDefenseFactory
 
             defenders.Add(new Defender(new Vector2(nickelX, dbConfig.NickelDepth), DefensivePosition.DB, DefenderSlot.NB, attrs)
             {
+                IsRusher = blitzDecision.IsBlitzer(DefenderSlot.NB),
                 CoverageReceiverIndex = nickelTarget,
                 ZoneRole = dbConfig.NickelZone,
                 IsPressCoverage = false,
@@ -156,17 +155,21 @@ public sealed class DefenseFactory : IDefenseFactory
         // Safeties
         defenders.Add(new Defender(new Vector2(dbConfig.LeftSafetyX, dbConfig.LeftSafetyDepth), DefensivePosition.DB, DefenderSlot.FS, attrs)
         {
+            IsRusher = blitzDecision.IsBlitzer(DefenderSlot.FS),
             CoverageReceiverIndex = IsManForPosition(scheme, CoverageUnit.Safety) ? leftSlot : -1,
             ZoneRole = dbConfig.LeftSafetyZone,
             IsPressCoverage = false,
-            ZoneJitterX = GetJitter(rng)
+            ZoneJitterX = GetJitter(rng),
+            RushLaneOffsetX = -3.5f
         });
         defenders.Add(new Defender(new Vector2(dbConfig.RightSafetyX, dbConfig.RightSafetyDepth), DefensivePosition.DB, DefenderSlot.SS, attrs)
         {
+            IsRusher = blitzDecision.IsBlitzer(DefenderSlot.SS),
             CoverageReceiverIndex = IsManForPosition(scheme, CoverageUnit.Safety) ? rightSlot : -1,
             ZoneRole = dbConfig.RightSafetyZone,
             IsPressCoverage = false,
-            ZoneJitterX = GetJitter(rng)
+            ZoneJitterX = GetJitter(rng),
+            RushLaneOffsetX = 3.5f
         });
 
         ApplyStarPlayers(defenders, context.Stage);
@@ -304,6 +307,11 @@ public sealed class DefenseFactory : IDefenseFactory
         _ => false
     };
 
+    private static bool UsesNickelPackage(CoverageScheme scheme)
+    {
+        return scheme is CoverageScheme.Cover2Zone or CoverageScheme.Cover3Zone or CoverageScheme.Cover4Zone;
+    }
+
     /// <summary>
     /// Returns true if the given unit plays man coverage in this scheme.
     /// </summary>
@@ -317,75 +325,6 @@ public sealed class DefenseFactory : IDefenseFactory
         CoverageScheme.Cover4Zone => false,
         _ => false
     };
-
-    // --- Blitz chance helpers ---
-
-    private static float GetLbBlitzChance(CoverageScheme scheme, DefensiveTeamAttributes attrs, DefensiveContext context)
-    {
-        float baseChance = scheme switch
-        {
-            CoverageScheme.Cover0 => 0.35f,
-            CoverageScheme.Cover1 => 0.15f,
-            CoverageScheme.Cover2Man => 0.12f,
-            CoverageScheme.Cover2Zone => 0.08f,
-            CoverageScheme.Cover3Zone => 0.08f,
-            CoverageScheme.Cover4Zone => 0.05f,
-            _ => 0.10f
-        };
-
-        float situationalScale = GetBlitzSituationalMultiplier(context);
-        float chance = baseChance * attrs.BlitzFrequency * situationalScale;
-        return Math.Clamp(chance, 0f, 0.70f);
-    }
-
-    private static float GetCbBlitzChance(CoverageScheme scheme, DefensiveTeamAttributes attrs, DefensiveContext context)
-    {
-        float baseChance = scheme switch
-        {
-            CoverageScheme.Cover0 => 0.20f,
-            CoverageScheme.Cover1 => 0.05f,
-            _ => 0f // zone schemes don't blitz CBs
-        };
-
-        float situationalScale = GetBlitzSituationalMultiplier(context);
-        float chance = baseChance * attrs.BlitzFrequency * situationalScale;
-        return Math.Clamp(chance, 0f, 0.35f);
-    }
-
-    private static float GetBlitzSituationalMultiplier(DefensiveContext context)
-    {
-        float stageScale = context.Stage switch
-        {
-            SeasonStage.RegularSeason => 0.82f,
-            SeasonStage.Playoff => 1.00f,
-            SeasonStage.SuperBowl => 1.15f,
-            _ => 1.00f
-        };
-
-        float downDistanceScale = 1f;
-        if (context.Down >= 3 && context.Distance >= 7f)
-        {
-            downDistanceScale *= 1.15f;
-        }
-        else if (context.Down >= 3 && context.Distance <= 2f)
-        {
-            downDistanceScale *= 0.92f;
-        }
-
-        bool isRedZone = context.LineOfScrimmage >= FieldGeometry.OpponentGoalLine - 15f;
-        float fieldScale = isRedZone ? 0.94f : 1f;
-
-        int defenseLead = context.AwayScore - context.Score;
-        float scoreScale = defenseLead switch
-        {
-            <= -8 => 1.10f,
-            >= 8 => 0.92f,
-            _ => 1f
-        };
-
-        return stageScale * downDistanceScale * fieldScale * scoreScale;
-    }
-
     // --- LB zone role assignment per scheme ---
 
     private static (CoverageRole left, CoverageRole middle, CoverageRole right) GetLbZoneRoles(
@@ -440,8 +379,9 @@ public sealed class DefenseFactory : IDefenseFactory
     private static DbConfig GetDbConfiguration(
         CoverageScheme scheme, float lineOfScrimmage, float depthScale, float maxY,
         List<Receiver> receivers, int left, int leftSlot, int middle, int rightSlot, int right,
-        bool useNickel, Random rng)
+        Random rng)
     {
+        bool hasNickelPackage = UsesNickelPackage(scheme);
         float fw = Constants.FieldWidth;
         bool cover1Press = rng.NextDouble() < 0.6;
         bool cover2ManPress = rng.NextDouble() < 0.4;
@@ -469,7 +409,7 @@ public sealed class DefenseFactory : IDefenseFactory
                 rightSafetyX: GetReceiverXOrDefault(receivers, rightSlot, fw * 0.60f),
                 rightSafetyDepth: shallowSafetyDepth,
                 rightSafetyZone: CoverageRole.None,
-                nickelX: useNickel ? GetReceiverXOrDefault(receivers, middle, fw * 0.50f) : -1,
+                nickelX: hasNickelPackage ? GetReceiverXOrDefault(receivers, middle, fw * 0.50f) : -1,
                 nickelDepth: shallowSafetyDepth,
                 nickelZone: CoverageRole.None
             ),
@@ -491,29 +431,29 @@ public sealed class DefenseFactory : IDefenseFactory
                 rightSafetyX: fw * 0.50f,
                 rightSafetyDepth: deepSafetyDepth,
                 rightSafetyZone: CoverageRole.DeepMiddle,
-                nickelX: useNickel ? GetReceiverXOrDefault(receivers, middle, fw * 0.50f) : -1,
+                nickelX: hasNickelPackage ? GetReceiverXOrDefault(receivers, middle, fw * 0.50f) : -1,
                 nickelDepth: shallowSafetyDepth,
                 nickelZone: CoverageRole.None
             ),
 
             // Cover 2 Zone: Two deep halves, CBs in flat zones, classic two-high
             CoverageScheme.Cover2Zone => new DbConfig(
-                leftCbX: useNickel ? fw * 0.12f : fw * 0.18f,
+                leftCbX: hasNickelPackage ? fw * 0.12f : fw * 0.18f,
                 leftCbDepth: offCbDepth,
                 leftCbZone: CoverageRole.FlatLeft,
-                rightCbX: useNickel ? fw * 0.88f : fw * 0.82f,
+                rightCbX: hasNickelPackage ? fw * 0.88f : fw * 0.82f,
                 rightCbDepth: offCbDepth,
                 rightCbZone: CoverageRole.FlatRight,
                 cbPress: false,
-                leftSafetyX: useNickel ? fw * 0.33f : fw * 0.40f,
+                leftSafetyX: hasNickelPackage ? fw * 0.33f : fw * 0.40f,
                 leftSafetyDepth: deepSafetyDepth,
                 leftSafetyZone: CoverageRole.DeepLeft,
-                rightSafetyX: useNickel ? fw * 0.67f : fw * 0.60f,
+                rightSafetyX: hasNickelPackage ? fw * 0.67f : fw * 0.60f,
                 rightSafetyDepth: deepSafetyDepth,
                 rightSafetyZone: CoverageRole.DeepRight,
-                nickelX: useNickel ? fw * 0.50f : -1,
-                nickelDepth: deepSafetyDepth,
-                nickelZone: CoverageRole.DeepMiddle
+                nickelX: hasNickelPackage ? fw * 0.50f : -1,
+                nickelDepth: shallowSafetyDepth,
+                nickelZone: CoverageRole.HookMiddle
             ),
 
             // Cover 3 Zone: Three deep thirds, SS drops to flat
@@ -533,7 +473,7 @@ public sealed class DefenseFactory : IDefenseFactory
                 rightSafetyX: fw * 0.50f,
                 rightSafetyDepth: deepSafetyDepth,
                 rightSafetyZone: CoverageRole.DeepMiddle,
-                nickelX: useNickel ? fw * 0.75f : -1,
+                nickelX: hasNickelPackage ? fw * 0.75f : -1,
                 nickelDepth: ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(7.0f, 4.6f, depthScale), maxY),
                 nickelZone: CoverageRole.FlatRight
             ),
@@ -554,7 +494,7 @@ public sealed class DefenseFactory : IDefenseFactory
                 rightSafetyX: fw * 0.62f,
                 rightSafetyDepth: deepSafetyDepth,
                 rightSafetyZone: CoverageRole.DeepQuarterRight,
-                nickelX: useNickel ? fw * 0.50f : -1,
+                nickelX: hasNickelPackage ? fw * 0.50f : -1,
                 nickelDepth: deepSafetyDepth,
                 nickelZone: CoverageRole.DeepMiddle
             ),
@@ -574,7 +514,7 @@ public sealed class DefenseFactory : IDefenseFactory
                 rightSafetyX: fw * 0.65f,
                 rightSafetyDepth: deepSafetyDepth,
                 rightSafetyZone: CoverageRole.DeepRight,
-                nickelX: useNickel ? GetReceiverXOrDefault(receivers, middle, fw * 0.50f) : -1,
+                nickelX: hasNickelPackage ? GetReceiverXOrDefault(receivers, middle, fw * 0.50f) : -1,
                 nickelDepth: shallowSafetyDepth,
                 nickelZone: CoverageRole.None
             ),

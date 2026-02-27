@@ -200,6 +200,7 @@ public sealed class GameSession
             CoverageTightness = baseDefense.CoverageTightness * MathF.Sqrt(stageMult),
             PassRushAbility = baseDefense.PassRushAbility * rushMult,
             BlitzFrequency = baseDefense.BlitzFrequency * rushMult,
+            BlitzSlotMultipliers = baseDefense.BlitzSlotMultipliers,
             DlSpeed = (baseDefense.DlSpeed > 0 ? baseDefense.DlSpeed : Constants.DlSpeed) * rushMult,
             DeSpeed = (baseDefense.DeSpeed > 0 ? baseDefense.DeSpeed : Constants.DeSpeed) * rushMult,
             LbSpeed = (baseDefense.LbSpeed > 0 ? baseDefense.LbSpeed : Constants.LbSpeed) * stageMult,

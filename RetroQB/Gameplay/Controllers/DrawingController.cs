@@ -75,7 +75,13 @@ public sealed class DrawingController
             Rlgl.Translatef(shake.X, shake.Y, 0f);
         }
 
-        _fieldRenderer.DrawField(playManager.LineOfScrimmage, playManager.FirstDownLine);
+        _fieldRenderer.DrawField(
+            playManager.LineOfScrimmage,
+            playManager.FirstDownLine,
+            offensiveTeam.Name,
+            offensiveTeam.PrimaryColor,
+            defensiveTeam.Name,
+            defensiveTeam.PrimaryColor);
 
         _fireworks.Draw();
 
@@ -166,7 +172,13 @@ public sealed class DrawingController
         SeasonSummary seasonSummary,
         bool replayAvailable)
     {
-        _fieldRenderer.DrawField(replayFrame.LineOfScrimmage, replayFrame.FirstDownLine);
+        _fieldRenderer.DrawField(
+            replayFrame.LineOfScrimmage,
+            replayFrame.FirstDownLine,
+            offensiveTeam.Name,
+            offensiveTeam.PrimaryColor,
+            defensiveTeam.Name,
+            defensiveTeam.PrimaryColor);
 
         foreach (var receiver in replayFrame.Receivers)
         {

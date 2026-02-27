@@ -89,6 +89,19 @@ public sealed class OffensiveTeamAttributes : TeamAttributes
 /// </summary>
 public sealed class DefensiveTeamAttributes : TeamAttributes
 {
+    private static readonly IReadOnlyDictionary<DefenderSlot, float> DefaultBlitzSlotMultipliers
+        = new Dictionary<DefenderSlot, float>
+        {
+            [DefenderSlot.OLB1] = 1.0f,
+            [DefenderSlot.MLB] = 1.0f,
+            [DefenderSlot.OLB2] = 1.0f,
+            [DefenderSlot.CB1] = 1.0f,
+            [DefenderSlot.CB2] = 1.0f,
+            [DefenderSlot.FS] = 1.0f,
+            [DefenderSlot.SS] = 1.0f,
+            [DefenderSlot.NB] = 1.0f
+        };
+
     /// <summary>
     /// Defensive roster with per-player profiles and position baselines.
     /// </summary>
@@ -142,6 +155,12 @@ public sealed class DefensiveTeamAttributes : TeamAttributes
     /// Range: 0.5 - 2.0, where 1.0 is baseline (10% base blitz rate).
     /// </summary>
     public float BlitzFrequency { get; init; } = 1.0f;
+
+    /// <summary>
+    /// Per-slot blitz multiplier for backfield defenders.
+    /// 1.0 = baseline for that slot's scheme-specific base chance.
+    /// </summary>
+    public IReadOnlyDictionary<DefenderSlot, float> BlitzSlotMultipliers { get; init; } = DefaultBlitzSlotMultipliers;
     
     /// <summary>
     /// Overall tackle ability multiplier. 1.0 = baseline.
@@ -216,6 +235,13 @@ public sealed class DefensiveTeamAttributes : TeamAttributes
     public float GetPositionBlockShedMultiplier(Entities.DefensivePosition position)
     {
         return Roster.GetBlockShedMultiplier(position);
+    }
+
+    public float GetBlitzSlotMultiplier(DefenderSlot slot)
+    {
+        return BlitzSlotMultipliers.TryGetValue(slot, out float value)
+            ? Math.Clamp(value, 0f, 3f)
+            : 1.0f;
     }
 }
 

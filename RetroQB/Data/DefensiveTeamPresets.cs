@@ -46,7 +46,18 @@ public static class DefensiveTeamPresets
         TackleAbility = 1.05f,
         CoverageTightness = 1.0f,
         PassRushAbility = 1.0f,
-        BlitzFrequency = 1.0f
+        BlitzFrequency = 1.0f,
+        BlitzSlotMultipliers = new Dictionary<DefenderSlot, float>
+        {
+            [DefenderSlot.OLB1] = 1.05f,
+            [DefenderSlot.MLB] = 1.00f,
+            [DefenderSlot.OLB2] = 0.95f,
+            [DefenderSlot.CB1] = 0.35f,
+            [DefenderSlot.CB2] = 0.35f,
+            [DefenderSlot.FS] = 0.20f,
+            [DefenderSlot.SS] = 0.45f,
+            [DefenderSlot.NB] = 0.40f
+        }
     };
 
     /// <summary>
@@ -91,7 +102,18 @@ public static class DefensiveTeamPresets
         TackleAbility = 1.15f,
         CoverageTightness = 0.85f,
         PassRushAbility = 1.3f,
-        BlitzFrequency = 1.8f
+        BlitzFrequency = 1.8f,
+        BlitzSlotMultipliers = new Dictionary<DefenderSlot, float>
+        {
+            [DefenderSlot.OLB1] = 1.35f,
+            [DefenderSlot.MLB] = 1.20f,
+            [DefenderSlot.OLB2] = 1.30f,
+            [DefenderSlot.CB1] = 0.60f,
+            [DefenderSlot.CB2] = 0.60f,
+            [DefenderSlot.FS] = 0.45f,
+            [DefenderSlot.SS] = 0.90f,
+            [DefenderSlot.NB] = 0.85f
+        }
     };
 
     /// <summary>
@@ -140,7 +162,18 @@ public static class DefensiveTeamPresets
         TackleAbility = 0.9f,
         CoverageTightness = 1.25f,
         PassRushAbility = 0.85f,
-        BlitzFrequency = 0.7f
+        BlitzFrequency = 0.7f,
+        BlitzSlotMultipliers = new Dictionary<DefenderSlot, float>
+        {
+            [DefenderSlot.OLB1] = 0.70f,
+            [DefenderSlot.MLB] = 0.65f,
+            [DefenderSlot.OLB2] = 0.70f,
+            [DefenderSlot.CB1] = 0.20f,
+            [DefenderSlot.CB2] = 0.20f,
+            [DefenderSlot.FS] = 0.15f,
+            [DefenderSlot.SS] = 0.25f,
+            [DefenderSlot.NB] = 0.20f
+        }
     };
 
     /// <summary>
@@ -194,7 +227,18 @@ public static class DefensiveTeamPresets
         TackleAbility = 1.25f,
         CoverageTightness = 0.95f,
         PassRushAbility = 1.1f,
-        BlitzFrequency = 0.9f
+        BlitzFrequency = 0.9f,
+        BlitzSlotMultipliers = new Dictionary<DefenderSlot, float>
+        {
+            [DefenderSlot.OLB1] = 1.15f,
+            [DefenderSlot.MLB] = 1.20f,
+            [DefenderSlot.OLB2] = 1.10f,
+            [DefenderSlot.CB1] = 0.25f,
+            [DefenderSlot.CB2] = 0.25f,
+            [DefenderSlot.FS] = 0.18f,
+            [DefenderSlot.SS] = 0.55f,
+            [DefenderSlot.NB] = 0.40f
+        }
     };
 
     /// <summary>
