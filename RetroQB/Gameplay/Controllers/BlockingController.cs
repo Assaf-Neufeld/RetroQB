@@ -300,7 +300,7 @@ public sealed class BlockingController
         };
         
         // Apply team's position-specific block shed multiplier
-        float shedMultiplier = defender.TeamAttributes.GetPositionBlockShedMultiplier(defender.PositionRole);
+        float shedMultiplier = defender.TeamAttributes.GetPositionBlockShedMultiplier(defender.PositionRole) * defender.BlockShedMultiplier;
         return baseDifficulty / shedMultiplier;  // Higher shed = lower difficulty value = harder to block
     }
 }

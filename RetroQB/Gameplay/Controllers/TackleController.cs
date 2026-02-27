@@ -112,7 +112,7 @@ public sealed class TackleController
         float breakChance = offensiveTeam.GetRbTackleBreakChance(ballCarrier.Slot);
         
         // Adjust break chance based on defender's tackle ability (LBs are better tacklers)
-        float defenderTackleAbility = defender.TeamAttributes.GetEffectiveTackleAbility(defender.PositionRole);
+        float defenderTackleAbility = defender.TeamAttributes.GetEffectiveTackleAbility(defender.PositionRole) * defender.TackleMultiplier;
         breakChance = breakChance / defenderTackleAbility;  // Higher tackle ability = lower break chance
         breakChance = Math.Clamp(breakChance, 0.05f, 0.65f);
         

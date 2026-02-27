@@ -1,6 +1,7 @@
 using System.Numerics;
 using RetroQB.AI;
 using RetroQB.Core;
+using RetroQB.Data;
 using RetroQB.Entities;
 
 namespace RetroQB.Gameplay;
@@ -64,10 +65,10 @@ public sealed class DefenseFactory : IDefenseFactory
 
         // Defensive line - DEs on the outside (circular rush), DTs inside (straight rush)
         float dlDepth = ClampDefenderY(context.LineOfScrimmage + GetSituationalDepthOffset(1.8f, 1.2f, depthScale), maxY);
-        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, dlDepth), DefensivePosition.DE, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -5.0f });
-        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.46f, dlDepth), DefensivePosition.DL, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -2.0f });
-        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.54f, dlDepth), DefensivePosition.DL, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 2.0f });
-        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, dlDepth), DefensivePosition.DE, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 5.0f });
+        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, dlDepth), DefensivePosition.DE, DefenderSlot.DE1, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -5.0f });
+        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.46f, dlDepth), DefensivePosition.DL, DefenderSlot.DT1, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -2.0f });
+        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.54f, dlDepth), DefensivePosition.DL, DefenderSlot.DT2, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 2.0f });
+        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, dlDepth), DefensivePosition.DE, DefenderSlot.DE2, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 5.0f });
 
         // Linebackers - blitz chance varies by scheme
         float lbBlitzChance = GetLbBlitzChance(scheme, attrs, context);
@@ -78,7 +79,7 @@ public sealed class DefenseFactory : IDefenseFactory
         float lbDepth = ClampDefenderY(context.LineOfScrimmage + GetSituationalDepthOffset(7.6f, 4.8f, depthScale), maxY);
         var lbRoles = GetLbZoneRoles(scheme);
 
-        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, lbDepth), DefensivePosition.LB, attrs)
+        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, lbDepth), DefensivePosition.LB, DefenderSlot.OLB1, attrs)
         {
             IsRusher = lblBlitz,
             CoverageReceiverIndex = IsManForPosition(scheme, CoverageUnit.Linebacker) ? leftSlot : -1,
@@ -88,7 +89,7 @@ public sealed class DefenseFactory : IDefenseFactory
         });
         if (!useNickel)
         {
-            defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.50f, lbDepth), DefensivePosition.LB, attrs)
+            defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.50f, lbDepth), DefensivePosition.LB, DefenderSlot.MLB, attrs)
             {
                 IsRusher = mlbBlitz,
                 CoverageReceiverIndex = IsManForPosition(scheme, CoverageUnit.Linebacker) ? middle : -1,
@@ -97,7 +98,7 @@ public sealed class DefenseFactory : IDefenseFactory
                 RushLaneOffsetX = 0f
             });
         }
-        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, lbDepth), DefensivePosition.LB, attrs)
+        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, lbDepth), DefensivePosition.LB, DefenderSlot.OLB2, attrs)
         {
             IsRusher = lbrBlitz,
             CoverageReceiverIndex = IsManForPosition(scheme, CoverageUnit.Linebacker) ? rightSlot : -1,
@@ -115,7 +116,7 @@ public sealed class DefenseFactory : IDefenseFactory
         bool rightCbBlitz = rng.NextDouble() < cbBlitzChance;
 
         // Cornerbacks
-        defenders.Add(new Defender(new Vector2(dbConfig.LeftCbX, dbConfig.LeftCbDepth), DefensivePosition.DB, attrs)
+        defenders.Add(new Defender(new Vector2(dbConfig.LeftCbX, dbConfig.LeftCbDepth), DefensivePosition.DB, DefenderSlot.CB1, attrs)
         {
             IsRusher = leftCbBlitz,
             CoverageReceiverIndex = left,
@@ -124,7 +125,7 @@ public sealed class DefenseFactory : IDefenseFactory
             ZoneJitterX = GetJitter(rng),
             RushLaneOffsetX = -10.0f
         });
-        defenders.Add(new Defender(new Vector2(dbConfig.RightCbX, dbConfig.RightCbDepth), DefensivePosition.DB, attrs)
+        defenders.Add(new Defender(new Vector2(dbConfig.RightCbX, dbConfig.RightCbDepth), DefensivePosition.DB, DefenderSlot.CB2, attrs)
         {
             IsRusher = rightCbBlitz,
             CoverageReceiverIndex = right,
@@ -142,7 +143,7 @@ public sealed class DefenseFactory : IDefenseFactory
                 ? dbConfig.NickelX
                 : GetReceiverXOrDefault(receivers, nickelTarget, Constants.FieldWidth * 0.50f);
 
-            defenders.Add(new Defender(new Vector2(nickelX, dbConfig.NickelDepth), DefensivePosition.DB, attrs)
+            defenders.Add(new Defender(new Vector2(nickelX, dbConfig.NickelDepth), DefensivePosition.DB, DefenderSlot.NB, attrs)
             {
                 CoverageReceiverIndex = nickelTarget,
                 ZoneRole = dbConfig.NickelZone,
@@ -153,20 +154,22 @@ public sealed class DefenseFactory : IDefenseFactory
         }
 
         // Safeties
-        defenders.Add(new Defender(new Vector2(dbConfig.LeftSafetyX, dbConfig.LeftSafetyDepth), DefensivePosition.DB, attrs)
+        defenders.Add(new Defender(new Vector2(dbConfig.LeftSafetyX, dbConfig.LeftSafetyDepth), DefensivePosition.DB, DefenderSlot.FS, attrs)
         {
             CoverageReceiverIndex = IsManForPosition(scheme, CoverageUnit.Safety) ? leftSlot : -1,
             ZoneRole = dbConfig.LeftSafetyZone,
             IsPressCoverage = false,
             ZoneJitterX = GetJitter(rng)
         });
-        defenders.Add(new Defender(new Vector2(dbConfig.RightSafetyX, dbConfig.RightSafetyDepth), DefensivePosition.DB, attrs)
+        defenders.Add(new Defender(new Vector2(dbConfig.RightSafetyX, dbConfig.RightSafetyDepth), DefensivePosition.DB, DefenderSlot.SS, attrs)
         {
             CoverageReceiverIndex = IsManForPosition(scheme, CoverageUnit.Safety) ? rightSlot : -1,
             ZoneRole = dbConfig.RightSafetyZone,
             IsPressCoverage = false,
             ZoneJitterX = GetJitter(rng)
         });
+
+        ApplyStarPlayers(defenders, context.Stage);
 
         return new DefenseResult
         {
@@ -175,6 +178,55 @@ public sealed class DefenseFactory : IDefenseFactory
             Blitzers = BuildBlitzerSummary(defenders),
             Scheme = scheme
         };
+    }
+
+    private static void ApplyStarPlayers(IReadOnlyList<Defender> defenders, SeasonStage stage)
+    {
+        if (stage == SeasonStage.RegularSeason)
+        {
+            return;
+        }
+
+        if (stage == SeasonStage.Playoff)
+        {
+            ApplyStarToSlot(defenders, DefenderSlot.FS);
+            ApplyStarToSlot(defenders, DefenderSlot.DE1);
+            return;
+        }
+
+        if (stage == SeasonStage.SuperBowl)
+        {
+            ApplyStarToSlot(defenders, DefenderSlot.DE1);
+            ApplyStarToSlot(defenders, DefenderSlot.DE2);
+            ApplyStarToSlot(defenders, DefenderSlot.MLB);
+            ApplyStarToSlot(defenders, DefenderSlot.CB1);
+            ApplyStarToSlot(defenders, DefenderSlot.FS);
+        }
+    }
+
+    private static void ApplyStarToSlot(IReadOnlyList<Defender> defenders, DefenderSlot slot)
+    {
+        Defender? defender = defenders.FirstOrDefault(d => d.Slot == slot);
+        if (defender == null)
+        {
+            return;
+        }
+
+        switch (defender.PositionRole)
+        {
+            case DefensivePosition.DB:
+                defender.ApplyStarBoost(speedMultiplier: 1.08f, tackleMultiplier: 1.02f, interceptionMultiplier: 1.40f, blockShedMultiplier: 1.05f);
+                break;
+            case DefensivePosition.DE:
+                defender.ApplyStarBoost(speedMultiplier: 1.10f, tackleMultiplier: 1.10f, interceptionMultiplier: 1.00f, blockShedMultiplier: 1.35f);
+                break;
+            case DefensivePosition.LB:
+                defender.ApplyStarBoost(speedMultiplier: 1.07f, tackleMultiplier: 1.25f, interceptionMultiplier: 1.10f, blockShedMultiplier: 1.20f);
+                break;
+            default:
+                defender.ApplyStarBoost(speedMultiplier: 1.05f, tackleMultiplier: 1.15f, interceptionMultiplier: 1.00f, blockShedMultiplier: 1.25f);
+                break;
+        }
     }
 
     private static List<string> BuildBlitzerSummary(IReadOnlyList<Defender> defenders)

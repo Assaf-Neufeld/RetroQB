@@ -60,6 +60,7 @@ public sealed class DrawingController
         string lastPlayText,
         string driveOverText,
         OffensiveTeamAttributes offensiveTeam,
+        DefensiveTeamAttributes defensiveTeam,
         int selectedTeamIndex,
         bool isPaused,
         SeasonStage currentStage,
@@ -105,7 +106,7 @@ public sealed class DrawingController
 
         // Draw scoreboard and side panel HUD
         string targetLabel = GetSelectedReceiverPriorityLabel(playManager.SelectedReceiver, receivers);
-        _hudRenderer.DrawScoreboard(playManager, lastPlayText, gameState, offensiveTeam, currentStage);
+        _hudRenderer.DrawScoreboard(playManager, lastPlayText, gameState, offensiveTeam, defensiveTeam, currentStage);
         _hudRenderer.DrawSidePanel(playManager, lastPlayText, targetLabel, gameState, currentStage, replayAvailable);
 
         if (gameState == GameState.DriveOver)
@@ -158,6 +159,7 @@ public sealed class DrawingController
         string lastPlayText,
         string driveOverText,
         OffensiveTeamAttributes offensiveTeam,
+        DefensiveTeamAttributes defensiveTeam,
         int selectedTeamIndex,
         bool isPaused,
         SeasonStage currentStage,
@@ -184,7 +186,7 @@ public sealed class DrawingController
         DrawReplayActor(replayFrame.Quarterback);
         DrawReplayBall(replayFrame.Ball, replayFrame);
 
-        _hudRenderer.DrawScoreboard(playManager, lastPlayText, GameState.Replay, offensiveTeam, currentStage);
+        _hudRenderer.DrawScoreboard(playManager, lastPlayText, GameState.Replay, offensiveTeam, defensiveTeam, currentStage);
         _hudRenderer.DrawSidePanel(playManager, lastPlayText, "-", GameState.Replay, currentStage, replayAvailable);
         _replayOverlayRenderer.DrawReplayBadge(isPaused);
     }

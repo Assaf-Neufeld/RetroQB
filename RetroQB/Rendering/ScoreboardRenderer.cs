@@ -13,7 +13,7 @@ public sealed class ScoreboardRenderer
     private static int ScoreboardWidth => (int)Constants.ScoreboardPanelWidth;
     private static int ScoreboardHeight => Raylib.GetScreenHeight() - (int)(Constants.OuterMargin * 2);
 
-    public void Draw(PlayManager play, string resultText, GameState state, OffensiveTeamAttributes offensiveTeam, GameStatsSnapshot stats, SeasonStage stage)
+    public void Draw(PlayManager play, string resultText, GameState state, OffensiveTeamAttributes offensiveTeam, DefensiveTeamAttributes defensiveTeam, GameStatsSnapshot stats, SeasonStage stage)
     {
         int x = Raylib.GetScreenWidth() - ScoreboardWidth - (int)Constants.OuterMargin;
         int y = ScoreboardY;
@@ -124,10 +124,11 @@ public sealed class ScoreboardRenderer
         // Score block
         Raylib.DrawRectangleLines(contentX - 4, contentY - 4, ScoreboardWidth - 24, 48, panelAccent);
         string homeLabel = string.IsNullOrWhiteSpace(offensiveTeam.Name) ? "HOME" : offensiveTeam.Name.ToUpperInvariant();
+        string awayLabel = string.IsNullOrWhiteSpace(defensiveTeam.Name) ? "AWAY" : defensiveTeam.Name.ToUpperInvariant();
         Raylib.DrawText(homeLabel, contentX + 6, contentY + 2, 14, offensiveTeam.SecondaryColor);
         Raylib.DrawText($"{play.Score}", x + ScoreboardWidth - 54, contentY - 2, 22, offensiveTeam.PrimaryColor);
-        Raylib.DrawText("AWAY", contentX + 6, contentY + 24, 14, panelText);
-        Raylib.DrawText($"{play.AwayScore}", x + ScoreboardWidth - 54, contentY + 20, 22, Palette.Red);
+        Raylib.DrawText(awayLabel, contentX + 6, contentY + 24, 14, defensiveTeam.SecondaryColor);
+        Raylib.DrawText($"{play.AwayScore}", x + ScoreboardWidth - 54, contentY + 20, 22, defensiveTeam.PrimaryColor);
         contentY += 54;
 
         // Down & Distance block

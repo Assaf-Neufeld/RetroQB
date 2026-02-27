@@ -1,6 +1,7 @@
 using System.Numerics;
 using Raylib_cs;
 using RetroQB.Core;
+using RetroQB.Data;
 
 namespace RetroQB.Entities;
 
@@ -30,7 +31,14 @@ public enum DefensivePosition
 public sealed class Defender : Entity
 {
     public DefensivePosition PositionRole { get; }
-    public float Speed { get; }
+    public DefenderSlot Slot { get; }
+    private readonly float _baseSpeed;
+    public float Speed => _baseSpeed * SpeedMultiplier;
+    public float SpeedMultiplier { get; private set; } = 1f;
+    public float InterceptionMultiplier { get; private set; } = 1f;
+    public float TackleMultiplier { get; private set; } = 1f;
+    public float BlockShedMultiplier { get; private set; } = 1f;
+    public bool IsStarPlayer { get; private set; }
     public bool IsRusher { get; set; }
     public int CoverageReceiverIndex { get; set; } = -1;
     public bool HasBall { get; set; }
@@ -66,11 +74,41 @@ public sealed class Defender : Entity
     /// </summary>
     public int ActiveBlockersCount { get; set; }
 
-    public Defender(Vector2 position, DefensivePosition role, DefensiveTeamAttributes? teamAttributes = null) 
+    public Defender(Vector2 position, DefensivePosition role, DefenderSlot slot, DefensiveTeamAttributes? teamAttributes = null)
         : base(position, Constants.DefenderRadius, role.ToString(), Palette.Red)
     {
         TeamAttributes = teamAttributes ?? DefensiveTeamAttributes.Default;
         PositionRole = role;
-        Speed = TeamAttributes.GetEffectiveSpeed(role);
+        Slot = slot;
+        _baseSpeed = TeamAttributes.GetEffectiveSpeed(role);
+    }
+
+    public void ApplyStarBoost(float speedMultiplier, float tackleMultiplier, float interceptionMultiplier, float blockShedMultiplier)
+    {
+        IsStarPlayer = true;
+        SpeedMultiplier *= speedMultiplier;
+        TackleMultiplier *= tackleMultiplier;
+        InterceptionMultiplier *= interceptionMultiplier;
+        BlockShedMultiplier *= blockShedMultiplier;
+    }
+
+    public override void Draw()
+    {
+        base.Draw();
+
+        if (!IsStarPlayer)
+        {
+            return;
+        }
+
+        Vector2 screen = Constants.WorldToScreen(Position);
+        const int fontSize = 14;
+        const string marker = "*";
+        int markerWidth = Raylib.MeasureText(marker, fontSize);
+        int drawX = (int)screen.X + 8 - markerWidth / 2;
+        int drawY = (int)screen.Y - 19;
+
+        Raylib.DrawText(marker, drawX + 1, drawY + 1, fontSize, new Color(10, 10, 14, 180));
+        Raylib.DrawText(marker, drawX, drawY, fontSize, Palette.Gold);
     }
 }

@@ -133,7 +133,7 @@ public sealed class BallController
 
                 // Check for interception
                 float interceptRadius = closestDefender != null
-                    ? defensiveTeam.GetEffectiveInterceptRadius(closestDefender.PositionRole)
+                    ? defensiveTeam.GetEffectiveInterceptRadius(closestDefender.PositionRole) * closestDefender.InterceptionMultiplier
                     : 0f;
 
                 if (closestDefender != null && closestDefenderDist <= interceptRadius && closestDefenderDist < receiverDist)

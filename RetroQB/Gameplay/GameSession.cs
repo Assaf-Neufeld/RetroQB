@@ -174,25 +174,13 @@ public sealed class GameSession
     /// </summary>
     private void SetDefensiveTeamForStage(SeasonStage stage)
     {
-        var allDefenses = DefensiveTeamPresets.All;
-        DefensiveTeamAttributes baseDefense;
-
-        switch (stage)
+        DefensiveTeamAttributes baseDefense = stage switch
         {
-            case SeasonStage.Playoff:
-                // Pick from the more challenging defenses
-                var playoffPool = new[] { allDefenses[1], allDefenses[2] }; // Blitzkrieg, Lockdown
-                baseDefense = playoffPool[_sessionRng.Next(playoffPool.Length)];
-                break;
-            case SeasonStage.SuperBowl:
-                // Use the toughest defensive preset
-                baseDefense = allDefenses[3]; // Iron Curtain
-                break;
-            default:
-                // Regular season: balanced defense
-                baseDefense = allDefenses[0]; // Sentinels
-                break;
-        }
+            SeasonStage.RegularSeason => DefensiveTeamPresets.ScarletGuard,
+            SeasonStage.Playoff => DefensiveTeamPresets.CrimsonRush,
+            SeasonStage.SuperBowl => DefensiveTeamPresets.BloodlineBastion,
+            _ => DefensiveTeamPresets.ScarletGuard
+        };
 
         // Apply stage difficulty multiplier to create a scaled-up version.
         // Pass-rush / DE speed uses a softer curve so the QB isn't instantly sacked.
@@ -736,6 +724,7 @@ public sealed class GameSession
                 _lastPlayText,
                 _driveOverText,
                 _offensiveTeam,
+                _defensiveTeam,
                 _selectedTeamIndex,
                 _stateManager.IsPaused,
                 _currentStage,
@@ -755,6 +744,7 @@ public sealed class GameSession
             _lastPlayText,
             _driveOverText,
             _offensiveTeam,
+            _defensiveTeam,
             _selectedTeamIndex,
             _stateManager.IsPaused,
             _currentStage,

@@ -13,14 +13,14 @@ namespace RetroQB.Data;
 public static class DefensiveTeamPresets
 {
     /// <summary>
-    /// Balanced defense with solid all-around attributes.
+    /// Regular season opponent: balanced defense with a lighter red palette.
     /// </summary>
-    public static DefensiveTeamAttributes Sentinels => new()
+    public static DefensiveTeamAttributes ScarletGuard => new()
     {
-        Name = "Sentinels",
-        Description = "Balanced",
-        PrimaryColor = new Color(100, 120, 160, 255),
-        SecondaryColor = new Color(180, 175, 165, 255),
+        Name = "Scarlet Guard",
+        Description = "Regular season",
+        PrimaryColor = new Color(176, 62, 62, 255),
+        SecondaryColor = new Color(226, 170, 170, 255),
         Roster = new DefensiveRoster
         {
             Defenders = new Dictionary<DefenderSlot, DefenderProfile>
@@ -50,14 +50,14 @@ public static class DefensiveTeamPresets
     };
 
     /// <summary>
-    /// Aggressive blitz-heavy defense with strong pass rush but weaker coverage.
+    /// Playoff opponent: aggressive blitz-heavy defense with a darker red palette.
     /// </summary>
-    public static DefensiveTeamAttributes Blitzkrieg => new()
+    public static DefensiveTeamAttributes CrimsonRush => new()
     {
-        Name = "Blitzkrieg",
-        Description = "Aggressive rush",
-        PrimaryColor = new Color(180, 80, 80, 255),
-        SecondaryColor = new Color(60, 55, 55, 255),
+        Name = "Crimson Rush",
+        Description = "Playoff",
+        PrimaryColor = new Color(136, 38, 38, 255),
+        SecondaryColor = new Color(191, 122, 122, 255),
         Roster = new DefensiveRoster
         {
             Defenders = new Dictionary<DefenderSlot, DefenderProfile>
@@ -144,14 +144,14 @@ public static class DefensiveTeamPresets
     };
 
     /// <summary>
-    /// Run-stuffing defense with dominant front seven but slower secondary.
+    /// Super Bowl opponent: run-stuffing defense with dominant front seven and darkest red palette.
     /// </summary>
-    public static DefensiveTeamAttributes IronCurtain => new()
+    public static DefensiveTeamAttributes BloodlineBastion => new()
     {
-        Name = "Iron Curtain",
-        Description = "Run stoppers",
-        PrimaryColor = new Color(85, 85, 95, 255),
-        SecondaryColor = new Color(165, 140, 100, 255),
+        Name = "Bloodline Bastion",
+        Description = "Super Bowl",
+        PrimaryColor = new Color(88, 18, 18, 255),
+        SecondaryColor = new Color(150, 82, 82, 255),
         Roster = new DefensiveRoster
         {
             Defenders = new Dictionary<DefenderSlot, DefenderProfile>
@@ -198,14 +198,14 @@ public static class DefensiveTeamPresets
     };
 
     /// <summary>
-    /// Preset list for menu selection.
+    /// Stage progression presets from regular season to Super Bowl.
     /// </summary>
     public static IReadOnlyList<DefensiveTeamAttributes> All { get; } = new List<DefensiveTeamAttributes>
     {
-        Sentinels,
-        Blitzkrieg,
+        ScarletGuard,
+        CrimsonRush,
+        BloodlineBastion,
         Lockdown,
-        IronCurtain
     };
 }
 
