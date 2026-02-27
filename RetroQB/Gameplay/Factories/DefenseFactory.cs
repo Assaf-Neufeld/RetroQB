@@ -63,7 +63,7 @@ public sealed class DefenseFactory : IDefenseFactory
         float depthScale = MathF.Max(availableDepth < 18f ? availableDepth / 18f : 1f, 0.3f);
 
         // Defensive line - DEs on the outside (circular rush), DTs inside (straight rush)
-        float dlDepth = ClampDefenderY(context.LineOfScrimmage + 1.8f * depthScale, maxY);
+        float dlDepth = ClampDefenderY(context.LineOfScrimmage + GetSituationalDepthOffset(1.8f, 1.2f, depthScale), maxY);
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, dlDepth), DefensivePosition.DE, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -5.0f });
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.46f, dlDepth), DefensivePosition.DL, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -2.0f });
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.54f, dlDepth), DefensivePosition.DL, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 2.0f });
@@ -75,7 +75,7 @@ public sealed class DefenseFactory : IDefenseFactory
         bool lbrBlitz = rng.NextDouble() < lbBlitzChance;
         bool mlbBlitz = !useNickel && rng.NextDouble() < lbBlitzChance;
 
-        float lbDepth = ClampDefenderY(context.LineOfScrimmage + 7.6f * depthScale, maxY);
+        float lbDepth = ClampDefenderY(context.LineOfScrimmage + GetSituationalDepthOffset(7.6f, 4.8f, depthScale), maxY);
         var lbRoles = GetLbZoneRoles(scheme);
 
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, lbDepth), DefensivePosition.LB, attrs)
@@ -372,10 +372,10 @@ public sealed class DefenseFactory : IDefenseFactory
         bool cover2ManPress = rng.NextDouble() < 0.4;
 
         // Common depth calculations
-        float pressDepth = ClampDefenderY(lineOfScrimmage + 3.5f * depthScale, maxY);
-        float offCbDepth = ClampDefenderY(lineOfScrimmage + 8.0f * depthScale, maxY);
-        float shallowSafetyDepth = ClampDefenderY(lineOfScrimmage + 10.0f * depthScale, maxY);
-        float deepSafetyDepth = ClampDefenderY(lineOfScrimmage + 16.0f * depthScale, maxY);
+        float pressDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(3.5f, 2.2f, depthScale), maxY);
+        float offCbDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(8.0f, 5.4f, depthScale), maxY);
+        float shallowSafetyDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(10.0f, 6.8f, depthScale), maxY);
+        float deepSafetyDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(16.0f, 10.5f, depthScale), maxY);
 
         return scheme switch
         {
@@ -453,13 +453,13 @@ public sealed class DefenseFactory : IDefenseFactory
                 cbPress: false,
                 // SS roles up to flat, FS takes deep middle
                 leftSafetyX: fw * 0.25f,
-                leftSafetyDepth: ClampDefenderY(lineOfScrimmage + 7.0f * depthScale, maxY),
+                leftSafetyDepth: ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(7.0f, 4.6f, depthScale), maxY),
                 leftSafetyZone: CoverageRole.FlatLeft,
                 rightSafetyX: fw * 0.50f,
                 rightSafetyDepth: deepSafetyDepth,
                 rightSafetyZone: CoverageRole.DeepMiddle,
                 nickelX: useNickel ? fw * 0.75f : -1,
-                nickelDepth: ClampDefenderY(lineOfScrimmage + 7.0f * depthScale, maxY),
+                nickelDepth: ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(7.0f, 4.6f, depthScale), maxY),
                 nickelZone: CoverageRole.FlatRight
             ),
 
@@ -520,6 +520,11 @@ public sealed class DefenseFactory : IDefenseFactory
     private static float ClampDefenderY(float y, float maxY)
     {
         return MathF.Min(y, maxY);
+    }
+
+    private static float GetSituationalDepthOffset(float baseOffset, float minOffset, float depthScale)
+    {
+        return minOffset + (baseOffset - minOffset) * depthScale;
     }
 
     private static void ResolveCoverageIndices(List<Receiver> receivers, out int left, out int leftSlot, out int middle, out int rightSlot, out int right)

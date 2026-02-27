@@ -95,8 +95,7 @@ public static class DefenderTargeting
 
         if (useZoneCoverage && defender.ZoneRole != CoverageRole.None)
         {
-            Vector2 zoneTarget = ZoneCoverage.GetZoneTarget(defender, receivers, lineOfScrimmage);
-            return ballFocus > 0f ? Vector2.Lerp(zoneTarget, ballLead, ballFocus) : zoneTarget;
+            return ballLead;
         }
 
         if (defender.CoverageReceiverIndex >= 0 && defender.CoverageReceiverIndex < receivers.Count)

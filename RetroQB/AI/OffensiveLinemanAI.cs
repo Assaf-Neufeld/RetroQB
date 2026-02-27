@@ -43,6 +43,7 @@ public static class OffensiveLinemanAI
         {
             RunProfile profile = GetRunProfile(blocker, context);
             Vector2 targetAnchor = ComputeAnchorForBlocker(blocker, context, profile);
+            bool isCenter = IsCenterPosition(blocker.HomeX);
 
             // Scale engagement radius by team's blocking strength
             // Tackles get a wider engagement zone to pick up edge rushers earlier
@@ -51,8 +52,12 @@ public static class OffensiveLinemanAI
             {
                 engageRadius *= 1.15f;
             }
+            if (!context.IsRunPlay && isCenter)
+            {
+                engageRadius *= 1.35f;
+            }
             // On run plays, engage any defender (including DBs coming up); on pass plays prefer rushers
-            Defender? target = GetClosestDefender(defenders, blocker.Position, engageRadius, preferRushers: !context.IsRunPlay);
+            Defender? target = GetClosestDefender(defenders, blocker.Position, engageRadius, preferRushers: !context.IsRunPlay && !isCenter);
             bool closeToAnchor = IsWithinEngageRange(blocker.Position, targetAnchor, 0.9f);
             
             // For pass plays, prioritize getting to anchor position first before engaging
@@ -75,7 +80,7 @@ public static class OffensiveLinemanAI
                     emergencyEngageRadius *= 1.3f;
                 }
                 bool defenderVeryClose = target != null && IsWithinEngageRange(blocker.Position, target.Position, emergencyEngageRadius);
-                shouldEngage = target != null && (closeToAnchor || defenderVeryClose);
+                shouldEngage = target != null && (isCenter || closeToAnchor || defenderVeryClose);
             }
 
             if (shouldEngage)
@@ -426,6 +431,13 @@ public static class OffensiveLinemanAI
         float distFromCenter = MathF.Abs(homeX - centerX);
         // Base OL at 0.42/0.46/0.50/0.54/0.58 — tackles are ~3.7+ units from center
         return distFromCenter >= 3.5f;
+    }
+
+    private static bool IsCenterPosition(float homeX)
+    {
+        float centerX = Constants.FieldWidth * 0.5f;
+        // Center lines up at midpoint; allow small tolerance for formation variance.
+        return MathF.Abs(homeX - centerX) <= 0.8f;
     }
 
 
