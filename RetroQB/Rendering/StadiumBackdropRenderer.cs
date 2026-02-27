@@ -94,48 +94,50 @@ internal sealed class StadiumBackdropRenderer
     private static void DrawStadiumLights(int leftBleacherX, int rightBleacherX, int bleacherWidth)
     {
         int bleacherTop = (int)Constants.WorldToScreenY(Constants.EndZoneDepth + 90f);
-        int leftA = leftBleacherX + (int)(bleacherWidth * 0.28f);
-        int leftB = leftBleacherX + (int)(bleacherWidth * 0.72f);
-        int rightA = rightBleacherX + (int)(bleacherWidth * 0.28f);
-        int rightB = rightBleacherX + (int)(bleacherWidth * 0.72f);
+        int bleacherBottom = (int)Constants.WorldToScreenY(Constants.EndZoneDepth + 10f);
+        int leftX = leftBleacherX + (bleacherWidth / 2);
+        int rightX = rightBleacherX + (bleacherWidth / 2);
 
         Color pole = new Color(60, 60, 75, 255);
         Color light = new Color(255, 244, 210, 230);
         Color glow = new Color(255, 244, 210, 120);
 
-        DrawLightTower(leftA, bleacherTop, pole, light, glow);
-        DrawLightTower(leftB, bleacherTop, pole, light, glow);
-        DrawLightTower(rightA, bleacherTop, pole, light, glow);
-        DrawLightTower(rightB, bleacherTop, pole, light, glow);
+        DrawLightTower(leftX, bleacherTop, facesLeft: true, isBottomMount: false, pole, light, glow);
+        DrawLightTower(rightX, bleacherTop, facesLeft: false, isBottomMount: false, pole, light, glow);
+        DrawLightTower(leftX, bleacherBottom, facesLeft: true, isBottomMount: true, pole, light, glow);
+        DrawLightTower(rightX, bleacherBottom, facesLeft: false, isBottomMount: true, pole, light, glow);
     }
 
-    private static void DrawLightTower(int x, int bleacherTopY, Color pole, Color light, Color glow)
+    private static void DrawLightTower(int x, int mountY, bool facesLeft, bool isBottomMount, Color pole, Color light, Color glow)
     {
-        int poleWidth = 6;
-        int poleHeight = 32;
-        int poleTopY = bleacherTopY - poleHeight;
-        int headY = poleTopY - 10;
-        int lightBarWidth = 34;
-        int lightBarHeight = 10;
+        int poleWidth = 5;
+        int poleHeight = isBottomMount ? 16 : 20;
+        int poleTopY = mountY - poleHeight;
+        int headY = poleTopY - 6;
+        int armLength = 10;
+        int armDir = facesLeft ? -1 : 1;
+        int headX = x + (armLength * armDir);
+        int armX = Math.Min(x, headX);
+        int armWidth = Math.Abs(headX - x);
+        int lightBarWidth = 30;
+        int lightBarHeight = 8;
 
-        // Pole rises from the bleacher top edge up to the light assembly.
         Raylib.DrawRectangle(x - (poleWidth / 2), poleTopY, poleWidth, poleHeight, pole);
+        Raylib.DrawRectangle(armX, poleTopY + 1, armWidth, 3, AdjustColor(pole, 6));
 
-        // Bracket and lamp bar centered over the pole.
-        Raylib.DrawRectangle(x - 2, poleTopY - 5, 4, 6, AdjustColor(pole, 8));
-        Raylib.DrawRectangle(x - (lightBarWidth / 2), headY, lightBarWidth, lightBarHeight, pole);
-        Raylib.DrawRectangleLines(x - (lightBarWidth / 2), headY, lightBarWidth, lightBarHeight, AdjustColor(pole, 15));
+        Raylib.DrawRectangle(headX - 2, poleTopY - 4, 4, 5, AdjustColor(pole, 8));
+        Raylib.DrawRectangle(headX - (lightBarWidth / 2), headY, lightBarWidth, lightBarHeight, pole);
+        Raylib.DrawRectangleLines(headX - (lightBarWidth / 2), headY, lightBarWidth, lightBarHeight, AdjustColor(pole, 15));
 
-        for (int i = -12; i <= 12; i += 6)
+        for (int i = -10; i <= 10; i += 5)
         {
-            int lightX = x + i;
-            int lightY = headY + 3;
+            int lightX = headX + i;
+            int lightY = headY + 2;
             Raylib.DrawRectangle(lightX - 2, lightY, 4, 4, light);
             Raylib.DrawRectangle(lightX - 3, lightY - 1, 6, 6, glow);
         }
 
-        // Mounting base at bleacher top for cleaner placement.
-        Raylib.DrawRectangle(x - 4, bleacherTopY - 1, 8, 3, AdjustColor(pole, 10));
+        Raylib.DrawRectangle(x - 4, mountY - 1, 8, 3, AdjustColor(pole, 10));
     }
 
     private static Color AdjustColor(Color color, int delta)
