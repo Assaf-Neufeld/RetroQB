@@ -31,15 +31,17 @@ public sealed class PlaySetupController
     public PlaySetupResult SetupPlay(
         PlayDefinition selectedPlay,
         DefensiveContext context,
+        DefensiveCallDecision call,
         OffensiveTeamAttributes offensiveTeam,
         DefensiveTeamAttributes defensiveTeam)
     {
         // Create offensive formation
         var formationResult = _formationFactory.CreateFormation(selectedPlay, context.LineOfScrimmage, offensiveTeam);
 
-        // Create defense
+        // Create defense using the pre-decided scheme + blitz
         var defenseResult = _defenseFactory.CreateDefense(
             context,
+            call,
             formationResult.Receivers,
             _rng,
             defensiveTeam);

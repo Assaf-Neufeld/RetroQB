@@ -19,7 +19,7 @@ public readonly record struct DefensiveContext(
 
 public interface IDefenseFactory
 {
-    DefenseResult CreateDefense(DefensiveContext context, List<Receiver> receivers, Random rng, DefensiveTeamAttributes? teamAttributes = null);
+    DefenseResult CreateDefense(DefensiveContext context, DefensiveCallDecision call, List<Receiver> receivers, Random rng, DefensiveTeamAttributes? teamAttributes = null);
 }
 
 public sealed class DefenseResult
@@ -32,8 +32,6 @@ public sealed class DefenseResult
 
 public sealed class DefenseFactory : IDefenseFactory
 {
-    private readonly IBlitzDecisionStrategy _blitzDecisionStrategy;
-
     private enum CoverageUnit
     {
         Linebacker,
@@ -45,22 +43,16 @@ public sealed class DefenseFactory : IDefenseFactory
     /// </summary>
     private const float MaxZoneJitter = 1.8f;
 
-    public DefenseFactory(IBlitzDecisionStrategy? blitzDecisionStrategy = null)
-    {
-        _blitzDecisionStrategy = blitzDecisionStrategy ?? new DefaultBlitzDecisionStrategy();
-    }
-
-    public DefenseResult CreateDefense(DefensiveContext context, List<Receiver> receivers, Random rng, DefensiveTeamAttributes? teamAttributes = null)
+    public DefenseResult CreateDefense(DefensiveContext context, DefensiveCallDecision call, List<Receiver> receivers, Random rng, DefensiveTeamAttributes? teamAttributes = null)
     {
         var attrs = teamAttributes ?? DefensiveTeamAttributes.Default;
         var defenders = new List<Defender>();
 
         ResolveCoverageIndices(receivers, out int left, out int leftSlot, out int middle, out int rightSlot, out int right);
 
-        // Select coverage scheme based on game situation
-        CoverageScheme scheme = CoverageSchemeSelector.SelectScheme(
-            context.Down, context.Distance, context.LineOfScrimmage,
-            context.Score, context.AwayScore, context.Stage, rng);
+        // Use the pre-decided scheme and blitz from the coordinator
+        CoverageScheme scheme = call.Scheme;
+        BlitzDecision blitzDecision = call.Blitz;
         bool hasNickelPackage = UsesNickelPackage(scheme);
 
         bool useZone = IsZoneScheme(scheme);
@@ -75,8 +67,6 @@ public sealed class DefenseFactory : IDefenseFactory
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.46f, dlDepth), DefensivePosition.DL, DefenderSlot.DT1, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -2.0f });
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.54f, dlDepth), DefensivePosition.DL, DefenderSlot.DT2, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 2.0f });
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, dlDepth), DefensivePosition.DE, DefenderSlot.DE2, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 5.0f });
-
-        BlitzDecision blitzDecision = _blitzDecisionStrategy.DecideBlitzers(scheme, attrs, context, rng);
 
         float lbDepth = ClampDefenderY(context.LineOfScrimmage + GetSituationalDepthOffset(7.6f, 4.8f, depthScale), maxY);
         var lbRoles = GetLbZoneRoles(scheme);

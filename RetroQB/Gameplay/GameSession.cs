@@ -38,6 +38,10 @@ public sealed class GameSession
     private readonly ReplayPlayer _replayPlayer;
     private readonly ReplayStateHandler _replayStateHandler;
 
+    // Defensive AI
+    private readonly DefensiveMemory _defensiveMemory = new();
+    private readonly DefensiveCoordinator _defensiveCoordinator;
+
     // Team attributes
     private OffensiveTeamAttributes _offensiveTeam = OffensiveTeamAttributes.Default;
     private DefensiveTeamAttributes _defensiveTeam = DefensiveTeamAttributes.Default;
@@ -108,6 +112,8 @@ public sealed class GameSession
         _replayPlayer = replayPlayer;
         _replayStateHandler = replayStateHandler;
 
+        _defensiveCoordinator = new DefensiveCoordinator(_defensiveMemory);
+
         // Initialize controllers
         _overlapResolver = new OverlapResolver();
         _receiverPriorityManager = new ReceiverPriorityManager();
@@ -161,6 +167,7 @@ public sealed class GameSession
     private void InitializeGame()
     {
         _playManager.StartNewGame();
+        _defensiveMemory.Reset();
         SetDefensiveTeamForStage(_currentStage);
         SetupEntities();
         ResetPlayState();
@@ -244,9 +251,13 @@ public sealed class GameSession
             _playManager.AwayScore,
             _currentStage);
 
+        // Single decision point: coordinator handles situation + stage + memory
+        var call = _defensiveCoordinator.Decide(context, _defensiveTeam, _sessionRng);
+
         var result = _playSetupController.SetupPlay(
             _playManager.SelectedPlay,
             context,
+            call,
             _offensiveTeam,
             _defensiveTeam);
 
@@ -627,6 +638,13 @@ public sealed class GameSession
         _replayClipStore.Store(clip);
 
         _playManager.FinalizePlayRecord(outcome, gain, catcherLabel, catcherRoute, wasRun, isSack, sackYardsLost);
+
+        // Feed the result to defensive memory so it learns for future plays
+        var lastRecord = _playManager.PlayRecords.LastOrDefault();
+        if (lastRecord != null)
+        {
+            _defensiveMemory.RecordOutcome(lastRecord);
+        }
 
         if (touchdown)
         {
