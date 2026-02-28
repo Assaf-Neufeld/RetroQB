@@ -105,7 +105,7 @@ public sealed class MenuRenderer
                 Raylib.DrawRectangleLines(rowX - 4, teamY - 2, rowWidth + 8, teamLineHeight - 6, team.PrimaryColor);
                 
                 // Selection indicator arrow
-                Raylib.DrawText("►", rowX - 2, teamY + 4, 18, Palette.Gold);
+                Raylib.DrawText(">", rowX - 2, teamY + 4, 18, Palette.Gold);
             }
 
             // Team color swatches
