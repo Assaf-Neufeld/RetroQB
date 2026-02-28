@@ -16,7 +16,7 @@ public sealed class MenuRenderer
 
         // Calculate panel dimensions for unified window
         int panelWidth = 560;
-        int panelHeight = 420;
+        int panelHeight = 530;
         int panelX = centerX - panelWidth / 2;
         int panelY = centerY - panelHeight / 2;
 
@@ -53,7 +53,7 @@ public sealed class MenuRenderer
         contentY += 20;
 
         // GAME RULES SECTION
-        string goalText = "★ WIN 3 STAGES TO BECOME CHAMPION ★";
+        string goalText = "* WIN 3 STAGES TO BECOME CHAMPION *";
         int goalSize = 18;
         int goalWidth = Raylib.MeasureText(goalText, goalSize);
         Raylib.DrawText(goalText, panelX + (panelWidth - goalWidth) / 2, contentY, goalSize, Palette.Lime);
@@ -81,13 +81,13 @@ public sealed class MenuRenderer
 
         // Team selection area background
         int teamAreaWidth = panelWidth - 50;
-        int teamAreaHeight = 38 * teams.Count + 12;
+        int teamLineHeight = 72;
+        int teamAreaHeight = teamLineHeight * teams.Count + 12;
         int teamAreaX = panelX + 25;
         Raylib.DrawRectangle(teamAreaX, contentY, teamAreaWidth, teamAreaHeight, new Color(8, 12, 18, 220));
         Raylib.DrawRectangleLines(teamAreaX, contentY, teamAreaWidth, teamAreaHeight, new Color(50, 70, 100, 180));
 
         int teamY = contentY + 8;
-        int teamLineHeight = 38;
 
         for (int i = 0; i < teams.Count; i++)
         {
@@ -101,8 +101,8 @@ public sealed class MenuRenderer
             if (isSelected)
             {
                 // Selection highlight
-                Raylib.DrawRectangle(rowX - 4, teamY - 2, rowWidth + 8, 32, new Color(40, 50, 70, 200));
-                Raylib.DrawRectangleLines(rowX - 4, teamY - 2, rowWidth + 8, 32, team.PrimaryColor);
+                Raylib.DrawRectangle(rowX - 4, teamY - 2, rowWidth + 8, teamLineHeight - 6, new Color(40, 50, 70, 200));
+                Raylib.DrawRectangleLines(rowX - 4, teamY - 2, rowWidth + 8, teamLineHeight - 6, team.PrimaryColor);
                 
                 // Selection indicator arrow
                 Raylib.DrawText("►", rowX - 2, teamY + 4, 18, Palette.Gold);
@@ -121,6 +121,9 @@ public sealed class MenuRenderer
             
             string teamLine = $"{team.Name} - {team.Description}";
             Raylib.DrawText(teamLine, swatchX + 92, teamY + 6, 18, textColor);
+
+            // Stat bar chart
+            DrawTeamStatBars(team, rowX + 18, teamY + 32, rowWidth - 30, isSelected);
 
             teamY += teamLineHeight;
         }
@@ -141,6 +144,107 @@ public sealed class MenuRenderer
         Raylib.DrawText(controls1, panelX + (panelWidth - ctrl1Width) / 2, contentY, ctrlSize, new Color(160, 180, 200, 255));
         contentY += ctrlSize + 8;
         Raylib.DrawText(controls2, panelX + (panelWidth - ctrl2Width) / 2, contentY, ctrlSize, Palette.Yellow);
+    }
+
+    /// <summary>
+    /// Draws a horizontal row of four stat bars (WR, RB, QB, OL) for a team.
+    /// </summary>
+    private static void DrawTeamStatBars(OffensiveTeamAttributes team, int x, int y, int availableWidth, bool highlighted)
+    {
+        var (wrRating, rbRating, qbRating, olRating) = ComputeTeamRatings(team);
+        ReadOnlySpan<string> labels = ["WR", "RB", "QB", "OL"];
+        ReadOnlySpan<float> values = [wrRating, rbRating, qbRating, olRating];
+
+        int labelWidth = 24;
+        int barHeight = 8;
+        int groupSpacing = 8;
+        int groupWidth = (availableWidth - groupSpacing * 3) / 4;
+        int barMaxWidth = groupWidth - labelWidth - 4;
+
+        Color labelColor = highlighted ? new Color(180, 200, 220, 255) : new Color(120, 140, 160, 255);
+        Color barBg = new Color(30, 35, 45, 200);
+        Color barBorder = new Color(60, 70, 85, 180);
+
+        for (int j = 0; j < 4; j++)
+        {
+            int bx = x + j * (groupWidth + groupSpacing);
+
+            // Label
+            Raylib.DrawText(labels[j], bx, y, 12, labelColor);
+
+            // Bar background
+            int barX = bx + labelWidth;
+            Raylib.DrawRectangle(barX, y + 1, barMaxWidth, barHeight, barBg);
+
+            // Bar fill
+            int fillWidth = (int)(barMaxWidth * Math.Clamp(values[j], 0f, 1f));
+            if (fillWidth > 0)
+            {
+                Color barColor = GetRatingBarColor(values[j]);
+                Raylib.DrawRectangle(barX, y + 1, fillWidth, barHeight, barColor);
+            }
+
+            // Bar outline
+            Raylib.DrawRectangleLines(barX, y + 1, barMaxWidth, barHeight, barBorder);
+        }
+    }
+
+    /// <summary>
+    /// Computes 0-1 ratings for WR, RB, QB, and OL from team roster data.
+    /// </summary>
+    private static (float WR, float RB, float QB, float OL) ComputeTeamRatings(OffensiveTeamAttributes team)
+    {
+        var roster = team.Roster;
+
+        // WR: average speed multiplier + average catching ability
+        float wrSpeedSum = 0f, wrCatchSum = 0f;
+        int wrCount = 0;
+        foreach (var wr in roster.WideReceivers.Values)
+        {
+            wrSpeedSum += wr.Speed / Constants.WrSpeed;
+            wrCatchSum += wr.CatchingAbility;
+            wrCount++;
+        }
+        float wrSpeedRating = wrCount > 0 ? Math.Clamp((wrSpeedSum / wrCount - 0.7f) / 0.7f, 0f, 1f) : 0f;
+        float wrCatchRating = wrCount > 0 ? Math.Clamp((wrCatchSum / wrCount - 0.4f) / 0.6f, 0f, 1f) : 0f;
+        float wrRating = (wrSpeedRating + wrCatchRating) / 2f;
+
+        // RB: speed multiplier + tackle break chance
+        var rb = roster.RunningBacks.Values.FirstOrDefault() ?? RbProfile.Default;
+        float rbSpeedRating = Math.Clamp((rb.Speed / Constants.RbSpeed - 0.7f) / 0.7f, 0f, 1f);
+        float rbTackleRating = Math.Clamp((rb.TackleBreakChance - 0.1f) / 0.4f, 0f, 1f);
+        float rbRating = (rbSpeedRating + rbTackleRating) / 2f;
+
+        // QB: accuracy (lower = better, inverted) + arm strength
+        var qb = roster.Quarterback;
+        float qbAccuracyRating = Math.Clamp((1.0f - qb.Accuracy) / 0.5f, 0f, 1f);
+        float qbArmRating = Math.Clamp((qb.ArmStrength - 0.7f) / 0.6f, 0f, 1f);
+        float qbRating = (qbAccuracyRating + qbArmRating) / 2f;
+
+        // OL: blocking strength
+        float olRating = Math.Clamp((roster.OffensiveLine.BlockingStrength - 0.6f) / 0.8f, 0f, 1f);
+
+        return (wrRating, rbRating, qbRating, olRating);
+    }
+
+    /// <summary>
+    /// Returns a color interpolated from red (low) through yellow (mid) to green (high).
+    /// </summary>
+    private static Color GetRatingBarColor(float rating)
+    {
+        rating = Math.Clamp(rating, 0f, 1f);
+        if (rating < 0.5f)
+        {
+            // Red → Yellow
+            float t = rating / 0.5f;
+            return new Color((byte)200, (byte)(60 + (int)(140 * t)), (byte)40, (byte)255);
+        }
+        else
+        {
+            // Yellow → Green
+            float t = (rating - 0.5f) / 0.5f;
+            return new Color((byte)(200 - (int)(150 * t)), (byte)200, (byte)(40 + (int)(40 * t)), (byte)255);
+        }
     }
 
     public void DrawPause()
