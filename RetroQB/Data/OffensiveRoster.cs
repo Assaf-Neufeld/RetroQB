@@ -15,15 +15,13 @@ public sealed record QbProfile
     public float SprintSpeed { get; init; } = Constants.QbSprintSpeed;
     public float Acceleration { get; init; } = Constants.QbAcceleration;
     public float Friction { get; init; } = Constants.QbFriction;
-    
-    /// <summary>Throwing inaccuracy (lower = more accurate). 1.0 = baseline.</summary>
-    public float ThrowInaccuracy { get; init; } = 1.0f;
-    /// <summary>Short pass accuracy (lower = more accurate). 0.9 = baseline.</summary>
-    public float ShortAccuracy { get; init; } = 0.9f;
-    /// <summary>Medium pass accuracy (lower = more accurate). 1.0 = baseline.</summary>
-    public float MediumAccuracy { get; init; } = 1.0f;
-    /// <summary>Long pass accuracy (lower = more accurate). 1.15 = baseline.</summary>
-    public float LongAccuracy { get; init; } = 1.15f;
+    /// <summary>Arm strength multiplier. 1.0 = baseline.</summary>
+    public float ArmStrength { get; init; } = 1.0f;
+
+    /// <summary>Base throw accuracy multiplier (lower = more accurate). 1.0 = baseline.</summary>
+    public float Accuracy { get; init; } = 0.9f;
+    /// <summary>Accuracy penalty at max throw depth (higher = less accurate deep). 1.0 = no extra penalty.</summary>
+    public float DeepAccuracyPenalty { get; init; } = 1.15f;
 
     public static QbProfile Default => new();
 }
@@ -131,16 +129,21 @@ public sealed class OffensiveRoster
     public float GetQbSprintSpeed() => Quarterback.SprintSpeed;
     public float GetQbAcceleration() => Quarterback.Acceleration;
     public float GetQbFriction() => Quarterback.Friction;
-    public float GetQbThrowInaccuracy() => Math.Clamp(Quarterback.ThrowInaccuracy, 0.6f, 1.6f);
-    
-    public float GetQbDistanceAccuracy(float distance)
+    public float GetQbArmStrength() => Math.Clamp(Quarterback.ArmStrength, Constants.QbArmStrengthMin, Constants.QbArmStrengthMax);
+    public float GetQbMaxThrowDistance() => Constants.QbBaseMaxThrowDistance * GetQbArmStrength();
+
+    public float GetQbAccuracy(float distance)
     {
-        float baseMultiplier = distance <= Constants.ShortPassMaxDistance
-            ? Quarterback.ShortAccuracy
-            : distance <= Constants.MediumPassMaxDistance
-                ? Quarterback.MediumAccuracy
-                : Quarterback.LongAccuracy;
-        return Math.Clamp(baseMultiplier, 0.6f, 1.6f);
+        float baseAccuracy = Math.Clamp(Quarterback.Accuracy, 0.6f, 1.6f);
+        float deepPenalty = Math.Clamp(Quarterback.DeepAccuracyPenalty, 1.0f, 1.6f);
+        float maxThrowDistance = GetQbMaxThrowDistance();
+        float range = maxThrowDistance - Constants.ShortPassMaxDistance;
+        float depthT = range > 0.01f
+            ? Math.Clamp((distance - Constants.ShortPassMaxDistance) / range, 0f, 1f)
+            : 1f;
+
+        float effective = baseAccuracy * (1f + (deepPenalty - 1f) * depthT);
+        return Math.Clamp(effective, 0.6f, 1.6f);
     }
 
     // Receiver accessors by slot

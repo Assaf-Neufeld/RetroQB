@@ -65,8 +65,9 @@ public sealed class OffensiveTeamAttributes : TeamAttributes
     public float GetQbSprintSpeed() => Roster.GetQbSprintSpeed();
     public float GetQbAcceleration() => Roster.GetQbAcceleration();
     public float GetQbFriction() => Roster.GetQbFriction();
-    public float GetQbThrowInaccuracyMultiplier() => Roster.GetQbThrowInaccuracy();
-    public float GetQbDistanceAccuracyMultiplier(float distance) => Roster.GetQbDistanceAccuracy(distance);
+    public float GetQbArmStrengthMultiplier() => Roster.GetQbArmStrength();
+    public float GetQbMaxThrowDistance() => Roster.GetQbMaxThrowDistance();
+    public float GetQbAccuracyMultiplier(float distance) => Roster.GetQbAccuracy(distance);
 
     // Receiver delegations
     public float GetReceiverSpeed(ReceiverSlot slot) => Roster.GetReceiverSpeed(slot);

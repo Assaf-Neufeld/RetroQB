@@ -64,6 +64,9 @@ public static class Constants
     public const float QbSprintSpeed = 11f;
     public const float QbAcceleration = 28f;
     public const float QbFriction = 16f;
+    public const float QbArmStrengthMin = 0.75f;
+    public const float QbArmStrengthMax = 1.3f;
+    public const float QbBaseMaxThrowDistance = 40f;
 
     public const float WrSpeed = 7.6f;
     public const float TeSpeed = 6.9f;

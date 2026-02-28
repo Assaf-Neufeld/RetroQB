@@ -239,24 +239,31 @@ public sealed class BallController
 
         float pressure = GetQbPressureFactor(qb, defenders);
         Vector2 targetVelocityForThrow = GetTargetVelocityForThrow(qb, receiver);
+        float qbArmStrength = offensiveTeam.GetQbArmStrengthMultiplier();
+        float throwSpeed = Math.Clamp(
+            Constants.BallMaxSpeed * qbArmStrength,
+            Constants.BallMinSpeed,
+            Constants.BallMaxSpeed * Constants.QbArmStrengthMax);
+
         Vector2 throwVelocity = _throwingMechanics.CalculateThrowVelocity(
             qb.Position,
             qb.Velocity,
             receiver.Position,
             targetVelocityForThrow,
-            Constants.BallMaxSpeed,
+            throwSpeed,
             pressure,
             offensiveTeam,
             _rng);
 
         Vector2 toReceiver = receiver.Position - qb.Position;
-        float leadTime = _throwingMechanics.CalculateInterceptTime(toReceiver, targetVelocityForThrow, Constants.BallMaxSpeed);
+        float leadTime = _throwingMechanics.CalculateInterceptTime(toReceiver, targetVelocityForThrow, throwSpeed);
         leadTime = Math.Clamp(leadTime, 0f, Constants.BallMaxAirTime);
         Vector2 leadTarget = receiver.Position + targetVelocityForThrow * leadTime;
         float intendedDistance = Vector2.Distance(qb.Position, leadTarget);
 
         float overthrowAllowance = GetOverthrowAllowance(intendedDistance);
-        float maxTravelDistance = intendedDistance + overthrowAllowance;
+        float qbMaxThrowDistance = offensiveTeam.GetQbMaxThrowDistance();
+        float maxTravelDistance = MathF.Min(intendedDistance + overthrowAllowance, qbMaxThrowDistance);
         float arcApexHeight = GetPassArcApex(intendedDistance);
 
         ball.SetInAir(qb.Position, throwVelocity, intendedDistance, maxTravelDistance, arcApexHeight);

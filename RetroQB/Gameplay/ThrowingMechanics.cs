@@ -45,10 +45,10 @@ public sealed class ThrowingMechanics : IThrowingMechanics
         }
 
         float movementPenalty = GetMovementInaccuracyPenalty(qbVelocity, dir);
-        float distanceMultiplier = offensiveTeam.GetQbDistanceAccuracyMultiplier(toReceiver.Length());
+        float accuracyMultiplier = offensiveTeam.GetQbAccuracyMultiplier(toReceiver.Length());
         float combinedFactor = Math.Clamp(pressure + movementPenalty, 0f, 1f);
         float inaccuracyDeg = Lerp(ThrowBaseInaccuracyDeg, ThrowMaxInaccuracyDeg, combinedFactor);
-        inaccuracyDeg *= offensiveTeam.GetQbThrowInaccuracyMultiplier() * distanceMultiplier;
+        inaccuracyDeg *= accuracyMultiplier;
         float inaccuracyRad = inaccuracyDeg * (MathF.PI / 180f);
         float angle = ((float)rng.NextDouble() * 2f - 1f) * inaccuracyRad;
         dir = Rotate(dir, angle);

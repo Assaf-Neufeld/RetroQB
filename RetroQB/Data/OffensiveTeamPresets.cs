@@ -28,10 +28,9 @@ public static class OffensiveTeamPresets
                 MaxSpeed = Constants.QbMaxSpeed * 1.05f,
                 SprintSpeed = Constants.QbSprintSpeed * 1.05f,
                 Acceleration = Constants.QbAcceleration * 1.05f,
-                ThrowInaccuracy = 0.9f,
-                ShortAccuracy = 0.85f,
-                MediumAccuracy = 0.9f,
-                LongAccuracy = 1.0f
+                ArmStrength = 1.0f,
+                Accuracy = 0.765f,
+                DeepAccuracyPenalty = 1.176f
             },
             WideReceivers = new Dictionary<ReceiverSlot, WrProfile>
             {
@@ -70,10 +69,9 @@ public static class OffensiveTeamPresets
                 MaxSpeed = Constants.QbMaxSpeed * 0.85f,
                 SprintSpeed = Constants.QbSprintSpeed * 0.9f,
                 Acceleration = Constants.QbAcceleration * 0.9f,
-                ThrowInaccuracy = 0.75f,
-                ShortAccuracy = 0.7f,
-                MediumAccuracy = 0.75f,
-                LongAccuracy = 0.85f
+                ArmStrength = 1.15f,
+                Accuracy = 0.525f,
+                DeepAccuracyPenalty = 1.214f
             },
             WideReceivers = new Dictionary<ReceiverSlot, WrProfile>
             {
@@ -112,10 +110,9 @@ public static class OffensiveTeamPresets
                 MaxSpeed = Constants.QbMaxSpeed * 1.1f,
                 SprintSpeed = Constants.QbSprintSpeed * 1.1f,
                 Acceleration = Constants.QbAcceleration * 1.1f,
-                ThrowInaccuracy = 1.05f,
-                ShortAccuracy = 0.95f,
-                MediumAccuracy = 1.0f,
-                LongAccuracy = 1.1f
+                ArmStrength = 0.9f,
+                Accuracy = 0.998f,
+                DeepAccuracyPenalty = 1.158f
             },
             WideReceivers = new Dictionary<ReceiverSlot, WrProfile>
             {
