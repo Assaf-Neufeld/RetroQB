@@ -57,18 +57,22 @@ public sealed class DefenseFactory : IDefenseFactory
 
         bool useZone = IsZoneScheme(scheme);
 
-        float maxY = FieldGeometry.OpponentGoalLine - 1f;
+        float maxY = Constants.FieldLength - 1f;
+        bool isGoalLineSituation = context.LineOfScrimmage >= FieldGeometry.OpponentGoalLine - 2.5f;
+        float minY = isGoalLineSituation
+            ? MathF.Min(FieldGeometry.OpponentGoalLine + 0.2f, maxY)
+            : MathF.Min(context.LineOfScrimmage + 0.35f, maxY);
         float availableDepth = maxY - context.LineOfScrimmage;
         float depthScale = MathF.Max(availableDepth < 18f ? availableDepth / 18f : 1f, 0.3f);
 
         // Defensive line - DEs on the outside (circular rush), DTs inside (straight rush)
-        float dlDepth = ClampDefenderY(context.LineOfScrimmage + GetSituationalDepthOffset(1.8f, 1.2f, depthScale), maxY);
+        float dlDepth = ClampDefenderY(context.LineOfScrimmage + GetSituationalDepthOffset(1.8f, 1.2f, depthScale), minY, maxY);
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, dlDepth), DefensivePosition.DE, DefenderSlot.DE1, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -5.0f });
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.46f, dlDepth), DefensivePosition.DL, DefenderSlot.DT1, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -2.0f });
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.54f, dlDepth), DefensivePosition.DL, DefenderSlot.DT2, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 2.0f });
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, dlDepth), DefensivePosition.DE, DefenderSlot.DE2, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 5.0f });
 
-        float lbDepth = ClampDefenderY(context.LineOfScrimmage + GetSituationalDepthOffset(7.6f, 4.8f, depthScale), maxY);
+        float lbDepth = ClampDefenderY(context.LineOfScrimmage + GetSituationalDepthOffset(7.6f, 4.8f, depthScale), minY, maxY);
         var lbRoles = GetLbZoneRoles(scheme);
 
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, lbDepth), DefensivePosition.LB, DefenderSlot.OLB1, attrs)
@@ -100,7 +104,7 @@ public sealed class DefenseFactory : IDefenseFactory
         });
 
         // DBs - positioning and roles vary by scheme
-        var dbConfig = GetDbConfiguration(scheme, context.LineOfScrimmage, depthScale, maxY,
+        var dbConfig = GetDbConfiguration(scheme, context.LineOfScrimmage, depthScale, minY, maxY,
             receivers, left, leftSlot, middle, rightSlot, right, rng);
 
         // Cornerbacks
@@ -367,7 +371,7 @@ public sealed class DefenseFactory : IDefenseFactory
     }
 
     private static DbConfig GetDbConfiguration(
-        CoverageScheme scheme, float lineOfScrimmage, float depthScale, float maxY,
+        CoverageScheme scheme, float lineOfScrimmage, float depthScale, float minY, float maxY,
         List<Receiver> receivers, int left, int leftSlot, int middle, int rightSlot, int right,
         Random rng)
     {
@@ -377,10 +381,10 @@ public sealed class DefenseFactory : IDefenseFactory
         bool cover2ManPress = rng.NextDouble() < 0.4;
 
         // Common depth calculations
-        float pressDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(3.5f, 2.2f, depthScale), maxY);
-        float offCbDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(8.0f, 5.4f, depthScale), maxY);
-        float shallowSafetyDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(10.0f, 6.8f, depthScale), maxY);
-        float deepSafetyDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(16.0f, 10.5f, depthScale), maxY);
+        float pressDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(3.5f, 2.2f, depthScale), minY, maxY);
+        float offCbDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(8.0f, 5.4f, depthScale), minY, maxY);
+        float shallowSafetyDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(10.0f, 6.8f, depthScale), minY, maxY);
+        float deepSafetyDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(16.0f, 10.5f, depthScale), minY, maxY);
 
         return scheme switch
         {
@@ -458,13 +462,13 @@ public sealed class DefenseFactory : IDefenseFactory
                 cbPress: false,
                 // SS roles up to flat, FS takes deep middle
                 leftSafetyX: fw * 0.25f,
-                leftSafetyDepth: ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(7.0f, 4.6f, depthScale), maxY),
+                leftSafetyDepth: ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(7.0f, 4.6f, depthScale), minY, maxY),
                 leftSafetyZone: CoverageRole.FlatLeft,
                 rightSafetyX: fw * 0.50f,
                 rightSafetyDepth: deepSafetyDepth,
                 rightSafetyZone: CoverageRole.DeepMiddle,
                 nickelX: hasNickelPackage ? fw * 0.75f : -1,
-                nickelDepth: ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(7.0f, 4.6f, depthScale), maxY),
+                nickelDepth: ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(7.0f, 4.6f, depthScale), minY, maxY),
                 nickelZone: CoverageRole.FlatRight
             ),
 
@@ -522,9 +526,9 @@ public sealed class DefenseFactory : IDefenseFactory
 
     // --- Utility ---
 
-    private static float ClampDefenderY(float y, float maxY)
+    private static float ClampDefenderY(float y, float minY, float maxY)
     {
-        return MathF.Min(y, maxY);
+        return Math.Clamp(y, minY, maxY);
     }
 
     private static float GetSituationalDepthOffset(float baseOffset, float minOffset, float depthScale)
