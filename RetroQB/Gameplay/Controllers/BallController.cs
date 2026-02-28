@@ -273,16 +273,25 @@ public sealed class BallController
     {
         Vector2 targetVelocity = receiver.Velocity;
 
+        // Quick-game throws were often over-led because we treated target velocity
+        // the same at all depths. Reduce lead on short throws and fade back to
+        // full lead for intermediate/deep passes.
+        float distance = Vector2.Distance(qb.Position, receiver.Position);
+        const float fullDampingDistance = 5f;
+        const float noDampingDistance = 17f;
+        float shortThrowFactor = 1f - Math.Clamp((distance - fullDampingDistance) / (noDampingDistance - fullDampingDistance), 0f, 1f);
+        float leadMultiplier = 1f - (0.5f * shortThrowFactor);
+        targetVelocity *= leadMultiplier;
+
         // Short RB checkdowns (flat/hitch-like timing throws) were being over-led.
         // Damp lead based on distance so the throw stays catchable in the quick game.
         if (receiver.IsRunningBack && (receiver.Route == RouteType.Flat || receiver.Route == RouteType.OutShallow))
         {
-            float distance = Vector2.Distance(qb.Position, receiver.Position);
-            const float fullDampingDistance = 4f;
-            const float noDampingDistance = 16f;
+            const float rbFullDampingDistance = 4f;
+            const float rbNoDampingDistance = 16f;
 
-            float shortThrowFactor = 1f - Math.Clamp((distance - fullDampingDistance) / (noDampingDistance - fullDampingDistance), 0f, 1f);
-            float dampMultiplier = 1f - (0.58f * shortThrowFactor);
+            float rbShortThrowFactor = 1f - Math.Clamp((distance - rbFullDampingDistance) / (rbNoDampingDistance - rbFullDampingDistance), 0f, 1f);
+            float dampMultiplier = 1f - (0.32f * rbShortThrowFactor);
             targetVelocity *= dampMultiplier;
         }
 
