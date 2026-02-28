@@ -48,6 +48,11 @@ RetroQB/
 
 ```
 MainMenu → PreSnap → PlayActive → PlayOver → PreSnap (next play)
+                                 → ExtraPoint → DriveOver (post-TD PAT/2pt)
+                                 → FourthDownDecision → PreSnap (go for it)
+                                                     → FieldGoal → DriveOver
+                                                     → DriveOver (punt)
+                                 → OpponentDrive → DriveOver
                                  → DriveOver → PreSnap (new drive)
                                  → StageComplete → PreSnap (next stage)
                                  → GameOver → MainMenu
@@ -59,6 +64,10 @@ Any non-MainMenu state can transition to `Replay` (press F) and back.
 |---|---|
 | `MainMenu` | Team selection (1-3 keys), Enter to confirm |
 | `PreSnap` | Play selection visible, routes drawn, Space to snap |
+| `ExtraPoint` | Post-touchdown choice: Enter for +1 kick, Space to attempt 2pt conversion |
+| `FourthDownDecision` | 4th down choice: Space to go for it, F for field goal (if in range), P to punt |
+| `FieldGoal` | Two-step kick meter: Space to lock power, then Space to lock accuracy |
+| `OpponentDrive` | Animated simulated opponent possession; Space skips to result |
 | `PlayActive` | Full simulation: QB movement, route running, blocking, passing, tackling |
 | `PlayOver` | Brief pause (1.25s normal, 2.6s touchdown), then auto-advance |
 | `DriveOver` | TD/turnover/interception summary, Enter to start new drive |
@@ -263,11 +272,12 @@ Priority chain for each defender:
 ### Drive State
 - 4 downs, 10 yards for first down
 - Start at own 20-yard line each drive
-- TD = 7 points (includes PAT), Interception/Turnover = opponent scores 7
+- TD = 6 points, then choose PAT (+1) or 2-point conversion (+2)
+- Interception/turnover now trigger a simulated opponent drive (resulting in 0/3/7)
 - `DifficultyMultiplier` increases with player score (defenders get faster as you score more)
 
 ### Win Condition
-- First to 21 points wins the game
+- First to 24 points wins the game
 - Win a game → advance to next stage
 - Lose → eliminated, season over
 

@@ -62,7 +62,7 @@ public sealed class MenuRenderer
         // Stage descriptions
         string[] stageLines = {
             "1. Regular Season  →  2. Playoff  →  3. Super Bowl",
-            "Score 21 each round. Defense gets harder!"
+            $"Score {Rules.WinningScore} each round. Defense gets harder!"
         };
         foreach (var line in stageLines)
         {

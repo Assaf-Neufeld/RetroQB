@@ -1,10 +1,11 @@
-using RetroQB.Core;
 using System.Numerics;
 
 namespace RetroQB.Core;
 
 public static class Rules
 {
+    public const int WinningScore = 24;
+
     public static bool IsTouchdown(Vector2 ballPos)
     {
         return ballPos.Y >= Constants.EndZoneDepth + 100f;

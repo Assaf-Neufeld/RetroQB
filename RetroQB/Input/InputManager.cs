@@ -34,6 +34,8 @@ public sealed class InputManager
     public bool IsEscapePressed() => Raylib.IsKeyPressed(KeyboardKey.Escape);
     public bool IsEnterPressed() => Raylib.IsKeyPressed(KeyboardKey.Enter);
     public bool IsSpacePressed() => Raylib.IsKeyPressed(KeyboardKey.Space);
+    public bool IsFieldGoalPressed() => Raylib.IsKeyPressed(KeyboardKey.Z);
+    public bool IsPuntPressed() => Raylib.IsKeyPressed(KeyboardKey.X);
     public bool IsReplayPressed() => Raylib.IsKeyPressed(KeyboardKey.F);
     public bool IsReplaySkipPressed() => Raylib.IsKeyPressed(KeyboardKey.Space);
 

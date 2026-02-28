@@ -15,7 +15,8 @@ namespace RetroQB.Gameplay;
 /// </summary>
 public sealed class GameSession
 {
-    private const int WinningScore = 21;
+    private const int WinningScore = Rules.WinningScore;
+    private const float OpponentDriveIntroDuration = 1.0f;
 
     // Core managers
     private readonly GameStateManager _stateManager;
@@ -28,6 +29,9 @@ public sealed class GameSession
     private readonly PlaySetupController _playSetupController;
     private readonly PlayExecutionController _playExecutionController;
     private readonly BallController _ballController;
+    private readonly FieldGoalController _fieldGoalController;
+    private readonly SimulatedDriveGenerator _simulatedDriveGenerator;
+    private readonly SimulatedDriveController _simulatedDriveController;
     private readonly TackleController _tackleController;
     private readonly OverlapResolver _overlapResolver;
     private readonly ReceiverPriorityManager _receiverPriorityManager;
@@ -62,6 +66,13 @@ public sealed class GameSession
     private float _playOverDuration = 1.25f;
     private bool _manualPlaySelection;
     private bool _autoPlaySelectionDone;
+    private bool _isTwoPointAttempt;
+    private float _nextDriveStartYardLine = 20f;
+    private float _pendingOpponentDriveWorldY = FieldGeometry.OpponentKickoffStartY;
+    private bool _opponentDriveInitialized;
+    private float _opponentDriveIntroTimer;
+    private bool _pendingOpponentDriveAfterBanner;
+    private float _pendingOpponentDriveAfterBannerStartY;
     private bool _isZoneCoverage;
     private CoverageScheme _coverageScheme;
     private List<string> _blitzers = new();
@@ -122,6 +133,9 @@ public sealed class GameSession
         _playSetupController = new PlaySetupController(formationFactory, defenseFactory, rng);
         _playExecutionController = new PlayExecutionController(input, new BlockingController());
         _ballController = new BallController(rng, throwingMechanics, statsTracker, _receiverPriorityManager);
+        _fieldGoalController = new FieldGoalController();
+        _simulatedDriveGenerator = new SimulatedDriveGenerator();
+        _simulatedDriveController = new SimulatedDriveController();
         _tackleController = new TackleController(rng, _overlapResolver);
         _drawingController = new DrawingController(fieldRenderer, hudRenderer, fireworks, _receiverPriorityManager);
 
@@ -157,7 +171,8 @@ public sealed class GameSession
 
     private void InitializeDrive()
     {
-        _playManager.StartNewDrive();
+        _playManager.StartNewDrive(_nextDriveStartYardLine);
+        _nextDriveStartYardLine = 20f;
         SetupEntities();
         ResetPlayState();
         _replayRecorder.Reset();
@@ -239,6 +254,10 @@ public sealed class GameSession
         _playOverDuration = 1.25f;
         _manualPlaySelection = false;
         _autoPlaySelectionDone = false;
+        _isTwoPointAttempt = false;
+        _opponentDriveInitialized = false;
+        _opponentDriveIntroTimer = 0f;
+        _pendingOpponentDriveWorldY = FieldGeometry.OpponentKickoffStartY;
     }
 
     private void SetupEntities()
@@ -301,6 +320,15 @@ public sealed class GameSession
                 break;
             case GameState.PreSnap:
                 HandlePreSnap();
+                break;
+            case GameState.ExtraPoint:
+                HandleExtraPoint();
+                break;
+            case GameState.FieldGoal:
+                HandleFieldGoal(dt);
+                break;
+            case GameState.OpponentDrive:
+                HandleOpponentDrive(dt);
                 break;
             case GameState.PlayActive:
                 HandlePlayActive(dt);
@@ -372,7 +400,7 @@ public sealed class GameSession
         int? passSelection = _input.GetPassPlaySelection();
         if (passSelection.HasValue)
         {
-            playChanged = _playManager.SelectPassPlay(passSelection.Value, new Random());
+            playChanged = _playManager.SelectPassPlay(passSelection.Value, _sessionRng);
             _manualPlaySelection = true;
         }
 
@@ -380,19 +408,33 @@ public sealed class GameSession
         int? runSelection = _input.GetRunPlaySelection();
         if (runSelection.HasValue)
         {
-            playChanged = _playManager.SelectRunPlay(runSelection.Value, new Random());
+            playChanged = _playManager.SelectRunPlay(runSelection.Value, _sessionRng);
             _manualPlaySelection = true;
         }
 
         if (!passSelection.HasValue && !runSelection.HasValue && !_manualPlaySelection && !_autoPlaySelectionDone)
         {
-            playChanged = _playManager.AutoSelectPlayBySituation(new Random()) || playChanged;
+            playChanged = _playManager.AutoSelectPlayBySituation(_sessionRng) || playChanged;
             _autoPlaySelectionDone = true;
         }
 
         if (playChanged)
         {
             SetupEntities();
+        }
+
+        if (!_isTwoPointAttempt && _input.IsFieldGoalPressed())
+        {
+            if (_playManager.IsFieldGoalRange())
+            {
+                _fieldGoalController.StartAttempt(_playManager.GetFieldGoalDistance());
+                _stateManager.SetState(GameState.FieldGoal);
+            }
+            else
+            {
+                _lastPlayText = "FIELD GOAL OUT OF RANGE";
+            }
+            return;
         }
 
         if (_input.IsSpacePressed())
@@ -508,6 +550,34 @@ public sealed class GameSession
         }
     }
 
+    private void HandleExtraPoint()
+    {
+        if (_input.IsEnterPressed())
+        {
+            _lastPlayText = _playManager.ResolveExtraPoint();
+            _driveOverText = "TOUCHDOWN DRIVE COMPLETE (+7)";
+
+            if (CheckWinConditionAndSetState())
+            {
+                return;
+            }
+
+            _stateManager.SetState(GameState.DriveOver);
+            return;
+        }
+
+        if (_input.IsSpacePressed())
+        {
+            _isTwoPointAttempt = true;
+            _playManager.SetupTwoPointAttempt();
+            SetupEntities();
+            _lastPlayText = "2PT ATTEMPT";
+            _manualPlaySelection = false;
+            _autoPlaySelectionDone = false;
+            _stateManager.SetState(GameState.PreSnap);
+        }
+    }
+
     private void HandlePlayOver()
     {
         if (TryEnterReplayFromState(GameState.PlayOver))
@@ -525,6 +595,98 @@ public sealed class GameSession
         }
     }
 
+    private void HandleFieldGoal(float dt)
+    {
+        _fieldGoalController.Update(dt);
+
+        if (_input.IsSpacePressed())
+        {
+            _fieldGoalController.Confirm();
+        }
+
+        if (!_fieldGoalController.TryConsumeResult(out FieldGoalKickResult kickResult))
+        {
+            return;
+        }
+
+        float kickDistance = _playManager.GetFieldGoalDistance();
+        if (kickResult.IsGood)
+        {
+            _lastPlayText = _playManager.ResolveFieldGoalMade();
+            _driveOverText = $"FIELD GOAL GOOD! ({kickDistance:F0} YDS) +3";
+
+            _drawingController.Fireworks.Trigger();
+            _drawingController.ScreenEffects.TriggerShake(4f, 0.12f);
+            _drawingController.ScreenEffects.TriggerFlash(new Raylib_cs.Color(255, 255, 200, 255), 45, 0.12f);
+
+            if (CheckWinConditionAndSetState())
+            {
+                return;
+            }
+
+            _pendingOpponentDriveAfterBanner = true;
+            _pendingOpponentDriveAfterBannerStartY = FieldGeometry.OpponentKickoffStartY;
+            _stateManager.SetState(GameState.DriveOver);
+            return;
+        }
+        else
+        {
+            _lastPlayText = $"FIELD GOAL {kickResult.Message}";
+            _driveOverText = $"FIELD GOAL {kickResult.Message}";
+            float kickSpot = MathF.Max(FieldGeometry.EndZoneDepth + 20f, _playManager.LineOfScrimmage - 7f);
+            _pendingOpponentDriveAfterBanner = true;
+            _pendingOpponentDriveAfterBannerStartY = kickSpot;
+            _stateManager.SetState(GameState.DriveOver);
+            return;
+        }
+    }
+
+    private void HandleOpponentDrive(float dt)
+    {
+        if (!_opponentDriveInitialized)
+        {
+            _opponentDriveIntroTimer += dt;
+            _lastPlayText = "OPPONENT POSSESSION";
+
+            bool skipIntro = _input.IsSpacePressed();
+            if (!skipIntro && _opponentDriveIntroTimer < OpponentDriveIntroDuration)
+            {
+                return;
+            }
+
+            SimulatedDriveResult generated = _simulatedDriveGenerator.Generate(_pendingOpponentDriveWorldY, _currentStage, _sessionRng);
+            _simulatedDriveController.Start(generated);
+            _opponentDriveInitialized = true;
+            _opponentDriveIntroTimer = 0f;
+        }
+
+        if (_input.IsSpacePressed())
+        {
+            _simulatedDriveController.SkipToEnd();
+        }
+
+        _simulatedDriveController.Update(dt);
+        _lastPlayText = _simulatedDriveController.CurrentPlayText;
+
+        if (!_simulatedDriveController.IsComplete || _simulatedDriveController.ActiveDrive == null)
+        {
+            return;
+        }
+
+        SimulatedDriveResult result = _simulatedDriveController.ActiveDrive;
+        _playManager.AddOpponentScore(result.PointsScored);
+        _driveOverText = _simulatedDriveController.ResultBanner;
+        _nextDriveStartYardLine = FieldGeometry.GetYardLineDisplay(result.PlayerNextStartWorldY);
+
+        if (CheckWinConditionAndSetState())
+        {
+            return;
+        }
+
+        _stateManager.SetState(GameState.DriveOver);
+        _opponentDriveInitialized = false;
+    }
+
     private void HandleDriveOver()
     {
         if (TryEnterReplayFromState(GameState.DriveOver))
@@ -534,8 +696,16 @@ public sealed class GameSession
 
         if (_menuController.IsConfirmPressed())
         {
-            InitializeDrive();
-            _stateManager.SetState(GameState.PreSnap);
+            if (_pendingOpponentDriveAfterBanner)
+            {
+                _pendingOpponentDriveAfterBanner = false;
+                StartOpponentDrive(_pendingOpponentDriveAfterBannerStartY);
+            }
+            else
+            {
+                InitializeDrive();
+                _stateManager.SetState(GameState.PreSnap);
+            }
         }
     }
 
@@ -646,6 +816,22 @@ public sealed class GameSession
             _defensiveMemory.RecordOutcome(lastRecord);
         }
 
+        if (_isTwoPointAttempt)
+        {
+            bool conversionGood = touchdown;
+            _lastPlayText = _playManager.ResolveTwoPointConversion(conversionGood);
+            _playOverTimer = 0f;
+            _isTwoPointAttempt = false;
+
+            if (CheckWinConditionAndSetState())
+            {
+                return;
+            }
+
+            StartOpponentDrive(FieldGeometry.OpponentKickoffStartY);
+            return;
+        }
+
         if (touchdown)
         {
             _drawingController.Fireworks.Trigger();
@@ -685,44 +871,79 @@ public sealed class GameSession
         _lastPlayText = result.Message;
         _playOverTimer = 0f;
 
-        if (_playManager.Score >= WinningScore || _playManager.AwayScore >= WinningScore)
+        if (result.Outcome == PlayOutcome.Touchdown)
         {
-            // Record the game result for the season summary
-            var snap = _statsTracker.BuildSnapshot();
-            _seasonSummary.RecordGame(_currentStage, _playManager.Score, _playManager.AwayScore, snap.Qb);
-
-            if (_playManager.Score >= WinningScore)
-            {
-                // Player won this stage
-                var nextStage = _currentStage.GetNextStage();
-                if (nextStage.HasValue)
-                {
-                    _driveOverText = $"{_currentStage.GetDisplayName()} WON!";
-                    _stateManager.SetState(GameState.StageComplete);
-                }
-                else
-                {
-                    _driveOverText = "CHAMPION!";
-                    _stateManager.SetState(GameState.GameOver);
-                }
-            }
-            else
-            {
-                _driveOverText = $"ELIMINATED IN {_currentStage.GetDisplayName()}!";
-                _stateManager.SetState(GameState.GameOver);
-            }
+            _stateManager.SetState(GameState.ExtraPoint);
             return;
         }
 
-        if (result.Outcome is PlayOutcome.Touchdown or PlayOutcome.Interception or PlayOutcome.Turnover)
+        if (CheckWinConditionAndSetState())
+        {
+            return;
+        }
+
+        if (result.Outcome is PlayOutcome.Interception or PlayOutcome.Turnover)
         {
             _driveOverText = result.Message;
+            _pendingOpponentDriveAfterBanner = true;
+
+            if (result.Outcome == PlayOutcome.Interception)
+            {
+                float interceptionSpot = _entities.Ball.Holder?.Position.Y ?? _playManager.LineOfScrimmage;
+                _pendingOpponentDriveAfterBannerStartY = interceptionSpot;
+            }
+            else
+            {
+                _pendingOpponentDriveAfterBannerStartY = _playManager.LineOfScrimmage;
+            }
+
             _stateManager.SetState(GameState.DriveOver);
         }
         else
         {
             _stateManager.SetState(GameState.PlayOver);
         }
+    }
+
+    private bool CheckWinConditionAndSetState()
+    {
+        if (_playManager.Score < WinningScore && _playManager.AwayScore < WinningScore)
+        {
+            return false;
+        }
+
+        var snap = _statsTracker.BuildSnapshot();
+        _seasonSummary.RecordGame(_currentStage, _playManager.Score, _playManager.AwayScore, snap.Qb);
+
+        if (_playManager.Score >= WinningScore)
+        {
+            var nextStage = _currentStage.GetNextStage();
+            if (nextStage.HasValue)
+            {
+                _driveOverText = $"{_currentStage.GetDisplayName()} WON!";
+                _stateManager.SetState(GameState.StageComplete);
+            }
+            else
+            {
+                _driveOverText = "CHAMPION!";
+                _stateManager.SetState(GameState.GameOver);
+            }
+        }
+        else
+        {
+            _driveOverText = $"ELIMINATED IN {_currentStage.GetDisplayName()}!";
+            _stateManager.SetState(GameState.GameOver);
+        }
+
+        return true;
+    }
+
+    private void StartOpponentDrive(float opponentStartWorldY)
+    {
+        _pendingOpponentDriveWorldY = opponentStartWorldY;
+        _opponentDriveInitialized = false;
+        _opponentDriveIntroTimer = 0f;
+        _stateManager.SetState(GameState.OpponentDrive);
     }
 
     private string GetCatcherLabel(Receiver catcher)
@@ -759,6 +980,9 @@ public sealed class GameSession
             _entities.Receivers,
             _entities.Blockers,
             _entities.Defenders,
+            _fieldGoalController,
+            _simulatedDriveController,
+            _stateManager.State == GameState.OpponentDrive && !_opponentDriveInitialized,
             _stateManager.State,
             _lastPlayText,
             _driveOverText,

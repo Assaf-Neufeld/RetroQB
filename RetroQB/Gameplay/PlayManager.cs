@@ -92,9 +92,9 @@ public sealed class PlayManager
         _driveState = new DriveState();
     }
 
-    public void StartNewDrive()
+    public void StartNewDrive(float startingYardLine = 20f)
     {
-        _driveState.Reset();
+        _driveState.Reset(startingYardLine);
         SelectedPlayType = PlayType.Pass;
     }
 
@@ -218,8 +218,43 @@ public sealed class PlayManager
         return result;
     }
 
+    public string ResolveExtraPoint()
+    {
+        return _driveState.ResolveExtraPoint();
+    }
+
+    public string ResolveTwoPointConversion(bool success)
+    {
+        return _driveState.ResolveTwoPointConversion(success);
+    }
+
+    public void SetupTwoPointAttempt()
+    {
+        _driveState.SetupTwoPointAttempt();
+    }
+
+    public string ResolveFieldGoalMade()
+    {
+        return _driveState.ResolveFieldGoalMade();
+    }
+
+    public bool IsFieldGoalRange()
+    {
+        return _driveState.IsFieldGoalRange();
+    }
+
+    public float GetFieldGoalDistance()
+    {
+        return _driveState.GetFieldGoalDistance();
+    }
+
     public float GetYardLineDisplay(float worldY)
     {
         return FieldGeometry.GetYardLineDisplay(worldY);
+    }
+
+    public void AddOpponentScore(int points)
+    {
+        _driveState.AddOpponentScore(points);
     }
 }

@@ -73,7 +73,41 @@ public sealed class SidePanelRenderer
 
             y += 10;
             Raylib.DrawText("SPACE to snap", x, y, 16, Palette.Lime);
+            y += 20;
+            Raylib.DrawText("Z: Field Goal", x, y, 14, play.IsFieldGoalRange() ? Palette.White : Palette.DarkGreen);
+            y += 18;
+        }
+        else if (state == GameState.ExtraPoint)
+        {
+            Raylib.DrawText("EXTRA POINT", x, y, 18, Palette.Gold);
             y += 24;
+            Raylib.DrawText("ENTER: Kick (+1)", x, y, 14, Palette.White);
+            y += 18;
+            Raylib.DrawText("SPACE: Go for 2", x, y, 14, Palette.White);
+            y += 24;
+        }
+        else if (state == GameState.FieldGoal)
+        {
+            Raylib.DrawText("FIELD GOAL", x, y, 18, Palette.Gold);
+            y += 24;
+            Raylib.DrawText($"Distance: {play.GetFieldGoalDistance():F0} yds", x, y, 14, Palette.White);
+            y += 18;
+            Raylib.DrawText("SPACE: Kick (accuracy timing)", x, y, 14, Palette.White);
+            y += 24;
+        }
+        else if (state == GameState.OpponentDrive)
+        {
+            Raylib.DrawText("OPPONENT DRIVE", x, y, 18, Palette.Gold);
+            y += 24;
+            Raylib.DrawText("Simulating possession...", x, y, 14, Palette.White);
+            y += 18;
+            Raylib.DrawText("SPACE: Skip to result", x, y, 14, Palette.White);
+            y += 22;
+            if (!string.IsNullOrWhiteSpace(resultText))
+            {
+                Raylib.DrawText(resultText, x, y, 13, Palette.Cyan);
+                y += 18;
+            }
         }
         else
         {
@@ -84,7 +118,7 @@ public sealed class SidePanelRenderer
 
         // Bottom-anchored controls layout to avoid overflow at smaller heights
         int controlsLineSpacing = 14;
-        int controlsLines = 8;
+        int controlsLines = 9;
         int controlsBlockHeight = 28 + (controlsLines * controlsLineSpacing);
         int controlsStartY = screenH - (int)Constants.OuterMargin - controlsBlockHeight;
 
@@ -111,7 +145,7 @@ public sealed class SidePanelRenderer
         };
         Raylib.DrawText($"STAGE {stageNum}/3: {stageLabel}", x, y, 14, stageColor);
         y += 18;
-        Raylib.DrawText("Score 21 to advance!", x, y, 14, Palette.Gold);
+        Raylib.DrawText($"Score {Rules.WinningScore} to advance!", x, y, 14, Palette.Gold);
         y += 26;
 
         if (showReplayHint)
@@ -126,7 +160,7 @@ public sealed class SidePanelRenderer
         y += 10;
         Raylib.DrawText("CONTROLS", x, y, 14, Palette.Yellow);
         y += 18;
-        Raylib.DrawText("Move: Arrow Keys", x, y, 12, Palette.White);
+        Raylib.DrawText("Move: WASD / Arrows", x, y, 12, Palette.White);
         y += controlsLineSpacing;
         Raylib.DrawText("Sprint: Hold Shift", x, y, 12, Palette.White);
         y += controlsLineSpacing;
@@ -135,6 +169,8 @@ public sealed class SidePanelRenderer
         Raylib.DrawText("Run Plays: Q-P", x, y, 12, Palette.White);
         y += controlsLineSpacing;
         Raylib.DrawText("Snap Ball: Space", x, y, 12, Palette.White);
+        y += controlsLineSpacing;
+        Raylib.DrawText("Field Goal: Z", x, y, 12, Palette.White);
         y += controlsLineSpacing;
         Raylib.DrawText("Throw: 1-5", x, y, 12, Palette.White);
         y += controlsLineSpacing;

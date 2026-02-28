@@ -19,6 +19,8 @@ public sealed class DrawingController
     private readonly ReceiverPriorityManager _priorityManager;
     private readonly ScreenEffects _screenEffects;
     private readonly ReplayOverlayRenderer _replayOverlayRenderer;
+    private readonly FieldGoalRenderer _fieldGoalRenderer;
+    private readonly SimulatedDriveRenderer _simulatedDriveRenderer;
 
     public DrawingController(
         FieldRenderer fieldRenderer,
@@ -32,6 +34,8 @@ public sealed class DrawingController
         _priorityManager = priorityManager;
         _screenEffects = new ScreenEffects();
         _replayOverlayRenderer = new ReplayOverlayRenderer();
+        _fieldGoalRenderer = new FieldGoalRenderer();
+        _simulatedDriveRenderer = new SimulatedDriveRenderer();
     }
 
     public FireworksEffect Fireworks => _fireworks;
@@ -56,6 +60,9 @@ public sealed class DrawingController
         IReadOnlyList<Receiver> receivers,
         IReadOnlyList<Blocker> blockers,
         IReadOnlyList<Defender> defenders,
+        FieldGoalController fieldGoalController,
+        SimulatedDriveController simulatedDriveController,
+        bool showOpponentDriveIntro,
         GameState gameState,
         string lastPlayText,
         string driveOverText,
@@ -90,25 +97,30 @@ public sealed class DrawingController
             DrawRouteOverlay(receivers, blockers, playManager);
         }
 
-        foreach (var receiver in receivers)
+        bool drawLiveEntities = gameState != GameState.OpponentDrive;
+
+        if (drawLiveEntities)
         {
-            receiver.Draw();
+            foreach (var receiver in receivers)
+            {
+                receiver.Draw();
+            }
+
+            DrawReceiverPriorityLabels(receivers);
+
+            foreach (var blocker in blockers)
+            {
+                blocker.Draw();
+            }
+
+            foreach (var defender in defenders)
+            {
+                defender.Draw();
+            }
+
+            qb.Draw();
+            ball.Draw();
         }
-
-        DrawReceiverPriorityLabels(receivers);
-
-        foreach (var blocker in blockers)
-        {
-            blocker.Draw();
-        }
-
-        foreach (var defender in defenders)
-        {
-            defender.Draw();
-        }
-
-        qb.Draw();
-        ball.Draw();
 
         // Draw scoreboard and side panel HUD
         string targetLabel = GetSelectedReceiverPriorityLabel(playManager.SelectedReceiver, receivers);
@@ -120,16 +132,36 @@ public sealed class DrawingController
             DrawDriveOverBanner(driveOverText, "PRESS ENTER FOR NEXT DRIVE");
         }
 
+        if (gameState == GameState.ExtraPoint)
+        {
+            _hudRenderer.DrawExtraPointChoiceBanner();
+        }
+
+        if (gameState == GameState.FieldGoal)
+        {
+            _fieldGoalRenderer.Draw(fieldGoalController);
+        }
+
+        if (gameState == GameState.OpponentDrive)
+        {
+            if (showOpponentDriveIntro)
+            {
+                DrawDriveOverBanner("OPPONENT POSSESSION", "SIMULATION STARTING...");
+            }
+            else
+            {
+                _simulatedDriveRenderer.Draw(simulatedDriveController);
+            }
+        }
+
         if (gameState == GameState.StageComplete)
         {
-            var nextStage = currentStage.GetNextStage();
-            string nextName = nextStage?.GetDisplayName() ?? "???";
             _hudRenderer.DrawStageCompleteBanner(playManager.Score, playManager.AwayScore, currentStage);
         }
 
         if (gameState == GameState.GameOver)
         {
-            if (playManager.Score >= 21)
+            if (playManager.Score >= playManager.AwayScore)
             {
                 _hudRenderer.DrawChampionBanner(playManager.Score, playManager.AwayScore, currentStage, seasonSummary);
             }

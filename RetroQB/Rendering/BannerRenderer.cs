@@ -11,6 +11,31 @@ namespace RetroQB.Rendering;
 /// </summary>
 public sealed class BannerRenderer
 {
+    public void DrawExtraPointChoiceBanner()
+    {
+        int screenW = Raylib.GetScreenWidth();
+        int screenH = Raylib.GetScreenHeight();
+
+        int bannerWidth = Math.Min(760, screenW - 120);
+        int bannerHeight = 130;
+        int x = (screenW - bannerWidth) / 2;
+        int y = (screenH - bannerHeight) / 2;
+
+        Raylib.DrawRectangle(x, y, bannerWidth, bannerHeight, new Color(10, 10, 14, 235));
+        Raylib.DrawRectangleLinesEx(new Rectangle(x, y, bannerWidth, bannerHeight), 3, Palette.Gold);
+        Raylib.DrawRectangle(x + 6, y + 6, bannerWidth - 12, bannerHeight - 12, new Color(20, 20, 28, 235));
+
+        string title = "EXTRA POINT";
+        int titleSize = 40;
+        int titleWidth = Raylib.MeasureText(title, titleSize);
+        Raylib.DrawText(title, x + (bannerWidth - titleWidth) / 2, y + 18, titleSize, Palette.Gold);
+
+        string sub = "ENTER: KICK +1    SPACE: GO FOR 2";
+        int subSize = 18;
+        int subWidth = Raylib.MeasureText(sub, subSize);
+        Raylib.DrawText(sub, x + (bannerWidth - subWidth) / 2, y + bannerHeight - subSize - 14, subSize, Palette.White);
+    }
+
     /// <summary>
     /// Draws a banner when the player wins a non-final stage (Regular Season or Playoff).
     /// </summary>
@@ -336,7 +361,7 @@ public sealed class BannerRenderer
         int textY = y + (bannerHeight - fontSize) / 2 - 4;
         Raylib.DrawText(text, textX, textY, fontSize, Palette.Gold);
 
-        string subText = "7 POINTS";
+        string subText = "6 POINTS";
         int subSize = 20;
         int subWidth = Raylib.MeasureText(subText, subSize);
         Raylib.DrawText(subText, x + (bannerWidth - subWidth) / 2, y + bannerHeight - subSize - 12, subSize, Palette.White);

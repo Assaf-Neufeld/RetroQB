@@ -64,4 +64,10 @@ public sealed class HudRenderer
     {
         _banner.DrawTouchdownPopup();
     }
+
+    public void DrawExtraPointChoiceBanner()
+    {
+        _banner.DrawExtraPointChoiceBanner();
+    }
+
 }

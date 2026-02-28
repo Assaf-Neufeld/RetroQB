@@ -10,9 +10,10 @@ public sealed class DriveState
 {
     private const float DefaultStartingYardLine = 20f;
     private const float DefaultDistance = 10f;
+    private const float TwoPointDistance = 2f;
+    private const float FieldGoalMaxDistance = 45f;
     private const int MaxDowns = 4;
-    private const int TouchdownPoints = 7;
-    private const int DefensiveScorePoints = 7;
+    private const int TouchdownPoints = 6;
 
     public int Down { get; private set; } = 1;
     public float Distance { get; private set; } = DefaultDistance;
@@ -43,11 +44,12 @@ public sealed class DriveState
         Reset();
     }
 
-    public void Reset()
+    public void Reset(float startingYardLine = DefaultStartingYardLine)
     {
         Down = 1;
         Distance = DefaultDistance;
-        LineOfScrimmage = FieldGeometry.EndZoneDepth + DefaultStartingYardLine;
+        float clampedStart = MathF.Max(5f, MathF.Min(95f, startingYardLine));
+        LineOfScrimmage = FieldGeometry.EndZoneDepth + clampedStart;
         FirstDownLine = LineOfScrimmage + Distance;
         DriveHistory.Clear();
         PlayRecords.Clear();
@@ -105,17 +107,63 @@ public sealed class DriveState
     {
         Score += TouchdownPoints;
         DifficultyMultiplier += 0.03f;
-        var result = new PlayResult(PlayOutcome.Touchdown, gain, "TOUCHDOWN! +7");
+        var result = new PlayResult(PlayOutcome.Touchdown, gain, "TOUCHDOWN! +6");
         RecordPlay(result);
         return result;
     }
 
+    public string ResolveExtraPoint()
+    {
+        Score += 1;
+        return "EXTRA POINT GOOD! +1";
+    }
+
+    public string ResolveTwoPointConversion(bool success)
+    {
+        if (success)
+        {
+            Score += 2;
+            return "2PT GOOD! +2";
+        }
+
+        return "2PT NO GOOD";
+    }
+
+    public string ResolveFieldGoalMade()
+    {
+        Score += 3;
+        return "FIELD GOAL GOOD! +3";
+    }
+
+    public bool IsFieldGoalRange()
+    {
+        return (FieldGeometry.OpponentGoalLine - LineOfScrimmage) <= FieldGoalMaxDistance;
+    }
+
+    public float GetFieldGoalDistance()
+    {
+        float lineToGoal = FieldGeometry.OpponentGoalLine - LineOfScrimmage;
+        return MathF.Max(0f, lineToGoal + 7f);
+    }
+
+    public void SetupTwoPointAttempt()
+    {
+        Down = 1;
+        Distance = TwoPointDistance;
+        LineOfScrimmage = FieldGeometry.OpponentGoalLine - TwoPointDistance;
+        FirstDownLine = FieldGeometry.OpponentGoalLine;
+    }
+
     public PlayResult ResolveInterception()
     {
-        AwayScore += DefensiveScorePoints;
-        var result = new PlayResult(PlayOutcome.Interception, 0f, "INTERCEPTION! AWAY +7");
+        var result = new PlayResult(PlayOutcome.Interception, 0f, "INTERCEPTION!");
         RecordPlay(result);
         return result;
+    }
+
+    public void AddOpponentScore(int points)
+    {
+        AwayScore += Math.Max(0, points);
     }
 
     public PlayResult ResolveIncomplete()
@@ -161,8 +209,7 @@ public sealed class DriveState
     {
         if (Down > MaxDowns)
         {
-            AwayScore += DefensiveScorePoints;
-            var result = new PlayResult(PlayOutcome.Turnover, 0f, "TURNOVER ON DOWNS - AWAY +7");
+            var result = new PlayResult(PlayOutcome.Turnover, 0f, "TURNOVER ON DOWNS");
             return result;
         }
         return null;

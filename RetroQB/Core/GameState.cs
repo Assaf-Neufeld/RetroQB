@@ -4,6 +4,9 @@ public enum GameState
 {
     MainMenu,
     PreSnap,
+    ExtraPoint,
+    FieldGoal,
+    OpponentDrive,
     PlayActive,
     Replay,
     PlayOver,

@@ -240,6 +240,20 @@ public sealed class ScoreboardRenderer
         Raylib.DrawText("DRIVE SUMMARY", contentX + 2, contentY, 16, offensiveTeam.SecondaryColor);
         contentY += 22;
 
+        string stateContext = state switch
+        {
+            GameState.ExtraPoint => "Next: Extra point decision",
+            GameState.FieldGoal => "Next: Field goal attempt",
+            GameState.OpponentDrive => "Next: Opponent simulated drive",
+            _ => string.Empty
+        };
+
+        if (!string.IsNullOrWhiteSpace(stateContext))
+        {
+            Raylib.DrawText(stateContext, contentX + 6, contentY, 12, Palette.Cyan);
+            contentY += 18;
+        }
+
         // Show all plays in chronological order (oldest first)
         if (play.PlayRecords.Count == 0)
         {
@@ -328,10 +342,18 @@ public sealed class ScoreboardRenderer
         if (!string.IsNullOrWhiteSpace(resultText))
         {
             contentY += 4;
-            Color resultTickerColor = resultText.Contains("TD") || resultText.Contains("1ST") ? Palette.Gold :
-                               resultText.Contains("INT") || resultText.Contains("TURN") ? Palette.Red :
-                               resultText.Contains("Incomplete") ? Palette.Orange :
-                               panelText;
+            string upperResult = resultText.ToUpperInvariant();
+            Color resultTickerColor = upperResult.Contains("TOUCHDOWN") || upperResult.Contains("TD") || upperResult.Contains("1ST")
+                ? Palette.Gold
+                : upperResult.Contains("FIELD GOAL") || upperResult.Contains("EXTRA POINT") || upperResult.Contains("2PT GOOD")
+                    ? Palette.Lime
+                    : upperResult.Contains("INTERCEPTION") || upperResult.Contains("INT") || upperResult.Contains("TURNOVER")
+                        ? Palette.Red
+                        : upperResult.Contains("INCOMPLETE") || upperResult.Contains("NO GOOD")
+                            ? Palette.Orange
+                            : upperResult.Contains("OPPONENT DRIVE")
+                                ? Palette.Cyan
+                                : panelText;
 
             Raylib.DrawRectangle(contentX - 4, contentY - 4, ScoreboardWidth - 24, 26, panelHeader);
             Raylib.DrawRectangleLines(contentX - 4, contentY - 4, ScoreboardWidth - 24, 26, panelAccent);
