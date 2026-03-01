@@ -16,9 +16,9 @@ public sealed class HudRenderer
     private readonly BannerRenderer _banner = new();
 
     private GameStatsSnapshot _stats = new(
-        new QbStatsSnapshot(0, 0, 0, 0, 0, 0, 0, 0, 0),
+        new QbStatsSnapshot(0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
         Array.Empty<ReceiverStatsSnapshot>(),
-        new RbStatsSnapshot(0, 0));
+        new RbStatsSnapshot(0, 0, 0));
 
     public void SetStatsSnapshot(GameStatsSnapshot stats)
     {

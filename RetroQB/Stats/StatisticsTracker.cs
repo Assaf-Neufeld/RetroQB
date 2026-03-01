@@ -75,6 +75,7 @@ public sealed class StatisticsTracker : IStatisticsTracker
 
     public void RecordRushYards(int yards, bool isTouchdown)
     {
+        _rbStats.Attempts++;
         _rbStats.Yards += yards;
         if (isTouchdown)
         {
@@ -84,6 +85,7 @@ public sealed class StatisticsTracker : IStatisticsTracker
 
     public void RecordQbRushYards(int yards, bool isTouchdown)
     {
+        _qbStats.RushAttempts++;
         _qbStats.RushYards += yards;
         if (isTouchdown)
         {
@@ -119,9 +121,10 @@ public sealed class StatisticsTracker : IStatisticsTracker
             _qbStats.Interceptions,
             _qbStats.Sacks,
             _qbStats.SackYardsLost,
+            _qbStats.RushAttempts,
             _qbStats.RushYards,
             _qbStats.RushTds);
-        var rb = new RbStatsSnapshot(_rbStats.Yards, _rbStats.Tds);
+        var rb = new RbStatsSnapshot(_rbStats.Attempts, _rbStats.Yards, _rbStats.Tds);
         return new GameStatsSnapshot(qb, receivers, rb);
     }
 

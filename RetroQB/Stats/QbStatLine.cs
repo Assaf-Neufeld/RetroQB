@@ -9,6 +9,7 @@ public sealed class QbStatLine
     public int Interceptions { get; set; }
     public int Sacks { get; set; }
     public int SackYardsLost { get; set; }
+    public int RushAttempts { get; set; }
     public int RushYards { get; set; }
     public int RushTds { get; set; }
 
@@ -21,6 +22,7 @@ public sealed class QbStatLine
         Interceptions = 0;
         Sacks = 0;
         SackYardsLost = 0;
+        RushAttempts = 0;
         RushYards = 0;
         RushTds = 0;
     }

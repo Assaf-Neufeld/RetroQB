@@ -8,6 +8,7 @@ public readonly record struct QbStatsSnapshot(
     int Interceptions,
     int Sacks,
     int SackYardsLost,
+    int RushAttempts,
     int RushYards,
     int RushTds);
 
@@ -19,6 +20,7 @@ public readonly record struct ReceiverStatsSnapshot(
     int Tds);
 
 public readonly record struct RbStatsSnapshot(
+    int Attempts,
     int Yards,
     int Tds);
 

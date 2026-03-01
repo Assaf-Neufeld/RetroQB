@@ -222,14 +222,17 @@ public sealed class ScoreboardRenderer
         Raylib.DrawRectangle(contentX - 2, contentY, innerWidth + 4, 18, new Color(18, 26, 40, 220));
         Raylib.DrawText("RUNNING", contentX + 6, contentY + 2, 14, offensiveTeam.SecondaryColor);
         contentY += 22;
+        DrawRightText("ATT", recCol1Right, contentY, 12, panelAccent);
         DrawRightText("YDS", recCol2Right, contentY, 12, panelAccent);
         DrawRightText("TD", recCol3Right, contentY, 12, panelAccent);
         contentY += 14;
         Raylib.DrawText("QB", contentX + 2, contentY, 14, panelText);
+        DrawRightText($"{stats.Qb.RushAttempts}", recCol1Right, contentY, 14, panelText);
         DrawRightText($"{stats.Qb.RushYards}", recCol2Right, contentY, 14, panelText);
         DrawRightText($"{stats.Qb.RushTds}", recCol3Right, contentY, 14, panelText);
         contentY += 16;
         Raylib.DrawText("RB", contentX + 2, contentY, 14, panelText);
+        DrawRightText($"{stats.Rb.Attempts}", recCol1Right, contentY, 14, panelText);
         DrawRightText($"{stats.Rb.Yards}", recCol2Right, contentY, 14, panelText);
         DrawRightText($"{stats.Rb.Tds}", recCol3Right, contentY, 14, panelText);
         contentY += 22;

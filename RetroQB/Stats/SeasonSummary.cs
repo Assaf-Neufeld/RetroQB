@@ -28,6 +28,7 @@ public sealed class SeasonSummary
         _cumulativeQb.Interceptions,
         _cumulativeQb.Sacks,
         _cumulativeQb.SackYardsLost,
+        _cumulativeQb.RushAttempts,
         _cumulativeQb.RushYards,
         _cumulativeQb.RushTds);
 
@@ -52,6 +53,7 @@ public sealed class SeasonSummary
         _cumulativeQb.Interceptions = qbSnap.Interceptions;
         _cumulativeQb.Sacks = qbSnap.Sacks;
         _cumulativeQb.SackYardsLost = qbSnap.SackYardsLost;
+        _cumulativeQb.RushAttempts = qbSnap.RushAttempts;
         _cumulativeQb.RushYards = qbSnap.RushYards;
         _cumulativeQb.RushTds = qbSnap.RushTds;
     }
