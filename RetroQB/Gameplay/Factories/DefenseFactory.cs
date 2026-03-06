@@ -472,12 +472,12 @@ public sealed class DefenseFactory : IDefenseFactory
                 nickelZone: CoverageRole.FlatRight
             ),
 
-            // Cover 4 Zone: Four deep quarters, strong underneath help from LBs
+            // Cover 4 Zone: Four deep quarters, NB drops to hook underneath
             CoverageScheme.Cover4Zone => new DbConfig(
-                leftCbX: fw * 0.20f,
+                leftCbX: fw * 0.15f,
                 leftCbDepth: deepSafetyDepth,
                 leftCbZone: CoverageRole.DeepLeft,
-                rightCbX: fw * 0.80f,
+                rightCbX: fw * 0.85f,
                 rightCbDepth: deepSafetyDepth,
                 rightCbZone: CoverageRole.DeepRight,
                 cbPress: false,
@@ -489,8 +489,8 @@ public sealed class DefenseFactory : IDefenseFactory
                 rightSafetyDepth: deepSafetyDepth,
                 rightSafetyZone: CoverageRole.DeepQuarterRight,
                 nickelX: hasNickelPackage ? fw * 0.50f : -1,
-                nickelDepth: deepSafetyDepth,
-                nickelZone: CoverageRole.DeepMiddle
+                nickelDepth: shallowSafetyDepth,
+                nickelZone: CoverageRole.HookMiddle
             ),
 
             // Cover 2 Man: Two deep safeties (zone), CBs and LBs play man underneath

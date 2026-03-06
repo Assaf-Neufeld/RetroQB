@@ -67,9 +67,11 @@ public static class ZoneCoverage
 
         Vector2 anchor = defender.ZoneRole switch
         {
-            CoverageRole.DeepLeft => new Vector2(Constants.FieldWidth * 0.30f, lineOfScrimmage + Constants.ZoneCoverageDepthDb),
+            CoverageRole.DeepLeft => new Vector2(Constants.FieldWidth * 0.25f, lineOfScrimmage + Constants.ZoneCoverageDepthDb),
             CoverageRole.DeepMiddle => new Vector2(Constants.FieldWidth * 0.50f, lineOfScrimmage + Constants.ZoneCoverageDepthDb),
-            CoverageRole.DeepRight => new Vector2(Constants.FieldWidth * 0.70f, lineOfScrimmage + Constants.ZoneCoverageDepthDb),
+            CoverageRole.DeepRight => new Vector2(Constants.FieldWidth * 0.75f, lineOfScrimmage + Constants.ZoneCoverageDepthDb),
+            CoverageRole.DeepQuarterLeft => new Vector2(Constants.FieldWidth * 0.40f, lineOfScrimmage + Constants.ZoneCoverageDepthDb),
+            CoverageRole.DeepQuarterRight => new Vector2(Constants.FieldWidth * 0.60f, lineOfScrimmage + Constants.ZoneCoverageDepthDb),
             CoverageRole.FlatLeft => new Vector2(Constants.FieldWidth * 0.12f, lineOfScrimmage + Constants.ZoneCoverageDepthFlat),
             CoverageRole.FlatRight => new Vector2(Constants.FieldWidth * 0.88f, lineOfScrimmage + Constants.ZoneCoverageDepthFlat),
             CoverageRole.HookLeft => new Vector2(Constants.FieldWidth * 0.38f, lineOfScrimmage + Constants.ZoneCoverageDepth),
@@ -282,9 +284,9 @@ public static class ZoneCoverage
                 Constants.ZoneMatchWidthHook,
                 lineOfScrimmage + Constants.ZoneCoverageDepth + Constants.ZoneMatchDepthBuffer
             ),
-            CoverageRole.DeepLeft => GetDeepZoneParameters(0.30f, lineOfScrimmage, ref yMin),
+            CoverageRole.DeepLeft => GetDeepZoneParameters(0.25f, lineOfScrimmage, ref yMin),
             CoverageRole.DeepMiddle => GetDeepZoneParameters(0.50f, lineOfScrimmage, ref yMin),
-            CoverageRole.DeepRight => GetDeepZoneParameters(0.70f, lineOfScrimmage, ref yMin),
+            CoverageRole.DeepRight => GetDeepZoneParameters(0.75f, lineOfScrimmage, ref yMin),
             CoverageRole.DeepQuarterLeft => GetDeepZoneParameters(0.40f, lineOfScrimmage, ref yMin),
             CoverageRole.DeepQuarterRight => GetDeepZoneParameters(0.60f, lineOfScrimmage, ref yMin),
             _ => (
