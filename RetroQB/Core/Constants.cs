@@ -110,16 +110,21 @@ public static class Constants
     public const float BlockHoldStrength = 5.8f;
 
     // Defensive coverage tuning
-    public const float ZoneCoverageDepth = 14f;
-    public const float ZoneCoverageDepthDb = 22f;
-    public const float ZoneCoverageDepthFlat = 6.5f;
+    public const float ZoneCoverageDepth = 12.5f;
+    public const float ZoneCoverageDepthDb = 19.5f;
+    public const float ZoneCoverageDepthFlat = 5.8f;
     public const float ZoneMatchWidthFlat = FieldWidth * 0.24f;
     public const float ZoneMatchWidthHook = FieldWidth * 0.24f;
     public const float ZoneMatchWidthDeep = FieldWidth * 0.52f;
     public const float ZoneMatchDepthBuffer = 2.2f;
     public const float ZoneMatchAttachRadius = 2.5f;
     public const float ZoneDeepCushion = 1.8f;
-    public const float ZoneCarryDepth = 26f;
+    public const float ZoneCarryDepth = 23.5f;
+    public const float ZoneLookAheadDeep = 4.8f;
+    public const float ZoneLookAheadUnderneath = 3.1f;
+    public const float ZoneHookSideStretch = 3.2f;
+    public const float ZoneHookMiddleStretch = 2.5f;
+    public const float ZoneFlatStretch = 6.2f;
 
     public static Vector2 WorldToScreen(Vector2 worldPos)
     {

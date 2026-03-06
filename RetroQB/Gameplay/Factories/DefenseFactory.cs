@@ -330,7 +330,7 @@ public sealed class DefenseFactory : IDefenseFactory
             CoverageScheme.Cover1 => (CoverageRole.None, CoverageRole.None, CoverageRole.None),
             CoverageScheme.Cover2Man => (CoverageRole.None, CoverageRole.None, CoverageRole.None),
             CoverageScheme.Cover2Zone => (CoverageRole.HookLeft, CoverageRole.HookMiddle, CoverageRole.HookRight),
-            CoverageScheme.Cover3Zone => (CoverageRole.FlatLeft, CoverageRole.HookMiddle, CoverageRole.FlatRight),
+            CoverageScheme.Cover3Zone => (CoverageRole.HookLeft, CoverageRole.HookMiddle, CoverageRole.HookRight),
             CoverageScheme.Cover4Zone => (CoverageRole.HookLeft, CoverageRole.HookMiddle, CoverageRole.HookRight),
             _ => (CoverageRole.HookLeft, CoverageRole.HookMiddle, CoverageRole.HookRight)
         };

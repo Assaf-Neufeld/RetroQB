@@ -69,7 +69,8 @@ public sealed class DefaultBlitzDecisionStrategy : IBlitzDecisionStrategy
             ScaleWeight(weights, BlitzPackage.None, 0.72f);
             ScaleWeight(weights, BlitzPackage.DoubleLinebacker, 1.25f);
             ScaleWeight(weights, BlitzPackage.ZeroPressure, 1.20f);
-            ScaleWeight(weights, BlitzPackage.StrongSafetyPressure, 1.10f);
+            ScaleWeight(weights, BlitzPackage.StrongSafetyPressure, 0.78f);
+            ScaleWeight(weights, BlitzPackage.NickelCat, 0.72f);
         }
         else if (shortYardage)
         {
@@ -82,7 +83,8 @@ public sealed class DefaultBlitzDecisionStrategy : IBlitzDecisionStrategy
         if (inRedZone)
         {
             ScaleWeight(weights, BlitzPackage.ZeroPressure, 0.85f);
-            ScaleWeight(weights, BlitzPackage.StrongSafetyPressure, 0.90f);
+            ScaleWeight(weights, BlitzPackage.StrongSafetyPressure, 0.80f);
+            ScaleWeight(weights, BlitzPackage.NickelCat, 0.75f);
         }
 
         // Apply adaptive memory multipliers (if available)
@@ -94,6 +96,8 @@ public sealed class DefaultBlitzDecisionStrategy : IBlitzDecisionStrategy
                 weights[package] *= memMult;
             }
         }
+
+        ScaleDbPressurePackages(weights, 0.62f);
 
         return WeightedPick(weights, rng);
     }
@@ -275,6 +279,12 @@ public sealed class DefaultBlitzDecisionStrategy : IBlitzDecisionStrategy
         }
 
         weights[package] = Math.Max(0f, weight * multiplier);
+    }
+
+    private static void ScaleDbPressurePackages(Dictionary<BlitzPackage, float> weights, float multiplier)
+    {
+        ScaleWeight(weights, BlitzPackage.StrongSafetyPressure, multiplier);
+        ScaleWeight(weights, BlitzPackage.NickelCat, multiplier);
     }
 
     private static BlitzPackage WeightedPick(Dictionary<BlitzPackage, float> weights, Random rng)
