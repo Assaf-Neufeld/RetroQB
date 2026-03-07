@@ -1,8 +1,10 @@
 # 🏈 RetroQB
 
-**Step into the pocket. Read the defense. Make the throw.**
+**Call the play. Read the coverage. Survive the rush. Be the hero.**
 
-RetroQB is a fast-paced retro-style 2D American football game where YOU are the quarterback. Call plays, dodge rushers, and lead your receivers to the end zone in this love letter to classic arcade sports games.
+RetroQB is a fast, retro-style 2D football game built around the best part of the sport: being the quarterback when everything is on the line. Pick your team, choose your play, scan the field, and try to stay cool while the defense starts doing very rude things.
+
+It is part arcade football fantasy, part drive-management challenge, and part "please let my slot receiver win this route." 
 
 ---
 
@@ -24,36 +26,50 @@ RetroQB is a fast-paced retro-style 2D American football game where YOU are the 
 
 ---
 
-## ⚡ Features
+## 🎮 What makes it fun
 
-### 🎮 Core Gameplay
-- **3-Stage Season Mode** — Win the Regular Season, Playoff, and Super Bowl to become Champion
-- **Increasing Difficulty** — Each stage features tougher defensive opponents
-- **Classic Arcade Feel** — Simple controls, pure football action
-- **Multiple Play Types** — Quick passes, deep bombs, scrambles, and dedicated run plays
-- **Drive Tracking** — Watch your plays unfold in the drive summary with detailed stats
-- **Player Statistics** — Track QB, rushing, and skill position stats on the scoreboard
+### Pick a play and commit
+Every snap starts with a decision. Do you dial up a quick pass, attack deep, or call a run and trust the blocking? RetroQB keeps play selection simple and readable, so the fun is in the choice: take the safe yards, hunt the big one, or try to outsmart the defense before the ball is even snapped.
 
-### 🏈 Offensive Systems
-- **Team Selection** — Choose from 3 unique teams with different offensive rosters
-- **Slot-Based Skills** — Receivers have unique attributes based on their position
-- **Smart Route Running** — Deep posts, curls, and dynamic route progression
-- **Run Game Mechanics** — OL lane creation, backside sealing, and RB cut boosts
-- **Offensive Line AI** — Pass blocking pocket formation and run blocking assignments
+### Feel the game-day atmosphere
+This is not just Xs and Os on a blank field. The stadium has lights, crowd detail, sideline flavor, replay moments, and a scoreboard that keeps the whole drive feeling alive. When you hit a big play, it should feel like the building noticed.
 
-### 🛡️ Defensive AI
-- **Zone Coverage** — Cover 2 zone with realistic depth adjustments
-- **Man Coverage** — Defenders track and pursue receivers intelligently  
-- **Blitz Concepts** — Varied pass rush schemes including edge rush
-- **DE Position** — Dedicated defensive ends with edge rush capabilities
-- **Endzone Awareness** — Defense adjusts depth near the goal line
+### Watch the defense adjust
+The defense is not there just to be decorative. Coverages change, blitz looks vary, and tougher stages bring smarter, nastier opponents. As you move from the Regular Season to the Playoff and then the Super Bowl, the defense starts feeling more prepared for what you want to do.
 
-### 🎨 Presentation
-- **Retro Stadium Visuals** — Bleachers, sidelines, and field markings
-- **Resizable Window** — Play at your preferred screen size
-- **Side Panel HUD** — Clean scoreboard and play information
-- **Position Labels** — See receiver assignments at a glance
-- **Auto Target System** — Highlights the best available receiver
+### Live in the pocket
+Some plays are about rhythm. Some are about panic. RetroQB is built for both. Sometimes you plant, fire, and hit a clean route on time. Sometimes the edge collapses, your first read disappears, and you have to sprint out of danger and invent something.
+
+### Build a season one drive at a time
+You are trying to survive a full three-stage run:
+- **Regular Season** — a good place to settle in and find your timing
+- **Playoff** — stronger defenses, tighter windows, more pressure
+- **Super Bowl** — the meanest version of the game, with everything on the line
+
+---
+
+## 🏈 Game flow
+
+1. **Choose a team** with its own offensive personality.
+2. **Pick a play** before the snap — pass or run, safe or bold.
+3. **Read the defense** and identify your best option.
+4. **Snap the ball** and react fast.
+5. **Throw on time or take off running** if the pocket breaks down.
+6. **Manage the drive** across four downs and chase the end zone.
+7. **Advance through the season** by winning each stage.
+
+If you like football games where the tension comes from decisions more than button combos, this is the idea.
+
+---
+
+## 🎯 A few reasons to come back for one more drive
+
+- **Quick decision-making** — pre-snap choices matter
+- **Readable receiver targeting** — eligible receivers are clearly labeled
+- **Run and pass variety** — not every drive has to look the same
+- **Replay support** — rewatch your best throw or your worst mistake
+- **Team variety** — different rosters support different styles
+- **Stage-based challenge** — the season arc gives every game a purpose
 
 ---
 
@@ -66,81 +82,76 @@ RetroQB is a fast-paced retro-style 2D American football game where YOU are the 
 | Snap Ball | `Space` |
 | Throw Pass | `1` `2` `3` `4` `5` |
 | Replay Last Play (dead-ball) | `F` |
-| Select Play | `1` / `2` / `3` |
 | Confirm / Next Drive / Continue | `Enter` |
 | Pause | `Esc` |
 
----
+### Pre-snap play selection
 
-## 🏃 How to Play
-
-1. **Choose Your Team**: Select from 3 unique offensive teams
-2. **Win 3 Stages**: Beat each stage by scoring 21 points
-   - **Regular Season** — Balanced defense, learn the ropes
-   - **Playoff** — Tougher defense with aggressive schemes
-   - **Super Bowl** — Elite defense, the ultimate challenge
-3. **Pre-Snap**: Choose your play (pass or run)
-4. **Snap**: Press `Space` to start the play
-5. **Read the Defense**: Receivers are labeled by priority `1`-`5`
-6. **Make Your Move**: 
-   - Throw with `1`-`5` before crossing the line of scrimmage
-   - Or tuck it and run! Sprint past defenders for big gains
-7. **Score Touchdowns**: Reach the end zone for 7 points
-8. **Become Champion**: Win all 3 stages to hoist the trophy!
-
-**Replay Tip**: After a play ends, press `F` during dead-ball screens or at pre-snap to watch the last play replay.
+| Action | Key |
+|--------|-----|
+| Select pass play | `1`-`0` |
+| Select run play | `Q`-`P` |
 
 ---
 
-## 🚀 Quick Start
+## 🧠 Quick tips
+
+- **Do not wait forever** — the rush is coming
+- **Throw where a receiver is going** — not where they are standing
+- **Use the run game** — it helps when the defense starts selling out against the pass
+- **Respect tight coverage** — forcing hero throws is how drives die
+- **Scramble with purpose** — a smart run can be better than a bad pass
+
+---
+
+## ⚙️ Technical details
+
+### Quick start
 
 ```bash
 dotnet run
 ```
 
-**Workspace Tip**: Open the repo root folder (`Football2DQB`) in VS Code. This repo includes a `.vscode/settings.json` that limits Git auto-detection so the nested `RetroQB/` folder doesn't show as a separate repo.
+### Requirements
 
-**Requirements**: .NET 9.0 SDK
+- .NET 10 SDK
+- Windows x64 target for publish output
 
----
+### Tech stack
 
-## 🎯 Tips & Strategy
+- C# / .NET 10
+- Raylib-cs 7.0.2
+- Single-project desktop game structure
 
-- **Timing is everything** — Throw before the rush gets to you
-- **Lead your receivers** — The ball is thrown where they're going, not where they are
-- **Watch for contested catches** — Defenders nearby can cause drops or interceptions
-- **Know when to run** — Sometimes the best play is to scramble
-- **Manage the downs** — Don't force throws into coverage on early downs
-
----
-
-## 📁 Project Structure
+### Project structure
 
 ```
 RetroQB.csproj    # Project file (run from repo root)
 RetroQB/
-├── AI/           # Defender targeting, offensive line AI, zone coverage
-├── Core/         # Constants, game state, field geometry, rules
-├── Data/         # Team attributes, rosters, and team presets
-├── Entities/     # QB, receivers, defenders, ball, blockers
+├── AI/           # Coverage logic, defensive memory, targeting, line AI
+├── Core/         # Constants, game state, rules, field geometry
+├── Data/         # Offensive and defensive team presets and attributes
+├── Entities/     # QB, receivers, defenders, blockers, ball
 ├── Gameplay/
-│   ├── Controllers/   # Play execution, blocking, tackling, menus
-│   └── Factories/     # Formation and defense creation
-├── Input/        # Centralized player input handling
-├── Rendering/    # Field, HUD sub-renderers, stadium, fireworks
-├── Routes/       # Route types, geometry, running, and assignment
-└── Stats/        # QB/rush/skill stat lines and tracking
+│   ├── Controllers/   # Play execution, blocking, tackling, menus, drawing
+│   └── Factories/     # Formations, defense creation, blitz decisions
+├── Input/        # Centralized input handling
+├── Rendering/    # Field, HUD, stadium, overlays, effects
+├── Routes/       # Route types, geometry, assignment, visualization
+└── Stats/        # Game and season stat tracking
 ```
 
----
+### Build notes
 
-## 🙏 Written with
+- Build from the repository root.
+- Open the `Football2DQB` folder in VS Code.
+- The workspace includes VS Code settings to avoid showing nested Git repos unnecessarily.
 
-- Opus 4.5
-- GPT-5.2-Codex
+### Created with
+
 - Visual Studio Code
 - GitHub Copilot
 
 ---
 
-*Can you lead your team to victory? The pocket is collapsing. Clock is ticking. Make the call.*
+*The crowd is loud, the pocket is shrinking, and somebody has to make the read.*
