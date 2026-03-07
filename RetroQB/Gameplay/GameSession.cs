@@ -68,6 +68,10 @@ public sealed class GameSession
     private int _selectedTeamIndex;
     private float _crowdMomentum;
     private float _crowdSurge;
+    private float _crowdCarryoverBuzz;
+    private float _crowdCarryoverMomentum;
+    private float _liveCrowdMomentum;
+    private float _liveCrowdSurge;
     private string _homeCrowdChant = string.Empty;
     private float _homeCrowdChantTimer;
     private float _homeCrowdChantDuration;
@@ -247,6 +251,10 @@ public sealed class GameSession
         _autoPlaySelectionDone = false;
         _crowdMomentum = 0f;
         _crowdSurge = 0f;
+        _crowdCarryoverBuzz = 0f;
+        _crowdCarryoverMomentum = 0f;
+        _liveCrowdMomentum = 0f;
+        _liveCrowdSurge = 0f;
         _homeCrowdChant = string.Empty;
         _homeCrowdChantTimer = 0f;
         _homeCrowdChantDuration = 0f;
@@ -790,8 +798,14 @@ public sealed class GameSession
 
     private void UpdateCrowdEnergy(float dt)
     {
-        _crowdMomentum = MoveTowards(_crowdMomentum, 0f, dt * 0.6f);
-        _crowdSurge = MoveTowards(_crowdSurge, 0f, dt * 0.3f);
+        UpdateLiveCrowdState();
+
+        float situationalBuzzFloor = GetSituationalCrowdFloor();
+        float buzzDecay = _crowdCarryoverBuzz > situationalBuzzFloor ? dt * 0.05f : dt * 0.18f;
+        _crowdCarryoverBuzz = MoveTowards(_crowdCarryoverBuzz, situationalBuzzFloor, buzzDecay);
+        _crowdCarryoverMomentum = MoveTowards(_crowdCarryoverMomentum, 0f, dt * 0.07f);
+        _crowdMomentum = MoveTowards(_crowdMomentum, _crowdCarryoverMomentum, dt * 0.16f);
+        _crowdSurge = MoveTowards(_crowdSurge, _crowdCarryoverBuzz, dt * 0.12f);
 
         if (_homeCrowdChantTimer > 0f)
         {
@@ -823,8 +837,17 @@ public sealed class GameSession
             _ => Math.Clamp(MathF.Abs(gain) / 20f, 0.15f, isSack ? 0.82f : 0.7f)
         };
 
-        _crowdMomentum = Math.Clamp((_crowdMomentum * 0.4f) + offenseSwing, -1f, 1f);
-        _crowdSurge = Math.Clamp(MathF.Max(_crowdSurge, highlightLevel), 0f, 1f);
+        float endZoneBoost = GetEndZoneExcitement(playEndPosition.Y);
+        float carryoverStrength = Math.Clamp(
+            (highlightLevel * (offenseSwing >= 0f ? 0.85f : 0.58f)) +
+            (endZoneBoost * (offenseSwing >= 0f ? 0.6f : 0.25f)),
+            0f,
+            1f);
+
+        _crowdMomentum = Math.Clamp((_crowdMomentum * 0.35f) + offenseSwing, -1f, 1f);
+        _crowdCarryoverMomentum = Math.Clamp((_crowdCarryoverMomentum * 0.45f) + (offenseSwing * (0.55f + (endZoneBoost * 0.35f))), -1f, 1f);
+        _crowdCarryoverBuzz = Math.Clamp(MathF.Max(_crowdCarryoverBuzz, carryoverStrength), 0f, 1f);
+        _crowdSurge = Math.Clamp(MathF.Max(_crowdSurge, highlightLevel + (endZoneBoost * 0.18f)), 0f, 1f);
         TriggerHomeCrowdChant(result, gain, isSack, highlightLevel, offenseSwing, playEndPosition);
     }
 
@@ -847,9 +870,12 @@ public sealed class GameSession
             _ => 0f
         };
 
-        float overall = Math.Clamp(stageEnergy + scoreEnergy + playProgressEnergy + closeGameEnergy + (_crowdSurge * 0.32f), 0f, 1f);
-        float homeEnergy = Math.Clamp(0.18f + (overall * 0.45f) + MathF.Max(0f, _crowdMomentum) * 0.6f - MathF.Max(0f, -_crowdMomentum) * 0.2f, 0f, 1f);
-        float awayEnergy = Math.Clamp(0.18f + (overall * 0.45f) + MathF.Max(0f, -_crowdMomentum) * 0.6f - MathF.Max(0f, _crowdMomentum) * 0.2f, 0f, 1f);
+        float effectiveSurge = Math.Clamp(MathF.Max(_crowdSurge, _liveCrowdSurge) + (_crowdCarryoverBuzz * 0.16f), 0f, 1f);
+        float effectiveMomentum = Math.Clamp(_crowdMomentum + _liveCrowdMomentum, -1f, 1f);
+
+        float overall = Math.Clamp(stageEnergy + scoreEnergy + playProgressEnergy + closeGameEnergy + (_crowdCarryoverBuzz * 0.12f) + (effectiveSurge * 0.32f), 0f, 1f);
+        float homeEnergy = Math.Clamp(0.18f + (overall * 0.45f) + MathF.Max(0f, effectiveMomentum) * 0.6f - MathF.Max(0f, -effectiveMomentum) * 0.2f, 0f, 1f);
+        float awayEnergy = Math.Clamp(0.18f + (overall * 0.45f) + MathF.Max(0f, -effectiveMomentum) * 0.6f - MathF.Max(0f, effectiveMomentum) * 0.2f, 0f, 1f);
 
         float chantStrength = 0f;
         if (_homeCrowdChantTimer > 0f && _homeCrowdChantDuration > 0f)
@@ -875,6 +901,75 @@ public sealed class GameSession
         _homeCrowdChantDuration = 2.2f + (highlightLevel * 1.2f);
         _homeCrowdChantTimer = _homeCrowdChantDuration;
         _homeCrowdChantWorldPosition = playEndPosition;
+    }
+
+    private void UpdateLiveCrowdState()
+    {
+        _liveCrowdMomentum = 0f;
+        _liveCrowdSurge = 0f;
+
+        if (_stateManager.State != GameState.PlayActive)
+        {
+            return;
+        }
+
+        float playLos = _ballController.PlayStartLos > 0f ? _ballController.PlayStartLos : _playManager.LineOfScrimmage;
+        float endZonePulse = 0f;
+
+        switch (_entities.Ball.State)
+        {
+            case BallState.HeldByReceiver when _entities.Ball.Holder != null:
+            {
+                float liveGain = _entities.Ball.Holder.Position.Y - playLos;
+                endZonePulse = GetEndZoneExcitement(_entities.Ball.Holder.Position.Y);
+                _liveCrowdMomentum = Math.Clamp(liveGain / 18f, 0f, 0.95f);
+                _liveCrowdSurge = Math.Clamp((liveGain / 24f) + (endZonePulse * 0.35f), 0f, 1f);
+                break;
+            }
+
+            case BallState.HeldByQB:
+            {
+                float scrambleGain = _entities.Qb.Position.Y - playLos;
+                if (_qbPastLos || scrambleGain >= 6f)
+                {
+                    endZonePulse = GetEndZoneExcitement(_entities.Qb.Position.Y);
+                    _liveCrowdMomentum = Math.Clamp(scrambleGain / 22f, 0f, 0.72f);
+                    _liveCrowdSurge = Math.Clamp((scrambleGain / 28f) + (endZonePulse * 0.22f), 0f, 0.82f);
+                }
+                break;
+            }
+
+            case BallState.InAir when _ballController.PassAttemptedThisPlay:
+            {
+                float airGain = _entities.Ball.Position.Y - playLos;
+                if (airGain >= 10f)
+                {
+                    float flightProgress = _entities.Ball.GetFlightProgress();
+                    endZonePulse = GetEndZoneExcitement(_entities.Ball.Position.Y);
+                    _liveCrowdMomentum = Math.Clamp(airGain / 30f, 0f, 0.8f);
+                    _liveCrowdSurge = Math.Clamp((airGain / 36f) + (flightProgress * 0.28f) + (endZonePulse * 0.2f), 0f, 0.92f);
+                }
+                break;
+            }
+        }
+
+        if (_liveCrowdSurge > 0f)
+        {
+            _liveCrowdSurge = Math.Clamp(_liveCrowdSurge + (endZonePulse * 0.1f), 0f, 1f);
+        }
+    }
+
+    private float GetSituationalCrowdFloor()
+    {
+        float redZoneBuzz = Math.Clamp((_playManager.LineOfScrimmage - (FieldGeometry.OpponentGoalLine - 20f)) / 20f, 0f, 1f) * 0.34f;
+        float goalToGoBuzz = Math.Clamp((_playManager.LineOfScrimmage - (FieldGeometry.OpponentGoalLine - 8f)) / 8f, 0f, 1f) * 0.24f;
+        float scorePressureBuzz = (_playManager.Score >= 14 || _playManager.AwayScore >= 14) ? 0.05f : 0f;
+        return Math.Clamp(redZoneBuzz + goalToGoBuzz + scorePressureBuzz, 0f, 0.6f);
+    }
+
+    private static float GetEndZoneExcitement(float worldY)
+    {
+        return Math.Clamp((worldY - (FieldGeometry.OpponentGoalLine - 20f)) / 20f, 0f, 1f);
     }
 
     private string SelectHomeCrowdChant(PlayResult result, float gain, bool isSack, float offenseSwing)
