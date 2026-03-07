@@ -14,6 +14,17 @@ public enum TightEndRole
     Route
 }
 
+public enum RunConcept
+{
+    None,
+    Dive,
+    Power,
+    Counter,
+    Sweep,
+    Stretch,
+    Draw
+}
+
 /// <summary>
 /// Base: 3 WR, 1 RB, 1 TE (5 skill + 5 OL)
 /// Pass: 4 WR, 1 TE (5 skill + 5 OL)  
@@ -41,7 +52,11 @@ public enum FormationType
     RunSweepRight,     // WR left, TE right, RB wide right
     RunSweepLeft,      // WR right, TE left, RB wide left
     RunStretchRight,   // WR left, TE right, RB behind OL — outside zone right
-    RunStretchLeft     // WR right, TE left, RB behind OL — outside zone left
+    RunStretchLeft,    // WR right, TE left, RB behind OL — outside zone left
+    RunPistolStrongRight,
+    RunPistolStrongLeft,
+    RunSinglebackTripsRight,
+    RunSinglebackTripsLeft
 }
 
 public sealed class PlayDefinition
@@ -51,6 +66,7 @@ public sealed class PlayDefinition
     public FormationType Formation { get; }
     public RunningBackRole RunningBackRole { get; }
     public TightEndRole TightEndRole { get; }
+    public RunConcept RunConcept { get; }
     public int RunningBackSide { get; }
     public IReadOnlyDictionary<int, RouteType> Routes { get; }
     public IReadOnlyDictionary<int, bool> SlantDirections { get; }
@@ -62,6 +78,7 @@ public sealed class PlayDefinition
         RunningBackRole runningBackRole,
         TightEndRole tightEndRole,
         IReadOnlyDictionary<int, RouteType> routes,
+        RunConcept runConcept = RunConcept.None,
         int runningBackSide = 0,
         IReadOnlyDictionary<int, bool>? slantDirections = null)
     {
@@ -70,6 +87,7 @@ public sealed class PlayDefinition
         Formation = formation;
         RunningBackRole = runningBackRole;
         TightEndRole = tightEndRole;
+        RunConcept = family == PlayType.Run ? runConcept : RunConcept.None;
         Routes = routes;
         RunningBackSide = runningBackSide;
         SlantDirections = slantDirections ?? new Dictionary<int, bool>();

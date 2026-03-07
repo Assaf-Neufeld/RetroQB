@@ -230,10 +230,8 @@ public sealed class DrawingController
 
         OffensiveLinemanAI.DrawRoutes(
             blockers.ToList(),
-            playManager.SelectedPlayType,
-            playManager.SelectedPlay.Formation,
-            playManager.LineOfScrimmage,
-            playManager.SelectedPlay.RunningBackSide);
+            playManager.SelectedPlay,
+            playManager.LineOfScrimmage);
     }
 
     private void DrawReceiverPriorityLabels(IReadOnlyList<Receiver> receivers)

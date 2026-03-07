@@ -173,6 +173,40 @@ public sealed class FormationFactory : IFormationFactory
             new(0.30f, 0.05f, ReceiverSlot.TE1),
             new(0.22f, 0.75f, ReceiverSlot.TE2),
         }, ExtraLinemen: 1),
+
+        [FormationType.RunPistolStrongRight] = new(new ReceiverPlacement[]
+        {
+            new(0.10f, 0.3f, ReceiverSlot.WR1),
+            new(0.50f, 5.1f, ReceiverSlot.RB1),
+            new(0.68f, 0.05f, ReceiverSlot.TE1),
+            new(0.76f, 0.85f, ReceiverSlot.TE2),
+        }, ExtraLinemen: 1),
+
+        [FormationType.RunPistolStrongLeft] = new(new ReceiverPlacement[]
+        {
+            new(0.90f, 0.3f, ReceiverSlot.WR1),
+            new(0.50f, 5.1f, ReceiverSlot.RB1),
+            new(0.32f, 0.05f, ReceiverSlot.TE1),
+            new(0.24f, 0.85f, ReceiverSlot.TE2),
+        }, ExtraLinemen: 1),
+
+        [FormationType.RunSinglebackTripsRight] = new(new ReceiverPlacement[]
+        {
+            new(0.10f, 0.3f, ReceiverSlot.WR1),
+            new(0.54f, 4.8f, ReceiverSlot.RB1),
+            new(0.66f, 1.0f, ReceiverSlot.WR2),
+            new(0.86f, 0.3f, ReceiverSlot.WR3),
+            new(0.36f, 0.05f, ReceiverSlot.TE1),
+        }, ExtraLinemen: 0),
+
+        [FormationType.RunSinglebackTripsLeft] = new(new ReceiverPlacement[]
+        {
+            new(0.90f, 0.3f, ReceiverSlot.WR1),
+            new(0.46f, 4.8f, ReceiverSlot.RB1),
+            new(0.34f, 1.0f, ReceiverSlot.WR2),
+            new(0.14f, 0.3f, ReceiverSlot.WR3),
+            new(0.64f, 0.05f, ReceiverSlot.TE1),
+        }, ExtraLinemen: 0),
     };
 
     // Default formation used when the requested type is not in the table.
@@ -298,7 +332,11 @@ public sealed class FormationFactory : IFormationFactory
             or FormationType.RunSweepRight
             or FormationType.RunSweepLeft
             or FormationType.RunStretchRight
-            or FormationType.RunStretchLeft)
+            or FormationType.RunStretchLeft
+            or FormationType.RunPistolStrongRight
+            or FormationType.RunPistolStrongLeft
+            or FormationType.RunSinglebackTripsRight
+            or FormationType.RunSinglebackTripsLeft)
         {
             return formation;
         }

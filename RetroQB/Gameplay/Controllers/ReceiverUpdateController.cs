@@ -74,7 +74,7 @@ public sealed class ReceiverUpdateController
 
             if (isRunPlayPreHandoff && receiver.IsRunningBack)
             {
-                UpdateRunningBackPreHandoff(receiver, qb, dt, clampToField);
+                UpdateRunningBackPreHandoff(receiver, qb, playManager.SelectedPlay, dt, clampToField);
                 continue;
             }
 
@@ -88,28 +88,64 @@ public sealed class ReceiverUpdateController
         }
     }
 
-    private void UpdateRunningBackPreHandoff(Receiver receiver, Quarterback qb, float dt, Action<Entity> clampToField)
+    private void UpdateRunningBackPreHandoff(Receiver receiver, Quarterback qb, PlayDefinition selectedPlay, float dt, Action<Entity> clampToField)
     {
-        Vector2 toQb = qb.Position - receiver.Position;
-        float dist = toQb.Length();
-        if (dist > 0.01f)
+        Vector2 meshTarget = GetRunningBackMeshTarget(qb, selectedPlay);
+        Vector2 toMesh = meshTarget - receiver.Position;
+        float dist = toMesh.Length();
+        Vector2 meshDir = dist > 0.01f ? toMesh / dist : Vector2.Zero;
+        float approachSpeed = receiver.Speed * GetRunningBackMeshSpeedMultiplier(selectedPlay.RunConcept);
+        receiver.Velocity = meshDir * approachSpeed;
+
+        if (selectedPlay.RunConcept == RunConcept.Counter && selectedPlay.RunningBackSide != 0)
         {
-            toQb /= dist;
+            receiver.Velocity += new Vector2(-selectedPlay.RunningBackSide * receiver.Speed * 0.08f, receiver.Speed * 0.05f);
         }
 
-        float settleRange = 4.5f;
-        float approachSpeed = receiver.Speed * 0.55f;
-        if (dist <= settleRange)
+        if (selectedPlay.RunConcept == RunConcept.Draw && dist < 1.2f)
         {
-            receiver.Velocity = toQb * approachSpeed;
-        }
-        else
-        {
-            RouteRunner.UpdateRoute(receiver, dt);
+            receiver.Velocity *= 0.7f;
         }
 
         receiver.Update(dt);
         clampToField(receiver);
+    }
+
+    private static Vector2 GetRunningBackMeshTarget(Quarterback qb, PlayDefinition selectedPlay)
+    {
+        int runSide = Math.Sign(selectedPlay.RunningBackSide);
+        Vector2 offset = selectedPlay.RunConcept switch
+        {
+            RunConcept.Dive => new Vector2(0f, -0.65f),
+            RunConcept.Power => new Vector2(runSide * 0.85f, -0.25f),
+            RunConcept.Counter => new Vector2(-runSide * 0.95f, -0.2f),
+            RunConcept.Sweep => new Vector2(runSide * 1.45f, -0.1f),
+            RunConcept.Stretch => new Vector2(runSide * 1.1f, -0.2f),
+            RunConcept.Draw => new Vector2(0f, -1.05f),
+            _ => new Vector2(runSide * 0.6f, -0.3f)
+        };
+
+        Vector2 target = qb.Position + offset;
+        if (selectedPlay.RunConcept == RunConcept.Counter && runSide != 0)
+        {
+            target.X += runSide * 0.35f;
+        }
+
+        return target;
+    }
+
+    private static float GetRunningBackMeshSpeedMultiplier(RunConcept runConcept)
+    {
+        return runConcept switch
+        {
+            RunConcept.Dive => 0.62f,
+            RunConcept.Power => 0.57f,
+            RunConcept.Counter => 0.52f,
+            RunConcept.Sweep => 0.66f,
+            RunConcept.Stretch => 0.6f,
+            RunConcept.Draw => 0.46f,
+            _ => 0.55f
+        };
     }
 
     private static void UpdateControlledReceiver(Receiver receiver, Vector2 inputDir, bool sprint, bool isRunPlayWithRb, float dt, Action<Entity> clampToField)

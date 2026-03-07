@@ -126,10 +126,8 @@ public sealed class PlayExecutionController
         OffensiveLinemanAI.UpdateBlockers(
             blockers.ToList(),
             defenders.ToList(),
-            playManager.SelectedPlayType,
-            playManager.SelectedPlay.Formation,
+            playManager.SelectedPlay,
             playManager.LineOfScrimmage,
-            playManager.SelectedPlay.RunningBackSide,
             dt,
             runBlockingBoost,
             clampToField,

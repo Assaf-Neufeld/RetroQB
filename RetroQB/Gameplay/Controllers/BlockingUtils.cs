@@ -72,24 +72,29 @@ public static class BlockingUtils
         return Math.Clamp(t, 0f, 1f);
     }
 
-    /// <summary>
-    /// Returns true if the formation is a sweep or outside-zone play.
-    /// </summary>
-    public static bool IsSweepFormation(FormationType formation)
+    public static bool IsSweepConcept(RunConcept runConcept)
     {
-        return formation is FormationType.RunSweepLeft
-            or FormationType.RunSweepRight
-            or FormationType.RunStretchLeft
-            or FormationType.RunStretchRight;
+        return runConcept == RunConcept.Sweep;
     }
 
-    /// <summary>
-    /// Returns true if the formation is an outside zone / stretch play.
-    /// </summary>
-    public static bool IsStretchFormation(FormationType formation)
+    public static bool IsStretchConcept(RunConcept runConcept)
     {
-        return formation is FormationType.RunStretchLeft
-            or FormationType.RunStretchRight;
+        return runConcept == RunConcept.Stretch;
+    }
+
+    public static bool IsCounterConcept(RunConcept runConcept)
+    {
+        return runConcept == RunConcept.Counter;
+    }
+
+    public static bool IsDrawConcept(RunConcept runConcept)
+    {
+        return runConcept == RunConcept.Draw;
+    }
+
+    public static bool IsPerimeterRun(RunConcept runConcept)
+    {
+        return runConcept is RunConcept.Sweep or RunConcept.Stretch;
     }
 
     /// <summary>

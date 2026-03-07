@@ -17,10 +17,8 @@ public static class OffensiveLinemanAI
     public static void UpdateBlockers(
         IReadOnlyList<Blocker> blockers,
         IReadOnlyList<Defender> defenders,
-        PlayType playFamily,
-        FormationType formation,
+        PlayDefinition play,
         float lineOfScrimmage,
-        int runningBackSide,
         float dt,
         bool runBlockingBoost,
         Action<Blocker> clampToField,
@@ -29,14 +27,9 @@ public static class OffensiveLinemanAI
         if (blockers.Count == 0) return;
 
         RunContext context = BuildRunContext(
-            blockers,
-            playFamily,
-            formation,
+            play,
             lineOfScrimmage,
-            runningBackSide,
-            sweepPush: 4.2f,
-            basePush: 3.5f,
-            runTargetOffset: 3.2f,
+            runBlockingBoost,
             passTargetOffset: -1.4f);
 
         foreach (var blocker in blockers)
@@ -100,22 +93,15 @@ public static class OffensiveLinemanAI
 
     public static void DrawRoutes(
         IReadOnlyList<Blocker> blockers,
-        PlayType playFamily,
-        FormationType formation,
-        float lineOfScrimmage,
-        int runningBackSide)
+        PlayDefinition play,
+        float lineOfScrimmage)
     {
         if (blockers.Count == 0) return;
 
         RunContext context = BuildRunContext(
-            blockers,
-            playFamily,
-            formation,
+            play,
             lineOfScrimmage,
-            runningBackSide,
-            sweepPush: 4.2f,
-            basePush: 3.5f,
-            runTargetOffset: 3.2f,
+            runBlockingBoost: true,
             passTargetOffset: -1.4f);
 
         foreach (var blocker in blockers)
@@ -129,27 +115,65 @@ public static class OffensiveLinemanAI
     }
 
     private static RunContext BuildRunContext(
-        IReadOnlyList<Blocker> blockers,
-        PlayType playFamily,
-        FormationType formation,
+        PlayDefinition play,
         float lineOfScrimmage,
-        int runningBackSide,
-        float sweepPush,
-        float basePush,
-        float runTargetOffset,
+        bool runBlockingBoost,
         float passTargetOffset)
     {
-        bool isRunPlay = playFamily == PlayType.Run;
-        int runSide = Math.Sign(runningBackSide);
-        bool isSweep = isRunPlay && BlockingUtils.IsSweepFormation(formation);
-        bool isStretch = isRunPlay && BlockingUtils.IsStretchFormation(formation);
-        float stretchPush = (basePush + sweepPush) * 0.5f; // midpoint between power and sweep
-        float lateralPush = isRunPlay && runSide != 0
-            ? runSide * (isStretch ? stretchPush : isSweep ? sweepPush : basePush)
-            : 0f;
-        float targetY = isRunPlay ? lineOfScrimmage + runTargetOffset : lineOfScrimmage + passTargetOffset;
+        bool isRunPlay = play.Family == PlayType.Run;
+        int runSide = Math.Sign(play.RunningBackSide);
+        bool usePassPresentation = isRunPlay && BlockingUtils.IsDrawConcept(play.RunConcept) && !runBlockingBoost;
 
-        return new RunContext(isRunPlay, runSide, isSweep, isStretch, lateralPush, targetY);
+        if (!isRunPlay || usePassPresentation)
+        {
+            return new RunContext(false, runSide, play.RunConcept, 0f, lineOfScrimmage + passTargetOffset, 0f, 0f);
+        }
+
+        float lateralPush = runSide == 0 ? 0f : play.RunConcept switch
+        {
+            RunConcept.Dive => runSide * 0.35f,
+            RunConcept.Power => runSide * 3.5f,
+            RunConcept.Counter => runSide * 2.8f,
+            RunConcept.Sweep => runSide * 4.4f,
+            RunConcept.Stretch => runSide * 3.9f,
+            RunConcept.Draw => runSide * 0.8f,
+            _ => runSide * 3.5f
+        };
+
+        float targetY = lineOfScrimmage + (play.RunConcept switch
+        {
+            RunConcept.Dive => 2.4f,
+            RunConcept.Power => 3.2f,
+            RunConcept.Counter => 3.6f,
+            RunConcept.Sweep => 3.4f,
+            RunConcept.Stretch => 3.1f,
+            RunConcept.Draw => 2.8f,
+            _ => 3.2f
+        });
+
+        float laneOffset = play.RunConcept switch
+        {
+            RunConcept.Dive => 1.4f,
+            RunConcept.Power => 3.8f,
+            RunConcept.Counter => 4.1f,
+            RunConcept.Sweep => 5.4f,
+            RunConcept.Stretch => 4.6f,
+            RunConcept.Draw => 1.8f,
+            _ => 3.8f
+        };
+
+        float backsideSeal = play.RunConcept switch
+        {
+            RunConcept.Dive => 0.8f,
+            RunConcept.Power => 2.8f,
+            RunConcept.Counter => 3.8f,
+            RunConcept.Sweep => 2.2f,
+            RunConcept.Stretch => 1.8f,
+            RunConcept.Draw => 1.2f,
+            _ => 2.8f
+        };
+
+        return new RunContext(true, runSide, play.RunConcept, lateralPush, targetY, laneOffset, backsideSeal);
     }
 
     /// <summary>
@@ -174,10 +198,16 @@ public static class OffensiveLinemanAI
     private static RunProfile GetRunProfile(Blocker blocker, RunContext context)
     {
         bool isBackside = context.IsRunPlay && IsBacksideBlocker(blocker.HomeX, context.RunSide);
-        float laneShift = context.IsRunPlay ? GetRunLaneShift(blocker.HomeX, context.RunSide, context.IsSweep, context.IsStretch) : 0f;
-        float backsideShift = context.IsRunPlay ? GetBacksideSealShift(isBackside, context.RunSide) : 0f;
+        bool isPuller = context.IsRunPlay && BlockingUtils.IsCounterConcept(context.Concept) && IsCounterPuller(blocker.HomeX, context.RunSide);
+        float laneShift = context.IsRunPlay ? GetRunLaneShift(blocker.HomeX, context.RunSide, context.LaneOffset, context.Concept) : 0f;
+        float backsideShift = context.IsRunPlay ? GetBacksideSealShift(isBackside, context.RunSide, context.BacksideSealAmount) : 0f;
 
-        return new RunProfile(isBackside, laneShift, backsideShift);
+        if (isPuller)
+        {
+            laneShift += context.RunSide * 2.4f;
+        }
+
+        return new RunProfile(isBackside, isPuller, laneShift, backsideShift);
     }
 
     private static Vector2 ComputeAnchorForBlocker(Blocker blocker, RunContext context, RunProfile profile)
@@ -211,9 +241,7 @@ public static class OffensiveLinemanAI
 
         if (context.IsRunPlay)
         {
-            Vector2 driveDir = profile.IsBackside
-                ? new Vector2(-context.RunSide * 0.6f, 1f)
-                : new Vector2(context.RunSide * 0.7f, 1f);
+            Vector2 driveDir = GetBlockDriveDirection(context, profile);
             baseVelocity += BlockingUtils.SafeNormalize(driveDir) * (blocker.Speed * 0.35f * blockStrength);
         }
         else
@@ -274,9 +302,7 @@ public static class OffensiveLinemanAI
         // Only drive forward on run plays
         if (context.IsRunPlay)
         {
-            Vector2 driveDir = profile.IsBackside
-                ? new Vector2(-context.RunSide * 0.55f, 1f)
-                : new Vector2(context.RunSide * 0.7f, 1f);
+            Vector2 driveDir = GetBlockDriveDirection(context, profile);
             float driveStrength = (runBlockingBoost ? 1.2f : 0.8f) * blockStrength;
             target.Position += BlockingUtils.SafeNormalize(driveDir) * driveStrength * dt;
         }
@@ -315,10 +341,9 @@ public static class OffensiveLinemanAI
         
         if (context.IsRunPlay)
         {
-            // Strong lateral pull toward the run side — backside blockers pull across, playside push out
-            float lateralBias = profile.IsBackside ? -context.RunSide : context.RunSide;
-            float lateralMult = profile.IsBackside ? 0.45f : 0.3f;  // Backside blockers pull harder
-            blocker.Velocity += new Vector2(lateralBias * blocker.Speed * lateralMult, blocker.Speed * 0.25f);
+            Vector2 driveDir = GetBlockDriveDirection(context, profile);
+            float lateralMult = profile.IsPuller ? 0.55f : profile.IsBackside ? 0.38f : 0.28f;
+            blocker.Velocity += new Vector2(driveDir.X * blocker.Speed * lateralMult, blocker.Speed * 0.25f);
         }
         else
         {
@@ -331,8 +356,8 @@ public static class OffensiveLinemanAI
             if (context.IsRunPlay)
             {
                 float settleSpeed = blocker.Speed * 0.65f;
-                float lateralBias = profile.IsBackside ? -context.RunSide : context.RunSide;
-                blocker.Velocity = new Vector2(lateralBias * settleSpeed * 0.4f, settleSpeed);
+                Vector2 driveDir = GetBlockDriveDirection(context, profile);
+                blocker.Velocity = new Vector2(driveDir.X * settleSpeed * 0.45f, settleSpeed);
             }
             else
             {
@@ -470,19 +495,47 @@ public static class OffensiveLinemanAI
         return side == -runSide;
     }
 
-    private static float GetBacksideSealShift(bool isBackside, int runSide)
+    private static bool IsCounterPuller(float homeX, int runSide)
+    {
+        if (runSide == 0)
+        {
+            return false;
+        }
+
+        float centerX = Constants.FieldWidth * 0.5f;
+        float signedOffset = (homeX - centerX) * runSide;
+        return signedOffset < -0.9f && signedOffset > -6.8f;
+    }
+
+    private static Vector2 GetBlockDriveDirection(RunContext context, RunProfile profile)
+    {
+        if (profile.IsPuller)
+        {
+            return new Vector2(context.RunSide * 1.1f, 1f);
+        }
+
+        return context.Concept switch
+        {
+            RunConcept.Dive => new Vector2(profile.IsBackside ? -context.RunSide * 0.12f : context.RunSide * 0.18f, 1f),
+            RunConcept.Counter => new Vector2(context.RunSide * (profile.IsBackside ? 0.45f : 0.78f), 1f),
+            RunConcept.Sweep => new Vector2(context.RunSide * (profile.IsBackside ? 0.25f : 0.95f), 1f),
+            RunConcept.Stretch => new Vector2(context.RunSide * (profile.IsBackside ? 0.18f : 0.72f), 1f),
+            RunConcept.Draw => new Vector2(context.RunSide * (profile.IsBackside ? 0.08f : 0.18f), 1f),
+            _ => new Vector2(profile.IsBackside ? -context.RunSide * 0.45f : context.RunSide * 0.7f, 1f)
+        };
+    }
+
+    private static float GetBacksideSealShift(bool isBackside, int runSide, float sealAmount)
     {
         if (!isBackside || runSide == 0)
         {
             return 0f;
         }
 
-        // Backside blockers pull across toward the run side to seal pursuit
-        float sealAmount = 2.8f;
         return -runSide * sealAmount;
     }
 
-    private static float GetRunLaneShift(float homeX, int runSide, bool isSweep, bool isStretch)
+    private static float GetRunLaneShift(float homeX, int runSide, float laneOffset, RunConcept concept)
     {
         if (runSide == 0)
         {
@@ -490,8 +543,6 @@ public static class OffensiveLinemanAI
         }
 
         float centerX = Constants.FieldWidth * 0.5f;
-        // Stretch: tighter wall (4.4) between power (3.8) and sweep (5.2)
-        float laneOffset = isStretch ? 4.4f : isSweep ? 5.2f : 3.8f;
         float laneCenterX = centerX + (runSide * laneOffset);
         float deltaFromLane = homeX - laneCenterX;
         int laneSide = Math.Sign(deltaFromLane);
@@ -500,10 +551,22 @@ public static class OffensiveLinemanAI
             laneSide = -runSide;
         }
 
-        // Stretch: tighter separation so blockers form a cohesive wall
-        float baseSeparation = isStretch ? 1.1f : 1.4f;
+        float baseSeparation = concept switch
+        {
+            RunConcept.Dive => 0.7f,
+            RunConcept.Stretch => 1.1f,
+            RunConcept.Draw => 0.85f,
+            _ => 1.4f
+        };
         float distanceBias = Math.Clamp(MathF.Abs(deltaFromLane) / 5.5f, 0f, 1f);
-        float separation = baseSeparation + (distanceBias * (isStretch ? 0.5f : 0.7f));
+        float spreadFactor = concept switch
+        {
+            RunConcept.Dive => 0.25f,
+            RunConcept.Stretch => 0.5f,
+            RunConcept.Draw => 0.35f,
+            _ => 0.7f
+        };
+        float separation = baseSeparation + (distanceBias * spreadFactor);
         return laneSide * separation;
     }
 
@@ -514,37 +577,42 @@ public static class OffensiveLinemanAI
         public RunContext(
             bool isRunPlay,
             int runSide,
-            bool isSweep,
-            bool isStretch,
+            RunConcept concept,
             float lateralPush,
-            float targetY)
+            float targetY,
+            float laneOffset,
+            float backsideSealAmount)
         {
             IsRunPlay = isRunPlay;
             RunSide = runSide;
-            IsSweep = isSweep;
-            IsStretch = isStretch;
+            Concept = concept;
             LateralPush = lateralPush;
             TargetY = targetY;
+            LaneOffset = laneOffset;
+            BacksideSealAmount = backsideSealAmount;
         }
 
         public bool IsRunPlay { get; }
         public int RunSide { get; }
-        public bool IsSweep { get; }
-        public bool IsStretch { get; }
+        public RunConcept Concept { get; }
         public float LateralPush { get; }
         public float TargetY { get; }
+        public float LaneOffset { get; }
+        public float BacksideSealAmount { get; }
     }
 
     private readonly struct RunProfile
     {
-        public RunProfile(bool isBackside, float laneShift, float backsideShift)
+        public RunProfile(bool isBackside, bool isPuller, float laneShift, float backsideShift)
         {
             IsBackside = isBackside;
+            IsPuller = isPuller;
             LaneShift = laneShift;
             BacksideShift = backsideShift;
         }
 
         public bool IsBackside { get; }
+        public bool IsPuller { get; }
         public float LaneShift { get; }
         public float BacksideShift { get; }
     }

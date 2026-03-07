@@ -107,10 +107,26 @@ public sealed class BlockingController
         Action<Entity> clampToField,
         Vector2? ballCarrierPosition)
     {
-        bool isSweep = BlockingUtils.IsSweepFormation(selectedPlay.Formation);
+        bool isPerimeterRun = BlockingUtils.IsPerimeterRun(selectedPlay.RunConcept);
+        float edgeWidth = selectedPlay.RunConcept switch
+        {
+            RunConcept.Sweep => 2.0f,
+            RunConcept.Stretch => 1.6f,
+            RunConcept.Counter => 0.9f,
+            _ => 1.2f
+        };
+
+        float edgeDepth = selectedPlay.RunConcept switch
+        {
+            RunConcept.Sweep => 3.2f,
+            RunConcept.Stretch => 2.9f,
+            RunConcept.Counter => 2.4f,
+            _ => 2.6f
+        };
+
         // Base edge spot on the TE's own position so they block in the correct direction
-        float edgeX = Math.Clamp(receiver.RouteStart.X + (runSide * (isSweep ? 2.0f : 1.2f)), 1.1f, Constants.FieldWidth - 1.1f);
-        float edgeY = lineOfScrimmage + (isSweep ? 3.2f : 2.6f);
+        float edgeX = Math.Clamp(receiver.RouteStart.X + (runSide * edgeWidth), 1.1f, Constants.FieldWidth - 1.1f);
+        float edgeY = lineOfScrimmage + edgeDepth;
         Vector2 edgeSpot = new Vector2(edgeX, edgeY);
 
         // Search for any defender near the edge — don't limit to rushers so DBs get picked up
@@ -135,7 +151,7 @@ public sealed class BlockingController
         }
         else
         {
-            MoveTowardSpot(receiver, edgeSpot, 0.85f, 0.9f);
+            MoveTowardSpot(receiver, edgeSpot, isPerimeterRun ? 0.85f : 0.7f, 0.9f);
         }
     }
 
