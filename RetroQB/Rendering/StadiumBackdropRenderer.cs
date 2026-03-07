@@ -39,6 +39,8 @@ internal sealed class StadiumBackdropRenderer
         DrawBleacherSideExtension(rightBleacherX, bleacherWidth, bleacherBase, bleacherEdge, awayAccent, homeAccent, isLeftSide: false);
         DrawUpperDeckBands(rect, stadiumLeft, stadiumRight, bleacherEdge, homeAccent, awayAccent);
         DrawCrowdSections(rect, leftBleacherX, bleacherWidth, rightBleacherX, homeAccent, awayAccent, crowdState);
+        DrawExcitedCrowdFlares(leftBleacherX, rightBleacherX, bleacherWidth, homeAccent, awayAccent, crowdState);
+        DrawExcitedCrowdProps(leftBleacherX, rightBleacherX, bleacherWidth, homeAccent, awayAccent, crowdState);
         DrawRibbonBoards(leftBleacherX, rightBleacherX, bleacherWidth, topLimit, bottomLimit, homeAccent, awayAccent);
         DrawFieldEdgeShadow(rect, leftBleacherX, rightBleacherX, bleacherWidth);
     }
@@ -292,6 +294,182 @@ internal sealed class StadiumBackdropRenderer
             Color accent = i % 2 == 0 ? homeAccent : awayAccent;
             Raylib.DrawRectangle(segmentX + 2, upperY + 2, segmentWidth - 4, 3, accent);
             Raylib.DrawRectangle(segmentX + 2, lowerY + 5, segmentWidth - 4, 3, accent);
+        }
+    }
+
+    private static void DrawExcitedCrowdFlares(int leftBleacherX, int rightBleacherX, int bleacherWidth, Color homeAccent, Color awayAccent, CrowdBackdropState crowdState)
+    {
+        float homeEnergy = Math.Clamp(crowdState.HomeEnergy, 0f, 1f);
+        float awayEnergy = Math.Clamp(crowdState.AwayEnergy, 0f, 1f);
+
+        if (homeEnergy < 0.58f && awayEnergy < 0.58f)
+        {
+            return;
+        }
+
+        GetSeatingBounds(Constants.FieldRect, out int topLimit, out int splitTop, out int splitBottom, out int bottomLimit);
+
+        DrawBleacherFlares(leftBleacherX + 4, bleacherWidth - 8, topLimit + 6, splitTop - topLimit - 10, homeAccent, homeEnergy, 11);
+        DrawBleacherFlares(leftBleacherX + 4, bleacherWidth - 8, splitBottom + 4, bottomLimit - splitBottom - 8, homeAccent, homeEnergy * 0.92f, 23);
+        DrawBleacherFlares(rightBleacherX + 4, bleacherWidth - 8, topLimit + 6, splitTop - topLimit - 10, awayAccent, awayEnergy, 37);
+        DrawBleacherFlares(rightBleacherX + 4, bleacherWidth - 8, splitBottom + 4, bottomLimit - splitBottom - 8, awayAccent, awayEnergy * 0.92f, 53);
+    }
+
+    private static void DrawBleacherFlares(int x, int width, int y, int height, Color flareColor, float energy, int salt)
+    {
+        if (width < 12 || height < 12 || energy < 0.58f)
+        {
+            return;
+        }
+
+        float time = (float)Raylib.GetTime();
+        int timeBucket = (int)MathF.Floor(time * (2.6f + (energy * 2.8f)));
+        int flareSlots = energy >= 0.88f ? 4 : energy >= 0.72f ? 3 : 2;
+
+        for (int i = 0; i < flareSlots; i++)
+        {
+            int seed = Hash(x + (i * 17), y + (i * 29), salt ^ timeBucket);
+            float appearRoll = Math.Abs(seed % 100) / 100f;
+            float appearThreshold = 0.56f - ((energy - 0.58f) * 0.65f);
+            if (appearRoll > appearThreshold)
+            {
+                continue;
+            }
+
+            float life = Math.Abs((seed >> 3) % 100) / 100f;
+            float flareStrength = Math.Clamp(0.55f + (energy * 0.55f) + (life * 0.25f), 0f, 1f);
+            int flareX = x + 6 + Math.Abs((seed >> 5) % Math.Max(8, width - 12));
+            int flareBaseY = y + height - 6 - Math.Abs((seed >> 9) % Math.Max(6, height - 10));
+            int popOffset = (int)(MathF.Sin((time * 9.5f) + (seed & 15)) * (2f + (flareStrength * 5f)));
+            int flareY = flareBaseY - (int)(flareStrength * 9f) + popOffset;
+            DrawSingleFlare(flareX, flareY, flareColor, flareStrength, seed);
+        }
+    }
+
+    private static void DrawExcitedCrowdProps(int leftBleacherX, int rightBleacherX, int bleacherWidth, Color homeAccent, Color awayAccent, CrowdBackdropState crowdState)
+    {
+        float homeEnergy = Math.Clamp(crowdState.HomeEnergy, 0f, 1f);
+        float awayEnergy = Math.Clamp(crowdState.AwayEnergy, 0f, 1f);
+
+        if (homeEnergy < 0.46f && awayEnergy < 0.46f)
+        {
+            return;
+        }
+
+        GetSeatingBounds(Constants.FieldRect, out int topLimit, out int splitTop, out int splitBottom, out int bottomLimit);
+
+        DrawBleacherProps(leftBleacherX + 4, bleacherWidth - 8, topLimit + 8, splitTop - topLimit - 12, homeAccent, homeEnergy, 71);
+        DrawBleacherProps(leftBleacherX + 4, bleacherWidth - 8, splitBottom + 6, bottomLimit - splitBottom - 10, homeAccent, homeEnergy * 0.95f, 89);
+        DrawBleacherProps(rightBleacherX + 4, bleacherWidth - 8, topLimit + 8, splitTop - topLimit - 12, awayAccent, awayEnergy, 107);
+        DrawBleacherProps(rightBleacherX + 4, bleacherWidth - 8, splitBottom + 6, bottomLimit - splitBottom - 10, awayAccent, awayEnergy * 0.95f, 131);
+    }
+
+    private static void DrawBleacherProps(int x, int width, int y, int height, Color teamColor, float energy, int salt)
+    {
+        if (width < 12 || height < 12 || energy < 0.46f)
+        {
+            return;
+        }
+
+        float time = (float)Raylib.GetTime();
+        int propCount = energy >= 0.88f ? 7 : energy >= 0.72f ? 5 : energy >= 0.58f ? 3 : 2;
+        int maxX = Math.Max(8, width - 10);
+        int maxY = Math.Max(8, height - 10);
+
+        for (int i = 0; i < propCount; i++)
+        {
+            int seed = Hash(x + (i * 31), y + (i * 17), salt);
+            int px = x + 5 + Math.Abs((seed >> 2) % maxX);
+            int py = y + 5 + Math.Abs((seed >> 8) % maxY);
+            float phase = ((seed >> 4) & 31) * 0.27f;
+            bool drawFlag = ((seed >> 1) & 1) == 0;
+
+            if (drawFlag)
+            {
+                DrawFlagProp(px, py, teamColor, energy, time, phase, seed);
+            }
+            else
+            {
+                DrawTowelProp(px, py, teamColor, energy, time, phase, seed);
+            }
+        }
+    }
+
+    private static void DrawFlagProp(int x, int y, Color teamColor, float energy, float time, float phase, int seed)
+    {
+        int poleHeight = 7 + Math.Abs((seed >> 6) % 4);
+        float wave = MathF.Sin((time * (4.4f + (energy * 2.4f))) + phase);
+        int flagWidth = 5 + (int)(energy * 3f);
+        int flagHeight = 4 + Math.Abs((seed >> 9) % 3);
+        int tipOffset = (int)(wave * (2f + (energy * 2f)));
+        Color poleColor = new((byte)210, (byte)210, (byte)220, (byte)220);
+        Color flagColor = new(
+            (byte)Math.Clamp(teamColor.R + 30, 0, 255),
+            (byte)Math.Clamp(teamColor.G + 30, 0, 255),
+            (byte)Math.Clamp(teamColor.B + 30, 0, 255),
+            (byte)240);
+
+        Raylib.DrawLine(x, y, x, y - poleHeight, poleColor);
+
+        System.Numerics.Vector2 anchor = new(x, y - poleHeight);
+        System.Numerics.Vector2 top = new(x + flagWidth, y - poleHeight + tipOffset);
+        System.Numerics.Vector2 bottom = new(x + flagWidth - 1, y - poleHeight + flagHeight + tipOffset);
+        Raylib.DrawTriangle(anchor, top, bottom, flagColor);
+        Raylib.DrawLineEx(anchor, top, 1f, AdjustColor(flagColor, 18));
+        Raylib.DrawLineEx(anchor, bottom, 1f, AdjustColor(flagColor, -8));
+    }
+
+    private static void DrawTowelProp(int x, int y, Color teamColor, float energy, float time, float phase, int seed)
+    {
+        float wave = MathF.Sin((time * (6.1f + (energy * 3.1f))) + phase);
+        int handleHeight = 3 + Math.Abs((seed >> 7) % 2);
+        int towelWidth = 4 + Math.Abs((seed >> 10) % 3);
+        int towelHeight = 5 + Math.Abs((seed >> 12) % 3);
+        int offsetX = (int)(wave * (2f + (energy * 2f)));
+        int offsetY = (int)(MathF.Cos((time * 4.8f) + phase) * (1f + energy));
+        Color towelColor = new((byte)242, (byte)242, (byte)246, (byte)230);
+        Color accentStripe = new(
+            (byte)Math.Clamp(teamColor.R + 10, 0, 255),
+            (byte)Math.Clamp(teamColor.G + 10, 0, 255),
+            (byte)Math.Clamp(teamColor.B + 10, 0, 255),
+            (byte)210);
+
+        Raylib.DrawLine(x, y, x, y - handleHeight, new Color(220, 220, 230, 180));
+        Rectangle towelRect = new(x + offsetX, y - handleHeight - towelHeight + offsetY, towelWidth, towelHeight);
+        Raylib.DrawRectangleRec(towelRect, towelColor);
+        Raylib.DrawRectangle((int)towelRect.X, (int)towelRect.Y + towelHeight / 2, towelWidth, 1, accentStripe);
+        Raylib.DrawRectangleLinesEx(towelRect, 1f, new Color(255, 255, 255, 180));
+    }
+
+    private static void DrawSingleFlare(int x, int y, Color color, float strength, int seed)
+    {
+        int glowRadius = 4 + (int)(strength * 6f);
+        int coreRadius = Math.Max(2, glowRadius / 2);
+        int alpha = (int)(110 + (strength * 115f));
+        Color glow = new(
+            (byte)Math.Clamp(color.R + 20, 0, 255),
+            (byte)Math.Clamp(color.G + 20, 0, 255),
+            (byte)Math.Clamp(color.B + 20, 0, 255),
+            (byte)Math.Clamp(alpha, 0, 255));
+        Color core = new(
+            (byte)Math.Clamp(color.R + 55, 0, 255),
+            (byte)Math.Clamp(color.G + 55, 0, 255),
+            (byte)Math.Clamp(color.B + 55, 0, 255),
+            (byte)255);
+
+        Raylib.DrawCircle(x, y, glowRadius + 3, new Color(glow.R, glow.G, glow.B, (byte)Math.Clamp(alpha / 3, 0, 255)));
+        Raylib.DrawCircle(x, y, glowRadius, glow);
+        Raylib.DrawCircle(x, y, coreRadius, core);
+
+        int rayLength = glowRadius + 4 + Math.Abs((seed >> 2) % 4);
+        Color rayColor = new(glow.R, glow.G, glow.B, (byte)Math.Clamp(alpha - 20, 0, 255));
+        Raylib.DrawLineEx(new System.Numerics.Vector2(x - rayLength, y), new System.Numerics.Vector2(x + rayLength, y), 1.5f, rayColor);
+        Raylib.DrawLineEx(new System.Numerics.Vector2(x, y - rayLength), new System.Numerics.Vector2(x, y + rayLength), 1.5f, rayColor);
+
+        if (((seed >> 1) & 1) == 0)
+        {
+            Raylib.DrawLineEx(new System.Numerics.Vector2(x - (rayLength - 2), y - (rayLength - 2)), new System.Numerics.Vector2(x + (rayLength - 2), y + (rayLength - 2)), 1f, rayColor);
+            Raylib.DrawLineEx(new System.Numerics.Vector2(x - (rayLength - 2), y + (rayLength - 2)), new System.Numerics.Vector2(x + (rayLength - 2), y - (rayLength - 2)), 1f, rayColor);
         }
     }
 
