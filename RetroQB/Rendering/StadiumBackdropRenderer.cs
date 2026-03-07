@@ -13,7 +13,7 @@ internal sealed class StadiumBackdropRenderer
         new Color(214, 210, 196, 255)
     ];
 
-    public void Draw(Color homeTeamColor, Color awayTeamColor)
+    public void Draw(Color homeTeamColor, Color awayTeamColor, CrowdBackdropState crowdState)
     {
         Rectangle rect = Constants.FieldRect;
         int screenW = Raylib.GetScreenWidth();
@@ -38,9 +38,24 @@ internal sealed class StadiumBackdropRenderer
         DrawBleacherSideExtension(leftBleacherX, bleacherWidth, bleacherBase, bleacherEdge, homeAccent, awayAccent, isLeftSide: true);
         DrawBleacherSideExtension(rightBleacherX, bleacherWidth, bleacherBase, bleacherEdge, awayAccent, homeAccent, isLeftSide: false);
         DrawUpperDeckBands(rect, stadiumLeft, stadiumRight, bleacherEdge, homeAccent, awayAccent);
-        DrawCrowdSections(rect, leftBleacherX, bleacherWidth, rightBleacherX, homeAccent, awayAccent);
+        DrawCrowdSections(rect, leftBleacherX, bleacherWidth, rightBleacherX, homeAccent, awayAccent, crowdState);
         DrawRibbonBoards(leftBleacherX, rightBleacherX, bleacherWidth, topLimit, bottomLimit, homeAccent, awayAccent);
         DrawFieldEdgeShadow(rect, leftBleacherX, rightBleacherX, bleacherWidth);
+    }
+
+    public void DrawChantOverlay(Color homeTeamColor, CrowdBackdropState crowdState)
+    {
+        Rectangle rect = Constants.FieldRect;
+        int screenW = Raylib.GetScreenWidth();
+
+        int margin = 6;
+        int bleacherWidth = Math.Max(24, (int)(rect.Width * 0.14f));
+        int sidelineBuffer = Math.Max(16, (int)(rect.Width * 0.08f));
+        int leftBleacherX = (int)Math.Max(margin, rect.X - bleacherWidth - sidelineBuffer);
+        int rightBleacherX = (int)Math.Min(screenW - margin - bleacherWidth, rect.X + rect.Width + sidelineBuffer);
+        Color homeAccent = CreateAccentColor(homeTeamColor, 0.82f, 18);
+
+        DrawHomeCrowdChant(leftBleacherX, rightBleacherX, bleacherWidth, homeAccent, crowdState);
     }
 
     private static void DrawBleachersColumn(Rectangle rect, int x, int width, bool isLeftSide, Color baseColor, Color edgeColor)
@@ -108,20 +123,36 @@ internal sealed class StadiumBackdropRenderer
         }
     }
 
-    private static void DrawCrowdSections(Rectangle rect, int leftBleacherX, int bleacherWidth, int rightBleacherX, Color homeAccent, Color awayAccent)
+    private static void DrawCrowdSections(
+        Rectangle rect,
+        int leftBleacherX,
+        int bleacherWidth,
+        int rightBleacherX,
+        Color homeAccent,
+        Color awayAccent,
+        CrowdBackdropState crowdState)
     {
         GetSeatingBounds(rect, out int topLimit, out int splitTop, out int splitBottom, out int bottomLimit);
 
         int upperHeight = splitTop - topLimit;
         int lowerHeight = bottomLimit - splitBottom;
 
-        DrawCrowdBlock(leftBleacherX + 3, topLimit + 6, bleacherWidth - 6, upperHeight - 10, homeAccent, awayAccent, CrowdMix.HomeHeavy, alignFromBottom: true);
-        DrawCrowdBlock(leftBleacherX + 3, splitBottom + 4, bleacherWidth - 6, lowerHeight - 8, homeAccent, awayAccent, CrowdMix.BalancedHome, alignFromBottom: false);
-        DrawCrowdBlock(rightBleacherX + 3, topLimit + 6, bleacherWidth - 6, upperHeight - 10, homeAccent, awayAccent, CrowdMix.BalancedHome, alignFromBottom: true);
-        DrawCrowdBlock(rightBleacherX + 3, splitBottom + 4, bleacherWidth - 6, lowerHeight - 8, homeAccent, awayAccent, CrowdMix.HomeHeavy, alignFromBottom: false);
+        DrawCrowdBlock(leftBleacherX + 3, topLimit + 6, bleacherWidth - 6, upperHeight - 10, homeAccent, awayAccent, CrowdMix.HomeHeavy, alignFromBottom: true, crowdState);
+        DrawCrowdBlock(leftBleacherX + 3, splitBottom + 4, bleacherWidth - 6, lowerHeight - 8, homeAccent, awayAccent, CrowdMix.BalancedHome, alignFromBottom: false, crowdState);
+        DrawCrowdBlock(rightBleacherX + 3, topLimit + 6, bleacherWidth - 6, upperHeight - 10, homeAccent, awayAccent, CrowdMix.BalancedHome, alignFromBottom: true, crowdState);
+        DrawCrowdBlock(rightBleacherX + 3, splitBottom + 4, bleacherWidth - 6, lowerHeight - 8, homeAccent, awayAccent, CrowdMix.HomeHeavy, alignFromBottom: false, crowdState);
     }
 
-    private static void DrawCrowdBlock(int x, int y, int width, int height, Color homeCrowd, Color awayCrowd, CrowdMix mix, bool alignFromBottom)
+    private static void DrawCrowdBlock(
+        int x,
+        int y,
+        int width,
+        int height,
+        Color homeCrowd,
+        Color awayCrowd,
+        CrowdMix mix,
+        bool alignFromBottom,
+        CrowdBackdropState crowdState)
     {
         if (width < 12 || height < 12)
         {
@@ -129,8 +160,9 @@ internal sealed class StadiumBackdropRenderer
         }
 
         float time = (float)Raylib.GetTime();
-        int rowSpacing = 10;
-        int colSpacing = 7;
+        float overallEnergy = Math.Clamp(crowdState.OverallEnergy, 0f, 1f);
+        int rowSpacing = overallEnergy >= 0.78f ? 9 : 10;
+        int colSpacing = overallEnergy >= 0.86f ? 6 : 7;
         int startRowY = alignFromBottom
             ? y + height - 8
             : y + 2;
@@ -149,27 +181,42 @@ internal sealed class StadiumBackdropRenderer
             for (int colX = x + 2 + stagger; colX <= x + width - 5; colX += colSpacing)
             {
                 int seed = Hash(colX, rowY, rowIndex);
+                CrowdFanVisual fanVisual = SelectCrowdVisual(seed, homeCrowd, awayCrowd, mix);
+                float fanEnergy = GetFanEnergy(fanVisual.Affiliation, crowdState);
                 float phase = (seed & 31) * 0.21f;
-                int bob = MathF.Sin((time * 2.8f) + phase) > 0.45f ? 1 : 0;
-                int sway = MathF.Cos((time * 1.7f) + phase) > 0.7f ? 1 : 0;
-                Color crowdColor = SelectCrowdColor(seed, homeCrowd, awayCrowd, mix);
-                Color headColor = AdjustColor(crowdColor, 18);
+                float bobSpeed = 2.3f + (fanEnergy * 2.4f);
+                float swaySpeed = 1.2f + (fanEnergy * 1.7f);
+                int bobAmplitude = fanEnergy >= 0.72f ? 2 : 1;
+                int bob = MathF.Sin((time * bobSpeed) + phase) > (0.6f - (fanEnergy * 0.38f)) ? bobAmplitude : 0;
+                int swayMagnitude = fanEnergy >= 0.7f ? 2 : 1;
+                int swayDirection = ((seed >> 2) & 1) == 0 ? 1 : -1;
+                int sway = MathF.Cos((time * swaySpeed) + phase) > (0.8f - (fanEnergy * 0.3f)) ? swayMagnitude * swayDirection : 0;
+                Color crowdColor = ApplyExcitementTint(fanVisual.Color, fanVisual.Affiliation, fanEnergy, crowdState);
+                Color headColor = AdjustColor(crowdColor, 12 + (int)(fanEnergy * 20f));
                 int drawY = rowY - bob;
                 int drawX = colX + sway;
 
                 Raylib.DrawRectangle(drawX, drawY, 3, 4, crowdColor);
                 Raylib.DrawRectangle(drawX + 1, drawY - 2, 2, 2, headColor);
 
-                if (((seed >> 3) & 3) == 0)
+                int armThreshold = fanEnergy >= 0.78f ? 2 : fanEnergy >= 0.52f ? 1 : 0;
+                if (((seed >> 3) & 3) <= armThreshold)
                 {
                     int armDir = (seed & 1) == 0 ? -1 : 3;
-                    Raylib.DrawRectangle(drawX + armDir, drawY + 1 - bob, 1, 2, AdjustColor(crowdColor, 26));
+                    int armHeight = fanEnergy >= 0.75f ? 3 : 2;
+                    Raylib.DrawRectangle(drawX + armDir, drawY + 1 - bob, 1, armHeight, AdjustColor(crowdColor, 24));
+
+                    if (fanEnergy >= 0.88f)
+                    {
+                        int secondArmDir = armDir < 0 ? 3 : -1;
+                        Raylib.DrawRectangle(drawX + secondArmDir, drawY + 1 - bob, 1, 2, AdjustColor(crowdColor, 20));
+                    }
                 }
             }
         }
     }
 
-    private static Color SelectCrowdColor(int seed, Color homeCrowd, Color awayCrowd, CrowdMix mix)
+    private static CrowdFanVisual SelectCrowdVisual(int seed, Color homeCrowd, Color awayCrowd, CrowdMix mix)
     {
         int roll = Math.Abs(seed % 20);
 
@@ -177,23 +224,51 @@ internal sealed class StadiumBackdropRenderer
         {
             CrowdMix.HomeHeavy => roll switch
             {
-                <= 10 => homeCrowd,
-                <= 14 => awayCrowd,
-                _ => NeutralCrowdPalette[roll % NeutralCrowdPalette.Length]
+                <= 10 => new CrowdFanVisual(homeCrowd, CrowdAffiliation.Home),
+                <= 14 => new CrowdFanVisual(awayCrowd, CrowdAffiliation.Away),
+                _ => new CrowdFanVisual(NeutralCrowdPalette[roll % NeutralCrowdPalette.Length], CrowdAffiliation.Neutral)
             },
             CrowdMix.BalancedHome => roll switch
             {
-                <= 8 => homeCrowd,
-                <= 12 => awayCrowd,
-                _ => NeutralCrowdPalette[roll % NeutralCrowdPalette.Length]
+                <= 8 => new CrowdFanVisual(homeCrowd, CrowdAffiliation.Home),
+                <= 12 => new CrowdFanVisual(awayCrowd, CrowdAffiliation.Away),
+                _ => new CrowdFanVisual(NeutralCrowdPalette[roll % NeutralCrowdPalette.Length], CrowdAffiliation.Neutral)
             },
             _ => roll switch
             {
-                <= 6 => homeCrowd,
-                <= 12 => awayCrowd,
-                _ => NeutralCrowdPalette[(roll + 1) % NeutralCrowdPalette.Length]
+                <= 6 => new CrowdFanVisual(homeCrowd, CrowdAffiliation.Home),
+                <= 12 => new CrowdFanVisual(awayCrowd, CrowdAffiliation.Away),
+                _ => new CrowdFanVisual(NeutralCrowdPalette[(roll + 1) % NeutralCrowdPalette.Length], CrowdAffiliation.Neutral)
             }
         };
+    }
+
+    private static float GetFanEnergy(CrowdAffiliation affiliation, CrowdBackdropState crowdState)
+    {
+        float overall = Math.Clamp(crowdState.OverallEnergy, 0f, 1f);
+        float teamEnergy = affiliation switch
+        {
+            CrowdAffiliation.Home => crowdState.HomeEnergy,
+            CrowdAffiliation.Away => crowdState.AwayEnergy,
+            _ => overall
+        };
+
+        float baseline = affiliation == CrowdAffiliation.Neutral ? 0.22f : 0.18f;
+        float overallShare = affiliation == CrowdAffiliation.Neutral ? 0.7f : 0.45f;
+        return Math.Clamp(baseline + (overall * overallShare) + (teamEnergy * 0.75f), 0f, 1f);
+    }
+
+    private static Color ApplyExcitementTint(Color color, CrowdAffiliation affiliation, float fanEnergy, CrowdBackdropState crowdState)
+    {
+        int brighten = (int)(fanEnergy * 22f);
+        int darken = affiliation switch
+        {
+            CrowdAffiliation.Home when crowdState.HomeEnergy < crowdState.AwayEnergy => (int)((crowdState.AwayEnergy - crowdState.HomeEnergy) * 18f),
+            CrowdAffiliation.Away when crowdState.AwayEnergy < crowdState.HomeEnergy => (int)((crowdState.HomeEnergy - crowdState.AwayEnergy) * 18f),
+            _ => 0
+        };
+
+        return AdjustColor(color, brighten - darken);
     }
 
     private static void DrawUpperDeckBands(Rectangle rect, int stadiumLeft, int stadiumRight, Color edgeColor, Color homeAccent, Color awayAccent)
@@ -218,6 +293,76 @@ internal sealed class StadiumBackdropRenderer
             Raylib.DrawRectangle(segmentX + 2, upperY + 2, segmentWidth - 4, 3, accent);
             Raylib.DrawRectangle(segmentX + 2, lowerY + 5, segmentWidth - 4, 3, accent);
         }
+    }
+
+    private static void DrawHomeCrowdChant(int leftBleacherX, int rightBleacherX, int bleacherWidth, Color homeAccent, CrowdBackdropState crowdState)
+    {
+        if (string.IsNullOrWhiteSpace(crowdState.HomeChantText) || crowdState.HomeChantStrength <= 0.01f)
+        {
+            return;
+        }
+
+        GetSeatingBounds(Constants.FieldRect, out int topLimit, out int splitTop, out int splitBottom, out int bottomLimit);
+
+        float time = (float)Raylib.GetTime();
+        float strength = Math.Clamp(crowdState.HomeChantStrength, 0f, 1f);
+        int fontSize = 18 + (int)(strength * 10f);
+        int textWidth = Raylib.MeasureText(crowdState.HomeChantText, fontSize);
+        float fieldX = Math.Clamp(crowdState.HomeChantFieldX, 0f, 1f);
+        float fieldY = Math.Clamp(crowdState.HomeChantFieldY, 0f, 1f);
+        int fieldScreenY = (int)Constants.WorldToScreenY(Constants.EndZoneDepth + (fieldY * 100f));
+        bool useLeftBleacher = fieldX <= 0.5f;
+        int bleacherX = useLeftBleacher ? leftBleacherX : rightBleacherX;
+        int centerBias = useLeftBleacher
+            ? (int)(fieldX * bleacherWidth * 0.22f)
+            : (int)((1f - fieldX) * bleacherWidth * 0.22f);
+        int baseX = bleacherX + Math.Max(4, (bleacherWidth - textWidth) / 2) + (useLeftBleacher ? centerBias : -centerBias);
+
+        int upperMinY = topLimit + 8;
+        int upperMaxY = splitTop - fontSize - 8;
+        int lowerMinY = splitBottom + 8;
+        int lowerMaxY = bottomLimit - fontSize - 8;
+        int baseY = fieldScreenY <= splitTop
+            ? Math.Clamp(fieldScreenY - (fontSize / 2), upperMinY, Math.Max(upperMinY, upperMaxY))
+            : Math.Clamp(fieldScreenY - (fontSize / 2), lowerMinY, Math.Max(lowerMinY, lowerMaxY));
+
+        int bounce = (int)(MathF.Sin(time * 7.2f) * (2f + (strength * 3f)));
+        int alpha = (int)(110 + (strength * 145f));
+        Color outline = new((byte)18, (byte)12, (byte)24, (byte)Math.Clamp(alpha, 0, 255));
+        Color fill = new(
+            (byte)Math.Clamp(homeAccent.R + 35, 0, 255),
+            (byte)Math.Clamp(homeAccent.G + 35, 0, 255),
+            (byte)Math.Clamp(homeAccent.B + 35, 0, 255),
+            (byte)Math.Clamp(alpha, 0, 255));
+        Color background = new((byte)14, (byte)16, (byte)24, (byte)Math.Clamp(150 + (int)(strength * 70f), 0, 255));
+        Color backgroundBorder = new(
+            (byte)Math.Clamp(homeAccent.R + 20, 0, 255),
+            (byte)Math.Clamp(homeAccent.G + 20, 0, 255),
+            (byte)Math.Clamp(homeAccent.B + 20, 0, 255),
+            (byte)Math.Clamp(180 + (int)(strength * 60f), 0, 255));
+        int padX = 10;
+        int padY = 6;
+        Rectangle backgroundRect = new(baseX - padX, baseY + bounce - padY, textWidth + (padX * 2), fontSize + (padY * 2));
+        Rectangle shadowRect = new(backgroundRect.X + 2, backgroundRect.Y + 2, backgroundRect.Width, backgroundRect.Height);
+
+        Raylib.DrawRectangleRec(shadowRect, new Color(0, 0, 0, (int)Math.Clamp(70 + (strength * 60f), 0f, 255f)));
+        Raylib.DrawRectangleRec(backgroundRect, background);
+        Raylib.DrawRectangleLinesEx(backgroundRect, 2f, backgroundBorder);
+
+        for (int ox = -2; ox <= 2; ox++)
+        {
+            for (int oy = -2; oy <= 2; oy++)
+            {
+                if (ox == 0 && oy == 0)
+                {
+                    continue;
+                }
+
+                Raylib.DrawText(crowdState.HomeChantText, baseX + ox, baseY + oy + bounce, fontSize, outline);
+            }
+        }
+
+        Raylib.DrawText(crowdState.HomeChantText, baseX, baseY + bounce, fontSize, fill);
     }
 
     private static void DrawBleacherSideExtension(
@@ -368,4 +513,22 @@ internal sealed class StadiumBackdropRenderer
         BalancedHome,
         AwayHeavy
     }
+
+    private enum CrowdAffiliation
+    {
+        Home,
+        Away,
+        Neutral
+    }
+
+    private readonly record struct CrowdFanVisual(Color Color, CrowdAffiliation Affiliation);
 }
+
+public readonly record struct CrowdBackdropState(
+    float HomeEnergy,
+    float AwayEnergy,
+    float OverallEnergy,
+    string HomeChantText,
+    float HomeChantStrength,
+    float HomeChantFieldX,
+    float HomeChantFieldY);

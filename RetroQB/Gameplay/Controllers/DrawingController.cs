@@ -65,7 +65,8 @@ public sealed class DrawingController
         bool isPaused,
         SeasonStage currentStage,
         SeasonSummary seasonSummary,
-        bool replayAvailable)
+        bool replayAvailable,
+        CrowdBackdropState crowdState)
     {
         // Apply camera shake offset
         Vector2 shake = _screenEffects.ShakeOffset;
@@ -81,7 +82,8 @@ public sealed class DrawingController
             offensiveTeam.Name,
             offensiveTeam.PrimaryColor,
             defensiveTeam.Name,
-            defensiveTeam.PrimaryColor);
+            defensiveTeam.PrimaryColor,
+            crowdState);
 
         _fireworks.Draw();
 
@@ -170,7 +172,8 @@ public sealed class DrawingController
         bool isPaused,
         SeasonStage currentStage,
         SeasonSummary seasonSummary,
-        bool replayAvailable)
+        bool replayAvailable,
+        CrowdBackdropState crowdState)
     {
         _fieldRenderer.DrawField(
             replayFrame.LineOfScrimmage,
@@ -178,7 +181,8 @@ public sealed class DrawingController
             offensiveTeam.Name,
             offensiveTeam.PrimaryColor,
             defensiveTeam.Name,
-            defensiveTeam.PrimaryColor);
+            defensiveTeam.PrimaryColor,
+            crowdState);
 
         foreach (var receiver in replayFrame.Receivers)
         {

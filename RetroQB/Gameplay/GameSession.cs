@@ -66,6 +66,12 @@ public sealed class GameSession
     private CoverageScheme _coverageScheme;
     private List<string> _blitzers = new();
     private int _selectedTeamIndex;
+    private float _crowdMomentum;
+    private float _crowdSurge;
+    private string _homeCrowdChant = string.Empty;
+    private float _homeCrowdChantTimer;
+    private float _homeCrowdChantDuration;
+    private Vector2 _homeCrowdChantWorldPosition = new(Constants.FieldWidth * 0.5f, Constants.EndZoneDepth + 50f);
 
     public GameSession() : this(
         new GameStateManager(),
@@ -239,6 +245,12 @@ public sealed class GameSession
         _playOverDuration = 1.25f;
         _manualPlaySelection = false;
         _autoPlaySelectionDone = false;
+        _crowdMomentum = 0f;
+        _crowdSurge = 0f;
+        _homeCrowdChant = string.Empty;
+        _homeCrowdChantTimer = 0f;
+        _homeCrowdChantDuration = 0f;
+        _homeCrowdChantWorldPosition = new Vector2(Constants.FieldWidth * 0.5f, Constants.EndZoneDepth + 50f);
     }
 
     private void SetupEntities()
@@ -288,6 +300,7 @@ public sealed class GameSession
         }
 
         _drawingController.UpdateFireworks(dt);
+        UpdateCrowdEnergy(dt);
 
         if (_stateManager.State == GameState.PlayOver)
         {
@@ -681,9 +694,11 @@ public sealed class GameSession
         }
 
         string? tackleMessageOverride = isSack ? $"SACK! -{sackYardsLost} yds" : null;
+        Vector2 playEndPosition = GetPlayEndPosition();
         PlayResult result = _playManager.ResolvePlay(spot, incomplete, intercepted, touchdown, tackleMessageOverride);
         _lastPlayText = result.Message;
         _playOverTimer = 0f;
+        ApplyCrowdReaction(result, gain, isSack, playEndPosition);
 
         if (_playManager.Score >= WinningScore || _playManager.AwayScore >= WinningScore)
         {
@@ -748,7 +763,8 @@ public sealed class GameSession
                 _stateManager.IsPaused,
                 _currentStage,
                 _seasonSummary,
-                replayAvailable);
+                replayAvailable,
+                BuildCrowdBackdropState());
             return;
         }
 
@@ -768,7 +784,193 @@ public sealed class GameSession
             _stateManager.IsPaused,
             _currentStage,
             _seasonSummary,
-            replayAvailable);
+            replayAvailable,
+            BuildCrowdBackdropState());
+    }
+
+    private void UpdateCrowdEnergy(float dt)
+    {
+        _crowdMomentum = MoveTowards(_crowdMomentum, 0f, dt * 0.6f);
+        _crowdSurge = MoveTowards(_crowdSurge, 0f, dt * 0.3f);
+
+        if (_homeCrowdChantTimer > 0f)
+        {
+            _homeCrowdChantTimer = MathF.Max(0f, _homeCrowdChantTimer - dt);
+            if (_homeCrowdChantTimer <= 0f)
+            {
+                _homeCrowdChant = string.Empty;
+                _homeCrowdChantDuration = 0f;
+            }
+        }
+    }
+
+    private void ApplyCrowdReaction(PlayResult result, float gain, bool isSack, Vector2 playEndPosition)
+    {
+        float offenseSwing = result.Outcome switch
+        {
+            PlayOutcome.Touchdown => 1.0f,
+            PlayOutcome.Interception => -1.0f,
+            PlayOutcome.Turnover => -0.85f,
+            PlayOutcome.Incomplete => -0.28f,
+            _ => isSack ? -0.78f : Math.Clamp(gain / 22f, -0.7f, 0.8f)
+        };
+
+        float highlightLevel = result.Outcome switch
+        {
+            PlayOutcome.Touchdown => 1.0f,
+            PlayOutcome.Interception => 0.92f,
+            PlayOutcome.Turnover => 0.85f,
+            _ => Math.Clamp(MathF.Abs(gain) / 20f, 0.15f, isSack ? 0.82f : 0.7f)
+        };
+
+        _crowdMomentum = Math.Clamp((_crowdMomentum * 0.4f) + offenseSwing, -1f, 1f);
+        _crowdSurge = Math.Clamp(MathF.Max(_crowdSurge, highlightLevel), 0f, 1f);
+        TriggerHomeCrowdChant(result, gain, isSack, highlightLevel, offenseSwing, playEndPosition);
+    }
+
+    private CrowdBackdropState BuildCrowdBackdropState()
+    {
+        float stageEnergy = _currentStage switch
+        {
+            SeasonStage.RegularSeason => 0.18f,
+            SeasonStage.Playoff => 0.36f,
+            SeasonStage.SuperBowl => 0.58f,
+            _ => 0.18f
+        };
+
+        float scoreEnergy = Math.Clamp((_playManager.Score + _playManager.AwayScore) / 28f, 0f, 0.24f);
+        float playProgressEnergy = Math.Clamp((_playManager.PlayNumber - 1) / 14f, 0f, 0.12f);
+        float closeGameEnergy = Math.Abs(_playManager.Score - _playManager.AwayScore) switch
+        {
+            0 => 0.12f,
+            <= 7 => 0.08f,
+            _ => 0f
+        };
+
+        float overall = Math.Clamp(stageEnergy + scoreEnergy + playProgressEnergy + closeGameEnergy + (_crowdSurge * 0.32f), 0f, 1f);
+        float homeEnergy = Math.Clamp(0.18f + (overall * 0.45f) + MathF.Max(0f, _crowdMomentum) * 0.6f - MathF.Max(0f, -_crowdMomentum) * 0.2f, 0f, 1f);
+        float awayEnergy = Math.Clamp(0.18f + (overall * 0.45f) + MathF.Max(0f, -_crowdMomentum) * 0.6f - MathF.Max(0f, _crowdMomentum) * 0.2f, 0f, 1f);
+
+        float chantStrength = 0f;
+        if (_homeCrowdChantTimer > 0f && _homeCrowdChantDuration > 0f)
+        {
+            chantStrength = Math.Clamp(_homeCrowdChantTimer / _homeCrowdChantDuration, 0f, 1f);
+        }
+
+        float chantFieldX = Math.Clamp(_homeCrowdChantWorldPosition.X / Constants.FieldWidth, 0f, 1f);
+        float chantFieldY = Math.Clamp((_homeCrowdChantWorldPosition.Y - Constants.EndZoneDepth) / 100f, 0f, 1f);
+
+        return new CrowdBackdropState(homeEnergy, awayEnergy, overall, _homeCrowdChant, chantStrength, chantFieldX, chantFieldY);
+    }
+
+    private void TriggerHomeCrowdChant(PlayResult result, float gain, bool isSack, float highlightLevel, float offenseSwing, Vector2 playEndPosition)
+    {
+        string chant = SelectHomeCrowdChant(result, gain, isSack, offenseSwing);
+        if (string.IsNullOrWhiteSpace(chant))
+        {
+            return;
+        }
+
+        _homeCrowdChant = chant;
+        _homeCrowdChantDuration = 2.2f + (highlightLevel * 1.2f);
+        _homeCrowdChantTimer = _homeCrowdChantDuration;
+        _homeCrowdChantWorldPosition = playEndPosition;
+    }
+
+    private string SelectHomeCrowdChant(PlayResult result, float gain, bool isSack, float offenseSwing)
+    {
+        int variant = (_playManager.PlayNumber + _playManager.Score + _playManager.AwayScore) % 3;
+
+        if (result.Outcome == PlayOutcome.Touchdown)
+        {
+            return variant switch
+            {
+                0 => "LET'S GO!",
+                1 => "YEAH!",
+                _ => "TOUCHDOWN!"
+            };
+        }
+
+        if (result.Outcome == PlayOutcome.Interception || result.Outcome == PlayOutcome.Turnover)
+        {
+            return variant switch
+            {
+                0 => "BOOO!",
+                1 => "UGH!",
+                _ => "NOOO!"
+            };
+        }
+
+        if (isSack)
+        {
+            return variant switch
+            {
+                0 => "BOOO!",
+                1 => "WAKE UP!",
+                _ => "COME ON!"
+            };
+        }
+
+        if (gain >= 18f)
+        {
+            return variant switch
+            {
+                0 => "YAY!",
+                1 => "LET'S GO!",
+                _ => "BIG PLAY!"
+            };
+        }
+
+        if (gain >= 8f || offenseSwing > 0.25f)
+        {
+            return variant switch
+            {
+                0 => "YEAH!",
+                1 => "NICE!",
+                _ => "LET'S GO!"
+            };
+        }
+
+        if (result.Outcome == PlayOutcome.Incomplete)
+        {
+            return variant switch
+            {
+                0 => "AWW!",
+                1 => "OOH!",
+                _ => "COME ON!"
+            };
+        }
+
+        if (gain <= -4f)
+        {
+            return variant switch
+            {
+                0 => "BOO!",
+                1 => "UGH!",
+                _ => "CMON!"
+            };
+        }
+
+        return string.Empty;
+    }
+
+    private Vector2 GetPlayEndPosition()
+    {
+        Vector2 position = _entities.Ball.Holder?.Position ?? _entities.Ball.Position;
+
+        return new Vector2(
+            Math.Clamp(position.X, 0f, Constants.FieldWidth),
+            Math.Clamp(position.Y, Constants.EndZoneDepth, Constants.EndZoneDepth + 100f));
+    }
+
+    private static float MoveTowards(float current, float target, float maxDelta)
+    {
+        if (MathF.Abs(target - current) <= maxDelta)
+        {
+            return target;
+        }
+
+        return current + (MathF.Sign(target - current) * maxDelta);
     }
 
     private bool TryEnterReplayFromState(GameState state)
