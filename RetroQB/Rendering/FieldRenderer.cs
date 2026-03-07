@@ -35,7 +35,7 @@ public sealed class FieldRenderer
         string awayTeamName,
         Color awayTeamColor)
     {
-        _stadiumBackdrop.Draw();
+        _stadiumBackdrop.Draw(homeTeamColor, awayTeamColor);
         _fieldSurface.Draw(homeTeamName, homeTeamColor, awayTeamName, awayTeamColor);
         _fieldMarkings.Draw(lineOfScrimmage, firstDownLine);
         _sidelineRenderer.Draw();
