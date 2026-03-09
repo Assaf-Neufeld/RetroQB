@@ -24,7 +24,7 @@ public sealed class ReplayStateHandler
         }
 
         ReturnState = currentState;
-        player.Load(clipStore.Current);
+        player.Load(clipStore.Current, GetPlaybackSpeed(clipStore.Current));
         stateManager.SetState(GameState.Replay);
         return true;
     }
@@ -53,5 +53,20 @@ public sealed class ReplayStateHandler
     {
         player.Unload();
         stateManager.SetState(ReturnState);
+    }
+
+    private static float GetPlaybackSpeed(ReplayClip clip)
+    {
+        if (clip.DurationSeconds >= 8f)
+        {
+            return 0.26f;
+        }
+
+        if (clip.DurationSeconds >= 5.5f)
+        {
+            return 0.29f;
+        }
+
+        return ReplayPlayer.DefaultPlaybackSpeed;
     }
 }

@@ -509,11 +509,22 @@ public sealed class ReceiverUpdateController
     /// </summary>
     private static void UpdateReceiverTrackingBallCarrier(Receiver receiver, Entity ballCarrier, float dt, Action<Entity> clampToField)
     {
-        Vector2 trackDir = PlayExecutionController.GetTrackDirectionToward(receiver.Position, ballCarrier.Position);
+        Vector2 trackDir = GetTrackDirectionToward(receiver.Position, ballCarrier.Position);
         float trackSpeed = receiver.Speed * 0.75f;
         receiver.Velocity = trackDir * trackSpeed;
         receiver.Update(dt);
         clampToField(receiver);
+    }
+
+    private static Vector2 GetTrackDirectionToward(Vector2 from, Vector2 to)
+    {
+        Vector2 delta = to - from;
+        if (delta.LengthSquared() < 0.001f)
+        {
+            return Vector2.Zero;
+        }
+
+        return Vector2.Normalize(delta);
     }
 
     private static bool IsRunPlayActivePreHandoff(PlayType selectedPlayType, Ball ball)
