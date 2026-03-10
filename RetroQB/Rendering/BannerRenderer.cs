@@ -295,16 +295,16 @@ public sealed class BannerRenderer
         Raylib.DrawRectangle(x, y, width, height, new Color(8, 12, 18, 220));
         Raylib.DrawRectangleLines(x, y, width, height, accentColor);
 
-        DrawCenteredText("PODIUM", x, width, y + 12, 26, Palette.White);
+        DrawCenteredText("PODIUM", x, width, y + 12, 22, Palette.White);
 
-        int baseY = y + height - 46;
+        int baseY = y + height - 42;
         int centerX = x + width / 2;
-        int placeWidth = 164;
-        int gap = 32;
+        int placeWidth = 118;
+        int gap = 14;
 
-        DrawPodiumPlace(centerX - placeWidth / 2 - placeWidth - gap, baseY, placeWidth, 86, summary.Entries.ElementAtOrDefault(1), 2, summary.PlayerRank == 2);
-        DrawPodiumPlace(centerX - placeWidth / 2, baseY, placeWidth, 126, summary.Entries.ElementAtOrDefault(0), 1, summary.PlayerRank == 1);
-        DrawPodiumPlace(centerX + placeWidth / 2 + gap, baseY, placeWidth, 68, summary.Entries.ElementAtOrDefault(2), 3, summary.PlayerRank == 3);
+        DrawPodiumPlace(centerX - placeWidth / 2 - placeWidth - gap, baseY, placeWidth, 74, summary.Entries.ElementAtOrDefault(1), 2, summary.PlayerRank == 2);
+        DrawPodiumPlace(centerX - placeWidth / 2, baseY, placeWidth, 104, summary.Entries.ElementAtOrDefault(0), 1, summary.PlayerRank == 1);
+        DrawPodiumPlace(centerX + placeWidth / 2 + gap, baseY, placeWidth, 58, summary.Entries.ElementAtOrDefault(2), 3, summary.PlayerRank == 3);
 
         string message = summary.IsOnPodium
             ? summary.IsFirstPlace
@@ -315,7 +315,7 @@ public sealed class BannerRenderer
                 : "NO PLAYER RANK YET";
 
         Color messageColor = summary.IsOnPodium ? Palette.Lime : Palette.Orange;
-        DrawCenteredText(message, x, width, y + height - 30, 20, messageColor);
+        DrawCenteredText(message, x, width, y + height - 28, 16, messageColor);
     }
 
     private void DrawPodiumPlace(int x, int baseY, int width, int height, LeaderboardEntry entry, int place, bool isCurrentPlayer)
@@ -336,33 +336,33 @@ public sealed class BannerRenderer
         if (entry.Rank == 0)
         {
             string emptyPlaceLabel = place.ToString();
-            int emptyPlaceWidth = Raylib.MeasureText(emptyPlaceLabel, 18);
-            Raylib.DrawText(emptyPlaceLabel, x + (width - emptyPlaceWidth) / 2, baseY - 24, 18, Palette.White);
-            DrawCenteredText("---", x, width, baseY - height - 24, 14, new Color(140, 160, 180, 255));
+            int emptyPlaceWidth = Raylib.MeasureText(emptyPlaceLabel, 16);
+            Raylib.DrawText(emptyPlaceLabel, x + (width - emptyPlaceWidth) / 2, baseY - 22, 16, Palette.White);
+            DrawCenteredText("---", x, width, baseY - height - 20, 12, new Color(140, 160, 180, 255));
             return;
         }
 
         string placeLabel = place.ToString();
-        int placeWidth = Raylib.MeasureText(placeLabel, 18);
-        int placeLabelY = baseY - 24;
-        Raylib.DrawText(placeLabel, x + (width - placeWidth) / 2, placeLabelY, 18, Palette.White);
+        int placeLabelWidth = Raylib.MeasureText(placeLabel, 16);
+        int placeLabelY = baseY - 22;
+        Raylib.DrawText(placeLabel, x + (width - placeLabelWidth) / 2, placeLabelY, 16, Palette.White);
 
         string displayName = TruncatePodiumName(entry.Name, width - 12);
-        int nameFontSize = displayName.Length > 12 ? 16 : 18;
-        int nameY = baseY - Math.Max(48, height - 22);
+        int nameFontSize = displayName.Length > 10 ? 14 : 16;
+        int nameY = baseY - Math.Max(42, height - 18);
         DrawCenteredText(displayName, x, width, nameY, nameFontSize, isCurrentPlayer ? Palette.Cyan : Palette.White);
 
-        int ratingY = Math.Min(baseY - 24, nameY + 26);
-        DrawCenteredText(entry.Rating.ToString("F1"), x, width, ratingY, 18, Palette.Yellow);
+        int ratingY = Math.Min(baseY - 22, nameY + 22);
+        DrawCenteredText(entry.Rating.ToString("F1"), x, width, ratingY, 16, Palette.Yellow);
 
         if (place == 1)
         {
-            DrawTrophyIcon(x + width / 2 - 12, baseY - height - 76, 0.8f, entry.IsCurrentPlayer ? Palette.Gold : new Color(220, 190, 120, 255));
+            DrawTrophyIcon(x + width / 2 - 10, baseY - height - 60, 0.62f, entry.IsCurrentPlayer ? Palette.Gold : new Color(220, 190, 120, 255));
         }
 
         if (isCurrentPlayer)
         {
-            DrawCenteredText("YOU", x, width, baseY - height - 60, 14, Palette.Cyan);
+            DrawCenteredText("YOU", x, width, baseY - height - 46, 12, Palette.Cyan);
         }
     }
 
