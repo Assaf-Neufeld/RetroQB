@@ -1,5 +1,6 @@
 using Raylib_cs;
 using RetroQB.Core;
+using RetroQB.Stats;
 
 namespace RetroQB.Rendering;
 
@@ -8,7 +9,83 @@ namespace RetroQB.Rendering;
 /// </summary>
 public sealed class MenuRenderer
 {
-    public void Draw(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams)
+    public void Draw(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams, LeaderboardSummary leaderboardSummary, bool showLeaderboard)
+    {
+        DrawBaseMenu(selectedTeamIndex, teams);
+
+        if (showLeaderboard)
+        {
+            DrawLeaderboardOverlay(leaderboardSummary);
+        }
+    }
+
+    public void DrawNameEntry(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams, string currentName, string message, LeaderboardSummary leaderboardSummary)
+    {
+        DrawBaseMenu(selectedTeamIndex, teams);
+        DrawOverlayShell(620, 380, out int panelX, out int panelY, out int panelWidth, out int panelHeight, Palette.Cyan);
+
+        int contentX = panelX + 28;
+        int contentY = panelY + 22;
+
+        DrawCenteredText("ENTER YOUR NAME", panelX, panelWidth, contentY, 28, Palette.Cyan);
+        contentY += 42;
+
+        string help = "Type a name, then press ENTER to start the season.";
+        DrawCenteredText(help, panelX, panelWidth, contentY, 16, new Color(180, 200, 220, 255));
+        contentY += 34;
+
+        Raylib.DrawRectangle(contentX, contentY, panelWidth - 56, 54, new Color(8, 14, 22, 235));
+        Raylib.DrawRectangleLines(contentX, contentY, panelWidth - 56, 54, Palette.Gold);
+
+        string displayName = string.IsNullOrWhiteSpace(currentName) ? "_" : currentName;
+        Raylib.DrawText(displayName, contentX + 16, contentY + 14, 26, Palette.White);
+
+        string counter = $"{currentName.Length}/{Input.InputManager.MaxPlayerNameLength}";
+        int counterWidth = Raylib.MeasureText(counter, 14);
+        Raylib.DrawText(counter, panelX + panelWidth - 40 - counterWidth, contentY + 18, 14, new Color(130, 150, 170, 255));
+        contentY += 72;
+
+        if (!string.IsNullOrWhiteSpace(message))
+        {
+            DrawCenteredText(message, panelX, panelWidth, contentY, 16, Palette.Orange);
+            contentY += 30;
+        }
+        else
+        {
+            contentY += 10;
+        }
+
+        DrawCenteredText("TOP QB RATINGS", panelX, panelWidth, contentY, 18, Palette.Yellow);
+        contentY += 28;
+
+        DrawLeaderboardPreview(panelX + 34, contentY, panelWidth - 68, leaderboardSummary.Entries);
+
+        string footer = "Letters, numbers, spaces, -, _, ', . are allowed";
+        DrawCenteredText(footer, panelX, panelWidth, panelY + panelHeight - 34, 14, new Color(140, 160, 180, 255));
+    }
+
+    public void DrawNameConflict(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams, string duplicateName)
+    {
+        DrawBaseMenu(selectedTeamIndex, teams);
+        DrawOverlayShell(580, 260, out int panelX, out int panelY, out int panelWidth, out int panelHeight, Palette.Orange);
+
+        int contentY = panelY + 24;
+        DrawCenteredText("NAME ALREADY EXISTS", panelX, panelWidth, contentY, 28, Palette.Orange);
+        contentY += 46;
+
+        string line1 = $"\"{duplicateName}\" is already saved.";
+        DrawCenteredText(line1, panelX, panelWidth, contentY, 18, Palette.White);
+        contentY += 34;
+
+        DrawCenteredText("[1] Use existing player", panelX, panelWidth, contentY, 20, Palette.Lime);
+        contentY += 28;
+        DrawCenteredText("[2] Go back and change the name", panelX, panelWidth, contentY, 20, Palette.Yellow);
+        contentY += 40;
+
+        DrawCenteredText("Press 1 or 2", panelX, panelWidth, contentY, 16, new Color(170, 190, 210, 255));
+    }
+
+    private void DrawBaseMenu(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams)
     {
         var field = Constants.FieldRect;
         int centerX = (int)(field.X + field.Width / 2f);
@@ -136,14 +213,160 @@ public sealed class MenuRenderer
 
         string controls1 = "Press 1-3 to select team";
         string controls2 = "Press ENTER to start";
+        string controls3 = "Press L for leaderboard";
         int ctrlSize = 16;
 
         int ctrl1Width = Raylib.MeasureText(controls1, ctrlSize);
         int ctrl2Width = Raylib.MeasureText(controls2, ctrlSize);
+        int ctrl3Width = Raylib.MeasureText(controls3, ctrlSize);
 
         Raylib.DrawText(controls1, panelX + (panelWidth - ctrl1Width) / 2, contentY, ctrlSize, new Color(160, 180, 200, 255));
         contentY += ctrlSize + 8;
         Raylib.DrawText(controls2, panelX + (panelWidth - ctrl2Width) / 2, contentY, ctrlSize, Palette.Yellow);
+        contentY += ctrlSize + 8;
+        Raylib.DrawText(controls3, panelX + (panelWidth - ctrl3Width) / 2, contentY, ctrlSize, Palette.Cyan);
+    }
+
+    private void DrawLeaderboardOverlay(LeaderboardSummary leaderboardSummary)
+    {
+        DrawOverlayShell(720, 470, out int panelX, out int panelY, out int panelWidth, out int panelHeight, Palette.Gold);
+
+        int contentY = panelY + 22;
+        DrawCenteredText("QB LEADERBOARD", panelX, panelWidth, contentY, 30, Palette.Gold);
+        contentY += 42;
+
+        string subtitle = leaderboardSummary.Entries.Count == 0
+            ? "No saved seasons yet"
+            : "Best saved QB ratings";
+        DrawCenteredText(subtitle, panelX, panelWidth, contentY, 16, new Color(180, 200, 220, 255));
+        contentY += 30;
+
+        int boardX = panelX + 36;
+        int boardY = contentY;
+        int boardWidth = panelWidth - 72;
+        int boardHeight = panelHeight - 132;
+
+        Raylib.DrawRectangle(boardX, boardY, boardWidth, boardHeight, new Color(8, 12, 18, 220));
+        Raylib.DrawRectangleLines(boardX, boardY, boardWidth, boardHeight, new Color(55, 75, 100, 180));
+
+        if (leaderboardSummary.Entries.Count == 0)
+        {
+            DrawCenteredText("Finish a season to create the first record", panelX, panelWidth, boardY + boardHeight / 2 - 10, 18, new Color(150, 170, 190, 255));
+            DrawCenteredText("Press L or ESC to close", panelX, panelWidth, panelY + panelHeight - 34, 15, Palette.Cyan);
+            return;
+        }
+
+        int rowY = boardY + 16;
+        int maxRows = Math.Min(10, leaderboardSummary.Entries.Count);
+        for (int i = 0; i < maxRows; i++)
+        {
+            LeaderboardEntry entry = leaderboardSummary.Entries[i];
+            bool highlight = entry.IsCurrentPlayer;
+
+            if (highlight)
+            {
+                Raylib.DrawRectangle(boardX + 10, rowY - 4, boardWidth - 20, 28, new Color(40, 60, 82, 215));
+                Raylib.DrawRectangleLines(boardX + 10, rowY - 4, boardWidth - 20, 28, Palette.Cyan);
+            }
+
+            Color rankColor = entry.Rank switch
+            {
+                1 => Palette.Gold,
+                2 => new Color(205, 215, 225, 255),
+                3 => new Color(214, 140, 72, 255),
+                _ => Palette.White
+            };
+
+            string left = $"#{entry.Rank}  {entry.Name}";
+            Raylib.DrawText(left, boardX + 18, rowY, 20, rankColor);
+
+            if (entry.HasTrophy)
+            {
+                DrawTrophyIcon(boardX + boardWidth - 134, rowY + 2, 0.62f, Palette.Gold);
+            }
+
+            string rating = entry.Rating.ToString("F1");
+            int ratingWidth = Raylib.MeasureText(rating, 20);
+            Raylib.DrawText(rating, boardX + boardWidth - 18 - ratingWidth, rowY, 20, highlight ? Palette.Cyan : Palette.White);
+            rowY += 30;
+        }
+
+        DrawCenteredText("Press L or ESC to close", panelX, panelWidth, panelY + panelHeight - 34, 15, Palette.Cyan);
+    }
+
+    private static void DrawTrophyIcon(int x, int y, float scale, Color color)
+    {
+        int cupWidth = Math.Max(8, (int)(20 * scale));
+        int cupHeight = Math.Max(8, (int)(14 * scale));
+        int stemWidth = Math.Max(4, (int)(6 * scale));
+        int stemHeight = Math.Max(4, (int)(8 * scale));
+        int baseWidth = Math.Max(10, (int)(18 * scale));
+        int baseHeight = Math.Max(4, (int)(5 * scale));
+
+        Raylib.DrawRectangle(x, y, cupWidth, cupHeight, color);
+        Raylib.DrawRectangle(x + (cupWidth - stemWidth) / 2, y + cupHeight, stemWidth, stemHeight, color);
+        Raylib.DrawRectangle(x + (cupWidth - baseWidth) / 2, y + cupHeight + stemHeight, baseWidth, baseHeight, color);
+        Raylib.DrawRectangleLines(x, y, cupWidth, cupHeight, new Color(60, 42, 10, 255));
+        Raylib.DrawRectangleLines(x + (cupWidth - baseWidth) / 2, y + cupHeight + stemHeight, baseWidth, baseHeight, new Color(60, 42, 10, 255));
+        Raylib.DrawCircleLines(x - Math.Max(2, (int)(2 * scale)), y + Math.Max(4, (int)(6 * scale)), Math.Max(4, (int)(5 * scale)), color);
+        Raylib.DrawCircleLines(x + cupWidth + Math.Max(2, (int)(2 * scale)), y + Math.Max(4, (int)(6 * scale)), Math.Max(4, (int)(5 * scale)), color);
+    }
+
+    private static void DrawOverlayShell(int width, int height, out int panelX, out int panelY, out int panelWidth, out int panelHeight, Color accent)
+    {
+        int screenW = Raylib.GetScreenWidth();
+        int screenH = Raylib.GetScreenHeight();
+
+        panelWidth = Math.Min(width, screenW - 80);
+        panelHeight = Math.Min(height, screenH - 80);
+        panelX = (screenW - panelWidth) / 2;
+        panelY = (screenH - panelHeight) / 2;
+
+        Raylib.DrawRectangle(0, 0, screenW, screenH, new Color(0, 0, 0, 120));
+        Raylib.DrawRectangle(panelX - 6, panelY - 6, panelWidth + 12, panelHeight + 12, accent);
+        Raylib.DrawRectangle(panelX, panelY, panelWidth, panelHeight, new Color(10, 14, 22, 250));
+        Raylib.DrawRectangle(panelX + 4, panelY + 4, panelWidth - 8, panelHeight - 8, new Color(18, 24, 36, 250));
+    }
+
+    private static void DrawCenteredText(string text, int panelX, int panelWidth, int y, int fontSize, Color color)
+    {
+        int textWidth = Raylib.MeasureText(text, fontSize);
+        Raylib.DrawText(text, panelX + (panelWidth - textWidth) / 2, y, fontSize, color);
+    }
+
+    private static void DrawLeaderboardPreview(int x, int y, int width, IReadOnlyList<LeaderboardEntry> entries)
+    {
+        Raylib.DrawRectangle(x, y, width, 126, new Color(8, 12, 18, 220));
+        Raylib.DrawRectangleLines(x, y, width, 126, new Color(55, 75, 100, 180));
+
+        if (entries.Count == 0)
+        {
+            string empty = "No saved players yet";
+            int emptyWidth = Raylib.MeasureText(empty, 18);
+            Raylib.DrawText(empty, x + (width - emptyWidth) / 2, y + 48, 18, new Color(150, 170, 190, 255));
+            return;
+        }
+
+        int drawY = y + 12;
+        int maxRows = Math.Min(5, entries.Count);
+        for (int i = 0; i < maxRows; i++)
+        {
+            LeaderboardEntry entry = entries[i];
+            Color rankColor = entry.Rank switch
+            {
+                1 => Palette.Gold,
+                2 => new Color(205, 215, 225, 255),
+                3 => new Color(214, 140, 72, 255),
+                _ => Palette.White
+            };
+
+            string left = $"#{entry.Rank}  {entry.Name}";
+            string right = entry.Rating.ToString("F1");
+            Raylib.DrawText(left, x + 14, drawY, 18, rankColor);
+            int rightWidth = Raylib.MeasureText(right, 18);
+            Raylib.DrawText(right, x + width - 14 - rightWidth, drawY, 18, Palette.White);
+            drawY += 22;
+        }
     }
 
     /// <summary>

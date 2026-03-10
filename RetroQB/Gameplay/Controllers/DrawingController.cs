@@ -62,6 +62,12 @@ public sealed class DrawingController
         OffensiveTeamAttributes offensiveTeam,
         DefensiveTeamAttributes defensiveTeam,
         int selectedTeamIndex,
+        string playerName,
+        string nameInput,
+        string pendingPlayerName,
+        string nameEntryMessage,
+        LeaderboardSummary leaderboardSummary,
+        bool showMenuLeaderboard,
         bool isPaused,
         SeasonStage currentStage,
         SeasonSummary seasonSummary,
@@ -124,26 +130,34 @@ public sealed class DrawingController
 
         if (gameState == GameState.StageComplete)
         {
-            var nextStage = currentStage.GetNextStage();
-            string nextName = nextStage?.GetDisplayName() ?? "???";
-            _hudRenderer.DrawStageCompleteBanner(playManager.Score, playManager.AwayScore, currentStage);
+            _hudRenderer.DrawStageCompleteBanner(playManager.Score, playManager.AwayScore, currentStage, seasonSummary, leaderboardSummary);
         }
 
         if (gameState == GameState.GameOver)
         {
             if (playManager.Score >= 21)
             {
-                _hudRenderer.DrawChampionBanner(playManager.Score, playManager.AwayScore, currentStage, seasonSummary);
+                _hudRenderer.DrawChampionBanner(playManager.Score, playManager.AwayScore, currentStage, seasonSummary, leaderboardSummary);
             }
             else
             {
-                _hudRenderer.DrawEliminationBanner(playManager.Score, playManager.AwayScore, currentStage, seasonSummary);
+                _hudRenderer.DrawEliminationBanner(playManager.Score, playManager.AwayScore, currentStage, seasonSummary, leaderboardSummary);
             }
         }
 
         if (gameState == GameState.MainMenu)
         {
-            _hudRenderer.DrawMainMenu(selectedTeamIndex, OffensiveTeamPresets.All);
+            _hudRenderer.DrawMainMenu(selectedTeamIndex, OffensiveTeamPresets.All, leaderboardSummary, showMenuLeaderboard);
+        }
+
+        if (gameState == GameState.PlayerNameEntry)
+        {
+            _hudRenderer.DrawPlayerNameEntry(selectedTeamIndex, OffensiveTeamPresets.All, nameInput, nameEntryMessage, leaderboardSummary);
+        }
+
+        if (gameState == GameState.NameConflict)
+        {
+            _hudRenderer.DrawNameConflict(selectedTeamIndex, OffensiveTeamPresets.All, pendingPlayerName);
         }
 
         if (isPaused)
@@ -169,6 +183,11 @@ public sealed class DrawingController
         OffensiveTeamAttributes offensiveTeam,
         DefensiveTeamAttributes defensiveTeam,
         int selectedTeamIndex,
+        string playerName,
+        string nameInput,
+        string pendingPlayerName,
+        string nameEntryMessage,
+        LeaderboardSummary leaderboardSummary,
         bool isPaused,
         SeasonStage currentStage,
         SeasonSummary seasonSummary,

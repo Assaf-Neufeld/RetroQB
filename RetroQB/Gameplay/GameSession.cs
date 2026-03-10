@@ -50,6 +50,7 @@ public sealed class GameSession
     private SeasonStage _currentStage = SeasonStage.RegularSeason;
     public SeasonStage CurrentStage => _currentStage;
     private readonly SeasonSummary _seasonSummary = new();
+    private readonly PlayerRecordStore _playerRecordStore = new();
 
     // Entity state (managed by PlayEntities)
     private readonly PlayEntities _entities = new();
@@ -76,6 +77,11 @@ public sealed class GameSession
     private float _homeCrowdChantTimer;
     private float _homeCrowdChantDuration;
     private Vector2 _homeCrowdChantWorldPosition = new(Constants.FieldWidth * 0.5f, Constants.EndZoneDepth + 50f);
+    private string _playerName = string.Empty;
+    private string _nameInput = string.Empty;
+    private string _pendingPlayerName = string.Empty;
+    private string _nameEntryMessage = string.Empty;
+    private LeaderboardSummary _leaderboardSummary = LeaderboardSummary.Empty;
 
     public GameSession() : this(
         new GameStateManager(),
@@ -297,6 +303,12 @@ public sealed class GameSession
     {
         Constants.UpdateFieldRect();
 
+        if (CanRestartCurrentSession() && _input.IsRestartPressed())
+        {
+            HandleRestart();
+            return;
+        }
+
         if (_input.IsEscapePressed())
         {
             _stateManager.TogglePause();
@@ -319,6 +331,12 @@ public sealed class GameSession
         {
             case GameState.MainMenu:
                 HandleMainMenu();
+                break;
+            case GameState.PlayerNameEntry:
+                HandlePlayerNameEntry();
+                break;
+            case GameState.NameConflict:
+                HandleNameConflict();
                 break;
             case GameState.PreSnap:
                 HandlePreSnap();
@@ -346,19 +364,23 @@ public sealed class GameSession
 
     private void HandleRestart()
     {
-        if (_stateManager.State == GameState.GameOver)
-        {
-            InitializeGame();
-        }
-        else
-        {
-            InitializeDrive();
-        }
+        _currentStage = SeasonStage.RegularSeason;
+        _statsTracker.Reset();
+        _seasonSummary.Reset();
+        _leaderboardSummary = LeaderboardSummary.Empty;
+        _driveOverText = string.Empty;
+        _lastPlayText = string.Empty;
+        _stateManager.ClearPause();
+        _replayPlayer.Unload();
+        _replayClipStore.Clear();
+        _drawingController.Fireworks.Clear();
+        InitializeGame();
         _stateManager.SetState(GameState.PreSnap);
     }
 
     private void HandleMainMenu()
     {
+        _leaderboardSummary = BuildMenuLeaderboardSummary();
         bool confirmed = _menuController.UpdateMainMenu();
         _selectedTeamIndex = _menuController.SelectedTeamIndex;
 
@@ -369,15 +391,73 @@ public sealed class GameSession
             {
                 _selectedTeamIndex = 0;
             }
+
+            _menuController.CloseLeaderboard();
             SetOffensiveTeam(teams[_selectedTeamIndex]);
-            _currentStage = SeasonStage.RegularSeason;
-            _statsTracker.Reset();
-            _seasonSummary.Reset();
-            InitializeGame();
-            _stateManager.SetState(GameState.PreSnap);
-            _manualPlaySelection = false;
-            _autoPlaySelectionDone = false;
+            BeginPlayerNameEntry();
         }
+    }
+
+    private void HandlePlayerNameEntry()
+    {
+        string typedText = _input.ReadTextInput(InputManager.MaxPlayerNameLength);
+        if (!string.IsNullOrEmpty(typedText) && _nameInput.Length < InputManager.MaxPlayerNameLength)
+        {
+            int available = InputManager.MaxPlayerNameLength - _nameInput.Length;
+            if (typedText.Length > available)
+            {
+                typedText = typedText[..available];
+            }
+
+            _nameInput += typedText;
+        }
+
+        if (_input.IsBackspacePressed() && _nameInput.Length > 0)
+        {
+            _nameInput = _nameInput[..^1];
+        }
+
+        if (!_input.IsEnterPressed())
+        {
+            return;
+        }
+
+        string normalizedName = PlayerRecordStore.NormalizeName(_nameInput);
+        if (string.IsNullOrWhiteSpace(normalizedName))
+        {
+            _nameEntryMessage = "Enter a player name first.";
+            return;
+        }
+
+        if (_playerRecordStore.HasPlayer(normalizedName) && !string.Equals(_playerName, normalizedName, StringComparison.OrdinalIgnoreCase))
+        {
+            _pendingPlayerName = normalizedName;
+            _nameEntryMessage = string.Empty;
+            _stateManager.SetState(GameState.NameConflict);
+            return;
+        }
+
+        StartSeasonForPlayer(normalizedName);
+    }
+
+    private void HandleNameConflict()
+    {
+        int? choice = _input.GetNameConflictChoice();
+        if (!choice.HasValue)
+        {
+            return;
+        }
+
+        if (choice.Value == 1)
+        {
+            StartSeasonForPlayer(_pendingPlayerName);
+            return;
+        }
+
+        _nameInput = _pendingPlayerName;
+        _pendingPlayerName = string.Empty;
+        _nameEntryMessage = "That name already exists. Change it or press 1 next time.";
+        _stateManager.SetState(GameState.PlayerNameEntry);
     }
 
     private void HandlePreSnap()
@@ -567,6 +647,12 @@ public sealed class GameSession
             return;
         }
 
+        if (_menuController.IsRestartPressed())
+        {
+            HandleRestart();
+            return;
+        }
+
         if (_menuController.IsConfirmPressed())
         {
             AdvanceToNextStage();
@@ -580,12 +666,19 @@ public sealed class GameSession
             return;
         }
 
+        if (_menuController.IsRestartPressed())
+        {
+            HandleRestart();
+            return;
+        }
+
         if (_menuController.IsConfirmPressed())
         {
             ResetPlayState();
             _drawingController.Fireworks.Clear();
             _currentStage = SeasonStage.RegularSeason;
             _seasonSummary.Reset();
+            _leaderboardSummary = LeaderboardSummary.Empty;
             _stateManager.SetState(GameState.MainMenu);
         }
     }
@@ -713,6 +806,12 @@ public sealed class GameSession
             // Record the game result for the season summary
             var snap = _statsTracker.BuildSnapshot();
             _seasonSummary.RecordGame(_currentStage, _playManager.Score, _playManager.AwayScore, snap.Qb);
+            _leaderboardSummary = SaveSeasonLeaderboard();
+
+            if (_leaderboardSummary.IsOnPodium)
+            {
+                _drawingController.Fireworks.Trigger(_leaderboardSummary.IsFirstPlace ? 4.2f : 3.2f);
+            }
 
             if (_playManager.Score >= WinningScore)
             {
@@ -768,6 +867,11 @@ public sealed class GameSession
                 _offensiveTeam,
                 _defensiveTeam,
                 _selectedTeamIndex,
+                _playerName,
+                _nameInput,
+                _pendingPlayerName,
+                _nameEntryMessage,
+                _leaderboardSummary,
                 _stateManager.IsPaused,
                 _currentStage,
                 _seasonSummary,
@@ -789,6 +893,12 @@ public sealed class GameSession
             _offensiveTeam,
             _defensiveTeam,
             _selectedTeamIndex,
+            _playerName,
+            _nameInput,
+            _pendingPlayerName,
+            _nameEntryMessage,
+            _leaderboardSummary,
+            _menuController.ShowLeaderboard,
             _stateManager.IsPaused,
             _currentStage,
             _seasonSummary,
@@ -1100,5 +1210,51 @@ public sealed class GameSession
     private GameStatsSnapshot BuildStatsSnapshot()
     {
         return _statsTracker.BuildSnapshot();
+    }
+
+    private bool CanRestartCurrentSession()
+    {
+        return _stateManager.State is not GameState.MainMenu and not GameState.PlayerNameEntry and not GameState.NameConflict;
+    }
+
+    private void BeginPlayerNameEntry()
+    {
+        _nameInput = string.IsNullOrWhiteSpace(_playerName) ? string.Empty : _playerName;
+        _pendingPlayerName = string.Empty;
+        _nameEntryMessage = string.Empty;
+        _leaderboardSummary = BuildMenuLeaderboardSummary();
+        _stateManager.SetState(GameState.PlayerNameEntry);
+    }
+
+    private LeaderboardSummary BuildMenuLeaderboardSummary()
+    {
+        return _playerRecordStore.BuildSummary(_playerName, 0f);
+    }
+
+    private void StartSeasonForPlayer(string playerName)
+    {
+        _playerName = playerName;
+        _nameInput = playerName;
+        _pendingPlayerName = string.Empty;
+        _nameEntryMessage = string.Empty;
+        _currentStage = SeasonStage.RegularSeason;
+        _statsTracker.Reset();
+        _seasonSummary.Reset();
+        _leaderboardSummary = _playerRecordStore.BuildSummary(playerName, 0f);
+        InitializeGame();
+        _stateManager.SetState(GameState.PreSnap);
+        _manualPlaySelection = false;
+        _autoPlaySelectionDone = false;
+    }
+
+    private LeaderboardSummary SaveSeasonLeaderboard()
+    {
+        if (string.IsNullOrWhiteSpace(_playerName))
+        {
+            return LeaderboardSummary.Empty;
+        }
+
+        float qbRating = _seasonSummary.ComputeQbRating();
+        return _playerRecordStore.SaveSeasonResult(_playerName, qbRating);
     }
 }

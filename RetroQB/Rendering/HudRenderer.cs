@@ -35,9 +35,19 @@ public sealed class HudRenderer
         _sidePanel.Draw(play, resultText, selectedReceiverLabel, state, stage, replayAvailable);
     }
 
-    public void DrawMainMenu(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams)
+    public void DrawMainMenu(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams, LeaderboardSummary leaderboardSummary, bool showLeaderboard)
     {
-        _menu.Draw(selectedTeamIndex, teams);
+        _menu.Draw(selectedTeamIndex, teams, leaderboardSummary, showLeaderboard);
+    }
+
+    public void DrawPlayerNameEntry(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams, string currentName, string message, LeaderboardSummary leaderboardSummary)
+    {
+        _menu.DrawNameEntry(selectedTeamIndex, teams, currentName, message, leaderboardSummary);
+    }
+
+    public void DrawNameConflict(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams, string duplicateName)
+    {
+        _menu.DrawNameConflict(selectedTeamIndex, teams, duplicateName);
     }
 
     public void DrawPause()
@@ -45,19 +55,19 @@ public sealed class HudRenderer
         _menu.DrawPause();
     }
 
-    public void DrawStageCompleteBanner(int finalScore, int awayScore, SeasonStage completedStage)
+    public void DrawStageCompleteBanner(int finalScore, int awayScore, SeasonStage completedStage, SeasonSummary seasonSummary, LeaderboardSummary leaderboardSummary)
     {
-        _banner.DrawStageCompleteBanner(finalScore, awayScore, completedStage, _stats);
+        _banner.DrawStageCompleteBanner(finalScore, awayScore, completedStage, _stats, seasonSummary, leaderboardSummary);
     }
 
-    public void DrawChampionBanner(int finalScore, int awayScore, SeasonStage stage, SeasonSummary seasonSummary)
+    public void DrawChampionBanner(int finalScore, int awayScore, SeasonStage stage, SeasonSummary seasonSummary, LeaderboardSummary leaderboardSummary)
     {
-        _banner.DrawChampionBanner(finalScore, awayScore, _stats, seasonSummary);
+        _banner.DrawChampionBanner(finalScore, awayScore, _stats, seasonSummary, leaderboardSummary);
     }
 
-    public void DrawEliminationBanner(int finalScore, int awayScore, SeasonStage stage, SeasonSummary seasonSummary)
+    public void DrawEliminationBanner(int finalScore, int awayScore, SeasonStage stage, SeasonSummary seasonSummary, LeaderboardSummary leaderboardSummary)
     {
-        _banner.DrawEliminationBanner(finalScore, awayScore, stage, _stats, seasonSummary);
+        _banner.DrawEliminationBanner(finalScore, awayScore, stage, _stats, seasonSummary, leaderboardSummary);
     }
 
     public void DrawTouchdownPopup()

@@ -84,7 +84,7 @@ public sealed class SidePanelRenderer
 
         // Bottom-anchored controls layout to avoid overflow at smaller heights
         int controlsLineSpacing = 14;
-        int controlsLines = 8;
+        int controlsLines = 9;
         int controlsBlockHeight = 28 + (controlsLines * controlsLineSpacing);
         int controlsStartY = screenH - (int)Constants.OuterMargin - controlsBlockHeight;
 
@@ -139,6 +139,8 @@ public sealed class SidePanelRenderer
         Raylib.DrawText("Throw: 1-5", x, y, 12, Palette.White);
         y += controlsLineSpacing;
         Raylib.DrawText("Replay (dead-ball): F", x, y, 12, Palette.White);
+        y += controlsLineSpacing;
+        Raylib.DrawText("Restart Season: Z", x, y, 12, Palette.White);
         y += controlsLineSpacing;
         Raylib.DrawText("Pause: Esc", x, y, 12, Palette.White);
     }

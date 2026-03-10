@@ -8,6 +8,8 @@ namespace RetroQB.Input;
 /// </summary>
 public sealed class InputManager
 {
+    public const int MaxPlayerNameLength = 18;
+
     public Vector2 GetMovementDirection()
     {
         float x = 0;
@@ -34,8 +36,40 @@ public sealed class InputManager
     public bool IsEscapePressed() => Raylib.IsKeyPressed(KeyboardKey.Escape);
     public bool IsEnterPressed() => Raylib.IsKeyPressed(KeyboardKey.Enter);
     public bool IsSpacePressed() => Raylib.IsKeyPressed(KeyboardKey.Space);
+    public bool IsBackspacePressed() => Raylib.IsKeyPressed(KeyboardKey.Backspace);
     public bool IsReplayPressed() => Raylib.IsKeyPressed(KeyboardKey.F);
     public bool IsReplaySkipPressed() => Raylib.IsKeyPressed(KeyboardKey.Space);
+    public bool IsRestartPressed() => Raylib.IsKeyPressed(KeyboardKey.Z);
+    public bool IsLeaderboardPressed() => Raylib.IsKeyPressed(KeyboardKey.L);
+
+    public string ReadTextInput(int maxLength)
+    {
+        var buffer = new System.Text.StringBuilder();
+        int codepoint;
+
+        while ((codepoint = Raylib.GetCharPressed()) > 0)
+        {
+            if (buffer.Length >= maxLength)
+            {
+                continue;
+            }
+
+            char ch = (char)codepoint;
+            if (IsSupportedTextCharacter(ch))
+            {
+                buffer.Append(ch);
+            }
+        }
+
+        return buffer.ToString();
+    }
+
+    public int? GetNameConflictChoice()
+    {
+        if (Raylib.IsKeyPressed(KeyboardKey.One)) return 1;
+        if (Raylib.IsKeyPressed(KeyboardKey.Two)) return 2;
+        return null;
+    }
 
     /// <summary>
     /// Returns team selection index (0-2) from number keys 1-3, or null if no team key pressed.
@@ -97,5 +131,10 @@ public sealed class InputManager
         if (Raylib.IsKeyPressed(KeyboardKey.Four)) return 3;
         if (Raylib.IsKeyPressed(KeyboardKey.Five)) return 4;
         return null;
+    }
+
+    private static bool IsSupportedTextCharacter(char ch)
+    {
+        return char.IsLetterOrDigit(ch) || ch is ' ' or '-' or '_' or '\'' or '.';
     }
 }
