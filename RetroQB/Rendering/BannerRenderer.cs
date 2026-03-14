@@ -107,9 +107,9 @@ public sealed class BannerRenderer
         int contentY = y + 16;
         int titleFontSize = showRankingDetails ? 44 : 38;
         int subtitleFontSize = showRankingDetails ? 20 : 17;
-        DrawCenteredText(title, x, bannerWidth, contentY, titleFontSize, accentColor);
+        DrawCenteredText(title, x, bannerWidth, contentY, titleFontSize, accentColor, 18, 20);
         contentY += titleFontSize + 4;
-        DrawCenteredText(subtitle, x, bannerWidth, contentY, subtitleFontSize, Palette.Cyan);
+        DrawCenteredText(subtitle, x, bannerWidth, contentY, subtitleFontSize, Palette.Cyan, 18, 12);
         contentY += subtitleFontSize + 10;
 
         string scoreLine = $"FINAL: {finalScore} - {awayScore}";
@@ -118,20 +118,22 @@ public sealed class BannerRenderer
 
         if (showQbRating)
         {
-            float qbRating = seasonSummary.ComputeQbRating();
-            DrawCenteredText("QB RATING", x, bannerWidth, contentY, showRankingDetails ? 18 : 15, Palette.Blue);
+            float dominanceScore = seasonSummary.ComputeDominanceScore();
+            DrawCenteredText("DOMINANCE SCORE", x, bannerWidth, contentY, showRankingDetails ? 18 : 15, Palette.Blue);
             contentY += 20;
-            DrawCenteredText($"{qbRating:F1}", x, bannerWidth, contentY, showRankingDetails ? 42 : 34, GetRatingColor(qbRating));
+            DrawCenteredText($"{dominanceScore:F1}", x, bannerWidth, contentY, showRankingDetails ? 42 : 34, GetRatingColor(dominanceScore));
             contentY += showRankingDetails ? 50 : 40;
         }
+
+        int currentPlayerRank = leaderboardSummary.CurrentPlayerRank ?? 0;
 
         if (showRankingDetails && showFinalRank && leaderboardSummary.HasPlayerRank)
         {
             string finalRankText = leaderboardSummary.IsFirstPlace
-                ? $"QB RANK: #{leaderboardSummary.PlayerRank}  TROPHY HOLDER"
+                ? $"DOMINANCE RANK: #{currentPlayerRank}  TROPHY HOLDER"
                 : leaderboardSummary.IsOnPodium
-                    ? $"QB RANK: #{leaderboardSummary.PlayerRank}  PODIUM"
-                    : $"QB RANK: #{leaderboardSummary.PlayerRank}";
+                    ? $"DOMINANCE RANK: #{currentPlayerRank}  PODIUM"
+                    : $"DOMINANCE RANK: #{currentPlayerRank}";
             DrawCenteredText(finalRankText, x, bannerWidth, contentY, 20, leaderboardSummary.IsOnPodium ? Palette.Gold : Palette.Orange);
             contentY += 28;
         }
@@ -239,10 +241,10 @@ public sealed class BannerRenderer
         Raylib.DrawRectangle(x, y, width, height, new Color(8, 12, 18, 220));
         Raylib.DrawRectangleLines(x, y, width, height, accentColor);
 
-        DrawCenteredText("QB RANKINGS", x, width, y + 12, 18, Palette.Yellow);
+        DrawCenteredText("DOMINANCE RANKINGS", x, width, y + 12, 18, Palette.Yellow);
 
-        string bestLine = $"SAVED BEST: {summary.SavedBestRating:F1}";
-        DrawCenteredText(bestLine, x, width, y + 36, 14, new Color(170, 190, 210, 255));
+        string savedLine = $"SAVED SCORE: {summary.SavedScore:F1}";
+        DrawCenteredText(savedLine, x, width, y + 36, 14, new Color(170, 190, 210, 255));
 
         int drawY = y + 62;
         int rows = Math.Min(5, summary.Entries.Count);
@@ -257,8 +259,8 @@ public sealed class BannerRenderer
                 Raylib.DrawRectangleLines(x + 10, drawY - 3, width - 20, 24, Palette.Cyan);
             }
 
-            string left = $"#{entry.Rank}  {entry.Name}";
-            string rating = entry.Rating.ToString("F1");
+            string left = TruncateTextToWidth($"#{entry.Rank}  {entry.Name} - {entry.TeamName}", 16, width - 128);
+            string score = entry.Score.ToString("F1");
             Color rankColor = entry.Rank switch
             {
                 1 => Palette.Gold,
@@ -267,14 +269,16 @@ public sealed class BannerRenderer
                 _ => Palette.White
             };
 
-            Raylib.DrawText(left, x + 18, drawY, 18, rankColor);
+            Raylib.DrawText(left, x + 18, drawY + 1, 16, rankColor);
+            string history = TruncateTextToWidth(entry.ScoreHistory, 10, width - 132);
+            Raylib.DrawText(history, x + 18, drawY + 16, 10, new Color(165, 185, 205, 255));
             if (entry.HasTrophy)
             {
                 DrawTrophyIcon(x + width - 108, drawY + 2, 0.58f, Palette.Gold);
             }
 
-            int ratingWidth = Raylib.MeasureText(rating, 18);
-            Raylib.DrawText(rating, x + width - 18 - ratingWidth, drawY, 18, highlight ? Palette.Cyan : Palette.White);
+            int scoreWidth = Raylib.MeasureText(score, 18);
+            Raylib.DrawText(score, x + width - 18 - scoreWidth, drawY, 18, highlight ? Palette.Cyan : Palette.White);
             drawY += 28;
         }
 
@@ -284,9 +288,8 @@ public sealed class BannerRenderer
             return;
         }
 
-        string playerLine = summary.IsPersonalBest
-            ? $"#{summary.PlayerRank} PERSONAL BEST"
-            : $"#{summary.PlayerRank} CURRENT PLACE";
+        int currentPlayerRank = summary.CurrentPlayerRank ?? 0;
+        string playerLine = $"#{currentPlayerRank} CURRENT PLACE";
         DrawCenteredText(playerLine, x, width, y + height - 30, 15, summary.IsOnPodium ? Palette.Lime : Palette.Orange);
     }
 
@@ -302,9 +305,13 @@ public sealed class BannerRenderer
         int placeWidth = 118;
         int gap = 14;
 
-        DrawPodiumPlace(centerX - placeWidth / 2 - placeWidth - gap, baseY, placeWidth, 74, summary.Entries.ElementAtOrDefault(1), 2, summary.PlayerRank == 2);
-        DrawPodiumPlace(centerX - placeWidth / 2, baseY, placeWidth, 104, summary.Entries.ElementAtOrDefault(0), 1, summary.PlayerRank == 1);
-        DrawPodiumPlace(centerX + placeWidth / 2 + gap, baseY, placeWidth, 58, summary.Entries.ElementAtOrDefault(2), 3, summary.PlayerRank == 3);
+        LeaderboardEntry secondPlaceEntry = GetEntryForRank(summary, 2);
+        LeaderboardEntry firstPlaceEntry = GetEntryForRank(summary, 1);
+        LeaderboardEntry thirdPlaceEntry = GetEntryForRank(summary, 3);
+
+        DrawPodiumPlace(centerX - placeWidth / 2 - placeWidth - gap, baseY, placeWidth, 74, secondPlaceEntry, 2, secondPlaceEntry.IsCurrentPlayer);
+        DrawPodiumPlace(centerX - placeWidth / 2, baseY, placeWidth, 104, firstPlaceEntry, 1, firstPlaceEntry.IsCurrentPlayer);
+        DrawPodiumPlace(centerX + placeWidth / 2 + gap, baseY, placeWidth, 58, thirdPlaceEntry, 3, thirdPlaceEntry.IsCurrentPlayer);
 
         string message = summary.IsOnPodium
             ? summary.IsFirstPlace
@@ -348,12 +355,16 @@ public sealed class BannerRenderer
         Raylib.DrawText(placeLabel, x + (width - placeLabelWidth) / 2, placeLabelY, 16, Palette.White);
 
         string displayName = TruncatePodiumName(entry.Name, width - 12);
+        string displayTeam = TruncatePodiumName(entry.TeamName, width - 12);
+        string displayHistory = TruncatePodiumName(entry.ScoreHistory, width - 12);
         int nameFontSize = displayName.Length > 10 ? 14 : 16;
-        int nameY = baseY - Math.Max(42, height - 18);
+        int nameY = baseY - Math.Max(50, height - 16);
         DrawCenteredText(displayName, x, width, nameY, nameFontSize, isCurrentPlayer ? Palette.Cyan : Palette.White);
+        DrawCenteredText(displayTeam, x, width, nameY + 16, 12, new Color(165, 185, 205, 255));
+        DrawCenteredText(displayHistory, x, width, nameY + 30, 10, new Color(150, 170, 190, 255));
 
-        int ratingY = Math.Min(baseY - 22, nameY + 22);
-        DrawCenteredText(entry.Rating.ToString("F1"), x, width, ratingY, 16, Palette.Yellow);
+        int ratingY = Math.Min(baseY - 22, nameY + 44);
+        DrawCenteredText(entry.Score.ToString("F1"), x, width, ratingY, 16, Palette.Yellow);
 
         if (place == 1)
         {
@@ -364,6 +375,11 @@ public sealed class BannerRenderer
         {
             DrawCenteredText("YOU", x, width, baseY - height - 46, 12, Palette.Cyan);
         }
+    }
+
+    private static LeaderboardEntry GetEntryForRank(LeaderboardSummary summary, int rank)
+    {
+        return summary.Entries.FirstOrDefault(entry => entry.Rank == rank);
     }
 
     private static string TruncatePodiumName(string name, int maxWidth)
@@ -404,20 +420,40 @@ public sealed class BannerRenderer
         Raylib.DrawCircleLines(x + cupWidth + Math.Max(2, (int)(2 * scale)), y + Math.Max(4, (int)(6 * scale)), Math.Max(4, (int)(5 * scale)), color);
     }
 
-    private static Color GetRatingColor(float qbRating)
+    private static Color GetRatingColor(float score)
     {
-        return qbRating switch
+        return score switch
         {
-            >= 100f => Palette.Gold,
-            >= 80f => Palette.Lime,
-            >= 60f => Palette.White,
+            >= 90f => Palette.Gold,
+            >= 75f => Palette.Lime,
+            >= 55f => Palette.White,
             _ => Palette.Orange
         };
     }
 
+    private static string TruncateTextToWidth(string text, int fontSize, int maxWidth)
+    {
+        if (Raylib.MeasureText(text, fontSize) <= maxWidth)
+        {
+            return text;
+        }
+
+        const string ellipsis = "...";
+        for (int length = text.Length - 1; length > 1; length--)
+        {
+            string candidate = text[..length] + ellipsis;
+            if (Raylib.MeasureText(candidate, fontSize) <= maxWidth)
+            {
+                return candidate;
+            }
+        }
+
+        return ellipsis;
+    }
+
     private static void DrawActionButtons(int bannerX, int y, int bannerWidth, string confirmText, string restartText)
     {
-        int buttonWidth = 240;
+        int buttonWidth = Math.Min(300, (bannerWidth - 18) / 2);
         int buttonHeight = 34;
         int gap = 18;
         int totalWidth = (buttonWidth * 2) + gap;
@@ -431,15 +467,32 @@ public sealed class BannerRenderer
     {
         Raylib.DrawRectangle(x, y, width, height, fillColor);
         Raylib.DrawRectangleLines(x, y, width, height, borderColor);
-        int fontSize = 16;
+        int fontSize = GetFittedFontSize(text, 16, width - 20, 10);
         int textWidth = Raylib.MeasureText(text, fontSize);
         Raylib.DrawText(text, x + (width - textWidth) / 2, y + (height - fontSize) / 2, fontSize, borderColor);
     }
 
-    private static void DrawCenteredText(string text, int x, int width, int y, int fontSize, Color color)
+    private static void DrawCenteredText(string text, int x, int width, int y, int fontSize, Color color, int horizontalPadding = 12, int minFontSize = 10)
     {
-        int textWidth = Raylib.MeasureText(text, fontSize);
-        Raylib.DrawText(text, x + (width - textWidth) / 2, y, fontSize, color);
+        int fittedFontSize = GetFittedFontSize(text, fontSize, width - (horizontalPadding * 2), minFontSize);
+        int textWidth = Raylib.MeasureText(text, fittedFontSize);
+        Raylib.DrawText(text, x + (width - textWidth) / 2, y, fittedFontSize, color);
+    }
+
+    private static int GetFittedFontSize(string text, int preferredFontSize, int maxWidth, int minFontSize)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return preferredFontSize;
+        }
+
+        int fontSize = preferredFontSize;
+        while (fontSize > minFontSize && Raylib.MeasureText(text, fontSize) > maxWidth)
+        {
+            fontSize--;
+        }
+
+        return fontSize;
     }
 
     public void DrawTouchdownPopup()

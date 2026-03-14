@@ -2,12 +2,16 @@ namespace RetroQB.Stats;
 
 public sealed record PlayerRecord(
     string Name,
-    float BestQbRating,
+    string TeamName,
+    string ScoreHistory,
+    float DominanceScore,
     DateTime LastUpdatedUtc);
 
 public readonly record struct LeaderboardEntry(
     string Name,
-    float Rating,
+    string TeamName,
+    string ScoreHistory,
+    float Score,
     int Rank,
     bool IsCurrentPlayer)
 {
@@ -27,28 +31,31 @@ public sealed class LeaderboardSummary
 
     public LeaderboardSummary(
         string playerName,
-        float seasonRating,
-        float savedBestRating,
-        bool isPersonalBest,
+        float seasonScore,
+        float savedScore,
+        bool isLatestSeason,
         int? playerRank,
         IReadOnlyList<LeaderboardEntry> entries)
     {
         PlayerName = playerName;
-        SeasonRating = seasonRating;
-        SavedBestRating = savedBestRating;
-        IsPersonalBest = isPersonalBest;
+        SeasonScore = seasonScore;
+        SavedScore = savedScore;
+        IsLatestSeason = isLatestSeason;
         PlayerRank = playerRank;
         Entries = entries;
     }
 
     public string PlayerName { get; }
-    public float SeasonRating { get; }
-    public float SavedBestRating { get; }
-    public bool IsPersonalBest { get; }
+    public float SeasonScore { get; }
+    public float SavedScore { get; }
+    public bool IsLatestSeason { get; }
     public int? PlayerRank { get; }
     public IReadOnlyList<LeaderboardEntry> Entries { get; }
 
-    public bool HasPlayerRank => PlayerRank.HasValue;
-    public bool IsOnPodium => PlayerRank is >= 1 and <= 3;
-    public bool IsFirstPlace => PlayerRank == 1;
+    public LeaderboardEntry CurrentPlayerEntry => Entries.FirstOrDefault(entry => entry.IsCurrentPlayer);
+    public int? CurrentPlayerRank => CurrentPlayerEntry.Rank > 0 ? CurrentPlayerEntry.Rank : PlayerRank;
+
+    public bool HasPlayerRank => CurrentPlayerRank.HasValue;
+    public bool IsOnPodium => CurrentPlayerRank is >= 1 and <= 3;
+    public bool IsFirstPlace => CurrentPlayerRank == 1;
 }

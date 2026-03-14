@@ -4,6 +4,8 @@ namespace RetroQB.Stats;
 
 public sealed class PlayerRecordStore
 {
+    private const int MaxLeaderboardEntries = 10;
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true
@@ -24,62 +26,51 @@ public sealed class PlayerRecordStore
     public bool HasPlayer(string playerName)
         => FindRecordIndex(NormalizeName(playerName)) >= 0;
 
-    public LeaderboardSummary BuildSummary(string playerName, float seasonRating)
+    public LeaderboardSummary BuildSummary(string playerName, float seasonScore, bool isLatestSeason = false)
     {
         string normalizedName = NormalizeName(playerName);
         var sortedRecords = GetSortedRecords();
-        int index = sortedRecords.FindIndex(record => NamesMatch(record.Name, normalizedName));
-        float savedBest = index >= 0 ? sortedRecords[index].BestQbRating : seasonRating;
-        int? rank = index >= 0 ? index + 1 : null;
+        PlayerRecord? latestPlayerRecord = GetLatestRecordForPlayer(normalizedName);
+        int? rank = latestPlayerRecord is null ? null : FindRecordRank(sortedRecords, latestPlayerRecord);
+        float savedScore = latestPlayerRecord?.DominanceScore ?? seasonScore;
+        int? currentPlayerRank = rank;
 
         var entries = sortedRecords
             .Select((record, entryIndex) => new LeaderboardEntry(
                 record.Name,
-                record.BestQbRating,
+                record.TeamName,
+                record.ScoreHistory,
+                record.DominanceScore,
                 entryIndex + 1,
-                NamesMatch(record.Name, normalizedName)))
+                currentPlayerRank.HasValue && entryIndex + 1 == currentPlayerRank.Value))
             .ToArray();
 
         return new LeaderboardSummary(
             normalizedName,
-            seasonRating,
-            savedBest,
-            false,
+            seasonScore,
+            savedScore,
+            isLatestSeason,
             rank,
             entries);
     }
 
-    public LeaderboardSummary SaveSeasonResult(string playerName, float seasonRating)
+    public LeaderboardSummary SaveSeasonResult(string playerName, string teamName, string scoreHistory, float seasonScore)
     {
         string normalizedName = NormalizeName(playerName);
-        int existingIndex = FindRecordIndex(normalizedName);
-        bool isPersonalBest = true;
-        float savedBest = seasonRating;
+        string normalizedTeamName = string.IsNullOrWhiteSpace(teamName) ? "Unknown" : teamName.Trim();
+        string normalizedScoreHistory = NormalizeScoreHistory(scoreHistory);
+        DateTime savedAtUtc = DateTime.UtcNow;
 
-        if (existingIndex >= 0)
-        {
-            PlayerRecord existing = _records[existingIndex];
-            savedBest = MathF.Max(existing.BestQbRating, seasonRating);
-            isPersonalBest = seasonRating >= existing.BestQbRating;
-            _records[existingIndex] = existing with
-            {
-                BestQbRating = savedBest,
-                LastUpdatedUtc = DateTime.UtcNow
-            };
-        }
-        else
-        {
-            _records.Add(new PlayerRecord(normalizedName, seasonRating, DateTime.UtcNow));
-        }
+        _records.Add(new PlayerRecord(normalizedName, normalizedTeamName, normalizedScoreHistory, seasonScore, savedAtUtc));
 
         Save();
 
-        var summary = BuildSummary(normalizedName, seasonRating);
+        var summary = BuildSummary(normalizedName, seasonScore, isLatestSeason: true);
         return new LeaderboardSummary(
             summary.PlayerName,
-            summary.SeasonRating,
-            savedBest,
-            isPersonalBest,
+            summary.SeasonScore,
+            seasonScore,
+            true,
             summary.PlayerRank,
             summary.Entries);
     }
@@ -127,7 +118,14 @@ public sealed class PlayerRecordStore
                     continue;
                 }
 
-                _records.Add(new PlayerRecord(normalizedName, record.BestQbRating, record.LastUpdatedUtc));
+                float score = record.DominanceScore != 0f
+                    ? record.DominanceScore
+                    : record.QbRating != 0f
+                        ? record.QbRating
+                        : record.BestQbRating;
+                string teamName = string.IsNullOrWhiteSpace(record.TeamName) ? "Unknown" : record.TeamName.Trim();
+                string scoreHistory = NormalizeScoreHistory(record.ScoreHistory);
+                _records.Add(new PlayerRecord(normalizedName, teamName, scoreHistory, score, record.LastUpdatedUtc));
             }
         }
         catch
@@ -150,7 +148,9 @@ public sealed class PlayerRecordStore
                 .Select(record => new StorageRecord
                 {
                     Name = record.Name,
-                    BestQbRating = record.BestQbRating,
+                    TeamName = record.TeamName,
+                    ScoreHistory = record.ScoreHistory,
+                    DominanceScore = record.DominanceScore,
                     LastUpdatedUtc = record.LastUpdatedUtc
                 })
                 .ToList()
@@ -163,13 +163,52 @@ public sealed class PlayerRecordStore
     private int FindRecordIndex(string normalizedName)
         => _records.FindIndex(record => NamesMatch(record.Name, normalizedName));
 
+    private static int? FindRecordRank(IReadOnlyList<PlayerRecord> sortedRecords, PlayerRecord target)
+    {
+        int index = -1;
+        for (int i = 0; i < sortedRecords.Count; i++)
+        {
+            if (sortedRecords[i] == target)
+            {
+                index = i;
+                break;
+            }
+        }
+
+        return index >= 0 && index < sortedRecords.Count ? index + 1 : null;
+    }
+
+    private PlayerRecord? GetLatestRecordForPlayer(string normalizedName)
+    {
+        if (string.IsNullOrWhiteSpace(normalizedName))
+        {
+            return null;
+        }
+
+        return _records
+            .Where(record => NamesMatch(record.Name, normalizedName))
+            .OrderByDescending(record => record.LastUpdatedUtc)
+            .FirstOrDefault();
+    }
+
     private List<PlayerRecord> GetSortedRecords()
     {
         return _records
-            .OrderByDescending(record => record.BestQbRating)
+            .OrderByDescending(record => record.DominanceScore)
             .ThenBy(record => record.LastUpdatedUtc)
             .ThenBy(record => record.Name, StringComparer.OrdinalIgnoreCase)
+            .Take(MaxLeaderboardEntries)
             .ToList();
+    }
+
+    private static string NormalizeScoreHistory(string rawHistory)
+    {
+        if (string.IsNullOrWhiteSpace(rawHistory))
+        {
+            return "REG -- | PLAYOFF -- | SB --";
+        }
+
+        return rawHistory.Trim();
     }
 
     private static bool NamesMatch(string left, string right)
@@ -183,6 +222,10 @@ public sealed class PlayerRecordStore
     private sealed class StorageRecord
     {
         public string Name { get; set; } = string.Empty;
+        public string TeamName { get; set; } = string.Empty;
+        public string ScoreHistory { get; set; } = string.Empty;
+        public float DominanceScore { get; set; }
+        public float QbRating { get; set; }
         public float BestQbRating { get; set; }
         public DateTime LastUpdatedUtc { get; set; }
     }

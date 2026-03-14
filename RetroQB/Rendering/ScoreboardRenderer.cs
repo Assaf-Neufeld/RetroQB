@@ -9,11 +9,14 @@ namespace RetroQB.Rendering;
 /// </summary>
 public sealed class ScoreboardRenderer
 {
+    private readonly record struct SummaryLine(string Text, int FontSize, Color Color, int Indent);
+    private readonly record struct SummaryBlock(IReadOnlyList<SummaryLine> Lines, int Height, int PlayNumber);
+
     private static int ScoreboardY => (int)Constants.OuterMargin;
     private static int ScoreboardWidth => (int)Constants.ScoreboardPanelWidth;
     private static int ScoreboardHeight => Raylib.GetScreenHeight() - (int)(Constants.OuterMargin * 2);
 
-    public void Draw(PlayManager play, string resultText, GameState state, OffensiveTeamAttributes offensiveTeam, DefensiveTeamAttributes defensiveTeam, GameStatsSnapshot stats, SeasonStage stage)
+    public void Draw(PlayManager play, string resultText, GameState state, OffensiveTeamAttributes offensiveTeam, DefensiveTeamAttributes defensiveTeam, GameStatsSnapshot stats, SeasonStage stage, int driveSummaryScrollOffsetFromLatest)
     {
         int x = Raylib.GetScreenWidth() - ScoreboardWidth - (int)Constants.OuterMargin;
         int y = ScoreboardY;
@@ -40,68 +43,6 @@ public sealed class ScoreboardRenderer
         {
             int textWidth = Raylib.MeasureText(text, fontSize);
             Raylib.DrawText(text, rightX - textWidth, drawY, fontSize, color);
-        }
-
-        static List<string> WrapTextToWidth(string text, int fontSize, int maxWidth)
-        {
-            if (string.IsNullOrWhiteSpace(text))
-            {
-                return new List<string> { string.Empty };
-            }
-
-            var lines = new List<string>();
-            var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            string current = string.Empty;
-
-            foreach (string word in words)
-            {
-                string candidate = string.IsNullOrEmpty(current) ? word : $"{current} {word}";
-                if (Raylib.MeasureText(candidate, fontSize) <= maxWidth)
-                {
-                    current = candidate;
-                    continue;
-                }
-
-                if (!string.IsNullOrEmpty(current))
-                {
-                    lines.Add(current);
-                }
-
-                // Handle a single very-long token by splitting it.
-                if (Raylib.MeasureText(word, fontSize) > maxWidth)
-                {
-                    string segment = string.Empty;
-                    foreach (char ch in word)
-                    {
-                        string next = segment + ch;
-                        if (Raylib.MeasureText(next, fontSize) <= maxWidth)
-                        {
-                            segment = next;
-                        }
-                        else
-                        {
-                            if (!string.IsNullOrEmpty(segment))
-                            {
-                                lines.Add(segment);
-                            }
-                            segment = ch.ToString();
-                        }
-                    }
-
-                    current = segment;
-                }
-                else
-                {
-                    current = word;
-                }
-            }
-
-            if (!string.IsNullOrEmpty(current))
-            {
-                lines.Add(current);
-            }
-
-            return lines;
         }
 
         // Stage indicator
@@ -243,90 +184,49 @@ public sealed class ScoreboardRenderer
         Raylib.DrawText("DRIVE SUMMARY", contentX + 2, contentY, 16, offensiveTeam.SecondaryColor);
         contentY += 22;
 
-        // Show all plays in chronological order (oldest first)
+        int summaryFooterY = ScoreboardY + ScoreboardHeight - 58;
+        int summaryContentMaxHeight = Math.Max(0, summaryFooterY - contentY - 4);
+
         if (play.PlayRecords.Count == 0)
         {
             Raylib.DrawText("No plays yet", contentX + 6, contentY, 14, panelText);
+            contentY = summaryFooterY + 18;
         }
         else
         {
-            int summaryMaxY = ScoreboardY + ScoreboardHeight - 40;
             int textMaxWidth = innerWidth - 14;
 
-            for (int i = 0; i < play.PlayRecords.Count; i++)
+            List<SummaryBlock> summaryBlocks = BuildDriveSummaryBlocks(play.PlayRecords, textMaxWidth, panelText);
+            int clampedOffset = Math.Clamp(driveSummaryScrollOffsetFromLatest, 0, summaryBlocks.Count - 1);
+            List<SummaryBlock> visibleBlocks = GetVisibleDriveSummaryBlocks(summaryBlocks, clampedOffset, summaryContentMaxHeight);
+
+            if (visibleBlocks.Count == 0)
             {
-                var record = play.PlayRecords[i];
-
-                if (contentY > summaryMaxY)
-                {
-                    Raylib.DrawText("...", contentX + 8, summaryMaxY, 12, panelText);
-                    contentY = summaryMaxY + 12;
-                    break;
-                }
-                
-                // Play number and situation
-                string situationLine = $"#{record.PlayNumber}: {record.GetSituationText()}";
-                Raylib.DrawText(situationLine, contentX + 4, contentY, 14, Palette.Yellow);
-                contentY += 16;
-                
-                // Play call
-                string playCallLine = record.GetPlayCallText();
-                string? blitzLine = record.Blitzers.Count > 0
-                    ? string.Join(", ", record.Blitzers)
-                    : null;
-
-                foreach (string line in WrapTextToWidth(playCallLine, 12, textMaxWidth))
-                {
-                    if (contentY > summaryMaxY)
-                    {
-                        break;
-                    }
-                    Raylib.DrawText(line, contentX + 8, contentY, 12, panelText);
-                    contentY += 14;
-                }
-
-                if (!string.IsNullOrWhiteSpace(blitzLine))
-                {
-                    string blitzText = $"Blitz: {blitzLine}";
-
-                    foreach (string line in WrapTextToWidth(blitzText, 12, textMaxWidth))
-                    {
-                        if (contentY > summaryMaxY)
-                        {
-                            break;
-                        }
-                        Raylib.DrawText(line, contentX + 8, contentY, 12, Palette.Orange);
-                        contentY += 14;
-                    }
-                }
-                
-                // Result
-                string resultLine = record.GetResultText();
-                Color resultColor = record.Outcome switch
-                {
-                    PlayOutcome.Touchdown => Palette.Gold,
-                    PlayOutcome.Interception => Palette.Red,
-                    PlayOutcome.Incomplete => Palette.Orange,
-                    PlayOutcome.Turnover => Palette.Red,
-                    _ when record.Gain >= 10 => Palette.Lime,
-                    _ when record.Gain < 0 => Palette.Orange,
-                    _ => panelText
-                };
-
-                foreach (string line in WrapTextToWidth(resultLine, 12, textMaxWidth))
-                {
-                    if (contentY > summaryMaxY)
-                    {
-                        break;
-                    }
-                    Raylib.DrawText(line, contentX + 8, contentY, 12, resultColor);
-                    contentY += 14;
-                }
-
-                contentY += 18;
+                Raylib.DrawText("Summary area too small", contentX + 6, contentY, 12, new Color(165, 190, 220, 255));
+                contentY = summaryFooterY + 18;
+                string fullRangeScrollHint = $"Plays 1-{summaryBlocks.Count} of {summaryBlocks.Count}  Wheel/PgUp/PgDn";
+                Raylib.DrawText(fullRangeScrollHint, contentX + 6, summaryFooterY, 11, new Color(165, 190, 220, 255));
+                goto DrawResultTicker;
             }
+
+            foreach (SummaryBlock block in visibleBlocks)
+            {
+                foreach (SummaryLine line in block.Lines)
+                {
+                    Raylib.DrawText(line.Text, contentX + line.Indent, contentY, line.FontSize, line.Color);
+                    contentY += line.FontSize + 2;
+                }
+                contentY += 4;
+            }
+
+            SummaryBlock firstBlock = visibleBlocks[0];
+            SummaryBlock lastBlock = visibleBlocks[^1];
+            string visibleRangeScrollHint = $"Plays {firstBlock.PlayNumber}-{lastBlock.PlayNumber} of {summaryBlocks.Count}  Wheel/PgUp/PgDn";
+            Raylib.DrawText(visibleRangeScrollHint, contentX + 6, summaryFooterY, 11, new Color(165, 190, 220, 255));
+            contentY = summaryFooterY + 18;
         }
 
+DrawResultTicker:
         // Last play result ticker (at the bottom)
         if (!string.IsNullOrWhiteSpace(resultText))
         {
@@ -340,5 +240,154 @@ public sealed class ScoreboardRenderer
             Raylib.DrawRectangleLines(contentX - 4, contentY - 4, ScoreboardWidth - 24, 26, panelAccent);
             Raylib.DrawText(resultText, contentX + 6, contentY - 1, 14, resultTickerColor);
         }
+    }
+
+    private static List<SummaryBlock> BuildDriveSummaryBlocks(IReadOnlyList<PlayRecord> playRecords, int maxWidth, Color panelText)
+    {
+        var blocks = new List<SummaryBlock>(playRecords.Count);
+
+        foreach (PlayRecord record in playRecords)
+        {
+            var lines = new List<SummaryLine>();
+            lines.Add(new SummaryLine($"#{record.PlayNumber}: {record.GetSituationText()}", 14, Palette.Yellow, 4));
+
+            foreach (string line in WrapTextToWidth(record.GetPlayCallText(), 12, maxWidth))
+            {
+                lines.Add(new SummaryLine(line, 12, panelText, 8));
+            }
+
+            if (record.Blitzers.Count > 0)
+            {
+                string blitzText = $"Blitz: {string.Join(", ", record.Blitzers)}";
+                foreach (string line in WrapTextToWidth(blitzText, 12, maxWidth))
+                {
+                    lines.Add(new SummaryLine(line, 12, Palette.Orange, 8));
+                }
+            }
+
+            Color resultColor = GetDriveSummaryResultColor(record, panelText);
+            foreach (string line in WrapTextToWidth(record.GetResultText(), 12, maxWidth))
+            {
+                lines.Add(new SummaryLine(line, 12, resultColor, 8));
+            }
+
+            int height = 4;
+            foreach (SummaryLine line in lines)
+            {
+                height += line.FontSize + 2;
+            }
+            height += 4;
+
+            blocks.Add(new SummaryBlock(lines, height, record.PlayNumber));
+        }
+
+        return blocks;
+    }
+
+    private static List<SummaryBlock> GetVisibleDriveSummaryBlocks(IReadOnlyList<SummaryBlock> blocks, int scrollOffsetFromLatest, int maxHeight)
+    {
+        var visibleBlocks = new List<SummaryBlock>();
+        if (blocks.Count == 0 || maxHeight <= 0)
+        {
+            return visibleBlocks;
+        }
+
+        int latestIndex = Math.Clamp(blocks.Count - 1 - scrollOffsetFromLatest, 0, blocks.Count - 1);
+        int usedHeight = 0;
+
+        for (int index = latestIndex; index >= 0; index--)
+        {
+            SummaryBlock block = blocks[index];
+            if (visibleBlocks.Count > 0 && usedHeight + block.Height > maxHeight)
+            {
+                break;
+            }
+
+            visibleBlocks.Insert(0, block);
+            usedHeight += block.Height;
+
+            if (usedHeight >= maxHeight)
+            {
+                break;
+            }
+        }
+
+        return visibleBlocks;
+    }
+
+    private static Color GetDriveSummaryResultColor(PlayRecord record, Color panelText)
+    {
+        return record.Outcome switch
+        {
+            PlayOutcome.Touchdown => Palette.Gold,
+            PlayOutcome.Interception => Palette.Red,
+            PlayOutcome.Incomplete => Palette.Orange,
+            PlayOutcome.Turnover => Palette.Red,
+            _ when record.Gain >= 10 => Palette.Lime,
+            _ when record.Gain < 0 => Palette.Orange,
+            _ => panelText
+        };
+    }
+
+    private static List<string> WrapTextToWidth(string text, int fontSize, int maxWidth)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return new List<string> { string.Empty };
+        }
+
+        var lines = new List<string>();
+        var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        string current = string.Empty;
+
+        foreach (string word in words)
+        {
+            string candidate = string.IsNullOrEmpty(current) ? word : $"{current} {word}";
+            if (Raylib.MeasureText(candidate, fontSize) <= maxWidth)
+            {
+                current = candidate;
+                continue;
+            }
+
+            if (!string.IsNullOrEmpty(current))
+            {
+                lines.Add(current);
+            }
+
+            if (Raylib.MeasureText(word, fontSize) > maxWidth)
+            {
+                string segment = string.Empty;
+                foreach (char ch in word)
+                {
+                    string next = segment + ch;
+                    if (Raylib.MeasureText(next, fontSize) <= maxWidth)
+                    {
+                        segment = next;
+                    }
+                    else
+                    {
+                        if (!string.IsNullOrEmpty(segment))
+                        {
+                            lines.Add(segment);
+                        }
+
+                        segment = ch.ToString();
+                    }
+                }
+
+                current = segment;
+            }
+            else
+            {
+                current = word;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(current))
+        {
+            lines.Add(current);
+        }
+
+        return lines;
     }
 }

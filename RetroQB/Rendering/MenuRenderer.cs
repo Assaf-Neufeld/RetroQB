@@ -55,7 +55,7 @@ public sealed class MenuRenderer
             contentY += 10;
         }
 
-        DrawCenteredText("TOP QB RATINGS", panelX, panelWidth, contentY, 18, Palette.Yellow);
+        DrawCenteredText("TOP DOMINANCE SCORES", panelX, panelWidth, contentY, 18, Palette.Yellow);
         contentY += 28;
 
         DrawLeaderboardPreview(panelX + 34, contentY, panelWidth - 68, leaderboardSummary.Entries);
@@ -90,12 +90,14 @@ public sealed class MenuRenderer
         var field = Constants.FieldRect;
         int centerX = (int)(field.X + field.Width / 2f);
         int centerY = (int)(field.Y + field.Height / 2f);
+        int screenH = Raylib.GetScreenHeight();
 
         // Calculate panel dimensions for unified window
         int panelWidth = 560;
-        int panelHeight = 530;
+        int panelHeight = Math.Min(600, screenH - 40);
         int panelX = centerX - panelWidth / 2;
         int panelY = centerY - panelHeight / 2;
+        bool compactLayout = panelHeight < 585;
 
         // Outer glow/shadow effect
         Raylib.DrawRectangle(panelX - 8, panelY - 8, panelWidth + 16, panelHeight + 16, new Color(0, 0, 0, 120));
@@ -106,59 +108,61 @@ public sealed class MenuRenderer
         Raylib.DrawRectangle(panelX + 3, panelY + 3, panelWidth - 6, panelHeight - 6, new Color(18, 22, 32, 250));
 
         int contentX = panelX + 30;
-        int contentY = panelY + 24;
+        int contentY = panelY + (compactLayout ? 18 : 24);
 
         // TITLE SECTION
         string title = "RETRO QB";
-        int titleSize = 52;
+        int titleSize = compactLayout ? 46 : 52;
         int titleWidth = Raylib.MeasureText(title, titleSize);
         Raylib.DrawText(title, panelX + (panelWidth - titleWidth) / 2, contentY, titleSize, Palette.Gold);
-        contentY += titleSize + 8;
+        contentY += titleSize + (compactLayout ? 4 : 8);
 
         // Subtitle
         string subtitle = "2D Football Simulation";
-        int subtitleSize = 16;
+        int subtitleSize = compactLayout ? 15 : 16;
         int subtitleWidth = Raylib.MeasureText(subtitle, subtitleSize);
         Raylib.DrawText(subtitle, panelX + (panelWidth - subtitleWidth) / 2, contentY, subtitleSize, new Color(140, 160, 180, 255));
-        contentY += subtitleSize + 16;
+        contentY += subtitleSize + (compactLayout ? 10 : 16);
 
         // Decorative divider
-        int dividerPadding = 40;
+        int dividerPadding = compactLayout ? 32 : 40;
         Raylib.DrawLine(panelX + dividerPadding, contentY, panelX + panelWidth - dividerPadding, contentY, new Color(60, 80, 100, 180));
         Raylib.DrawLine(panelX + dividerPadding, contentY + 1, panelX + panelWidth - dividerPadding, contentY + 1, Palette.Gold);
         Raylib.DrawLine(panelX + dividerPadding, contentY + 2, panelX + panelWidth - dividerPadding, contentY + 2, new Color(60, 80, 100, 180));
-        contentY += 20;
+        contentY += compactLayout ? 14 : 20;
 
         // GAME RULES SECTION
         string goalText = "* WIN 3 STAGES TO BECOME CHAMPION *";
-        int goalSize = 18;
+        int goalSize = compactLayout ? 16 : 18;
         int goalWidth = Raylib.MeasureText(goalText, goalSize);
         Raylib.DrawText(goalText, panelX + (panelWidth - goalWidth) / 2, contentY, goalSize, Palette.Lime);
-        contentY += goalSize + 6;
+        contentY += goalSize + (compactLayout ? 4 : 6);
 
         // Stage descriptions
+        int stageLineFontSize = compactLayout ? 13 : 14;
+        int stageLineSpacing = compactLayout ? 16 : 18;
         string[] stageLines = {
             "1. Regular Season  →  2. Playoff  →  3. Super Bowl",
             "Score 21 each round. Defense gets harder!"
         };
         foreach (var line in stageLines)
         {
-            int lineWidth = Raylib.MeasureText(line, 14);
-            Raylib.DrawText(line, panelX + (panelWidth - lineWidth) / 2, contentY, 14, new Color(180, 200, 220, 255));
-            contentY += 18;
+            int lineWidth = Raylib.MeasureText(line, stageLineFontSize);
+            Raylib.DrawText(line, panelX + (panelWidth - lineWidth) / 2, contentY, stageLineFontSize, new Color(180, 200, 220, 255));
+            contentY += stageLineSpacing;
         }
-        contentY += 8;
+        contentY += compactLayout ? 4 : 8;
 
         // TEAM SELECTION SECTION
         string selectHeader = "SELECT YOUR TEAM";
-        int headerSize = 18;
+        int headerSize = compactLayout ? 17 : 18;
         int headerWidth = Raylib.MeasureText(selectHeader, headerSize);
         Raylib.DrawText(selectHeader, panelX + (panelWidth - headerWidth) / 2, contentY, headerSize, Palette.Yellow);
-        contentY += headerSize + 14;
+        contentY += headerSize + (compactLayout ? 10 : 14);
 
         // Team selection area background
         int teamAreaWidth = panelWidth - 50;
-        int teamLineHeight = 72;
+        int teamLineHeight = compactLayout ? 60 : 68;
         int teamAreaHeight = teamLineHeight * teams.Count + 12;
         int teamAreaX = panelX + 25;
         Raylib.DrawRectangle(teamAreaX, contentY, teamAreaWidth, teamAreaHeight, new Color(8, 12, 18, 220));
@@ -182,48 +186,53 @@ public sealed class MenuRenderer
                 Raylib.DrawRectangleLines(rowX - 4, teamY - 2, rowWidth + 8, teamLineHeight - 6, team.PrimaryColor);
                 
                 // Selection indicator arrow
-                Raylib.DrawText(">", rowX - 2, teamY + 4, 18, Palette.Gold);
+                Raylib.DrawText(">", rowX - 2, teamY + (compactLayout ? 1 : 4), compactLayout ? 16 : 18, Palette.Gold);
             }
 
             // Team color swatches
             int swatchX = rowX + 20;
-            Raylib.DrawRectangle(swatchX, teamY + 5, 20, 20, team.PrimaryColor);
-            Raylib.DrawRectangle(swatchX + 24, teamY + 5, 20, 20, team.SecondaryColor);
-            Raylib.DrawRectangleLines(swatchX, teamY + 5, 20, 20, new Color(80, 90, 100, 180));
-            Raylib.DrawRectangleLines(swatchX + 24, teamY + 5, 20, 20, new Color(80, 90, 100, 180));
+            int swatchSize = compactLayout ? 18 : 20;
+            int swatchTop = teamY + 5;
+            Raylib.DrawRectangle(swatchX, swatchTop, swatchSize, swatchSize, team.PrimaryColor);
+            Raylib.DrawRectangle(swatchX + swatchSize + 4, swatchTop, swatchSize, swatchSize, team.SecondaryColor);
+            Raylib.DrawRectangleLines(swatchX, swatchTop, swatchSize, swatchSize, new Color(80, 90, 100, 180));
+            Raylib.DrawRectangleLines(swatchX + swatchSize + 4, swatchTop, swatchSize, swatchSize, new Color(80, 90, 100, 180));
 
             // Team info
             string keyHint = $"[{i + 1}]";
-            Raylib.DrawText(keyHint, swatchX + 56, teamY + 6, 16, isSelected ? Palette.Cyan : new Color(100, 120, 140, 255));
+            int keyX = swatchX + (compactLayout ? 50 : 56);
+            int teamInfoY = teamY + (compactLayout ? 5 : 6);
+            Raylib.DrawText(keyHint, keyX, teamInfoY, compactLayout ? 15 : 16, isSelected ? Palette.Cyan : new Color(100, 120, 140, 255));
             
             string teamLine = $"{team.Name} - {team.Description}";
-            Raylib.DrawText(teamLine, swatchX + 92, teamY + 6, 18, textColor);
+            Raylib.DrawText(teamLine, swatchX + (compactLayout ? 82 : 92), teamInfoY, compactLayout ? 16 : 18, textColor);
 
             // Stat bar chart
-            DrawTeamStatBars(team, rowX + 18, teamY + 32, rowWidth - 30, isSelected);
+            DrawTeamStatBars(team, rowX + 18, teamY + (compactLayout ? 26 : 32), rowWidth - 30, isSelected);
 
             teamY += teamLineHeight;
         }
 
-        contentY += teamAreaHeight + 24;
+        contentY += teamAreaHeight + (compactLayout ? 16 : 24);
 
         // INSTRUCTIONS FOOTER
         Raylib.DrawLine(panelX + dividerPadding, contentY, panelX + panelWidth - dividerPadding, contentY, new Color(60, 80, 100, 180));
-        contentY += 16;
+        contentY += compactLayout ? 10 : 16;
 
         string controls1 = "Press 1-3 to select team";
         string controls2 = "Press ENTER to start";
         string controls3 = "Press L for leaderboard";
-        int ctrlSize = 16;
+        int ctrlSize = compactLayout ? 14 : 16;
+        int ctrlGap = compactLayout ? 6 : 8;
 
         int ctrl1Width = Raylib.MeasureText(controls1, ctrlSize);
         int ctrl2Width = Raylib.MeasureText(controls2, ctrlSize);
         int ctrl3Width = Raylib.MeasureText(controls3, ctrlSize);
 
         Raylib.DrawText(controls1, panelX + (panelWidth - ctrl1Width) / 2, contentY, ctrlSize, new Color(160, 180, 200, 255));
-        contentY += ctrlSize + 8;
+        contentY += ctrlSize + ctrlGap;
         Raylib.DrawText(controls2, panelX + (panelWidth - ctrl2Width) / 2, contentY, ctrlSize, Palette.Yellow);
-        contentY += ctrlSize + 8;
+        contentY += ctrlSize + ctrlGap;
         Raylib.DrawText(controls3, panelX + (panelWidth - ctrl3Width) / 2, contentY, ctrlSize, Palette.Cyan);
     }
 
@@ -232,12 +241,12 @@ public sealed class MenuRenderer
         DrawOverlayShell(720, 470, out int panelX, out int panelY, out int panelWidth, out int panelHeight, Palette.Gold);
 
         int contentY = panelY + 22;
-        DrawCenteredText("QB LEADERBOARD", panelX, panelWidth, contentY, 30, Palette.Gold);
+        DrawCenteredText("DOMINANCE LEADERBOARD", panelX, panelWidth, contentY, 30, Palette.Gold);
         contentY += 42;
 
         string subtitle = leaderboardSummary.Entries.Count == 0
             ? "No saved seasons yet"
-            : "Best saved QB ratings";
+            : "Saved dominance scores";
         DrawCenteredText(subtitle, panelX, panelWidth, contentY, 16, new Color(180, 200, 220, 255));
         contentY += 30;
 
@@ -277,17 +286,23 @@ public sealed class MenuRenderer
                 _ => Palette.White
             };
 
-            string left = $"#{entry.Rank}  {entry.Name}";
-            Raylib.DrawText(left, boardX + 18, rowY, 20, rankColor);
+            string line1 = TruncateTextToWidth(
+                $"#{entry.Rank}  {entry.Name} - {entry.TeamName}",
+                16,
+                boardWidth - 170);
+            Raylib.DrawText(line1, boardX + 18, rowY, 16, rankColor);
+
+            string line2 = TruncateTextToWidth(entry.ScoreHistory, 11, boardWidth - 170);
+            Raylib.DrawText(line2, boardX + 18, rowY + 16, 11, new Color(165, 185, 205, 255));
 
             if (entry.HasTrophy)
             {
                 DrawTrophyIcon(boardX + boardWidth - 134, rowY + 2, 0.62f, Palette.Gold);
             }
 
-            string rating = entry.Rating.ToString("F1");
-            int ratingWidth = Raylib.MeasureText(rating, 20);
-            Raylib.DrawText(rating, boardX + boardWidth - 18 - ratingWidth, rowY, 20, highlight ? Palette.Cyan : Palette.White);
+            string score = entry.Score.ToString("F1");
+            int scoreWidth = Raylib.MeasureText(score, 20);
+            Raylib.DrawText(score, boardX + boardWidth - 18 - scoreWidth, rowY, 20, highlight ? Palette.Cyan : Palette.White);
             rowY += 30;
         }
 
@@ -330,8 +345,25 @@ public sealed class MenuRenderer
 
     private static void DrawCenteredText(string text, int panelX, int panelWidth, int y, int fontSize, Color color)
     {
-        int textWidth = Raylib.MeasureText(text, fontSize);
-        Raylib.DrawText(text, panelX + (panelWidth - textWidth) / 2, y, fontSize, color);
+        int fittedFontSize = GetFittedFontSize(text, fontSize, panelWidth - 24, 10);
+        int textWidth = Raylib.MeasureText(text, fittedFontSize);
+        Raylib.DrawText(text, panelX + (panelWidth - textWidth) / 2, y, fittedFontSize, color);
+    }
+
+    private static int GetFittedFontSize(string text, int preferredFontSize, int maxWidth, int minFontSize)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return preferredFontSize;
+        }
+
+        int fontSize = preferredFontSize;
+        while (fontSize > minFontSize && Raylib.MeasureText(text, fontSize) > maxWidth)
+        {
+            fontSize--;
+        }
+
+        return fontSize;
     }
 
     private static void DrawLeaderboardPreview(int x, int y, int width, IReadOnlyList<LeaderboardEntry> entries)
@@ -360,13 +392,33 @@ public sealed class MenuRenderer
                 _ => Palette.White
             };
 
-            string left = $"#{entry.Rank}  {entry.Name}";
-            string right = entry.Rating.ToString("F1");
-            Raylib.DrawText(left, x + 14, drawY, 18, rankColor);
+            string left = TruncateTextToWidth($"#{entry.Rank}  {entry.Name} - {entry.TeamName} | {entry.ScoreHistory}", 14, width - 106);
+            string right = entry.Score.ToString("F1");
+            Raylib.DrawText(left, x + 14, drawY + 2, 14, rankColor);
             int rightWidth = Raylib.MeasureText(right, 18);
             Raylib.DrawText(right, x + width - 14 - rightWidth, drawY, 18, Palette.White);
             drawY += 22;
         }
+    }
+
+    private static string TruncateTextToWidth(string text, int fontSize, int maxWidth)
+    {
+        if (Raylib.MeasureText(text, fontSize) <= maxWidth)
+        {
+            return text;
+        }
+
+        const string ellipsis = "...";
+        for (int length = text.Length - 1; length > 1; length--)
+        {
+            string candidate = text[..length] + ellipsis;
+            if (Raylib.MeasureText(candidate, fontSize) <= maxWidth)
+            {
+                return candidate;
+            }
+        }
+
+        return ellipsis;
     }
 
     /// <summary>

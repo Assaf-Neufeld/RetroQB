@@ -59,6 +59,7 @@ public sealed class DrawingController
         GameState gameState,
         string lastPlayText,
         string driveOverText,
+        int driveSummaryScrollOffsetFromLatest,
         OffensiveTeamAttributes offensiveTeam,
         DefensiveTeamAttributes defensiveTeam,
         int selectedTeamIndex,
@@ -120,7 +121,7 @@ public sealed class DrawingController
 
         // Draw scoreboard and side panel HUD
         string targetLabel = GetSelectedReceiverPriorityLabel(playManager.SelectedReceiver, receivers);
-        _hudRenderer.DrawScoreboard(playManager, lastPlayText, gameState, offensiveTeam, defensiveTeam, currentStage);
+        _hudRenderer.DrawScoreboard(playManager, lastPlayText, gameState, offensiveTeam, defensiveTeam, currentStage, driveSummaryScrollOffsetFromLatest);
         _hudRenderer.DrawSidePanel(playManager, lastPlayText, targetLabel, gameState, currentStage, replayAvailable);
 
         if (gameState == GameState.DriveOver)
@@ -180,6 +181,7 @@ public sealed class DrawingController
         ReplayFrame replayFrame,
         string lastPlayText,
         string driveOverText,
+        int driveSummaryScrollOffsetFromLatest,
         OffensiveTeamAttributes offensiveTeam,
         DefensiveTeamAttributes defensiveTeam,
         int selectedTeamIndex,
@@ -221,7 +223,7 @@ public sealed class DrawingController
         DrawReplayActor(replayFrame.Quarterback);
         DrawReplayBall(replayFrame.Ball, replayFrame);
 
-        _hudRenderer.DrawScoreboard(playManager, lastPlayText, GameState.Replay, offensiveTeam, defensiveTeam, currentStage);
+        _hudRenderer.DrawScoreboard(playManager, lastPlayText, GameState.Replay, offensiveTeam, defensiveTeam, currentStage, driveSummaryScrollOffsetFromLatest);
         _hudRenderer.DrawSidePanel(playManager, lastPlayText, "-", GameState.Replay, currentStage, replayAvailable);
         _replayOverlayRenderer.DrawReplayBadge(isPaused);
     }
@@ -309,16 +311,32 @@ public sealed class DrawingController
         Raylib.DrawRectangle(x + 6, y + 6, bannerWidth - 12, bannerHeight - 12, new Color(20, 20, 28, 235));
 
         string title = string.IsNullOrWhiteSpace(titleText) ? "DRIVE OVER" : titleText.ToUpperInvariant();
-        int titleSize = 40;
+        int titleSize = GetFittedFontSize(title, 40, bannerWidth - 48, 20);
         int titleWidth = Raylib.MeasureText(title, titleSize);
         int titleX = x + (bannerWidth - titleWidth) / 2;
         int titleY = y + 18;
         Raylib.DrawText(title, titleX, titleY, titleSize, Palette.Gold);
 
         string sub = string.IsNullOrWhiteSpace(subText) ? "PRESS ENTER" : subText.ToUpperInvariant();
-        int subSize = 18;
+        int subSize = GetFittedFontSize(sub, 18, bannerWidth - 40, 12);
         int subWidth = Raylib.MeasureText(sub, subSize);
         Raylib.DrawText(sub, x + (bannerWidth - subWidth) / 2, y + bannerHeight - subSize - 14, subSize, Palette.White);
+    }
+
+    private static int GetFittedFontSize(string text, int preferredFontSize, int maxWidth, int minFontSize)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return preferredFontSize;
+        }
+
+        int fontSize = preferredFontSize;
+        while (fontSize > minFontSize && Raylib.MeasureText(text, fontSize) > maxWidth)
+        {
+            fontSize--;
+        }
+
+        return fontSize;
     }
 
     private static void DrawReplayActor(ReplayActorFrame actor)

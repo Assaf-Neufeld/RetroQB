@@ -25,9 +25,9 @@ public sealed class HudRenderer
         _stats = stats;
     }
 
-    public void DrawScoreboard(PlayManager play, string resultText, GameState state, OffensiveTeamAttributes offensiveTeam, DefensiveTeamAttributes defensiveTeam, SeasonStage stage)
+    public void DrawScoreboard(PlayManager play, string resultText, GameState state, OffensiveTeamAttributes offensiveTeam, DefensiveTeamAttributes defensiveTeam, SeasonStage stage, int driveSummaryScrollOffsetFromLatest)
     {
-        _scoreboard.Draw(play, resultText, state, offensiveTeam, defensiveTeam, _stats, stage);
+        _scoreboard.Draw(play, resultText, state, offensiveTeam, defensiveTeam, _stats, stage, driveSummaryScrollOffsetFromLatest);
     }
 
     public void DrawSidePanel(PlayManager play, string resultText, string selectedReceiverLabel, GameState state, SeasonStage stage, bool replayAvailable)

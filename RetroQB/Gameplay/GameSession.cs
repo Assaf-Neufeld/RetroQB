@@ -82,6 +82,7 @@ public sealed class GameSession
     private string _pendingPlayerName = string.Empty;
     private string _nameEntryMessage = string.Empty;
     private LeaderboardSummary _leaderboardSummary = LeaderboardSummary.Empty;
+    private int _driveSummaryScrollOffsetFromLatest;
 
     public GameSession() : this(
         new GameStateManager(),
@@ -251,6 +252,7 @@ public sealed class GameSession
     {
         _lastPlayText = string.Empty;
         _driveOverText = string.Empty;
+        _driveSummaryScrollOffsetFromLatest = 0;
         _playOverTimer = 0f;
         _playOverDuration = 1.25f;
         _manualPlaySelection = false;
@@ -321,6 +323,7 @@ public sealed class GameSession
 
         _drawingController.UpdateFireworks(dt);
         UpdateCrowdEnergy(dt);
+        UpdateDriveSummaryScroll();
 
         if (_stateManager.State == GameState.PlayOver)
         {
@@ -370,6 +373,7 @@ public sealed class GameSession
         _leaderboardSummary = LeaderboardSummary.Empty;
         _driveOverText = string.Empty;
         _lastPlayText = string.Empty;
+        _driveSummaryScrollOffsetFromLatest = 0;
         _stateManager.ClearPause();
         _replayPlayer.Unload();
         _replayClipStore.Clear();
@@ -426,14 +430,6 @@ public sealed class GameSession
         if (string.IsNullOrWhiteSpace(normalizedName))
         {
             _nameEntryMessage = "Enter a player name first.";
-            return;
-        }
-
-        if (_playerRecordStore.HasPlayer(normalizedName) && !string.Equals(_playerName, normalizedName, StringComparison.OrdinalIgnoreCase))
-        {
-            _pendingPlayerName = normalizedName;
-            _nameEntryMessage = string.Empty;
-            _stateManager.SetState(GameState.NameConflict);
             return;
         }
 
@@ -757,6 +753,7 @@ public sealed class GameSession
         var lastRecord = _playManager.PlayRecords.LastOrDefault();
         if (lastRecord != null)
         {
+            _seasonSummary.RecordPlay(lastRecord);
             _defensiveMemory.RecordOutcome(lastRecord);
         }
 
@@ -805,13 +802,7 @@ public sealed class GameSession
         {
             // Record the game result for the season summary
             var snap = _statsTracker.BuildSnapshot();
-            _seasonSummary.RecordGame(_currentStage, _playManager.Score, _playManager.AwayScore, snap.Qb);
-            _leaderboardSummary = SaveSeasonLeaderboard();
-
-            if (_leaderboardSummary.IsOnPodium)
-            {
-                _drawingController.Fireworks.Trigger(_leaderboardSummary.IsFirstPlace ? 4.2f : 3.2f);
-            }
+            _seasonSummary.RecordGame(_currentStage, _playManager.Score, _playManager.AwayScore, snap);
 
             if (_playManager.Score >= WinningScore)
             {
@@ -824,12 +815,22 @@ public sealed class GameSession
                 }
                 else
                 {
+                    _leaderboardSummary = SaveSeasonLeaderboard();
+                    if (_leaderboardSummary.IsOnPodium)
+                    {
+                        _drawingController.Fireworks.Trigger(_leaderboardSummary.IsFirstPlace ? 4.2f : 3.2f);
+                    }
                     _driveOverText = "CHAMPION!";
                     _stateManager.SetState(GameState.GameOver);
                 }
             }
             else
             {
+                _leaderboardSummary = SaveSeasonLeaderboard();
+                if (_leaderboardSummary.IsOnPodium)
+                {
+                    _drawingController.Fireworks.Trigger(_leaderboardSummary.IsFirstPlace ? 4.2f : 3.2f);
+                }
                 _driveOverText = $"ELIMINATED IN {_currentStage.GetDisplayName()}!";
                 _stateManager.SetState(GameState.GameOver);
             }
@@ -864,6 +865,7 @@ public sealed class GameSession
                 replayFrame,
                 _lastPlayText,
                 _driveOverText,
+                _driveSummaryScrollOffsetFromLatest,
                 _offensiveTeam,
                 _defensiveTeam,
                 _selectedTeamIndex,
@@ -890,6 +892,7 @@ public sealed class GameSession
             _stateManager.State,
             _lastPlayText,
             _driveOverText,
+            _driveSummaryScrollOffsetFromLatest,
             _offensiveTeam,
             _defensiveTeam,
             _selectedTeamIndex,
@@ -904,6 +907,45 @@ public sealed class GameSession
             _seasonSummary,
             replayAvailable,
             BuildCrowdBackdropState());
+    }
+
+    private void UpdateDriveSummaryScroll()
+    {
+        if (_stateManager.State is GameState.MainMenu or GameState.PlayerNameEntry or GameState.NameConflict)
+        {
+            return;
+        }
+
+        int maxOffset = Math.Max(0, _playManager.PlayRecords.Count - 1);
+        _driveSummaryScrollOffsetFromLatest = Math.Clamp(_driveSummaryScrollOffsetFromLatest, 0, maxOffset);
+
+        int scrollDelta = 0;
+        float wheelMove = _input.GetMouseWheelMove();
+        if (wheelMove > 0.1f)
+        {
+            scrollDelta++;
+        }
+        else if (wheelMove < -0.1f)
+        {
+            scrollDelta--;
+        }
+
+        if (_input.IsDriveSummaryScrollOlderPressed())
+        {
+            scrollDelta++;
+        }
+
+        if (_input.IsDriveSummaryScrollNewerPressed())
+        {
+            scrollDelta--;
+        }
+
+        if (scrollDelta == 0)
+        {
+            return;
+        }
+
+        _driveSummaryScrollOffsetFromLatest = Math.Clamp(_driveSummaryScrollOffsetFromLatest + scrollDelta, 0, maxOffset);
     }
 
     private void UpdateCrowdEnergy(float dt)
@@ -1254,7 +1296,8 @@ public sealed class GameSession
             return LeaderboardSummary.Empty;
         }
 
-        float qbRating = _seasonSummary.ComputeQbRating();
-        return _playerRecordStore.SaveSeasonResult(_playerName, qbRating);
+        float dominanceScore = _seasonSummary.ComputeDominanceScore();
+        string scoreHistory = _seasonSummary.BuildThreeStageScoreHistory();
+        return _playerRecordStore.SaveSeasonResult(_playerName, _offensiveTeam.Name, scoreHistory, dominanceScore);
     }
 }
