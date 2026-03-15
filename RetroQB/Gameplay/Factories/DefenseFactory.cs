@@ -417,14 +417,14 @@ public sealed class DefenseFactory : IDefenseFactory
                 rightCbDepth: cover1Press ? pressDepth : offCbDepth,
                 rightCbZone: CoverageRole.None,
                 cbPress: cover1Press,
-                // Strong safety plays man on slot
-                leftSafetyX: GetReceiverXOrDefault(receivers, leftSlot, fw * 0.40f),
-                leftSafetyDepth: shallowSafetyDepth,
-                leftSafetyZone: CoverageRole.None,
-                // Free safety plays deep middle zone
-                rightSafetyX: fw * 0.50f,
-                rightSafetyDepth: deepSafetyDepth,
-                rightSafetyZone: CoverageRole.DeepMiddle,
+                // Free safety stays high in the deep middle.
+                leftSafetyX: fw * 0.50f,
+                leftSafetyDepth: deepSafetyDepth,
+                leftSafetyZone: CoverageRole.DeepMiddle,
+                // Strong safety plays a shallow robber/hook role instead of defaulting at the QB.
+                rightSafetyX: GetReceiverXOrDefault(receivers, middle, fw * 0.50f),
+                rightSafetyDepth: shallowSafetyDepth,
+                rightSafetyZone: CoverageRole.HookMiddle,
                 nickelX: hasNickelPackage ? GetReceiverXOrDefault(receivers, middle, fw * 0.50f) : -1,
                 nickelDepth: shallowSafetyDepth,
                 nickelZone: CoverageRole.None
@@ -452,12 +452,12 @@ public sealed class DefenseFactory : IDefenseFactory
 
             // Cover 3 Zone: Three deep thirds, SS drops to flat
             CoverageScheme.Cover3Zone => new DbConfig(
-                // CBs drop to deep thirds
-                leftCbX: fw * 0.22f,
-                leftCbDepth: deepSafetyDepth,
+                // CBs line up over the outer WRs, then bail to deep thirds post-snap.
+                leftCbX: GetReceiverXOrDefault(receivers, left, fw * 0.18f),
+                leftCbDepth: offCbDepth,
                 leftCbZone: CoverageRole.DeepLeft,
-                rightCbX: fw * 0.78f,
-                rightCbDepth: deepSafetyDepth,
+                rightCbX: GetReceiverXOrDefault(receivers, right, fw * 0.82f),
+                rightCbDepth: offCbDepth,
                 rightCbZone: CoverageRole.DeepRight,
                 cbPress: false,
                 // SS roles up to flat, FS takes deep middle
@@ -474,11 +474,12 @@ public sealed class DefenseFactory : IDefenseFactory
 
             // Cover 4 Zone: Four deep quarters, NB drops to hook underneath
             CoverageScheme.Cover4Zone => new DbConfig(
-                leftCbX: fw * 0.15f,
-                leftCbDepth: deepSafetyDepth,
+                // Corners align over the widest WRs and open to quarter coverage after the snap.
+                leftCbX: GetReceiverXOrDefault(receivers, left, fw * 0.18f),
+                leftCbDepth: offCbDepth,
                 leftCbZone: CoverageRole.DeepLeft,
-                rightCbX: fw * 0.85f,
-                rightCbDepth: deepSafetyDepth,
+                rightCbX: GetReceiverXOrDefault(receivers, right, fw * 0.82f),
+                rightCbDepth: offCbDepth,
                 rightCbZone: CoverageRole.DeepRight,
                 cbPress: false,
                 // Safeties take inside deep-quarter zones

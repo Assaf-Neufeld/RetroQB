@@ -43,12 +43,13 @@ public static class ZoneCoverage
 
         if (TryGetZoneMatch(defender, receivers, lineOfScrimmage, out var match))
         {
-            return CalculateMatchTarget(defender, match, baseTarget, bounds, lineOfScrimmage);
+            return CalculateMatchTarget(defender, match, receivers, baseTarget, bounds, lineOfScrimmage);
         }
 
-        if (IsDeepZone(defender.ZoneRole) && TryGetNearestReceiver(defender, receivers, out var nearest))
+        if (IsDeepZone(defender.ZoneRole)
+            && TryGetNearestReceiverInLane(defender, receivers, bounds, lineOfScrimmage, out var nearest))
         {
-            return CalculateMatchTarget(defender, nearest, baseTarget, bounds, lineOfScrimmage);
+            return CalculateMatchTarget(defender, nearest, receivers, baseTarget, bounds, lineOfScrimmage);
         }
 
         return baseTarget;
@@ -115,7 +116,7 @@ public static class ZoneCoverage
 
         foreach (var receiver in receivers)
         {
-            if (!IsValidZoneTarget(receiver, bounds, lineOfScrimmage))
+            if (!IsValidZoneTarget(defender, receiver, receivers, bounds, lineOfScrimmage))
             {
                 continue;
             }
@@ -142,13 +143,19 @@ public static class ZoneCoverage
     private static bool IsFlatZone(CoverageRole role) =>
         role is CoverageRole.FlatLeft or CoverageRole.FlatRight;
 
-    private static Vector2 CalculateMatchTarget(Defender defender, Receiver match, Vector2 baseTarget, ZoneBounds bounds, float lineOfScrimmage)
+    private static Vector2 CalculateMatchTarget(
+        Defender defender,
+        Receiver match,
+        IReadOnlyList<Receiver> receivers,
+        Vector2 baseTarget,
+        ZoneBounds bounds,
+        float lineOfScrimmage)
     {
         Vector2 projected = GetProjectedReceiverPosition(match, defender.ZoneRole);
 
         if (IsDeepZone(defender.ZoneRole))
         {
-            return CalculateDeepMatchTarget(defender, match, projected, baseTarget, bounds);
+            return CalculateDeepMatchTarget(defender, match, receivers, projected, baseTarget, bounds, lineOfScrimmage);
         }
 
         return CalculateUnderneathMatchTarget(defender, match, projected, baseTarget, bounds, lineOfScrimmage);
@@ -206,7 +213,12 @@ public static class ZoneCoverage
         return deepest;
     }
 
-    private static bool TryGetNearestReceiver(Defender defender, IReadOnlyList<Receiver> receivers, out Receiver nearest)
+    private static bool TryGetNearestReceiverInLane(
+        Defender defender,
+        IReadOnlyList<Receiver> receivers,
+        ZoneBounds bounds,
+        float lineOfScrimmage,
+        out Receiver nearest)
     {
         nearest = null!;
         float bestDistSq = float.PositiveInfinity;
@@ -214,6 +226,11 @@ public static class ZoneCoverage
         foreach (var receiver in receivers)
         {
             if (!receiver.Eligible || receiver.IsBlocking)
+            {
+                continue;
+            }
+
+            if (!IsReceiverInDeepLane(defender, receiver, bounds, lineOfScrimmage))
             {
                 continue;
             }
@@ -229,7 +246,12 @@ public static class ZoneCoverage
         return bestDistSq < float.PositiveInfinity;
     }
 
-    private static bool IsValidZoneTarget(Receiver receiver, ZoneBounds bounds, float lineOfScrimmage)
+    private static bool IsValidZoneTarget(
+        Defender defender,
+        Receiver receiver,
+        IReadOnlyList<Receiver> receivers,
+        ZoneBounds bounds,
+        float lineOfScrimmage)
     {
         if (!receiver.Eligible || receiver.IsBlocking)
         {
@@ -251,7 +273,13 @@ public static class ZoneCoverage
         bool inZoneDepth = receiver.Position.Y <= yMax;
         bool carryDeep = receiver.Position.Y > yMax && receiver.Position.Y <= lineOfScrimmage + Constants.ZoneCarryDepth + padding;
 
-        return inZoneDepth || carryDeep;
+        if (inZoneDepth || carryDeep)
+        {
+            return true;
+        }
+
+        return IsDeepZone(defender.ZoneRole)
+            && ShouldCarryIsolatedVertical(defender, receiver, receivers, bounds, lineOfScrimmage);
     }
 
     private static float CalculateZoneMatchScore(Defender defender, Receiver receiver, ZoneBounds bounds, Vector2 anchor, float lineOfScrimmage)
@@ -283,9 +311,17 @@ public static class ZoneCoverage
             - distancePenalty;
     }
 
-    private static Vector2 CalculateDeepMatchTarget(Defender defender, Receiver receiver, Vector2 projected, Vector2 baseTarget, ZoneBounds bounds)
+    private static Vector2 CalculateDeepMatchTarget(
+        Defender defender,
+        Receiver receiver,
+        IReadOnlyList<Receiver> receivers,
+        Vector2 projected,
+        Vector2 baseTarget,
+        ZoneBounds bounds,
+        float lineOfScrimmage)
     {
         Vector2 travelDir = GetReceiverTravelDirection(receiver);
+        bool isolatedVerticalCarry = ShouldCarryIsolatedVertical(defender, receiver, receivers, bounds, lineOfScrimmage);
         float leverageX = defender.ZoneRole switch
         {
             CoverageRole.DeepLeft => -0.9f,
@@ -295,15 +331,103 @@ public static class ZoneCoverage
             _ => 0f
         };
 
+        if (isolatedVerticalCarry)
+        {
+            leverageX *= 0.35f;
+        }
+
         float xMin = bounds.XMin + 0.35f;
         float xMax = bounds.XMax - 0.35f;
-        float targetX = Math.Clamp(projected.X + leverageX, xMin, xMax);
+        float desiredX = Math.Clamp(projected.X + leverageX, xMin, xMax);
+        float targetX = isolatedVerticalCarry
+            ? Lerp(baseTarget.X, desiredX, 0.84f)
+            : desiredX;
         float routeThreatY = MathF.Max(receiver.Position.Y, projected.Y);
         float angleBonus = MathF.Abs(travelDir.X) * 0.75f;
-        float targetY = MathF.Max(baseTarget.Y, routeThreatY + Constants.ZoneDeepCushion + angleBonus);
+        float deepCushion = isolatedVerticalCarry
+            ? Constants.ZoneDeepCushion + 0.65f
+            : Constants.ZoneDeepCushion;
+        float targetY = MathF.Max(baseTarget.Y, routeThreatY + deepCushion + angleBonus);
 
         float maxFieldY = Constants.EndZoneDepth + 100f - 0.5f;
         return new Vector2(targetX, MathF.Min(targetY, maxFieldY));
+    }
+
+    private static bool ShouldCarryIsolatedVertical(
+        Defender defender,
+        Receiver receiver,
+        IReadOnlyList<Receiver> receivers,
+        ZoneBounds bounds,
+        float lineOfScrimmage)
+    {
+        Vector2 projected = GetProjectedReceiverPosition(receiver, defender.ZoneRole);
+        Vector2 travelDir = GetReceiverTravelDirection(receiver);
+        if (travelDir.Y < 0.88f || !IsReceiverInDeepLane(defender, receiver, bounds, lineOfScrimmage))
+        {
+            return false;
+        }
+
+        return !HasNearbyCompetingReceiver(receiver, projected, receivers, bounds, lineOfScrimmage, defender.ZoneRole);
+    }
+
+    private static bool IsReceiverInDeepLane(
+        Defender defender,
+        Receiver receiver,
+        ZoneBounds bounds,
+        float lineOfScrimmage)
+    {
+        if (receiver.Position.Y < lineOfScrimmage)
+        {
+            return false;
+        }
+
+        Vector2 projected = GetProjectedReceiverPosition(receiver, defender.ZoneRole);
+        float padding = Constants.ZoneMatchAttachRadius + 0.6f;
+        return projected.X >= bounds.XMin - padding
+            && projected.X <= bounds.XMax + padding;
+    }
+
+    private static bool HasNearbyCompetingReceiver(
+        Receiver primary,
+        Vector2 primaryProjected,
+        IReadOnlyList<Receiver> receivers,
+        ZoneBounds bounds,
+        float lineOfScrimmage,
+        CoverageRole role)
+    {
+        float nearbyWidth = MathF.Max(4.5f, Constants.ZoneMatchWidthDeep * 0.38f);
+
+        foreach (var receiver in receivers)
+        {
+            if (ReferenceEquals(receiver, primary) || !receiver.Eligible || receiver.IsBlocking)
+            {
+                continue;
+            }
+
+            if (receiver.Position.Y < lineOfScrimmage + Constants.ZoneCoverageDepth - 2f)
+            {
+                continue;
+            }
+
+            Vector2 projected = GetProjectedReceiverPosition(receiver, role);
+            if (projected.X < bounds.XMin - Constants.ZoneMatchAttachRadius
+                || projected.X > bounds.XMax + Constants.ZoneMatchAttachRadius)
+            {
+                continue;
+            }
+
+            float horizontalGap = MathF.Abs(projected.X - primaryProjected.X);
+            float verticalGap = MathF.Abs(projected.Y - primaryProjected.Y);
+            bool sameWindow = horizontalGap <= nearbyWidth && verticalGap <= 12f;
+            bool stackedThreat = projected.Y >= primaryProjected.Y - 3f && horizontalGap <= nearbyWidth * 0.72f;
+
+            if (sameWindow || stackedThreat)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static Vector2 CalculateUnderneathMatchTarget(
