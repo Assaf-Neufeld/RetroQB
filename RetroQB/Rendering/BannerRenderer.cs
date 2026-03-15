@@ -237,7 +237,8 @@ public sealed class BannerRenderer
 
     private void DrawLeaderboardPanel(int x, int y, int width, LeaderboardSummary summary, Color accentColor)
     {
-        int height = 210;
+        const int height = 282;
+        const int rowHeight = 42;
         Raylib.DrawRectangle(x, y, width, height, new Color(8, 12, 18, 220));
         Raylib.DrawRectangleLines(x, y, width, height, accentColor);
 
@@ -246,7 +247,7 @@ public sealed class BannerRenderer
         string savedLine = $"SAVED SCORE: {summary.SavedScore:F1}";
         DrawCenteredText(savedLine, x, width, y + 36, 14, new Color(170, 190, 210, 255));
 
-        int drawY = y + 62;
+        int drawY = y + 58;
         int rows = Math.Min(5, summary.Entries.Count);
         for (int i = 0; i < rows; i++)
         {
@@ -255,8 +256,8 @@ public sealed class BannerRenderer
 
             if (highlight)
             {
-                Raylib.DrawRectangle(x + 10, drawY - 3, width - 20, 24, new Color(40, 60, 82, 215));
-                Raylib.DrawRectangleLines(x + 10, drawY - 3, width - 20, 24, Palette.Cyan);
+                Raylib.DrawRectangle(x + 10, drawY - 3, width - 20, rowHeight - 2, new Color(40, 60, 82, 215));
+                Raylib.DrawRectangleLines(x + 10, drawY - 3, width - 20, rowHeight - 2, Palette.Cyan);
             }
 
             string left = TruncateTextToWidth($"#{entry.Rank}  {entry.Name} - {entry.TeamName}", 16, width - 128);
@@ -270,27 +271,27 @@ public sealed class BannerRenderer
             };
 
             Raylib.DrawText(left, x + 18, drawY + 1, 16, rankColor);
-            string history = TruncateTextToWidth(entry.ScoreHistory, 10, width - 132);
-            Raylib.DrawText(history, x + 18, drawY + 16, 10, new Color(165, 185, 205, 255));
+            DrawFittedLeftText(entry.ScoreHistory, x + 18, drawY + 17, 10, width - 132, new Color(175, 195, 215, 255), 8);
+            DrawFittedLeftText(entry.ScoreDetails, x + 18, drawY + 29, 9, width - 132, new Color(145, 170, 195, 255), 7);
             if (entry.HasTrophy)
             {
                 DrawTrophyIcon(x + width - 108, drawY + 2, 0.58f, Palette.Gold);
             }
 
             int scoreWidth = Raylib.MeasureText(score, 18);
-            Raylib.DrawText(score, x + width - 18 - scoreWidth, drawY, 18, highlight ? Palette.Cyan : Palette.White);
-            drawY += 28;
+            Raylib.DrawText(score, x + width - 18 - scoreWidth, drawY + 10, 18, highlight ? Palette.Cyan : Palette.White);
+            drawY += rowHeight;
         }
 
         if (!summary.HasPlayerRank)
         {
-            DrawCenteredText("Save a game to enter the rankings", x, width, y + height - 32, 14, Palette.Orange);
+            DrawCenteredText("Save a game to enter the rankings", x, width, y + height - 22, 14, Palette.Orange);
             return;
         }
 
         int currentPlayerRank = summary.CurrentPlayerRank ?? 0;
         string playerLine = $"#{currentPlayerRank} CURRENT PLACE";
-        DrawCenteredText(playerLine, x, width, y + height - 30, 15, summary.IsOnPodium ? Palette.Lime : Palette.Orange);
+        DrawCenteredText(playerLine, x, width, y + height - 20, 15, summary.IsOnPodium ? Palette.Lime : Palette.Orange);
     }
 
     private void DrawPodiumPanel(int x, int y, int width, int height, LeaderboardSummary summary, Color accentColor)
@@ -357,13 +358,15 @@ public sealed class BannerRenderer
         string displayName = TruncatePodiumName(entry.Name, width - 12);
         string displayTeam = TruncatePodiumName(entry.TeamName, width - 12);
         string displayHistory = TruncatePodiumName(entry.ScoreHistory, width - 12);
+        string displayDetails = TruncatePodiumName(entry.ScoreDetails, width - 12);
         int nameFontSize = displayName.Length > 10 ? 14 : 16;
         int nameY = baseY - Math.Max(50, height - 16);
         DrawCenteredText(displayName, x, width, nameY, nameFontSize, isCurrentPlayer ? Palette.Cyan : Palette.White);
         DrawCenteredText(displayTeam, x, width, nameY + 16, 12, new Color(165, 185, 205, 255));
         DrawCenteredText(displayHistory, x, width, nameY + 30, 10, new Color(150, 170, 190, 255));
+        DrawCenteredText(displayDetails, x, width, nameY + 42, 10, new Color(140, 165, 190, 255));
 
-        int ratingY = Math.Min(baseY - 22, nameY + 44);
+        int ratingY = Math.Min(baseY - 22, nameY + 56);
         DrawCenteredText(entry.Score.ToString("F1"), x, width, ratingY, 16, Palette.Yellow);
 
         if (place == 1)
@@ -477,6 +480,12 @@ public sealed class BannerRenderer
         int fittedFontSize = GetFittedFontSize(text, fontSize, width - (horizontalPadding * 2), minFontSize);
         int textWidth = Raylib.MeasureText(text, fittedFontSize);
         Raylib.DrawText(text, x + (width - textWidth) / 2, y, fittedFontSize, color);
+    }
+
+    private static void DrawFittedLeftText(string text, int x, int y, int fontSize, int maxWidth, Color color, int minFontSize)
+    {
+        int fittedFontSize = GetFittedFontSize(text, fontSize, maxWidth, minFontSize);
+        Raylib.DrawText(text, x, y, fittedFontSize, color);
     }
 
     private static int GetFittedFontSize(string text, int preferredFontSize, int maxWidth, int minFontSize)

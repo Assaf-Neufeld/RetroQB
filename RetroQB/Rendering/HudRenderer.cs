@@ -40,9 +40,9 @@ public sealed class HudRenderer
         _menu.Draw(selectedTeamIndex, teams, leaderboardSummary, showLeaderboard);
     }
 
-    public void DrawPlayerNameEntry(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams, string currentName, string message, LeaderboardSummary leaderboardSummary)
+    public void DrawPlayerNameEntry(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams, string currentName, string message, LeaderboardSummary leaderboardSummary, bool isPostSeasonSaveMode)
     {
-        _menu.DrawNameEntry(selectedTeamIndex, teams, currentName, message, leaderboardSummary);
+        _menu.DrawNameEntry(selectedTeamIndex, teams, currentName, message, leaderboardSummary, isPostSeasonSaveMode);
     }
 
     public void DrawNameConflict(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams, string duplicateName)

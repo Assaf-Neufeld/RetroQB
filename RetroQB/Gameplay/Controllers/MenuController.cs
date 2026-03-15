@@ -54,6 +54,11 @@ public sealed class MenuController
         _showLeaderboard = false;
     }
 
+    public void OpenLeaderboard()
+    {
+        _showLeaderboard = true;
+    }
+
     /// <summary>
     /// Checks if the player has confirmed to proceed (Enter key).
     /// Used for DriveOver and GameOver screens.

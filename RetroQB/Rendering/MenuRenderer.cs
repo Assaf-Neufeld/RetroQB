@@ -19,7 +19,7 @@ public sealed class MenuRenderer
         }
     }
 
-    public void DrawNameEntry(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams, string currentName, string message, LeaderboardSummary leaderboardSummary)
+    public void DrawNameEntry(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams, string currentName, string message, LeaderboardSummary leaderboardSummary, bool isPostSeasonSaveMode)
     {
         DrawBaseMenu(selectedTeamIndex, teams);
         DrawOverlayShell(620, 380, out int panelX, out int panelY, out int panelWidth, out int panelHeight, Palette.Cyan);
@@ -27,10 +27,13 @@ public sealed class MenuRenderer
         int contentX = panelX + 28;
         int contentY = panelY + 22;
 
-        DrawCenteredText("ENTER YOUR NAME", panelX, panelWidth, contentY, 28, Palette.Cyan);
+        string title = isPostSeasonSaveMode ? "SAVE SEASON SCORE" : "ENTER YOUR NAME";
+        DrawCenteredText(title, panelX, panelWidth, contentY, 28, Palette.Cyan);
         contentY += 42;
 
-        string help = "Type a name, then press ENTER to start the season.";
+        string help = isPostSeasonSaveMode
+            ? "Type a name, then press ENTER to save your season score."
+            : "Type a name, then press ENTER to start the season.";
         DrawCenteredText(help, panelX, panelWidth, contentY, 16, new Color(180, 200, 220, 255));
         contentY += 34;
 
@@ -60,8 +63,6 @@ public sealed class MenuRenderer
 
         DrawLeaderboardPreview(panelX + 34, contentY, panelWidth - 68, leaderboardSummary.Entries);
 
-        string footer = "Letters, numbers, spaces, -, _, ', . are allowed";
-        DrawCenteredText(footer, panelX, panelWidth, panelY + panelHeight - 34, 14, new Color(140, 160, 180, 255));
     }
 
     public void DrawNameConflict(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams, string duplicateName)
@@ -238,7 +239,7 @@ public sealed class MenuRenderer
 
     private void DrawLeaderboardOverlay(LeaderboardSummary leaderboardSummary)
     {
-        DrawOverlayShell(720, 470, out int panelX, out int panelY, out int panelWidth, out int panelHeight, Palette.Gold);
+        DrawOverlayShell(760, 620, out int panelX, out int panelY, out int panelWidth, out int panelHeight, Palette.Gold);
 
         int contentY = panelY + 22;
         DrawCenteredText("DOMINANCE LEADERBOARD", panelX, panelWidth, contentY, 30, Palette.Gold);
@@ -265,6 +266,7 @@ public sealed class MenuRenderer
             return;
         }
 
+        const int overlayRowHeight = 46;
         int rowY = boardY + 16;
         int maxRows = Math.Min(10, leaderboardSummary.Entries.Count);
         for (int i = 0; i < maxRows; i++)
@@ -274,8 +276,8 @@ public sealed class MenuRenderer
 
             if (highlight)
             {
-                Raylib.DrawRectangle(boardX + 10, rowY - 4, boardWidth - 20, 28, new Color(40, 60, 82, 215));
-                Raylib.DrawRectangleLines(boardX + 10, rowY - 4, boardWidth - 20, 28, Palette.Cyan);
+                Raylib.DrawRectangle(boardX + 10, rowY - 4, boardWidth - 20, overlayRowHeight - 2, new Color(40, 60, 82, 215));
+                Raylib.DrawRectangleLines(boardX + 10, rowY - 4, boardWidth - 20, overlayRowHeight - 2, Palette.Cyan);
             }
 
             Color rankColor = entry.Rank switch
@@ -292,8 +294,8 @@ public sealed class MenuRenderer
                 boardWidth - 170);
             Raylib.DrawText(line1, boardX + 18, rowY, 16, rankColor);
 
-            string line2 = TruncateTextToWidth(entry.ScoreHistory, 11, boardWidth - 170);
-            Raylib.DrawText(line2, boardX + 18, rowY + 16, 11, new Color(165, 185, 205, 255));
+            DrawFittedText(entry.ScoreHistory, boardX + 18, rowY + 17, 10, boardWidth - 170, new Color(175, 195, 215, 255), 8);
+            DrawFittedText(entry.ScoreDetails, boardX + 18, rowY + 29, 9, boardWidth - 170, new Color(145, 170, 195, 255), 7);
 
             if (entry.HasTrophy)
             {
@@ -302,8 +304,8 @@ public sealed class MenuRenderer
 
             string score = entry.Score.ToString("F1");
             int scoreWidth = Raylib.MeasureText(score, 20);
-            Raylib.DrawText(score, boardX + boardWidth - 18 - scoreWidth, rowY, 20, highlight ? Palette.Cyan : Palette.White);
-            rowY += 30;
+            Raylib.DrawText(score, boardX + boardWidth - 18 - scoreWidth, rowY + 10, 20, highlight ? Palette.Cyan : Palette.White);
+            rowY += overlayRowHeight;
         }
 
         DrawCenteredText("Press L or ESC to close", panelX, panelWidth, panelY + panelHeight - 34, 15, Palette.Cyan);
@@ -368,8 +370,11 @@ public sealed class MenuRenderer
 
     private static void DrawLeaderboardPreview(int x, int y, int width, IReadOnlyList<LeaderboardEntry> entries)
     {
-        Raylib.DrawRectangle(x, y, width, 126, new Color(8, 12, 18, 220));
-        Raylib.DrawRectangleLines(x, y, width, 126, new Color(55, 75, 100, 180));
+        const int previewHeight = 142;
+        const int previewRowHeight = 26;
+
+        Raylib.DrawRectangle(x, y, width, previewHeight, new Color(8, 12, 18, 220));
+        Raylib.DrawRectangleLines(x, y, width, previewHeight, new Color(55, 75, 100, 180));
 
         if (entries.Count == 0)
         {
@@ -379,7 +384,7 @@ public sealed class MenuRenderer
             return;
         }
 
-        int drawY = y + 12;
+        int drawY = y + 10;
         int maxRows = Math.Min(5, entries.Count);
         for (int i = 0; i < maxRows; i++)
         {
@@ -392,13 +397,20 @@ public sealed class MenuRenderer
                 _ => Palette.White
             };
 
-            string left = TruncateTextToWidth($"#{entry.Rank}  {entry.Name} - {entry.TeamName} | {entry.ScoreHistory}", 14, width - 106);
+            string left = TruncateTextToWidth($"#{entry.Rank}  {entry.Name} - {entry.TeamName}", 14, width - 106);
             string right = entry.Score.ToString("F1");
             Raylib.DrawText(left, x + 14, drawY + 2, 14, rankColor);
+            DrawFittedText(entry.ScoreDetails, x + 14, drawY + 16, 9, width - 106, new Color(165, 185, 205, 255), 7);
             int rightWidth = Raylib.MeasureText(right, 18);
-            Raylib.DrawText(right, x + width - 14 - rightWidth, drawY, 18, Palette.White);
-            drawY += 22;
+            Raylib.DrawText(right, x + width - 14 - rightWidth, drawY + 1, 18, Palette.White);
+            drawY += previewRowHeight;
         }
+    }
+
+    private static void DrawFittedText(string text, int x, int y, int preferredFontSize, int maxWidth, Color color, int minFontSize)
+    {
+        int fittedFontSize = GetFittedFontSize(text, preferredFontSize, maxWidth, minFontSize);
+        Raylib.DrawText(text, x, y, fittedFontSize, color);
     }
 
     private static string TruncateTextToWidth(string text, int fontSize, int maxWidth)

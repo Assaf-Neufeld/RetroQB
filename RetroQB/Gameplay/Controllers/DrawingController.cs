@@ -67,6 +67,7 @@ public sealed class DrawingController
         string nameInput,
         string pendingPlayerName,
         string nameEntryMessage,
+        bool isPostSeasonNameEntry,
         LeaderboardSummary leaderboardSummary,
         bool showMenuLeaderboard,
         bool isPaused,
@@ -153,7 +154,7 @@ public sealed class DrawingController
 
         if (gameState == GameState.PlayerNameEntry)
         {
-            _hudRenderer.DrawPlayerNameEntry(selectedTeamIndex, OffensiveTeamPresets.All, nameInput, nameEntryMessage, leaderboardSummary);
+            _hudRenderer.DrawPlayerNameEntry(selectedTeamIndex, OffensiveTeamPresets.All, nameInput, nameEntryMessage, leaderboardSummary, isPostSeasonNameEntry);
         }
 
         if (gameState == GameState.NameConflict)

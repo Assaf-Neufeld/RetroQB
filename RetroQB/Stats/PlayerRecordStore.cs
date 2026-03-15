@@ -40,6 +40,7 @@ public sealed class PlayerRecordStore
                 record.Name,
                 record.TeamName,
                 record.ScoreHistory,
+                record.ScoreDetails,
                 record.DominanceScore,
                 entryIndex + 1,
                 currentPlayerRank.HasValue && entryIndex + 1 == currentPlayerRank.Value))
@@ -54,14 +55,15 @@ public sealed class PlayerRecordStore
             entries);
     }
 
-    public LeaderboardSummary SaveSeasonResult(string playerName, string teamName, string scoreHistory, float seasonScore)
+    public LeaderboardSummary SaveSeasonResult(string playerName, string teamName, string scoreHistory, string scoreDetails, float seasonScore)
     {
         string normalizedName = NormalizeName(playerName);
         string normalizedTeamName = string.IsNullOrWhiteSpace(teamName) ? "Unknown" : teamName.Trim();
         string normalizedScoreHistory = NormalizeScoreHistory(scoreHistory);
+        string normalizedScoreDetails = NormalizeScoreDetails(scoreDetails);
         DateTime savedAtUtc = DateTime.UtcNow;
 
-        _records.Add(new PlayerRecord(normalizedName, normalizedTeamName, normalizedScoreHistory, seasonScore, savedAtUtc));
+        _records.Add(new PlayerRecord(normalizedName, normalizedTeamName, normalizedScoreHistory, normalizedScoreDetails, seasonScore, savedAtUtc));
 
         Save();
 
@@ -125,7 +127,8 @@ public sealed class PlayerRecordStore
                         : record.BestQbRating;
                 string teamName = string.IsNullOrWhiteSpace(record.TeamName) ? "Unknown" : record.TeamName.Trim();
                 string scoreHistory = NormalizeScoreHistory(record.ScoreHistory);
-                _records.Add(new PlayerRecord(normalizedName, teamName, scoreHistory, score, record.LastUpdatedUtc));
+                string scoreDetails = NormalizeScoreDetails(record.ScoreDetails);
+                _records.Add(new PlayerRecord(normalizedName, teamName, scoreHistory, scoreDetails, score, record.LastUpdatedUtc));
             }
         }
         catch
@@ -150,6 +153,7 @@ public sealed class PlayerRecordStore
                     Name = record.Name,
                     TeamName = record.TeamName,
                     ScoreHistory = record.ScoreHistory,
+                    ScoreDetails = record.ScoreDetails,
                     DominanceScore = record.DominanceScore,
                     LastUpdatedUtc = record.LastUpdatedUtc
                 })
@@ -211,6 +215,16 @@ public sealed class PlayerRecordStore
         return rawHistory.Trim();
     }
 
+    private static string NormalizeScoreDetails(string rawDetails)
+    {
+        if (string.IsNullOrWhiteSpace(rawDetails))
+        {
+            return "STG REG | QB -- | CMP -- | INT -- | SK -- | YPC -- | XPL --";
+        }
+
+        return rawDetails.Trim();
+    }
+
     private static bool NamesMatch(string left, string right)
         => string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
 
@@ -224,6 +238,7 @@ public sealed class PlayerRecordStore
         public string Name { get; set; } = string.Empty;
         public string TeamName { get; set; } = string.Empty;
         public string ScoreHistory { get; set; } = string.Empty;
+        public string ScoreDetails { get; set; } = string.Empty;
         public float DominanceScore { get; set; }
         public float QbRating { get; set; }
         public float BestQbRating { get; set; }

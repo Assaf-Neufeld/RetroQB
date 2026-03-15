@@ -81,6 +81,7 @@ public sealed class GameSession
     private string _nameInput = string.Empty;
     private string _pendingPlayerName = string.Empty;
     private string _nameEntryMessage = string.Empty;
+    private bool _isPostSeasonNameEntry;
     private LeaderboardSummary _leaderboardSummary = LeaderboardSummary.Empty;
     private int _driveSummaryScrollOffsetFromLatest;
 
@@ -370,6 +371,10 @@ public sealed class GameSession
         _currentStage = SeasonStage.RegularSeason;
         _statsTracker.Reset();
         _seasonSummary.Reset();
+        _isPostSeasonNameEntry = false;
+        _nameInput = string.Empty;
+        _pendingPlayerName = string.Empty;
+        _nameEntryMessage = string.Empty;
         _leaderboardSummary = LeaderboardSummary.Empty;
         _driveOverText = string.Empty;
         _lastPlayText = string.Empty;
@@ -398,7 +403,7 @@ public sealed class GameSession
 
             _menuController.CloseLeaderboard();
             SetOffensiveTeam(teams[_selectedTeamIndex]);
-            BeginPlayerNameEntry();
+            StartSeasonFromMenu();
         }
     }
 
@@ -430,6 +435,28 @@ public sealed class GameSession
         if (string.IsNullOrWhiteSpace(normalizedName))
         {
             _nameEntryMessage = "Enter a player name first.";
+            return;
+        }
+
+        if (_isPostSeasonNameEntry)
+        {
+            _playerName = normalizedName;
+            _nameInput = normalizedName;
+            _pendingPlayerName = string.Empty;
+            _nameEntryMessage = string.Empty;
+            _isPostSeasonNameEntry = false;
+            _leaderboardSummary = SaveSeasonLeaderboard();
+            if (_leaderboardSummary.IsOnPodium)
+            {
+                _drawingController.Fireworks.Trigger(_leaderboardSummary.IsFirstPlace ? 4.2f : 3.2f);
+            }
+
+            ResetPlayState();
+            _drawingController.Fireworks.Clear();
+            _currentStage = SeasonStage.RegularSeason;
+            _seasonSummary.Reset();
+            _stateManager.SetState(GameState.MainMenu);
+            _menuController.OpenLeaderboard();
             return;
         }
 
@@ -672,6 +699,10 @@ public sealed class GameSession
         {
             ResetPlayState();
             _drawingController.Fireworks.Clear();
+            _isPostSeasonNameEntry = false;
+            _nameInput = string.Empty;
+            _pendingPlayerName = string.Empty;
+            _nameEntryMessage = string.Empty;
             _currentStage = SeasonStage.RegularSeason;
             _seasonSummary.Reset();
             _leaderboardSummary = LeaderboardSummary.Empty;
@@ -815,24 +846,14 @@ public sealed class GameSession
                 }
                 else
                 {
-                    _leaderboardSummary = SaveSeasonLeaderboard();
-                    if (_leaderboardSummary.IsOnPodium)
-                    {
-                        _drawingController.Fireworks.Trigger(_leaderboardSummary.IsFirstPlace ? 4.2f : 3.2f);
-                    }
                     _driveOverText = "CHAMPION!";
-                    _stateManager.SetState(GameState.GameOver);
+                    BeginPlayerNameEntry(postSeasonSaveMode: true);
                 }
             }
             else
             {
-                _leaderboardSummary = SaveSeasonLeaderboard();
-                if (_leaderboardSummary.IsOnPodium)
-                {
-                    _drawingController.Fireworks.Trigger(_leaderboardSummary.IsFirstPlace ? 4.2f : 3.2f);
-                }
                 _driveOverText = $"ELIMINATED IN {_currentStage.GetDisplayName()}!";
-                _stateManager.SetState(GameState.GameOver);
+                BeginPlayerNameEntry(postSeasonSaveMode: true);
             }
             return;
         }
@@ -900,6 +921,7 @@ public sealed class GameSession
             _nameInput,
             _pendingPlayerName,
             _nameEntryMessage,
+            _isPostSeasonNameEntry,
             _leaderboardSummary,
             _menuController.ShowLeaderboard,
             _stateManager.IsPaused,
@@ -1259,11 +1281,16 @@ public sealed class GameSession
         return _stateManager.State is not GameState.MainMenu and not GameState.PlayerNameEntry and not GameState.NameConflict;
     }
 
-    private void BeginPlayerNameEntry()
+    private void BeginPlayerNameEntry(bool postSeasonSaveMode)
     {
-        _nameInput = string.IsNullOrWhiteSpace(_playerName) ? string.Empty : _playerName;
+        _isPostSeasonNameEntry = postSeasonSaveMode;
+        _nameInput = postSeasonSaveMode
+            ? string.Empty
+            : string.IsNullOrWhiteSpace(_playerName)
+                ? string.Empty
+                : _playerName;
         _pendingPlayerName = string.Empty;
-        _nameEntryMessage = string.Empty;
+        _nameEntryMessage = postSeasonSaveMode ? "Enter your name to save this season score." : string.Empty;
         _leaderboardSummary = BuildMenuLeaderboardSummary();
         _stateManager.SetState(GameState.PlayerNameEntry);
     }
@@ -1275,6 +1302,7 @@ public sealed class GameSession
 
     private void StartSeasonForPlayer(string playerName)
     {
+        _isPostSeasonNameEntry = false;
         _playerName = playerName;
         _nameInput = playerName;
         _pendingPlayerName = string.Empty;
@@ -1283,6 +1311,23 @@ public sealed class GameSession
         _statsTracker.Reset();
         _seasonSummary.Reset();
         _leaderboardSummary = _playerRecordStore.BuildSummary(playerName, 0f);
+        InitializeGame();
+        _stateManager.SetState(GameState.PreSnap);
+        _manualPlaySelection = false;
+        _autoPlaySelectionDone = false;
+    }
+
+    private void StartSeasonFromMenu()
+    {
+        _isPostSeasonNameEntry = false;
+        _playerName = string.Empty;
+        _nameInput = string.Empty;
+        _pendingPlayerName = string.Empty;
+        _nameEntryMessage = string.Empty;
+        _currentStage = SeasonStage.RegularSeason;
+        _statsTracker.Reset();
+        _seasonSummary.Reset();
+        _leaderboardSummary = LeaderboardSummary.Empty;
         InitializeGame();
         _stateManager.SetState(GameState.PreSnap);
         _manualPlaySelection = false;
@@ -1298,6 +1343,7 @@ public sealed class GameSession
 
         float dominanceScore = _seasonSummary.ComputeDominanceScore();
         string scoreHistory = _seasonSummary.BuildThreeStageScoreHistory();
-        return _playerRecordStore.SaveSeasonResult(_playerName, _offensiveTeam.Name, scoreHistory, dominanceScore);
+        string scoreDetails = _seasonSummary.BuildDominanceScoreDetails();
+        return _playerRecordStore.SaveSeasonResult(_playerName, _offensiveTeam.Name, scoreHistory, scoreDetails, dominanceScore);
     }
 }

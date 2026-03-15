@@ -4,6 +4,7 @@ public sealed record PlayerRecord(
     string Name,
     string TeamName,
     string ScoreHistory,
+    string ScoreDetails,
     float DominanceScore,
     DateTime LastUpdatedUtc);
 
@@ -11,6 +12,7 @@ public readonly record struct LeaderboardEntry(
     string Name,
     string TeamName,
     string ScoreHistory,
+    string ScoreDetails,
     float Score,
     int Rank,
     bool IsCurrentPlayer)

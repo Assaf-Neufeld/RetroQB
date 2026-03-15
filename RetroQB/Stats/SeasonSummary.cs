@@ -137,31 +137,46 @@ public sealed class SeasonSummary
     }
 
     /// <summary>
-    /// Computes a 0-100 dominance score from efficiency, explosiveness, run success, and receiver distribution.
+    /// Computes a 0-100 dominance score.
+    /// Stage progression (Playoff/Super Bowl/Champion) is the largest component,
+    /// then the remaining score is a weighted mix of core efficiency stats.
     /// </summary>
     public float ComputeDominanceScore()
     {
-        if (_offensivePlays == 0)
-        {
-            return 0f;
-        }
+        float stageScore = ComputeStageProgressionScore();
 
-        float successRate = _successfulPlays / (float)_offensivePlays;
-        float explosiveRate = _explosivePlays / (float)_offensivePlays;
-        float successScore = NormalizeRate(successRate, 0.62f);
+        QbStatsSnapshot qb = CumulativeQbStats;
+        float attempts = qb.Attempts;
+        float completions = qb.Completions;
+        float interceptions = qb.Interceptions;
+        float sacks = qb.Sacks;
+
+        float qbRatingScore = Math.Clamp((ComputeQbRating() / 158.3f) * 100f, 0f, 100f);
+        float completionRate = attempts > 0f ? completions / attempts : 0f;
+        float completionScore = NormalizeRate(completionRate, 0.72f);
+
+        float interceptionRate = attempts > 0f ? interceptions / attempts : 1f;
+        float interceptionScore = Math.Clamp((1f - (interceptionRate / 0.08f)) * 100f, 0f, 100f);
+
+        float sackRate = attempts > 0f ? sacks / attempts : 1f;
+        float sackScore = Math.Clamp((1f - (sackRate / 0.12f)) * 100f, 0f, 100f);
+
+        float ypc = _cumulativeRb.Attempts > 0
+            ? _cumulativeRb.Yards / (float)_cumulativeRb.Attempts
+            : 0f;
+        float ypcScore = Math.Clamp(((ypc - 2.5f) / 3.5f) * 100f, 0f, 100f);
+
+        float explosiveRate = _offensivePlays > 0 ? _explosivePlays / (float)_offensivePlays : 0f;
         float explosiveScore = NormalizeRate(explosiveRate, 0.22f);
-        float rbScore = ComputeRbDominanceScore();
-        float distributionScore = ComputeDistributionScore();
-        float achievementScore = _games.Count == 0
-            ? 0f
-            : (_games.Count(game => game.Won) / 3f) * 100f;
 
         float weightedScore =
-            (successScore * 0.35f) +
-            (explosiveScore * 0.25f) +
-            (rbScore * 0.20f) +
-            (distributionScore * 0.10f) +
-            (achievementScore * 0.10f);
+            (stageScore * 0.50f) +
+            (qbRatingScore * 0.12f) +
+            (completionScore * 0.10f) +
+            (interceptionScore * 0.08f) +
+            (sackScore * 0.08f) +
+            (ypcScore * 0.06f) +
+            (explosiveScore * 0.06f);
 
         return Math.Clamp(weightedScore, 0f, 100f);
     }
@@ -172,10 +187,96 @@ public sealed class SeasonSummary
     /// </summary>
     public string BuildThreeStageScoreHistory()
     {
+        var parts = new List<string>();
+
         string regularSeason = GetStageScoreText(SeasonStage.RegularSeason);
+        if (!string.IsNullOrWhiteSpace(regularSeason))
+        {
+            parts.Add($"REG {regularSeason}");
+        }
+
         string playoff = GetStageScoreText(SeasonStage.Playoff);
+        if (!string.IsNullOrWhiteSpace(playoff))
+        {
+            parts.Add($"PLAYOFF {playoff}");
+        }
+
         string superBowl = GetStageScoreText(SeasonStage.SuperBowl);
-        return $"REG {regularSeason} | PLAYOFF {playoff} | SB {superBowl}";
+        if (!string.IsNullOrWhiteSpace(superBowl))
+        {
+            parts.Add($"SB {superBowl}");
+        }
+
+        return parts.Count > 0 ? string.Join(" | ", parts) : "REG --";
+    }
+
+    /// <summary>
+    /// Builds a compact breakdown of the main stats that feed dominance scoring.
+    /// Example: "STG PLAYOFF | QBRT 96.5 | CMP 64% | INT 3 | SACK 5 | YPC 4.2 | XPL 15%"
+    /// </summary>
+    public string BuildDominanceScoreDetails()
+    {
+        if (_games.Count == 0)
+        {
+            return "STG REG | QBRT -- | CMP -- | INT -- | SACK -- | YPC -- | XPL --";
+        }
+
+        QbStatsSnapshot qb = CumulativeQbStats;
+        float attempts = qb.Attempts;
+        float completionRate = attempts > 0f ? qb.Completions / attempts : 0f;
+        float explosiveRate = _explosivePlays / (float)_offensivePlays;
+        float yardsPerCarry = _cumulativeRb.Attempts > 0
+            ? _cumulativeRb.Yards / (float)_cumulativeRb.Attempts
+            : 0f;
+        string stageLabel = GetStageProgressionLabel();
+        string completionText = attempts > 0f ? $"{completionRate * 100f:0}%" : "--";
+        string explosiveText = _offensivePlays > 0 ? $"{explosiveRate * 100f:0}%" : "--";
+        string ypcText = _cumulativeRb.Attempts > 0 ? $"{yardsPerCarry:0.0}" : "--";
+        string qbRatingText = attempts > 0f ? $"{ComputeQbRating():0.0}" : "--";
+        string intText = attempts > 0f ? $"{qb.Interceptions}" : "--";
+        string sackText = attempts > 0f ? $"{qb.Sacks}" : "--";
+
+        return $"STG {stageLabel} | QB {qbRatingText} | CMP {completionText} | INT {intText} | SK {sackText} | YPC {ypcText} | XPL {explosiveText}";
+    }
+
+    private float ComputeStageProgressionScore()
+    {
+        if (IsChampion)
+        {
+            return 100f;
+        }
+
+        if (_games.Any(game => game.Stage == SeasonStage.SuperBowl))
+        {
+            return 78f;
+        }
+
+        if (_games.Any(game => game.Stage == SeasonStage.Playoff))
+        {
+            return 55f;
+        }
+
+        return 20f;
+    }
+
+    private string GetStageProgressionLabel()
+    {
+        if (IsChampion)
+        {
+            return "CHAMP";
+        }
+
+        if (_games.Any(game => game.Stage == SeasonStage.SuperBowl))
+        {
+            return "SB";
+        }
+
+        if (_games.Any(game => game.Stage == SeasonStage.Playoff))
+        {
+            return "PLAYOFF";
+        }
+
+        return "REG";
     }
 
     /// <summary>Resets the summary for a new season.</summary>
@@ -317,8 +418,16 @@ public sealed class SeasonSummary
     private string GetStageScoreText(SeasonStage stage)
     {
         GameResult? game = _games.FirstOrDefault(result => result.Stage == stage);
-        return game.HasValue
-            ? $"{game.Value.PlayerScore}-{game.Value.AwayScore}"
-            : "--";
+        if (!game.HasValue)
+        {
+            return string.Empty;
+        }
+
+        if (game.Value.PlayerScore == 0 && game.Value.AwayScore == 0)
+        {
+            return string.Empty;
+        }
+
+        return $"{game.Value.PlayerScore}-{game.Value.AwayScore}";
     }
 }
