@@ -270,8 +270,9 @@ public static class ZoneCoverage
         }
 
         float yMax = bounds.YMax + padding;
+        float carryCeiling = GetZoneCarryCeiling(defender.ZoneRole, bounds, lineOfScrimmage) + padding;
         bool inZoneDepth = receiver.Position.Y <= yMax;
-        bool carryDeep = receiver.Position.Y > yMax && receiver.Position.Y <= lineOfScrimmage + Constants.ZoneCarryDepth + padding;
+        bool carryDeep = receiver.Position.Y > yMax && receiver.Position.Y <= carryCeiling;
 
         if (inZoneDepth || carryDeep)
         {
@@ -461,7 +462,8 @@ public static class ZoneCoverage
         float targetX = Lerp(baseTarget.X, desiredX, xTrackBlend);
 
         float routeCutoff = projected.Y - (1.15f + MathF.Abs(travelDir.X) * 0.8f);
-        float desiredY = Math.Clamp(routeCutoff, bounds.YMin, bounds.YMax);
+        float carryCeiling = GetZoneCarryCeiling(defender.ZoneRole, bounds, lineOfScrimmage);
+        float desiredY = Math.Clamp(routeCutoff, bounds.YMin, carryCeiling);
         float minDrop = MathF.Max(baseTarget.Y, lineOfScrimmage + 3.2f);
         desiredY = MathF.Max(desiredY, minDrop);
 
@@ -516,6 +518,16 @@ public static class ZoneCoverage
             CoverageRole.HookLeft or CoverageRole.HookRight => Constants.ZoneHookSideStretch,
             CoverageRole.FlatLeft or CoverageRole.FlatRight => Constants.ZoneFlatStretch,
             _ => Constants.ZoneMatchWidthDeep * 0.5f
+        };
+    }
+
+    private static float GetZoneCarryCeiling(CoverageRole role, ZoneBounds bounds, float lineOfScrimmage)
+    {
+        return role switch
+        {
+            CoverageRole.FlatLeft or CoverageRole.FlatRight => lineOfScrimmage + Constants.ZoneCoverageDepth + Constants.ZoneMatchDepthBuffer,
+            CoverageRole.HookLeft or CoverageRole.HookMiddle or CoverageRole.HookRight => lineOfScrimmage + Constants.ZoneCoverageDepthDb + Constants.ZoneMatchDepthBuffer,
+            _ => MathF.Max(bounds.YMax, lineOfScrimmage + Constants.ZoneCarryDepth)
         };
     }
 

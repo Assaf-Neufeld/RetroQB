@@ -113,18 +113,18 @@ public static class Constants
     public const float ZoneCoverageDepth = 12.5f;
     public const float ZoneCoverageDepthDb = 19.5f;
     public const float ZoneCoverageDepthFlat = 5.8f;
-    public const float ZoneMatchWidthFlat = FieldWidth * 0.24f;
-    public const float ZoneMatchWidthHook = FieldWidth * 0.24f;
-    public const float ZoneMatchWidthDeep = FieldWidth * 0.52f;
-    public const float ZoneMatchDepthBuffer = 2.2f;
-    public const float ZoneMatchAttachRadius = 2.5f;
+    public const float ZoneMatchWidthFlat = FieldWidth * 0.28f;
+    public const float ZoneMatchWidthHook = FieldWidth * 0.30f;
+    public const float ZoneMatchWidthDeep = FieldWidth * 0.56f;
+    public const float ZoneMatchDepthBuffer = 2.8f;
+    public const float ZoneMatchAttachRadius = 3.1f;
     public const float ZoneDeepCushion = 1.8f;
-    public const float ZoneCarryDepth = 23.5f;
+    public const float ZoneCarryDepth = 25.5f;
     public const float ZoneLookAheadDeep = 4.8f;
     public const float ZoneLookAheadUnderneath = 3.1f;
-    public const float ZoneHookSideStretch = 3.2f;
-    public const float ZoneHookMiddleStretch = 2.5f;
-    public const float ZoneFlatStretch = 6.2f;
+    public const float ZoneHookSideStretch = 4.2f;
+    public const float ZoneHookMiddleStretch = 3.6f;
+    public const float ZoneFlatStretch = 7.4f;
 
     public static Vector2 WorldToScreen(Vector2 worldPos)
     {
