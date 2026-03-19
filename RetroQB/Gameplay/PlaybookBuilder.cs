@@ -39,7 +39,7 @@ public static class PlaybookBuilder
 
     public static List<PlayDefinition> BuildPassPlays()
     {
-        return new List<PlayDefinition>
+        var plays = new List<PlayDefinition>
         {
             // 1 - Wildcard (regenerated at selection time)
             new(
@@ -157,7 +157,8 @@ public static class PlaybookBuilder
                     [0] = RouteType.Slant,
                     [1] = RouteType.Slant,
                     [2] = RouteType.Flat,
-                    [3] = RouteType.Go
+                    [3] = RouteType.Go,
+                    [4] = RouteType.Flat
                 },
                 slantDirections: new Dictionary<int, bool> { [0] = true, [1] = true }),
 
@@ -177,27 +178,28 @@ public static class PlaybookBuilder
                     [4] = RouteType.DoubleMove
                 }),
 
-            // 0 - Double Move (double-move concept)
+            // 0 - Combo (layered in-breaking concept)
             new(
-                "Double Move",
+                "Combo",
                 PlayType.Pass,
                 FormationType.BaseSplit,
                 RunningBackRole.Route,
                 TightEndRole.Route,
                 new Dictionary<int, RouteType>
                 {
-                    [0] = RouteType.DoubleMove,
-                    [1] = RouteType.Flat,
-                    [2] = RouteType.DoubleMove,
-                    [3] = RouteType.Go
-                },
-                slantDirections: new Dictionary<int, bool> { [0] = true, [2] = false })
+                    [0] = RouteType.InShallow,
+                    [1] = RouteType.Go,
+                    [2] = RouteType.InDeep,
+                    [3] = RouteType.InShallow,
+                    [4] = RouteType.Flat
+                })
         };
+        return plays;
     }
 
     public static List<PlayDefinition> BuildRunPlays()
     {
-        return new List<PlayDefinition>
+        var plays = new List<PlayDefinition>
         {
             // Q - Wildcard (regenerated at selection time)
             CreateRunPlay(
@@ -305,7 +307,9 @@ public static class PlaybookBuilder
                 new Dictionary<int, RouteType>
                 {
                     [0] = RouteType.Go,
-                    [1] = RouteType.OutShallow
+                    [1] = RouteType.OutShallow,
+                    [2] = RouteType.OutShallow,
+                    [3] = RouteType.Go
                 }),
 
             // P - Draw (pistol delayed handoff)
@@ -317,11 +321,11 @@ public static class PlaybookBuilder
                 new Dictionary<int, RouteType>
                 {
                     [0] = RouteType.Go,
-                    [1] = RouteType.Flat,
-                    [2] = RouteType.InShallow,
-                    [3] = RouteType.Go
+                    [1] = RouteType.Flat
                 })
         };
+
+        return plays;
     }
 
     public static PlayDefinition CreatePassWildcardPlay(Random rng)
