@@ -143,7 +143,7 @@ public sealed class MenuRenderer
         int stageLineFontSize = compactLayout ? 13 : 14;
         int stageLineSpacing = compactLayout ? 16 : 18;
         string[] stageLines = {
-            "1. Regular Season  →  2. Playoff  →  3. Super Bowl",
+            "1. Regular Season  ->  2. Playoff  ->  3. Super Bowl",
             "Score 21 each round. Defense gets harder!"
         };
         foreach (var line in stageLines)
