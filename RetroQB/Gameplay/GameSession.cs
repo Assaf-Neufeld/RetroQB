@@ -1,5 +1,6 @@
 using System.Numerics;
 using RetroQB.AI;
+using RetroQB.Audio;
 using RetroQB.Core;
 using RetroQB.Entities;
 using RetroQB.Gameplay.Controllers;
@@ -13,7 +14,7 @@ namespace RetroQB.Gameplay;
 /// Orchestrates the game session by coordinating specialized controllers.
 /// Each controller handles a single responsibility following SOLID principles.
 /// </summary>
-public sealed class GameSession
+public sealed class GameSession : IDisposable
 {
     private const int WinningScore = 21;
 
@@ -37,6 +38,7 @@ public sealed class GameSession
     private readonly ReplayClipStore _replayClipStore;
     private readonly ReplayPlayer _replayPlayer;
     private readonly ReplayStateHandler _replayStateHandler;
+    private readonly RetroMidiMusicController _musicController;
 
     // Defensive AI
     private readonly DefensiveMemory _defensiveMemory = new();
@@ -129,6 +131,7 @@ public sealed class GameSession
         _replayClipStore = replayClipStore;
         _replayPlayer = replayPlayer;
         _replayStateHandler = replayStateHandler;
+        _musicController = new RetroMidiMusicController();
 
         _defensiveCoordinator = new DefensiveCoordinator(_defensiveMemory);
 
@@ -316,6 +319,8 @@ public sealed class GameSession
         {
             _stateManager.TogglePause();
         }
+
+        _musicController.Update(_stateManager.State, _stateManager.IsPaused, dt);
 
         if (_stateManager.IsPaused)
         {
@@ -929,6 +934,11 @@ public sealed class GameSession
             _seasonSummary,
             replayAvailable,
             BuildCrowdBackdropState());
+    }
+
+    public void Dispose()
+    {
+        _musicController.Dispose();
     }
 
     private void UpdateDriveSummaryScroll()

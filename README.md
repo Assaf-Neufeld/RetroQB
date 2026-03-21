@@ -32,7 +32,7 @@ It is part arcade football fantasy, part drive-management challenge, and part "p
 Every snap starts with a decision. Do you dial up a quick pass, attack deep, or call a run and trust the blocking? RetroQB keeps play selection simple and readable, so the fun is in the choice: take the safe yards, hunt the big one, or try to outsmart the defense before the ball is even snapped.
 
 ### Feel the game-day atmosphere
-This is not just Xs and Os on a blank field. The stadium has lights, crowd detail, sideline flavor, replay moments, and a scoreboard that keeps the whole drive feeling alive. When you hit a big play, it should feel like the building noticed.
+This is not just Xs and Os on a blank field. The stadium has lights, crowd detail, sideline flavor, replay moments, a subtle retro background score, and a scoreboard that keeps the whole drive feeling alive. When you hit a big play, it should feel like the building noticed.
 
 ### Watch the defense adjust
 The defense is not there just to be decorative. Coverages change, blitz looks vary, and tougher stages bring smarter, nastier opponents. As you move from the Regular Season to the Playoff and then the Super Bowl, the defense starts feeling more prepared for what you want to do.

@@ -6,6 +6,7 @@ using RetroQB.Gameplay;
 
 Raylib.SetConfigFlags(ConfigFlags.ResizableWindow);
 Raylib.InitWindow(Constants.ScreenWidth, Constants.ScreenHeight, "RetroQB");
+Raylib.InitAudioDevice();
 SetWindowIconFromResource();
 Raylib.SetTargetFPS(Constants.TargetFps);
 
@@ -28,17 +29,26 @@ static unsafe void SetWindowIconFromResource()
 	}
 }
 
-GameSession session = new();
+GameSession? session = null;
 
-while (!Raylib.WindowShouldClose())
+try
 {
-	float dt = Raylib.GetFrameTime();
-	session.Update(dt);
+	session = new GameSession();
 
-	Raylib.BeginDrawing();
-	Raylib.ClearBackground(Palette.Background);
-	session.Draw();
-	Raylib.EndDrawing();
+	while (!Raylib.WindowShouldClose())
+	{
+		float dt = Raylib.GetFrameTime();
+		session.Update(dt);
+
+		Raylib.BeginDrawing();
+		Raylib.ClearBackground(Palette.Background);
+		session.Draw();
+		Raylib.EndDrawing();
+	}
 }
-
-Raylib.CloseWindow();
+finally
+{
+	session?.Dispose();
+	Raylib.CloseAudioDevice();
+	Raylib.CloseWindow();
+}
