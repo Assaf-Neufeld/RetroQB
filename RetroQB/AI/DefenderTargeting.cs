@@ -1,4 +1,5 @@
 using System.Numerics;
+using RetroQB.Core;
 using RetroQB.Entities;
 using RetroQB.Routes;
 
@@ -20,6 +21,7 @@ public static class DefenderTargeting
         float speedMultiplier,
         float dt,
         bool qbIsRunner,
+        bool isRunPlayWithRunningBack,
         bool useZoneCoverage,
         float lineOfScrimmage)
     {
@@ -27,7 +29,7 @@ public static class DefenderTargeting
 
         Vector2 target = GetTarget(
             defender, qb, receivers, ball,
-            qbIsRunner, useZoneCoverage, lineOfScrimmage);
+            qbIsRunner, isRunPlayWithRunningBack, useZoneCoverage, lineOfScrimmage);
 
         Vector2 dir = target - defender.Position;
         if (dir.LengthSquared() > 0.001f)
@@ -47,6 +49,7 @@ public static class DefenderTargeting
         IReadOnlyList<Receiver> receivers,
         Ball ball,
         bool qbIsRunner,
+        bool isRunPlayWithRunningBack,
         bool useZoneCoverage,
         float lineOfScrimmage)
     {
@@ -57,7 +60,7 @@ public static class DefenderTargeting
 
         if (ball.State == BallState.HeldByReceiver && ball.Holder != null)
         {
-            return ball.Holder.Position;
+            return GetBallCarrierTarget(defender, ball.Holder, isRunPlayWithRunningBack);
         }
 
         if (ball.State == BallState.InAir)
@@ -71,6 +74,50 @@ public static class DefenderTargeting
         }
 
         return GetCoverageTarget(defender, qb, receivers, useZoneCoverage, lineOfScrimmage);
+    }
+
+    private static Vector2 GetBallCarrierTarget(
+        Defender defender,
+        Entity ballCarrier,
+        bool isRunPlayWithRunningBack)
+    {
+        if (isRunPlayWithRunningBack && ballCarrier is Receiver runner && runner.IsRunningBack)
+        {
+            Vector2? edgeTarget = GetEdgeContainTarget(defender, runner);
+            if (edgeTarget.HasValue)
+            {
+                return edgeTarget.Value;
+            }
+        }
+
+        return ballCarrier.Position;
+    }
+
+    private static Vector2? GetEdgeContainTarget(Defender defender, Receiver runner)
+    {
+        int defenderSide = defender.Slot switch
+        {
+            DefenderSlot.CB1 => -1,
+            DefenderSlot.CB2 => 1,
+            _ => 0
+        };
+
+        if (defenderSide == 0)
+        {
+            return null;
+        }
+
+        float sidelineBuffer = 1.25f;
+        const float outsideOffset = 3.2f;
+        const float containLead = 2.8f;
+
+        float rawTargetX = runner.Position.X + defenderSide * outsideOffset;
+        float targetX = defenderSide < 0
+            ? MathF.Max(sidelineBuffer, MathF.Min(runner.Position.X - 0.35f, rawTargetX))
+            : MathF.Min(Constants.FieldWidth - sidelineBuffer, MathF.Max(runner.Position.X + 0.35f, rawTargetX));
+        float targetY = runner.Position.Y + containLead;
+
+        return new Vector2(targetX, targetY);
     }
 
     private static Vector2 GetTargetDuringPass(

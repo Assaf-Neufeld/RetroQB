@@ -158,7 +158,17 @@ public sealed class PlayExecutionController
         foreach (var defender in defenders)
         {
             float speedMultiplier = playManager.DefenderSpeedMultiplier * runDefenseAdjust;
-            DefenderTargeting.UpdateDefender(defender, qb, receivers, ball, speedMultiplier, dt, qbPastLos, isZoneCoverage, playManager.LineOfScrimmage);
+            DefenderTargeting.UpdateDefender(
+                defender,
+                qb,
+                receivers,
+                ball,
+                speedMultiplier,
+                dt,
+                qbPastLos,
+                isRunPlayWithRb,
+                isZoneCoverage,
+                playManager.LineOfScrimmage);
             clampToField(defender);
         }
     }
