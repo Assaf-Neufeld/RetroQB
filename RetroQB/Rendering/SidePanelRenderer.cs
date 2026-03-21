@@ -38,9 +38,7 @@ public sealed class SidePanelRenderer
             Raylib.DrawText("SELECT PLAY:", x, y, 18, Palette.Yellow);
             y += 24;
             
-            PlayType suggestedType = play.GetSuggestedPlayType();
-            string suggestedName = suggestedType == PlayType.Pass ? "Pass" : "Run";
-            Raylib.DrawText($"Suggested: {suggestedName}", x, y, 16, Palette.Lime);
+            Raylib.DrawText($"Suggested: {play.GetSuggestedPlayLabel()}", x, y, 16, Palette.Lime);
             y += 22;
 
             // Pass plays header
