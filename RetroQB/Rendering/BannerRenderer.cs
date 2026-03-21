@@ -14,9 +14,7 @@ public sealed class BannerRenderer
     public void DrawStageCompleteBanner(int finalScore, int awayScore, SeasonStage completedStage, GameStatsSnapshot stats, SeasonSummary seasonSummary, LeaderboardSummary leaderboardSummary)
     {
         var nextStage = completedStage.GetNextStage();
-        string subtitle = nextStage.HasValue
-            ? $"NEXT: {nextStage.Value.GetDisplayName()}"
-            : "SEASON CONTINUES";
+        string subtitle = string.Empty;
 
         DrawSeasonOutcomeBanner(
             $"{completedStage.GetDisplayName()} WON!",
@@ -93,154 +91,313 @@ public sealed class BannerRenderer
         int screenW = Raylib.GetScreenWidth();
         int screenH = Raylib.GetScreenHeight();
 
-        int targetBannerWidth = showRankingDetails ? 860 : 640;
-        int targetBannerHeight = showRankingDetails ? 780 : 500;
+        int targetBannerWidth = showRankingDetails ? 1040 : 760;
+        int targetBannerHeight = showRankingDetails ? 792 : 700;
         int bannerWidth = Math.Min(targetBannerWidth, screenW - 48);
         int bannerHeight = Math.Min(targetBannerHeight, screenH - 24);
         int x = (screenW - bannerWidth) / 2;
         int y = (screenH - bannerHeight) / 2;
 
-        Raylib.DrawRectangle(x - 5, y - 5, bannerWidth + 10, bannerHeight + 10, accentColor);
-        Raylib.DrawRectangle(x, y, bannerWidth, bannerHeight, new Color(10, 14, 22, 248));
-        Raylib.DrawRectangle(x + 4, y + 4, bannerWidth - 8, bannerHeight - 8, new Color(18, 24, 36, 248));
+        Raylib.DrawRectangle(0, 0, screenW, screenH, new Color(4, 7, 12, 150));
+        DrawOutcomeBackdrop(x, y, bannerWidth, bannerHeight, accentColor);
 
-        int contentY = y + 16;
-        int titleFontSize = showRankingDetails ? 44 : 38;
-        int subtitleFontSize = showRankingDetails ? 20 : 17;
-        DrawCenteredText(title, x, bannerWidth, contentY, titleFontSize, accentColor, 18, 20);
-        contentY += titleFontSize + 4;
-        DrawCenteredText(subtitle, x, bannerWidth, contentY, subtitleFontSize, Palette.Cyan, 18, 12);
-        contentY += subtitleFontSize + 10;
+        int innerX = x + 22;
+        int innerY = y + 22;
+        int innerWidth = bannerWidth - 44;
+        int innerHeight = bannerHeight - 44;
+        int headerHeight = showRankingDetails ? 148 : 134;
 
-        string scoreLine = $"FINAL: {finalScore} - {awayScore}";
-        DrawCenteredText(scoreLine, x, bannerWidth, contentY, showRankingDetails ? 22 : 19, Palette.White);
-        contentY += showRankingDetails ? 36 : 30;
+        DrawOutcomeHero(innerX, innerY, innerWidth, headerHeight, title, subtitle, finalScore, awayScore, accentColor, seasonSummary);
 
-        if (showQbRating)
-        {
-            float dominanceScore = seasonSummary.ComputeDominanceScore();
-            DrawCenteredText("DOMINANCE SCORE", x, bannerWidth, contentY, showRankingDetails ? 18 : 15, Palette.Blue);
-            contentY += 20;
-            DrawCenteredText($"{dominanceScore:F1}", x, bannerWidth, contentY, showRankingDetails ? 42 : 34, GetRatingColor(dominanceScore));
-            contentY += showRankingDetails ? 50 : 40;
-        }
-
+        int bodyY = innerY + headerHeight + 18;
+        int bodyHeight = innerHeight - headerHeight - 86;
         int currentPlayerRank = leaderboardSummary.CurrentPlayerRank ?? 0;
 
-        if (showRankingDetails && showFinalRank && leaderboardSummary.HasPlayerRank)
-        {
-            string finalRankText = leaderboardSummary.IsFirstPlace
-                ? $"DOMINANCE RANK: #{currentPlayerRank}  TROPHY HOLDER"
-                : leaderboardSummary.IsOnPodium
-                    ? $"DOMINANCE RANK: #{currentPlayerRank}  PODIUM"
-                    : $"DOMINANCE RANK: #{currentPlayerRank}";
-            DrawCenteredText(finalRankText, x, bannerWidth, contentY, 20, leaderboardSummary.IsOnPodium ? Palette.Gold : Palette.Orange);
-            contentY += 28;
-        }
-
-        string passLine = BuildPassingLine(seasonSummary.CumulativeQbStats);
-        DrawCenteredText(passLine, x, bannerWidth, contentY, showRankingDetails ? 15 : 14, new Color(160, 180, 200, 255));
-        contentY += showRankingDetails ? 28 : 24;
-
-        int sectionTop = contentY;
-        int rankingPanelX = x + bannerWidth - 24 - 460;
-        int rankingPanelWidth = 460;
         if (showRankingDetails)
         {
-            int leftX = x + 24;
-            int leftWidth = 320;
-            int rightX = rankingPanelX;
-            int rightWidth = rankingPanelWidth;
+            int gap = 18;
+            int rightWidth = Math.Min(460, Math.Max(380, innerWidth - 340 - gap));
+            int leftWidth = innerWidth - rightWidth - gap;
+            if (leftWidth < 340)
+            {
+                leftWidth = 340;
+                rightWidth = innerWidth - leftWidth - gap;
+            }
 
-            DrawGameScoresPanel(leftX, sectionTop, leftWidth, seasonSummary, accentColor, stats);
-            DrawLeaderboardPanel(rightX, sectionTop, rightWidth, leaderboardSummary, accentColor);
+            int leftX = innerX;
+            int rightX = leftX + leftWidth + gap;
+            int leaderboardHeight = showPodium ? 290 : bodyHeight;
+            int podiumHeight = showPodium ? bodyHeight - leaderboardHeight - 16 : 0;
+
+            DrawPerformanceDashboard(leftX, bodyY, leftWidth, bodyHeight, seasonSummary, accentColor, stats, showFinalRank ? currentPlayerRank : null, showFinalRank && leaderboardSummary.HasPlayerRank ? leaderboardSummary.IsOnPodium : false);
+            DrawLeaderboardPanel(rightX, bodyY, rightWidth, leaderboardHeight, leaderboardSummary, accentColor);
+
+            if (showPodium && podiumHeight >= 180)
+            {
+                DrawPodiumPanel(rightX, bodyY + leaderboardHeight + 16, rightWidth, podiumHeight, leaderboardSummary, accentColor);
+            }
         }
         else
         {
-            DrawGameScoresPanel(x + 24, sectionTop, bannerWidth - 48, seasonSummary, accentColor, stats);
-        }
-
-        if (showRankingDetails && showPodium)
-        {
-            int podiumPanelHeight = 248;
-            int bottomY = y + bannerHeight - 322;
-            DrawPodiumPanel(rankingPanelX, bottomY, rankingPanelWidth, podiumPanelHeight, leaderboardSummary, accentColor);
+            DrawPerformanceDashboard(innerX, bodyY, innerWidth, bodyHeight, seasonSummary, accentColor, stats, null, false);
         }
 
         DrawActionButtons(x, y + bannerHeight - 62, bannerWidth, prompt, "Z TO RESTART");
     }
 
-    private static string BuildPassingLine(QbStatsSnapshot qb)
+    private static void DrawOutcomeBackdrop(int x, int y, int width, int height, Color accentColor)
     {
-        string line = $"{qb.Completions}/{qb.Attempts} CMP  {qb.PassYards} YDS  {qb.PassTds} TD  {qb.Interceptions} INT";
-        if (qb.Sacks > 0)
-        {
-            line += $"  {qb.Sacks} SACK";
-        }
-
-        return line;
+        Raylib.DrawRectangle(x + 8, y + 10, width, height, new Color(0, 0, 0, 80));
+        Raylib.DrawRectangle(x - 2, y - 2, width + 4, height + 4, new Color((int)accentColor.R, (int)accentColor.G, (int)accentColor.B, 70));
+        Raylib.DrawRectangle(x, y, width, height, new Color(11, 16, 24, 244));
+        Raylib.DrawRectangle(x, y, width, 8, new Color((int)accentColor.R, (int)accentColor.G, (int)accentColor.B, 110));
+        Raylib.DrawRectangleLines(x, y, width, height, accentColor);
     }
 
-    private void DrawGameScoresPanel(int x, int y, int width, SeasonSummary summary, Color accentColor, GameStatsSnapshot stats)
+    private static void DrawPanelSurface(int x, int y, int width, int height, Color accentColor, Color fillColor)
     {
-        int height = 210;
-        Raylib.DrawRectangle(x, y, width, height, new Color(8, 12, 18, 220));
-        Raylib.DrawRectangleLines(x, y, width, height, accentColor);
+        Raylib.DrawRectangle(x, y, width, height, fillColor);
+        Raylib.DrawRectangle(x, y, width, 3, new Color((int)accentColor.R, (int)accentColor.G, (int)accentColor.B, 120));
+        Raylib.DrawRectangleLines(x, y, width, height, new Color((int)accentColor.R, (int)accentColor.G, (int)accentColor.B, 165));
+    }
 
-        DrawCenteredText("RUN SUMMARY", x, width, y + 12, 18, Palette.White);
+    private void DrawOutcomeHero(
+        int x,
+        int y,
+        int width,
+        int height,
+        string title,
+        string subtitle,
+        int finalScore,
+        int awayScore,
+        Color accentColor,
+        SeasonSummary seasonSummary)
+    {
+        DrawPanelSurface(x, y, width, height, accentColor, new Color(16, 24, 38, 228));
 
-        int contentY = y + 42;
-        int stagesWon = summary.Games.Count(game => game.Won);
-        string progress = $"STAGES WON: {stagesWon}/3";
-        DrawCenteredText(progress, x, width, contentY, 16, Palette.Lime);
-        contentY += 28;
-
-        foreach (var game in summary.Games.Take(3))
+        int scoreBlockWidth = Math.Min(240, width / 3);
+        int scoreX = x + width - scoreBlockWidth - 26;
+        int leftX = x + 26;
+        int leftWidth = Math.Max(220, scoreX - leftX - 16);
+        bool hasSubtitle = !string.IsNullOrWhiteSpace(subtitle);
+        int titleY = hasSubtitle ? y + 22 : y + 32;
+        DrawFittedLeftText(title, leftX, titleY, 46, leftWidth, accentColor, 24);
+        if (hasSubtitle)
         {
-            string line = $"{game.Stage.GetShortLabel()}: {game.PlayerScore} - {game.AwayScore}";
-            Color lineColor = game.Won ? Palette.White : new Color(255, 170, 170, 255);
-            Raylib.DrawText(line, x + 18, contentY, 16, lineColor);
-            string result = game.Won ? "W" : "L";
-            int resultWidth = Raylib.MeasureText(result, 16);
-            Raylib.DrawText(result, x + width - 18 - resultWidth, contentY, 16, game.Won ? Palette.Lime : Palette.Red);
+            DrawFittedLeftText(subtitle, leftX, y + 72, 20, leftWidth, Palette.Cyan, 12);
+        }
+
+        string scoreLabel = "FINAL SCORE";
+        DrawCenteredText(scoreLabel, scoreX, scoreBlockWidth, y + 22, 14, new Color(160, 180, 205, 255));
+        DrawCenteredText($"{finalScore} - {awayScore}", scoreX, scoreBlockWidth, y + 48, 42, Palette.White);
+
+        float dominanceScore = seasonSummary.ComputeDominanceScore();
+
+        int chipY = hasSubtitle ? y + height - 46 : y + height - 40;
+        int chipWidth = Math.Min(220, Math.Max(150, leftWidth));
+        DrawMetricChip(leftX, chipY, chipWidth, 30, "DOMINANCE SCORE", $"{dominanceScore:F1}", GetRatingColor(dominanceScore), new Color(24, 36, 54, 240));
+    }
+
+    private void DrawPerformanceDashboard(
+        int x,
+        int y,
+        int width,
+        int height,
+        SeasonSummary summary,
+        Color accentColor,
+        GameStatsSnapshot stats,
+        int? finalRank,
+        bool isPodiumFinish)
+    {
+        DrawPanelSurface(x, y, width, height, accentColor, new Color(10, 15, 24, 226));
+
+        bool compact = height < 400;
+        DrawFittedLeftText("SEASON BREAKDOWN", x + 18, y + 14, compact ? 18 : 22, width - 36, Palette.White, 12);
+
+        int contentX = x + 18;
+        int contentY = y + 48;
+        int contentWidth = width - 36;
+
+        DrawFittedLeftText("Season totals", contentX, contentY, compact ? 12 : 14, contentWidth, new Color(170, 190, 210, 255), 9);
+        contentY += compact ? 20 : 24;
+
+        int stageTrackHeight = compact ? 78 : 94;
+        DrawStageTrack(contentX, contentY, contentWidth, stageTrackHeight, summary, accentColor);
+        contentY += stageTrackHeight + 14;
+
+        int cardsGap = 12;
+        int cardWidth = (contentWidth - cardsGap) / 2;
+        int cardHeight = compact ? 84 : 112;
+
+        QbStatsSnapshot qb = summary.CumulativeQbStats;
+        float ypa = qb.Attempts > 0 ? qb.PassYards / (float)qb.Attempts : 0f;
+        float qbRating = summary.ComputeQbRating();
+        string[] qbLines =
+        [
+            $"QBR: {qbRating:0.0}",
+            $"CMP: {qb.Completions}/{qb.Attempts}",
+            $"YDS: {qb.PassYards}  YPA: {ypa:0.0}",
+            $"TD-INT: {qb.PassTds}-{qb.Interceptions}"
+        ];
+        DrawStatCard(contentX, contentY, cardWidth, cardHeight, "QB TOTAL", qbLines, Palette.QB, new Color(18, 30, 45, 230));
+
+        float ypc = stats.Rb.Attempts > 0 ? stats.Rb.Yards / (float)stats.Rb.Attempts : 0f;
+        string[] rushLines =
+        [
+            $"ATT: {stats.Rb.Attempts}",
+            $"YDS: {stats.Rb.Yards}   YPC: {ypc:0.0}",
+            $"TD: {stats.Rb.Tds}"
+        ];
+        DrawStatCard(contentX + cardWidth + cardsGap, contentY, cardWidth, cardHeight, "GROUND GAME", rushLines, Palette.Lime, new Color(18, 33, 28, 230));
+        contentY += cardHeight + cardsGap;
+
+        string[] pressureLines =
+        [
+            $"SACKS: {qb.Sacks}",
+            $"LOST: {qb.SackYardsLost} YDS",
+            $"QB RUN: {qb.RushAttempts} ATT / {qb.RushYards} YDS"
+        ];
+        DrawStatCard(contentX, contentY, cardWidth, cardHeight, "PRESSURE", pressureLines, Palette.Orange, new Color(34, 25, 18, 230));
+
+        DrawReceivingCard(contentX + cardWidth + cardsGap, contentY, cardWidth, cardHeight, stats, accentColor);
+        contentY += cardHeight + 14;
+
+        if (finalRank.HasValue)
+        {
+            string footer = isPodiumFinish
+                ? $"FINAL DOMINANCE RANK #{finalRank.Value}  |  PODIUM FINISH"
+                : $"FINAL DOMINANCE RANK #{finalRank.Value}";
+            DrawFittedLeftText(footer, contentX, contentY, 15, contentWidth, isPodiumFinish ? Palette.Gold : Palette.Orange, 10);
             contentY += 22;
         }
 
-        contentY += 6;
-        string rbLine = $"RB: {stats.Rb.Attempts} ATT  {stats.Rb.Yards} YDS  {stats.Rb.Tds} TD";
-        Raylib.DrawText(rbLine, x + 18, contentY, 14, new Color(170, 190, 210, 255));
-        contentY += 22;
-
-        var topReceiver = stats.Receivers
-            .OrderByDescending(receiver => receiver.Yards)
-            .ThenByDescending(receiver => receiver.Receptions)
-            .ThenByDescending(receiver => receiver.Targets)
-            .FirstOrDefault();
-
-        string receiverLine = topReceiver.Targets > 0 || topReceiver.Receptions > 0 || topReceiver.Yards > 0 || topReceiver.Tds > 0
-            ? $"TOP REC: {topReceiver.Label}  {topReceiver.Yards} YDS"
-            : "TOP REC: NONE";
-        Raylib.DrawText(receiverLine, x + 18, contentY, 14, new Color(170, 190, 210, 255));
-        contentY += 28;
-
-        int barWidth = width - 36;
-        int barX = x + 18;
-        int barHeight = 16;
-        Raylib.DrawRectangle(barX, contentY, barWidth, barHeight, new Color(28, 32, 42, 220));
-        Raylib.DrawRectangleLines(barX, contentY, barWidth, barHeight, accentColor);
-        int filledWidth = (int)(barWidth * stagesWon / 3f);
-        if (filledWidth > 0)
+        if (contentY <= y + height - 16)
         {
-            Raylib.DrawRectangle(barX + 1, contentY + 1, Math.Max(0, filledWidth - 2), barHeight - 2, accentColor);
+            DrawFittedLeftText(BuildDominanceDetailLine(summary), contentX, contentY, 12, contentWidth, new Color(142, 165, 188, 255), 9);
         }
     }
 
-    private void DrawLeaderboardPanel(int x, int y, int width, LeaderboardSummary summary, Color accentColor)
+    private void DrawStageTrack(int x, int y, int width, int height, SeasonSummary summary, Color accentColor)
     {
-        const int height = 282;
+        bool compact = height < 90;
+        DrawPanelSurface(x, y, width, height, accentColor, new Color(14, 20, 30, 235));
+
+        int headerY = y + 10;
+        int stagesWon = summary.Games.Count(game => game.Won);
+        DrawFittedLeftText($"STAGE PROGRESS  {stagesWon}/3", x + 14, headerY, compact ? 14 : 16, width - 28, Palette.White, 10);
+
+        int barX = x + 14;
+        int barY = y + (compact ? 30 : 34);
+        int barWidth = width - 28;
+        int barHeight = compact ? 12 : 14;
+        Raylib.DrawRectangle(barX, barY, barWidth, barHeight, new Color(26, 32, 44, 255));
+        Raylib.DrawRectangleLines(barX, barY, barWidth, barHeight, new Color(74, 92, 118, 255));
+        int filledWidth = (int)(barWidth * (stagesWon / 3f));
+        if (filledWidth > 0)
+        {
+            Raylib.DrawRectangle(barX + 1, barY + 1, Math.Max(0, filledWidth - 2), barHeight - 2, accentColor);
+        }
+
+        SeasonStage[] stages = [SeasonStage.RegularSeason, SeasonStage.Playoff, SeasonStage.SuperBowl];
+        int rowY = y + (compact ? 48 : 56);
+        int rowWidth = (width - 28 - 16) / 3;
+        for (int i = 0; i < stages.Length; i++)
+        {
+            DrawStageTrackCell(x + 14 + i * (rowWidth + 8), rowY, rowWidth, compact ? 20 : 28, stages[i], summary);
+        }
+    }
+
+    private static void DrawStageTrackCell(int x, int y, int width, int height, SeasonStage stage, SeasonSummary summary)
+    {
+        bool compact = height <= 20;
+        GameResult? result = summary.Games.FirstOrDefault(game => game.Stage == stage);
+        bool played = result.HasValue && (result.Value.PlayerScore > 0 || result.Value.AwayScore > 0);
+        Color border = !played
+            ? new Color(72, 84, 100, 255)
+            : result.Value.Won ? Palette.Lime : Palette.Red;
+        Color fill = !played
+            ? new Color(20, 25, 34, 255)
+            : result.Value.Won ? new Color(18, 44, 28, 255) : new Color(52, 20, 20, 255);
+
+        Raylib.DrawRectangle(x, y, width, height, fill);
+        Raylib.DrawRectangleLines(x, y, width, height, border);
+
+        string score = played ? $"{result.Value.PlayerScore}-{result.Value.AwayScore}" : "N/A";
+        DrawCenteredText(stage.GetShortLabel(), x, width, y + (compact ? 2 : 4), compact ? 9 : 11, Palette.White, 4, 8);
+        DrawCenteredText(score, x, width, y + (compact ? 10 : 16), compact ? 9 : 11, played ? Palette.White : new Color(140, 160, 180, 255), 4, 8);
+    }
+
+    private static void DrawStatCard(int x, int y, int width, int height, string title, IReadOnlyList<string> lines, Color borderColor, Color fillColor)
+    {
+        bool compact = height < 90;
+        DrawPanelSurface(x, y, width, height, borderColor, fillColor);
+        DrawFittedLeftText(title, x + 12, y + 10, compact ? 13 : 15, width - 24, borderColor, 10);
+
+        int lineY = y + (compact ? 24 : 36);
+        int bottomLimit = y + height - 10;
+        foreach (string line in lines)
+        {
+            if (lineY > bottomLimit)
+            {
+                break;
+            }
+
+            DrawFittedLeftText(line, x + 12, lineY, compact ? 10 : 13, width - 24, Palette.White, 9);
+            lineY += compact ? 14 : 18;
+        }
+    }
+
+    private void DrawReceivingCard(int x, int y, int width, int height, GameStatsSnapshot stats, Color accentColor)
+    {
+        bool compact = height < 90;
+        DrawPanelSurface(x, y, width, height, accentColor, new Color(20, 27, 41, 230));
+        DrawFittedLeftText("RECEIVING", x + 12, y + 10, compact ? 13 : 15, width - 24, Palette.Cyan, 10);
+
+        var leaders = stats.Receivers
+            .OrderByDescending(receiver => receiver.Yards)
+            .ThenByDescending(receiver => receiver.Receptions)
+            .ThenByDescending(receiver => receiver.Targets)
+            .Where(receiver => receiver.Targets > 0 || receiver.Receptions > 0 || receiver.Yards > 0 || receiver.Tds > 0)
+            .Take(6)
+            .ToArray();
+
+        if (leaders.Length == 0 || leaders.All(receiver => receiver.Targets == 0 && receiver.Receptions == 0 && receiver.Yards == 0 && receiver.Tds == 0))
+        {
+            DrawCenteredText("NO RECEIVING PRODUCTION", x, width, y + (compact ? 34 : 50), compact ? 11 : 13, new Color(160, 180, 200, 255));
+            return;
+        }
+
+        int rowY = y + (compact ? 28 : 34);
+        int rowHeight = compact ? 10 : 12;
+        int bottomLimit = y + height - 10;
+        foreach (ReceiverStatsSnapshot receiver in leaders)
+        {
+            if (rowY > bottomLimit)
+            {
+                break;
+            }
+
+            string rowText = $"{receiver.Label}  {receiver.Receptions}/{receiver.Targets}  {receiver.Yards}Y  {receiver.Tds}TD";
+            DrawFittedLeftText(rowText, x + 12, rowY, compact ? 9 : 10, width - 24, Palette.White, 8);
+            rowY += rowHeight;
+        }
+    }
+
+    private static void DrawMetricChip(int x, int y, int width, int height, string label, string value, Color valueColor, Color fillColor)
+    {
+        Raylib.DrawRectangle(x, y, width, height, fillColor);
+        Raylib.DrawRectangleLines(x, y, width, height, new Color((int)valueColor.R, (int)valueColor.G, (int)valueColor.B, 180));
+        DrawFittedLeftText(label, x + 10, y + 8, 10, Math.Max(26, width - 64), new Color(160, 180, 205, 255), 8);
+
+        int fittedFontSize = GetFittedFontSize(value, 15, Math.Max(28, width - 74), 9);
+        int textWidth = Raylib.MeasureText(value, fittedFontSize);
+        Raylib.DrawText(value, x + width - 10 - textWidth, y + (height - fittedFontSize) / 2, fittedFontSize, valueColor);
+    }
+
+    private void DrawLeaderboardPanel(int x, int y, int width, int height, LeaderboardSummary summary, Color accentColor)
+    {
         const int rowHeight = 42;
-        Raylib.DrawRectangle(x, y, width, height, new Color(8, 12, 18, 220));
-        Raylib.DrawRectangleLines(x, y, width, height, accentColor);
+        DrawPanelSurface(x, y, width, height, accentColor, new Color(8, 12, 18, 220));
 
         DrawCenteredText("DOMINANCE RANKINGS", x, width, y + 12, 18, Palette.Yellow);
 
@@ -248,7 +405,7 @@ public sealed class BannerRenderer
         DrawCenteredText(savedLine, x, width, y + 36, 14, new Color(170, 190, 210, 255));
 
         int drawY = y + 58;
-        int rows = Math.Min(5, summary.Entries.Count);
+        int rows = Math.Min(Math.Max(1, (height - 92) / rowHeight), summary.Entries.Count);
         for (int i = 0; i < rows; i++)
         {
             LeaderboardEntry entry = summary.Entries[i];
@@ -296,8 +453,7 @@ public sealed class BannerRenderer
 
     private void DrawPodiumPanel(int x, int y, int width, int height, LeaderboardSummary summary, Color accentColor)
     {
-        Raylib.DrawRectangle(x, y, width, height, new Color(8, 12, 18, 220));
-        Raylib.DrawRectangleLines(x, y, width, height, accentColor);
+        DrawPanelSurface(x, y, width, height, accentColor, new Color(8, 12, 18, 220));
 
         DrawCenteredText("PODIUM", x, width, y + 12, 22, Palette.White);
 
@@ -502,6 +658,18 @@ public sealed class BannerRenderer
         }
 
         return fontSize;
+    }
+
+    private static string BuildDominanceDetailLine(SeasonSummary summary)
+    {
+        QbStatsSnapshot qb = summary.CumulativeQbStats;
+        float attempts = Math.Max(1f, qb.Attempts);
+        float completionRate = qb.Completions / attempts;
+        float ypa = qb.PassYards / attempts;
+        float qbRating = summary.ComputeQbRating();
+        string completionText = $"{completionRate * 100f:0}%";
+
+        return $"QBRT {qbRating:0.0} | CMP {completionText} | YPA {ypa:0.0} | INT {qb.Interceptions} | SACK {qb.Sacks}";
     }
 
     public void DrawTouchdownPopup()
