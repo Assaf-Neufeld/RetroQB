@@ -9,7 +9,6 @@ public interface IThrowingMechanics
         Vector2 qbPosition,
         Vector2 qbVelocity,
         Vector2 targetPosition,
-        Vector2 targetVelocity,
         float ballSpeed,
         float pressure,
         OffensiveTeamAttributes offensiveTeam,
@@ -27,25 +26,19 @@ public sealed class ThrowingMechanics : IThrowingMechanics
         Vector2 qbPosition,
         Vector2 qbVelocity,
         Vector2 targetPosition,
-        Vector2 targetVelocity,
         float ballSpeed,
         float pressure,
         OffensiveTeamAttributes offensiveTeam,
         Random rng)
     {
-        Vector2 toReceiver = targetPosition - qbPosition;
-        float leadTime = CalculateInterceptTime(toReceiver, targetVelocity, ballSpeed);
-        leadTime = Math.Clamp(leadTime, 0f, BallMaxAirTime);
-        Vector2 leadTarget = targetPosition + targetVelocity * leadTime;
-
-        Vector2 dir = leadTarget - qbPosition;
+        Vector2 dir = targetPosition - qbPosition;
         if (dir.LengthSquared() > 0.001f)
         {
             dir = Vector2.Normalize(dir);
         }
 
         float movementPenalty = GetMovementInaccuracyPenalty(qbVelocity, dir);
-        float accuracyMultiplier = offensiveTeam.GetQbAccuracyMultiplier(toReceiver.Length());
+        float accuracyMultiplier = offensiveTeam.GetQbAccuracyMultiplier(Vector2.Distance(qbPosition, targetPosition));
         float combinedFactor = Math.Clamp(pressure + movementPenalty, 0f, 1f);
         float inaccuracyDeg = Lerp(ThrowBaseInaccuracyDeg, ThrowMaxInaccuracyDeg, combinedFactor);
         inaccuracyDeg *= accuracyMultiplier;

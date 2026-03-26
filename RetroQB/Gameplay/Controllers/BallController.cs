@@ -245,20 +245,16 @@ public sealed class BallController
             Constants.BallMinSpeed,
             Constants.BallMaxSpeed * Constants.QbArmStrengthMax);
 
+        Vector2 leadTarget = ResolveLeadTarget(qb.Position, receiver, targetVelocityForThrow, throwSpeed);
+
         Vector2 throwVelocity = _throwingMechanics.CalculateThrowVelocity(
             qb.Position,
             qb.Velocity,
-            receiver.Position,
-            targetVelocityForThrow,
+            leadTarget,
             throwSpeed,
             pressure,
             offensiveTeam,
             _rng);
-
-        Vector2 toReceiver = receiver.Position - qb.Position;
-        float leadTime = _throwingMechanics.CalculateInterceptTime(toReceiver, targetVelocityForThrow, throwSpeed);
-        leadTime = Math.Clamp(leadTime, 0f, Constants.BallMaxAirTime);
-        Vector2 leadTarget = receiver.Position + targetVelocityForThrow * leadTime;
         float intendedDistance = Vector2.Distance(qb.Position, leadTarget);
 
         float overthrowAllowance = GetOverthrowAllowance(intendedDistance);
@@ -296,6 +292,26 @@ public sealed class BallController
         }
 
         return targetVelocity;
+    }
+
+    private Vector2 ResolveLeadTarget(Vector2 qbPosition, Receiver receiver, Vector2 targetVelocityForThrow, float throwSpeed)
+    {
+        Vector2 toReceiver = receiver.Position - qbPosition;
+        float leadTime = _throwingMechanics.CalculateInterceptTime(toReceiver, targetVelocityForThrow, throwSpeed);
+        leadTime = Math.Clamp(leadTime, 0f, Constants.BallMaxAirTime);
+
+        Vector2 leadTarget = receiver.Position + targetVelocityForThrow * leadTime;
+        return ClampLeadTargetToField(leadTarget);
+    }
+
+    private static Vector2 ClampLeadTargetToField(Vector2 leadTarget)
+    {
+        const float sidelinePadding = 0.65f;
+        const float verticalPadding = 0.5f;
+
+        return new Vector2(
+            Math.Clamp(leadTarget.X, sidelinePadding, Constants.FieldWidth - sidelinePadding),
+            Math.Clamp(leadTarget.Y, verticalPadding, Constants.FieldLength - verticalPadding));
     }
 
     private static float GetOverthrowAllowance(float intendedDistance)
