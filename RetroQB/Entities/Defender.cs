@@ -17,7 +17,8 @@ public enum CoverageRole
     FlatRight,
     HookLeft,
     HookMiddle,
-    HookRight
+    HookRight,
+    Robber
 }
 
 public enum DefensivePosition

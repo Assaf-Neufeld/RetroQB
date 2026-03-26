@@ -79,6 +79,7 @@ public static class ZoneCoverage
             CoverageRole.HookLeft => new Vector2(Constants.FieldWidth * 0.38f, lineOfScrimmage + Constants.ZoneCoverageDepth - 0.4f),
             CoverageRole.HookMiddle => new Vector2(Constants.FieldWidth * 0.50f, lineOfScrimmage + Constants.ZoneCoverageDepth + 0.9f),
             CoverageRole.HookRight => new Vector2(Constants.FieldWidth * 0.62f, lineOfScrimmage + Constants.ZoneCoverageDepth - 0.4f),
+            CoverageRole.Robber => new Vector2(Constants.FieldWidth * 0.50f, lineOfScrimmage + Constants.ZoneCoverageDepthFlat + 1.2f),
             _ => new Vector2(Constants.FieldWidth * 0.50f, lineOfScrimmage + depth)
         };
 
@@ -138,7 +139,7 @@ public static class ZoneCoverage
             or CoverageRole.DeepQuarterLeft or CoverageRole.DeepQuarterRight;
 
     private static bool IsHookZone(CoverageRole role) =>
-        role is CoverageRole.HookLeft or CoverageRole.HookMiddle or CoverageRole.HookRight;
+        role is CoverageRole.HookLeft or CoverageRole.HookMiddle or CoverageRole.HookRight or CoverageRole.Robber;
 
     private static bool IsFlatZone(CoverageRole role) =>
         role is CoverageRole.FlatLeft or CoverageRole.FlatRight;
@@ -454,6 +455,7 @@ public static class ZoneCoverage
         float desiredX = Math.Clamp(projected.X + leverageX, xMin, xMax);
         float xTrackBlend = defender.ZoneRole switch
         {
+            CoverageRole.Robber => 0.62f,
             CoverageRole.HookMiddle => 0.26f,
             CoverageRole.HookLeft or CoverageRole.HookRight => 0.34f,
             CoverageRole.FlatLeft or CoverageRole.FlatRight => 0.82f,
@@ -469,6 +471,7 @@ public static class ZoneCoverage
 
         float yTrackBlend = defender.ZoneRole switch
         {
+            CoverageRole.Robber => 0.66f,
             CoverageRole.HookMiddle => 0.35f,
             CoverageRole.HookLeft or CoverageRole.HookRight => 0.40f,
             CoverageRole.FlatLeft or CoverageRole.FlatRight => 0.72f,
@@ -514,6 +517,7 @@ public static class ZoneCoverage
     {
         return role switch
         {
+            CoverageRole.Robber => Constants.ZoneHookMiddleStretch * 0.58f,
             CoverageRole.HookMiddle => Constants.ZoneHookMiddleStretch,
             CoverageRole.HookLeft or CoverageRole.HookRight => Constants.ZoneHookSideStretch,
             CoverageRole.FlatLeft or CoverageRole.FlatRight => Constants.ZoneFlatStretch,
@@ -526,6 +530,7 @@ public static class ZoneCoverage
         return role switch
         {
             CoverageRole.FlatLeft or CoverageRole.FlatRight => lineOfScrimmage + Constants.ZoneCoverageDepth + Constants.ZoneMatchDepthBuffer,
+            CoverageRole.Robber => lineOfScrimmage + Constants.ZoneCoverageDepth + Constants.ZoneMatchDepthBuffer * 0.75f,
             CoverageRole.HookLeft or CoverageRole.HookMiddle or CoverageRole.HookRight => lineOfScrimmage + Constants.ZoneCoverageDepthDb + Constants.ZoneMatchDepthBuffer,
             _ => MathF.Max(bounds.YMax, lineOfScrimmage + Constants.ZoneCarryDepth)
         };
@@ -564,6 +569,11 @@ public static class ZoneCoverage
                 Constants.FieldWidth * 0.62f,
                 Constants.ZoneMatchWidthHook,
                 lineOfScrimmage + Constants.ZoneCoverageDepth + Constants.ZoneMatchDepthBuffer
+            ),
+            CoverageRole.Robber => (
+                Constants.FieldWidth * 0.50f,
+                Constants.ZoneMatchWidthHook * 0.62f,
+                lineOfScrimmage + Constants.ZoneCoverageDepth + Constants.ZoneMatchDepthBuffer * 0.7f
             ),
             CoverageRole.DeepLeft => GetDeepZoneParameters(0.25f, lineOfScrimmage, ref yMin),
             CoverageRole.DeepMiddle => GetDeepZoneParameters(0.50f, lineOfScrimmage, ref yMin),

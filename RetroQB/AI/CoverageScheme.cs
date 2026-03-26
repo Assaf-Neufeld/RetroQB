@@ -37,10 +37,28 @@ public enum CoverageScheme
     Cover4Zone,
 
     /// <summary>
+    /// Three-deep shell with underneath defenders matching inside releases more tightly.
+    /// Plays like a simplified zone-match concept without full pattern-match logic.
+    /// </summary>
+    Cover3Match,
+
+    /// <summary>
+    /// Four-deep quarters shell with underneath linebackers carrying inside routes.
+    /// More aggressive on vertical releases than static Cover 4 zone.
+    /// </summary>
+    QuartersMatch,
+
+    /// <summary>
     /// Two deep safeties in zone with CBs and LBs playing man underneath.
     /// Hybrid scheme blending man tightness with deep zone safety.
     /// </summary>
-    Cover2Man
+    Cover2Man,
+
+    /// <summary>
+    /// Single-high man shell with a low-hole robber sitting inside to jump crossers.
+    /// Sacrifices pure underneath man integrity for extra middle help.
+    /// </summary>
+    Robber
 }
 
 /// <summary>
@@ -50,13 +68,13 @@ public enum CoverageScheme
 /// </summary>
 public static class CoverageSchemeSelector
 {
-    // ---- Baseline weight tables (C0, C1, C2Z, C3Z, C4Z, C2M) ----
+    // ---- Baseline weight tables (C0, C1, C2Z, C3Z, C4Z, C3M, QMatch, C2M, Robber) ----
 
-    private static readonly float[] Baseline    = { 5f, 20f, 25f, 25f, 10f, 15f };
-    private static readonly float[] Aggressive  = { 15f, 30f, 10f, 10f, 5f, 30f };
-    private static readonly float[] Conservative = { 0f, 5f, 20f, 35f, 30f, 10f };
-    private static readonly float[] ShortYardage = { 10f, 30f, 15f, 10f, 5f, 30f };
-    private static readonly float[] RedZone     = { 12f, 35f, 15f, 15f, 8f, 15f };
+    private static readonly float[] Baseline     = { 5f, 18f, 24f, 20f, 8f, 9f, 6f, 13f, 11f };
+    private static readonly float[] Aggressive   = { 15f, 26f, 9f, 9f, 4f, 13f, 4f, 24f, 18f };
+    private static readonly float[] Conservative = { 0f, 5f, 18f, 28f, 22f, 11f, 18f, 8f, 6f };
+    private static readonly float[] ShortYardage = { 10f, 28f, 14f, 9f, 4f, 11f, 5f, 23f, 17f };
+    private static readonly float[] RedZone      = { 12f, 30f, 13f, 12f, 7f, 14f, 10f, 13f, 19f };
 
     private static readonly CoverageScheme[] SchemeOrder =
     {
@@ -65,7 +83,10 @@ public static class CoverageSchemeSelector
         CoverageScheme.Cover2Zone,
         CoverageScheme.Cover3Zone,
         CoverageScheme.Cover4Zone,
-        CoverageScheme.Cover2Man
+        CoverageScheme.Cover3Match,
+        CoverageScheme.QuartersMatch,
+        CoverageScheme.Cover2Man,
+        CoverageScheme.Robber
     };
 
     // ---- Pipeline: Step 1 — situational weights ----
@@ -92,17 +113,22 @@ public static class CoverageSchemeSelector
         switch (stage)
         {
             case SeasonStage.RegularSeason:
-                weights[CoverageScheme.Cover0] = 0f;
+                weights[CoverageScheme.Cover0] *= 0.12f;
                 weights[CoverageScheme.Cover1] *= 0.35f;
                 weights[CoverageScheme.Cover2Zone] *= 1.20f;
                 weights[CoverageScheme.Cover3Zone] *= 1.05f;
-                weights[CoverageScheme.Cover4Zone] = 0f;
+                weights[CoverageScheme.Cover4Zone] *= 0.22f;
+                weights[CoverageScheme.Cover3Match] *= 0.20f;
+                weights[CoverageScheme.QuartersMatch] *= 0.18f;
                 weights[CoverageScheme.Cover2Man] *= 0.25f;
+                weights[CoverageScheme.Robber] *= 0.30f;
                 break;
 
             case SeasonStage.Playoff:
-                weights[CoverageScheme.Cover0] = 0f;
-                // all others unchanged
+                weights[CoverageScheme.Cover0] *= 0.35f;
+                weights[CoverageScheme.Cover3Match] *= 1.05f;
+                weights[CoverageScheme.QuartersMatch] *= 0.90f;
+                weights[CoverageScheme.Robber] *= 1.05f;
                 break;
 
             case SeasonStage.SuperBowl:
@@ -154,7 +180,7 @@ public static class CoverageSchemeSelector
             }
         }
 
-        return CoverageScheme.Cover2Man;
+        return CoverageScheme.Cover2Zone;
     }
 
     // ---- Internals ----

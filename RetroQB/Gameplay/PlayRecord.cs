@@ -137,7 +137,10 @@ public sealed class PlayRecord
             CoverageScheme.Cover2Zone => "Cover 2 Zone",
             CoverageScheme.Cover3Zone => "Cover 3 Zone",
             CoverageScheme.Cover4Zone => "Cover 4",
+            CoverageScheme.Cover3Match => "Cover 3 Match",
+            CoverageScheme.QuartersMatch => "Quarters Match",
             CoverageScheme.Cover2Man => "Cover 2 Man",
+            CoverageScheme.Robber => "Robber",
             _ => scheme.ToString()
         };
     }

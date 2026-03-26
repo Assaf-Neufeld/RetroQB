@@ -127,6 +127,24 @@ public sealed class DefaultBlitzDecisionStrategy : IBlitzDecisionStrategy
                 [BlitzPackage.DoubleLinebacker] = 0.11f,
                 [BlitzPackage.DoubleEdge] = 0.05f
             },
+            CoverageScheme.Cover3Match => new Dictionary<BlitzPackage, float>
+            {
+                [BlitzPackage.None] = 0.57f,
+                [BlitzPackage.WillPressure] = 0.11f,
+                [BlitzPackage.MikePressure] = 0.08f,
+                [BlitzPackage.StrongSafetyPressure] = 0.06f,
+                [BlitzPackage.DoubleLinebacker] = 0.12f,
+                [BlitzPackage.DoubleEdge] = 0.06f
+            },
+            CoverageScheme.QuartersMatch => new Dictionary<BlitzPackage, float>
+            {
+                [BlitzPackage.None] = 0.67f,
+                [BlitzPackage.WillPressure] = 0.10f,
+                [BlitzPackage.MikePressure] = 0.07f,
+                [BlitzPackage.StrongSafetyPressure] = 0.04f,
+                [BlitzPackage.DoubleLinebacker] = 0.08f,
+                [BlitzPackage.DoubleEdge] = 0.04f
+            },
             CoverageScheme.Cover2Man => new Dictionary<BlitzPackage, float>
             {
                 [BlitzPackage.None] = 0.50f,
@@ -160,6 +178,15 @@ public sealed class DefaultBlitzDecisionStrategy : IBlitzDecisionStrategy
                 [BlitzPackage.MikePressure] = 0.04f,
                 [BlitzPackage.StrongSafetyPressure] = 0.07f,
                 [BlitzPackage.NickelCat] = 0.05f
+            },
+            CoverageScheme.Robber => new Dictionary<BlitzPackage, float>
+            {
+                [BlitzPackage.None] = 0.47f,
+                [BlitzPackage.WillPressure] = 0.15f,
+                [BlitzPackage.MikePressure] = 0.09f,
+                [BlitzPackage.StrongSafetyPressure] = 0.03f,
+                [BlitzPackage.DoubleLinebacker] = 0.16f,
+                [BlitzPackage.DoubleEdge] = 0.06f
             },
             _ => new Dictionary<BlitzPackage, float>
             {

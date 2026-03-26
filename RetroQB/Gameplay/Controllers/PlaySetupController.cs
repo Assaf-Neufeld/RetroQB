@@ -38,6 +38,10 @@ public sealed class PlaySetupController
         // Create offensive formation
         var formationResult = _formationFactory.CreateFormation(selectedPlay, context.LineOfScrimmage, offensiveTeam);
 
+        // Assign routes before building the defense so coverage logic sees the actual
+        // eligible receivers instead of the raw pre-snap formation shell.
+        RouteAssigner.AssignRoutes(formationResult.Receivers, selectedPlay, _rng);
+
         // Create defense using the pre-decided scheme + blitz
         var defenseResult = _defenseFactory.CreateDefense(
             context,
@@ -45,9 +49,6 @@ public sealed class PlaySetupController
             formationResult.Receivers,
             _rng,
             defensiveTeam);
-
-        // Assign routes to receivers
-        RouteAssigner.AssignRoutes(formationResult.Receivers, selectedPlay, _rng);
 
         return new PlaySetupResult(
             formationResult.Qb,

@@ -78,7 +78,7 @@ public sealed class DefenseFactory : IDefenseFactory
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, lbDepth), DefensivePosition.LB, DefenderSlot.OLB1, attrs)
         {
             IsRusher = blitzDecision.IsBlitzer(DefenderSlot.OLB1),
-            CoverageReceiverIndex = IsManForPosition(scheme, CoverageUnit.Linebacker) ? leftSlot : -1,
+            CoverageReceiverIndex = IsManForPosition(scheme, DefenderSlot.OLB1, CoverageUnit.Linebacker) ? leftSlot : -1,
             ZoneRole = lbRoles.left,
             ZoneJitterX = GetJitter(rng),
             RushLaneOffsetX = -7.0f
@@ -88,7 +88,7 @@ public sealed class DefenseFactory : IDefenseFactory
             defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.50f, lbDepth), DefensivePosition.LB, DefenderSlot.MLB, attrs)
             {
                 IsRusher = blitzDecision.IsBlitzer(DefenderSlot.MLB),
-                CoverageReceiverIndex = IsManForPosition(scheme, CoverageUnit.Linebacker) ? middle : -1,
+                CoverageReceiverIndex = IsManForPosition(scheme, DefenderSlot.MLB, CoverageUnit.Linebacker) ? middle : -1,
                 ZoneRole = lbRoles.middle,
                 ZoneJitterX = GetJitter(rng),
                 RushLaneOffsetX = 0f
@@ -97,7 +97,7 @@ public sealed class DefenseFactory : IDefenseFactory
         defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, lbDepth), DefensivePosition.LB, DefenderSlot.OLB2, attrs)
         {
             IsRusher = blitzDecision.IsBlitzer(DefenderSlot.OLB2),
-            CoverageReceiverIndex = IsManForPosition(scheme, CoverageUnit.Linebacker) ? rightSlot : -1,
+            CoverageReceiverIndex = IsManForPosition(scheme, DefenderSlot.OLB2, CoverageUnit.Linebacker) ? rightSlot : -1,
             ZoneRole = lbRoles.right,
             ZoneJitterX = GetJitter(rng),
             RushLaneOffsetX = 7.0f
@@ -150,7 +150,7 @@ public sealed class DefenseFactory : IDefenseFactory
         defenders.Add(new Defender(new Vector2(dbConfig.LeftSafetyX, dbConfig.LeftSafetyDepth), DefensivePosition.DB, DefenderSlot.FS, attrs)
         {
             IsRusher = blitzDecision.IsBlitzer(DefenderSlot.FS),
-            CoverageReceiverIndex = IsManForPosition(scheme, CoverageUnit.Safety) ? leftSlot : -1,
+            CoverageReceiverIndex = IsManForPosition(scheme, DefenderSlot.FS, CoverageUnit.Safety) ? leftSlot : -1,
             ZoneRole = dbConfig.LeftSafetyZone,
             IsPressCoverage = false,
             ZoneJitterX = GetJitter(rng),
@@ -159,12 +159,14 @@ public sealed class DefenseFactory : IDefenseFactory
         defenders.Add(new Defender(new Vector2(dbConfig.RightSafetyX, dbConfig.RightSafetyDepth), DefensivePosition.DB, DefenderSlot.SS, attrs)
         {
             IsRusher = blitzDecision.IsBlitzer(DefenderSlot.SS),
-            CoverageReceiverIndex = IsManForPosition(scheme, CoverageUnit.Safety) ? rightSlot : -1,
+            CoverageReceiverIndex = IsManForPosition(scheme, DefenderSlot.SS, CoverageUnit.Safety) ? rightSlot : -1,
             ZoneRole = dbConfig.RightSafetyZone,
             IsPressCoverage = false,
             ZoneJitterX = GetJitter(rng),
             RushLaneOffsetX = 3.5f
         });
+
+        ApplyUniqueCoverageAssignments(scheme, defenders, receivers);
 
         ApplyStarPlayers(defenders, context.Stage);
 
@@ -294,10 +296,13 @@ public sealed class DefenseFactory : IDefenseFactory
         CoverageScheme.Cover2Zone => true,
         CoverageScheme.Cover3Zone => true,
         CoverageScheme.Cover4Zone => true,
-        // Cover1 and Cover2Man are hybrid: the zone flag must be true
+        CoverageScheme.Cover3Match => true,
+        CoverageScheme.QuartersMatch => true,
+        // Cover1, Cover2Man, and Robber are hybrid: the zone flag must be true
         // so that defenders with ZoneRole != None use zone logic.
         CoverageScheme.Cover1 => true,
         CoverageScheme.Cover2Man => true,
+        CoverageScheme.Robber => true,
         _ => false
     };
 
@@ -309,11 +314,14 @@ public sealed class DefenseFactory : IDefenseFactory
     /// <summary>
     /// Returns true if the given unit plays man coverage in this scheme.
     /// </summary>
-    private static bool IsManForPosition(CoverageScheme scheme, CoverageUnit unit) => scheme switch
+    private static bool IsManForPosition(CoverageScheme scheme, DefenderSlot slot, CoverageUnit unit) => scheme switch
     {
         CoverageScheme.Cover0 => true,
         CoverageScheme.Cover1 => unit != CoverageUnit.Safety,
         CoverageScheme.Cover2Man => unit == CoverageUnit.Linebacker,
+        CoverageScheme.Cover3Match => false,
+        CoverageScheme.QuartersMatch => false,
+        CoverageScheme.Robber => unit == CoverageUnit.Linebacker,
         CoverageScheme.Cover2Zone => false,
         CoverageScheme.Cover3Zone => false,
         CoverageScheme.Cover4Zone => false,
@@ -328,7 +336,10 @@ public sealed class DefenseFactory : IDefenseFactory
         {
             CoverageScheme.Cover0 => (CoverageRole.None, CoverageRole.None, CoverageRole.None),
             CoverageScheme.Cover1 => (CoverageRole.None, CoverageRole.None, CoverageRole.None),
+            CoverageScheme.Cover3Match => (CoverageRole.HookLeft, CoverageRole.HookMiddle, CoverageRole.HookRight),
+            CoverageScheme.QuartersMatch => (CoverageRole.HookLeft, CoverageRole.HookMiddle, CoverageRole.HookRight),
             CoverageScheme.Cover2Man => (CoverageRole.None, CoverageRole.None, CoverageRole.None),
+            CoverageScheme.Robber => (CoverageRole.None, CoverageRole.None, CoverageRole.None),
             CoverageScheme.Cover2Zone => (CoverageRole.HookLeft, CoverageRole.HookMiddle, CoverageRole.HookRight),
             CoverageScheme.Cover3Zone => (CoverageRole.HookLeft, CoverageRole.HookMiddle, CoverageRole.HookRight),
             CoverageScheme.Cover4Zone => (CoverageRole.HookLeft, CoverageRole.HookMiddle, CoverageRole.HookRight),
@@ -378,6 +389,7 @@ public sealed class DefenseFactory : IDefenseFactory
         bool hasNickelPackage = UsesNickelPackage(scheme);
         float fw = Constants.FieldWidth;
         bool cover1Press = rng.NextDouble() < 0.6;
+        bool robberPress = rng.NextDouble() < 0.78;
         bool cover2ManPress = rng.NextDouble() < 0.4;
 
         // Common depth calculations
@@ -494,6 +506,46 @@ public sealed class DefenseFactory : IDefenseFactory
                 nickelZone: CoverageRole.HookMiddle
             ),
 
+            // Cover 3 Match: three-deep shell with a shallow robber helping on crossers.
+            CoverageScheme.Cover3Match => new DbConfig(
+                leftCbX: GetReceiverXOrDefault(receivers, left, fw * 0.18f),
+                leftCbDepth: offCbDepth,
+                leftCbZone: CoverageRole.DeepLeft,
+                rightCbX: GetReceiverXOrDefault(receivers, right, fw * 0.82f),
+                rightCbDepth: offCbDepth,
+                rightCbZone: CoverageRole.DeepRight,
+                cbPress: false,
+                leftSafetyX: fw * 0.50f,
+                leftSafetyDepth: deepSafetyDepth,
+                leftSafetyZone: CoverageRole.DeepMiddle,
+                rightSafetyX: GetReceiverXOrDefault(receivers, middle, fw * 0.50f),
+                rightSafetyDepth: ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(8.2f, 5.6f, depthScale), minY, maxY),
+                rightSafetyZone: CoverageRole.Robber,
+                nickelX: -1f,
+                nickelDepth: shallowSafetyDepth,
+                nickelZone: CoverageRole.None
+            ),
+
+            // Quarters Match: four deep defenders with linebackers carrying underneath routes.
+            CoverageScheme.QuartersMatch => new DbConfig(
+                leftCbX: GetReceiverXOrDefault(receivers, left, fw * 0.18f),
+                leftCbDepth: offCbDepth,
+                leftCbZone: CoverageRole.DeepLeft,
+                rightCbX: GetReceiverXOrDefault(receivers, right, fw * 0.82f),
+                rightCbDepth: offCbDepth,
+                rightCbZone: CoverageRole.DeepRight,
+                cbPress: false,
+                leftSafetyX: fw * 0.38f,
+                leftSafetyDepth: ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(14.2f, 9.4f, depthScale), minY, maxY),
+                leftSafetyZone: CoverageRole.DeepQuarterLeft,
+                rightSafetyX: fw * 0.62f,
+                rightSafetyDepth: ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(14.2f, 9.4f, depthScale), minY, maxY),
+                rightSafetyZone: CoverageRole.DeepQuarterRight,
+                nickelX: -1f,
+                nickelDepth: shallowSafetyDepth,
+                nickelZone: CoverageRole.None
+            ),
+
             // Cover 2 Man: Two deep safeties (zone), CBs and LBs play man underneath
             CoverageScheme.Cover2Man => new DbConfig(
                 leftCbX: GetReceiverXOrDefault(receivers, left, fw * 0.18f),
@@ -510,6 +562,26 @@ public sealed class DefenseFactory : IDefenseFactory
                 rightSafetyDepth: deepSafetyDepth,
                 rightSafetyZone: CoverageRole.DeepRight,
                 nickelX: hasNickelPackage ? GetReceiverXOrDefault(receivers, middle, fw * 0.50f) : -1,
+                nickelDepth: shallowSafetyDepth,
+                nickelZone: CoverageRole.None
+            ),
+
+            // Robber: tight outside man with a low-hole safety poaching the middle.
+            CoverageScheme.Robber => new DbConfig(
+                leftCbX: GetReceiverXOrDefault(receivers, left, fw * 0.18f),
+                leftCbDepth: robberPress ? pressDepth : offCbDepth,
+                leftCbZone: CoverageRole.None,
+                rightCbX: GetReceiverXOrDefault(receivers, right, fw * 0.82f),
+                rightCbDepth: robberPress ? pressDepth : offCbDepth,
+                rightCbZone: CoverageRole.None,
+                cbPress: robberPress,
+                leftSafetyX: fw * 0.50f,
+                leftSafetyDepth: deepSafetyDepth,
+                leftSafetyZone: CoverageRole.DeepMiddle,
+                rightSafetyX: GetReceiverXOrDefault(receivers, middle, fw * 0.50f),
+                rightSafetyDepth: ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(7.0f, 4.6f, depthScale), minY, maxY),
+                rightSafetyZone: CoverageRole.Robber,
+                nickelX: -1f,
                 nickelDepth: shallowSafetyDepth,
                 nickelZone: CoverageRole.None
             ),
@@ -537,25 +609,33 @@ public sealed class DefenseFactory : IDefenseFactory
         return minOffset + (baseOffset - minOffset) * depthScale;
     }
 
-    private static void ResolveCoverageIndices(List<Receiver> receivers, out int left, out int leftSlot, out int middle, out int rightSlot, out int right)
+    private static void ResolveCoverageIndices(IReadOnlyList<Receiver> receivers, out int left, out int leftSlot, out int middle, out int rightSlot, out int right)
     {
-        if (receivers.Count == 0)
+        var coverageReceivers = receivers
+            .Where(receiver => receiver.Eligible)
+            .ToList();
+
+        if (coverageReceivers.Count == 0)
+        {
+            coverageReceivers = receivers.ToList();
+        }
+
+        if (coverageReceivers.Count == 0)
         {
             left = leftSlot = middle = rightSlot = right = -1;
             return;
         }
 
-        var ordered = receivers
-            .Select((receiver, index) => new { receiver.Position.X, index })
-            .OrderBy(item => item.X)
-            .Select(item => item.index)
+        var ordered = coverageReceivers
+            .OrderBy(receiver => receiver.Position.X)
+            .Select(item => item.Index)
             .ToList();
 
         left = ordered[0];
         right = ordered[^1];
-        middle = ordered[ordered.Count / 2];
-        leftSlot = ordered.Count > 2 ? ordered[1] : left;
-        rightSlot = ordered.Count > 3 ? ordered[^2] : right;
+        middle = ordered.Count >= 3 ? ordered[ordered.Count / 2] : -1;
+        leftSlot = ordered.Count >= 4 ? ordered[1] : -1;
+        rightSlot = ordered.Count >= 4 ? ordered[^2] : -1;
     }
 
     private static float GetReceiverXOrDefault(IReadOnlyList<Receiver> receivers, int receiverIndex, float fallbackX)
@@ -566,5 +646,109 @@ public sealed class DefenseFactory : IDefenseFactory
         }
 
         return fallbackX;
+    }
+
+    private static void ApplyUniqueCoverageAssignments(CoverageScheme scheme, List<Defender> defenders, IReadOnlyList<Receiver> receivers)
+    {
+        var coverageReceivers = receivers
+            .Where(receiver => receiver.Eligible)
+            .ToList();
+
+        if (coverageReceivers.Count == 0)
+        {
+            return;
+        }
+
+        var candidates = GetCoverageAssignmentCandidates(scheme, defenders);
+        if (candidates.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var candidate in candidates)
+        {
+            candidate.Defender.CoverageReceiverIndex = -1;
+            candidate.Defender.ZoneRole = candidate.OriginalZoneRole;
+        }
+
+        var remainingCandidates = new List<CoverageAssignmentCandidate>(candidates);
+        var availableReceivers = coverageReceivers.Select(receiver => receiver.Index).ToHashSet();
+
+        while (remainingCandidates.Count > 0 && availableReceivers.Count > 0)
+        {
+            CoverageAssignmentCandidate? bestCandidate = null;
+            int bestReceiverIndex = -1;
+            float bestDistSq = float.MaxValue;
+
+            foreach (CoverageAssignmentCandidate candidate in remainingCandidates)
+            {
+                foreach (int receiverIndex in availableReceivers)
+                {
+                    float distSq = Vector2.DistanceSquared(candidate.Defender.Position, receivers[receiverIndex].Position);
+                    if (distSq < bestDistSq)
+                    {
+                        bestDistSq = distSq;
+                        bestCandidate = candidate;
+                        bestReceiverIndex = receiverIndex;
+                    }
+                }
+            }
+
+            if (bestCandidate is null || bestReceiverIndex < 0)
+            {
+                break;
+            }
+
+            bestCandidate.Defender.CoverageReceiverIndex = bestReceiverIndex;
+            if (bestCandidate.ClearZoneRoleOnAssignment)
+            {
+                bestCandidate.Defender.ZoneRole = CoverageRole.None;
+            }
+
+            remainingCandidates.Remove(bestCandidate);
+            availableReceivers.Remove(bestReceiverIndex);
+        }
+
+        foreach (CoverageAssignmentCandidate candidate in remainingCandidates)
+        {
+            candidate.Defender.CoverageReceiverIndex = -1;
+            candidate.Defender.ZoneRole = candidate.OriginalZoneRole;
+        }
+    }
+
+    private static List<CoverageAssignmentCandidate> GetCoverageAssignmentCandidates(CoverageScheme scheme, IReadOnlyList<Defender> defenders)
+    {
+        return scheme switch
+        {
+            CoverageScheme.Cover0 or CoverageScheme.Cover1 or CoverageScheme.Cover2Man or CoverageScheme.Robber => defenders
+                .Where(defender => !defender.IsRusher
+                    && defender.CoverageReceiverIndex >= 0
+                    && defender.ZoneRole == CoverageRole.None)
+                .Select(defender => new CoverageAssignmentCandidate(defender, defender.ZoneRole, ClearZoneRoleOnAssignment: false))
+                .ToList(),
+
+            CoverageScheme.Cover3Match or CoverageScheme.QuartersMatch => defenders
+                .Where(defender => !defender.IsRusher
+                    && defender.PositionRole is DefensivePosition.LB or DefensivePosition.DB
+                    && !IsDeepZoneRole(defender.ZoneRole))
+                .Select(defender => new CoverageAssignmentCandidate(defender, defender.ZoneRole, ClearZoneRoleOnAssignment: true))
+                .ToList(),
+
+            _ => new List<CoverageAssignmentCandidate>()
+        };
+    }
+
+    private sealed record CoverageAssignmentCandidate(
+        Defender Defender,
+        CoverageRole OriginalZoneRole,
+        bool ClearZoneRoleOnAssignment);
+
+    private static bool IsDeepZoneRole(CoverageRole role)
+    {
+        return role is CoverageRole.DeepLeft
+            or CoverageRole.DeepMiddle
+            or CoverageRole.DeepRight
+            or CoverageRole.DeepQuarterLeft
+            or CoverageRole.DeepQuarterRight;
     }
 }
