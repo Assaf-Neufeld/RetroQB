@@ -4,6 +4,7 @@ namespace RetroQB.Audio;
 
 public sealed class RetroMidiMusicController : IDisposable
 {
+    private const bool MusicEnabled = false;
     private const int SampleRate = 44100;
     private const short BitsPerSample = 16;
     private const short Channels = 1;
@@ -42,13 +43,23 @@ public sealed class RetroMidiMusicController : IDisposable
         _currentVolume = 0f;
 
         Raylib.SetMusicVolume(_music, _currentVolume);
-        Raylib.PlayMusicStream(_music);
     }
 
     public void Update(GameState state, bool isPaused, float dt)
     {
         if (_disposed)
         {
+            return;
+        }
+
+        if (!MusicEnabled)
+        {
+            if (Raylib.IsMusicStreamPlaying(_music))
+            {
+                Raylib.StopMusicStream(_music);
+                Raylib.SeekMusicStream(_music, 0f);
+            }
+
             return;
         }
 
