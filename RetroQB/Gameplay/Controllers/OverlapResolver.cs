@@ -171,6 +171,14 @@ public sealed class OverlapResolver
                     bool bIsReceiver = b is Receiver;
                     float pressLimit = lineOfScrimmage + PressZoneYards;
 
+                    if (a is Receiver receiverA && b is Receiver receiverB
+                        && !receiverA.IsBlocking && !receiverB.IsBlocking
+                        && !receiverA.HasBall && !receiverB.HasBall)
+                    {
+                        ResolveRouteRunnerOverlap(receiverA, receiverB, minDist - dist, clampToField);
+                        continue;
+                    }
+
                     if (aIsReceiver && bIsDefender)
                     {
                         var recv = (Receiver)a;
@@ -223,5 +231,51 @@ public sealed class OverlapResolver
                 }
             }
         }
+    }
+
+    private static void ResolveRouteRunnerOverlap(Receiver a, Receiver b, float overlap, Action<Entity> clampToField)
+    {
+        Vector2 avgVelocity = a.Velocity + b.Velocity;
+        Vector2 forwardDir = avgVelocity.LengthSquared() > 0.001f
+            ? Vector2.Normalize(avgVelocity)
+            : new Vector2(0f, 1f);
+
+        Vector2 lateralDir = new(-forwardDir.Y, forwardDir.X);
+        if (lateralDir.LengthSquared() <= 0.0001f)
+        {
+            lateralDir = new Vector2(1f, 0f);
+        }
+        else
+        {
+            lateralDir = Vector2.Normalize(lateralDir);
+        }
+
+        Vector2 positionDelta = b.Position - a.Position;
+        float lateralSign = MathF.Sign(Vector2.Dot(positionDelta, lateralDir));
+        if (lateralSign == 0f)
+        {
+            float routeStartSign = MathF.Sign(Vector2.Dot(b.RouteStart - a.RouteStart, lateralDir));
+            lateralSign = routeStartSign != 0f ? routeStartSign : (a.Index < b.Index ? 1f : -1f);
+        }
+
+        float lateralPush = overlap * 0.8f;
+        float forwardGap = MathF.Abs(Vector2.Dot(positionDelta, forwardDir));
+        float forwardNudge = forwardGap < 0.35f ? overlap * 0.12f : 0f;
+        float orderingSign = MathF.Sign(Vector2.Dot(positionDelta, forwardDir));
+        if (orderingSign == 0f)
+        {
+            orderingSign = a.Index < b.Index ? 1f : -1f;
+        }
+
+        Vector2 separation = lateralDir * lateralSign * lateralPush;
+        Vector2 leadLag = forwardDir * orderingSign * forwardNudge;
+
+        a.Position -= separation;
+        b.Position += separation;
+        a.Position -= leadLag;
+        b.Position += leadLag;
+
+        clampToField(a);
+        clampToField(b);
     }
 }

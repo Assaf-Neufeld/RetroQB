@@ -213,89 +213,8 @@ public sealed class ReceiverUpdateController
             }
         }
 
-        ApplyReceiverSpacing(receiver, receivers);
-
         receiver.Update(dt);
         clampToField(receiver);
-    }
-
-    private static void ApplyReceiverSpacing(Receiver receiver, IReadOnlyList<Receiver> receivers)
-    {
-        if (receiver.IsBlocking || receiver.HasBall || receiver.Velocity.LengthSquared() < 0.001f)
-        {
-            return;
-        }
-
-        Vector2 baseDir = Vector2.Normalize(receiver.Velocity);
-        Vector2 combinedAvoidance = Vector2.Zero;
-
-        const float triggerDistance = 2.75f;
-        const float directSeparationDistance = 1.55f;
-        const float maxVerticalGap = 4.25f;
-
-        foreach (var other in receivers)
-        {
-            if (ReferenceEquals(other, receiver) || other.IsBlocking || other.HasBall)
-            {
-                continue;
-            }
-
-            Vector2 offset = receiver.Position - other.Position;
-            float distSq = offset.LengthSquared();
-            if (distSq <= 0.0001f || distSq > triggerDistance * triggerDistance)
-            {
-                continue;
-            }
-
-            float verticalGap = MathF.Abs(receiver.Position.Y - other.Position.Y);
-            if (verticalGap > maxVerticalGap)
-            {
-                continue;
-            }
-
-            Vector2 otherDir = other.Velocity.LengthSquared() > 0.001f
-                ? Vector2.Normalize(other.Velocity)
-                : baseDir;
-
-            float alignment = Vector2.Dot(baseDir, otherDir);
-            if (alignment < -0.2f && verticalGap > 1.1f)
-            {
-                continue;
-            }
-
-            float distance = MathF.Sqrt(distSq);
-            float proximity = 1f - Math.Clamp(distance / triggerDistance, 0f, 1f);
-            float alignmentFactor = Math.Clamp((alignment + 1f) * 0.5f, 0.25f, 1f);
-
-            Vector2 sidestepRight = new(baseDir.Y, -baseDir.X);
-            if (sidestepRight.LengthSquared() > 0.0001f)
-            {
-                sidestepRight = Vector2.Normalize(sidestepRight);
-                combinedAvoidance += sidestepRight * (proximity * alignmentFactor);
-            }
-
-            if (distance < directSeparationDistance)
-            {
-                combinedAvoidance += Vector2.Normalize(offset) * (0.35f * proximity);
-            }
-        }
-
-        if (combinedAvoidance.LengthSquared() < 0.0001f)
-        {
-            return;
-        }
-
-        Vector2 avoidDir = Vector2.Normalize(combinedAvoidance);
-        float avoidWeight = Math.Clamp(combinedAvoidance.Length(), 0f, 0.6f);
-        Vector2 blended = baseDir * (1f - avoidWeight) + avoidDir * avoidWeight;
-        if (blended.LengthSquared() <= 0.0001f)
-        {
-            return;
-        }
-
-        blended = Vector2.Normalize(blended);
-        float speed = receiver.Velocity.Length();
-        receiver.Velocity = blended * speed;
     }
 
     private static void ApplyRunningBackQbAvoidance(Receiver receiver, Quarterback qb)
