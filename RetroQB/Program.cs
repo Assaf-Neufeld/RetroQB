@@ -6,7 +6,6 @@ using RetroQB.Gameplay;
 
 Raylib.SetConfigFlags(ConfigFlags.ResizableWindow);
 Raylib.InitWindow(Constants.ScreenWidth, Constants.ScreenHeight, "RetroQB");
-Raylib.InitAudioDevice();
 SetWindowIconFromResource();
 Raylib.SetTargetFPS(Constants.TargetFps);
 
@@ -49,6 +48,5 @@ try
 finally
 {
 	session?.Dispose();
-	Raylib.CloseAudioDevice();
 	Raylib.CloseWindow();
 }
