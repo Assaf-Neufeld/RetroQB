@@ -251,6 +251,9 @@ public sealed class OverlapResolver
         }
 
         Vector2 positionDelta = b.Position - a.Position;
+        Vector2 normalDir = positionDelta.LengthSquared() > 0.0001f
+            ? Vector2.Normalize(positionDelta)
+            : lateralDir;
         float lateralSign = MathF.Sign(Vector2.Dot(positionDelta, lateralDir));
         if (lateralSign == 0f)
         {
@@ -258,7 +261,8 @@ public sealed class OverlapResolver
             lateralSign = routeStartSign != 0f ? routeStartSign : (a.Index < b.Index ? 1f : -1f);
         }
 
-        float lateralPush = overlap * 0.8f;
+        float normalPush = overlap * 0.45f;
+        float lateralPush = overlap * 0.65f;
         float forwardGap = MathF.Abs(Vector2.Dot(positionDelta, forwardDir));
         float forwardNudge = forwardGap < 0.35f ? overlap * 0.12f : 0f;
         float orderingSign = MathF.Sign(Vector2.Dot(positionDelta, forwardDir));
@@ -267,7 +271,16 @@ public sealed class OverlapResolver
             orderingSign = a.Index < b.Index ? 1f : -1f;
         }
 
-        Vector2 separation = lateralDir * lateralSign * lateralPush;
+        Vector2 separation = normalDir * normalPush + lateralDir * lateralSign * lateralPush;
+        if (separation.LengthSquared() > 0.0001f)
+        {
+            separation = Vector2.Normalize(separation) * overlap;
+        }
+        else
+        {
+            separation = lateralDir * lateralSign * overlap;
+        }
+
         Vector2 leadLag = forwardDir * orderingSign * forwardNudge;
 
         a.Position -= separation;
