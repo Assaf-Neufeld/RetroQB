@@ -130,7 +130,7 @@ public static class PlaybookBuilder
                     [4] = RouteType.InShallow
                 }),
 
-            // 7 - Smash (corner/flat combo)
+            // 7 - Smash (smash-style high-low combo)
             new(
                 "Smash",
                 PlayType.Pass,
@@ -139,7 +139,7 @@ public static class PlaybookBuilder
                 TightEndRole.Route,
                 new Dictionary<int, RouteType>
                 {
-                    [0] = RouteType.DoubleMove,
+                    [0] = RouteType.InShallow,
                     [1] = RouteType.OutDeep,
                     [2] = RouteType.Go,
                     [3] = RouteType.InShallow
@@ -171,8 +171,8 @@ public static class PlaybookBuilder
                 TightEndRole.Route,
                 new Dictionary<int, RouteType>
                 {
-                    [0] = RouteType.PostDeep,
-                    [1] = RouteType.Go,
+                    [0] = RouteType.Go,
+                    [1] = RouteType.PostDeep,
                     [2] = RouteType.InDeep,
                     [3] = RouteType.Go,
                     [4] = RouteType.DoubleMove
