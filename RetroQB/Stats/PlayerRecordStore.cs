@@ -38,7 +38,7 @@ public sealed class PlayerRecordStore
         var entries = sortedRecords
             .Select((record, entryIndex) => new LeaderboardEntry(
                 record.Name,
-                record.TeamName,
+                NormalizeTeamName(record.TeamName),
                 record.ScoreHistory,
                 record.ScoreDetails,
                 record.DominanceScore,
@@ -58,7 +58,7 @@ public sealed class PlayerRecordStore
     public LeaderboardSummary SaveSeasonResult(string playerName, string teamName, string scoreHistory, string scoreDetails, float seasonScore)
     {
         string normalizedName = NormalizeName(playerName);
-        string normalizedTeamName = string.IsNullOrWhiteSpace(teamName) ? "Unknown" : teamName.Trim();
+        string normalizedTeamName = NormalizeTeamName(teamName);
         string normalizedScoreHistory = NormalizeScoreHistory(scoreHistory);
         string normalizedScoreDetails = NormalizeScoreDetails(scoreDetails);
         DateTime savedAtUtc = DateTime.UtcNow;
@@ -125,7 +125,7 @@ public sealed class PlayerRecordStore
                     : record.QbRating != 0f
                         ? record.QbRating
                         : record.BestQbRating;
-                string teamName = string.IsNullOrWhiteSpace(record.TeamName) ? "Unknown" : record.TeamName.Trim();
+                string teamName = NormalizeTeamName(record.TeamName);
                 string scoreHistory = NormalizeScoreHistory(record.ScoreHistory);
                 string scoreDetails = NormalizeScoreDetails(record.ScoreDetails);
                 _records.Add(new PlayerRecord(normalizedName, teamName, scoreHistory, scoreDetails, score, record.LastUpdatedUtc));
@@ -223,6 +223,19 @@ public sealed class PlayerRecordStore
         }
 
         return rawDetails.Trim();
+    }
+
+    private static string NormalizeTeamName(string rawTeamName)
+    {
+        if (string.IsNullOrWhiteSpace(rawTeamName))
+        {
+            return "Unknown";
+        }
+
+        string normalizedTeamName = rawTeamName.Trim();
+        return string.Equals(normalizedTeamName, OffensiveTeamPresets.GoldenLegion.Name, StringComparison.OrdinalIgnoreCase)
+            ? "Passing Team"
+            : normalizedTeamName;
     }
 
     private static bool NamesMatch(string left, string right)

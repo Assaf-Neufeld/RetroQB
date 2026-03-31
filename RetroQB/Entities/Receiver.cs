@@ -57,7 +57,7 @@ public sealed class Receiver : Entity
 
     private static Color ResolveColor(ReceiverSlot slot, OffensiveTeamAttributes? teamAttributes)
     {
-        return teamAttributes?.SecondaryColor ?? Palette.Receiver;
+        return teamAttributes?.GetUniformColor() ?? Palette.Receiver;
     }
 
     public override void Update(float dt)

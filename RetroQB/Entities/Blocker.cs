@@ -16,7 +16,7 @@ public sealed class Blocker : Entity
     public OffensiveTeamAttributes TeamAttributes { get; }
 
     public Blocker(Vector2 position, OffensiveTeamAttributes? teamAttributes = null) 
-        : base(position, Constants.ReceiverRadius, "OL", teamAttributes?.SecondaryColor ?? Palette.OffensiveLine)
+        : base(position, Constants.ReceiverRadius, "OL", teamAttributes?.GetUniformColor() ?? Palette.OffensiveLine)
     {
         TeamAttributes = teamAttributes ?? OffensiveTeamAttributes.Default;
         Speed = TeamAttributes.OlSpeed;

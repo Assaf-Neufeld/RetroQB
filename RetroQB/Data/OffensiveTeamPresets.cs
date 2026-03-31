@@ -152,39 +152,40 @@ public static class OffensiveTeamPresets
     public static OffensiveTeamAttributes GoldenLegion => new()
     {
         Name = "Golden Legion",
-        Description = "Secret dynasty",
+        Description = "Elite balance",
         PrimaryColor = Palette.Gold,
         SecondaryColor = Palette.Red,
+        UsePrimaryColorForUniforms = true,
         Roster = new OffensiveRoster
         {
             Quarterback = new QbProfile
             {
                 Name = "Crown",
-                MaxSpeed = Constants.QbMaxSpeed * 1.28f,
-                SprintSpeed = Constants.QbSprintSpeed * 1.28f,
-                Acceleration = Constants.QbAcceleration * 1.3f,
-                ArmStrength = 1.3f,
-                Accuracy = 0.99f,
+                    MaxSpeed = Constants.QbMaxSpeed * 0.85f,
+                    SprintSpeed = Constants.QbSprintSpeed * 0.9f,
+                    Acceleration = Constants.QbAcceleration * 0.9f,
+                ArmStrength = 1.22f,
+                Accuracy = 0.6f,
                 DeepAccuracyPenalty = 1.02f
             },
             WideReceivers = new Dictionary<ReceiverSlot, WrProfile>
             {
-                [ReceiverSlot.WR1] = new WrProfile { Name = "Solar", Speed = Constants.WrSpeed * 1.3f, CatchingAbility = 0.99f, CatchRadius = 1.2f },
-                [ReceiverSlot.WR2] = new WrProfile { Name = "Blaze", Speed = Constants.WrSpeed * 1.28f, CatchingAbility = 0.97f, CatchRadius = 1.18f },
-                [ReceiverSlot.WR3] = new WrProfile { Name = "Glory", Speed = Constants.WrSpeed * 1.25f, CatchingAbility = 0.96f, CatchRadius = 1.16f },
-                [ReceiverSlot.WR4] = new WrProfile { Name = "Prime", Speed = Constants.WrSpeed * 1.23f, CatchingAbility = 0.95f, CatchRadius = 1.14f }
+                [ReceiverSlot.WR1] = new WrProfile { Name = "Solar", Speed = Constants.WrSpeed * 1.28f, CatchingAbility = 0.94f, CatchRadius = 1.16f },
+                [ReceiverSlot.WR2] = new WrProfile { Name = "Blaze", Speed = Constants.WrSpeed * 1.24f, CatchingAbility = 0.92f, CatchRadius = 1.13f },
+                [ReceiverSlot.WR3] = new WrProfile { Name = "Glory", Speed = Constants.WrSpeed * 1.2f, CatchingAbility = 0.9f, CatchRadius = 1.1f },
+                [ReceiverSlot.WR4] = new WrProfile { Name = "Prime", Speed = Constants.WrSpeed * 1.16f, CatchingAbility = 0.88f, CatchRadius = 1.07f }
             },
             TightEnds = new Dictionary<ReceiverSlot, TeProfile>
             {
-                [ReceiverSlot.TE1] = new TeProfile { Name = "Titan", Speed = Constants.TeSpeed * 1.22f, CatchingAbility = 0.95f, CatchRadius = 1.14f, BlockingStrength = 1.35f }
+                [ReceiverSlot.TE1] = new TeProfile { Name = "Titan", Speed = Constants.TeSpeed * 1.08f, CatchingAbility = 0.82f, CatchRadius = 1.07f, BlockingStrength = 1.3f }
             },
             RunningBacks = new Dictionary<ReceiverSlot, RbProfile>
             {
-                [ReceiverSlot.RB1] = new RbProfile { Name = "Inferno", Speed = Constants.RbSpeed * 1.3f, CatchingAbility = 0.95f, CatchRadius = 1.12f, TackleBreakChance = 0.55f }
+                [ReceiverSlot.RB1] = new RbProfile { Name = "Inferno", Speed = Constants.RbSpeed * 1.22f, CatchingAbility = 0.78f, CatchRadius = 1.06f, TackleBreakChance = 0.45f }
             },
-            OffensiveLine = new OLineProfile { Speed = Constants.OlSpeed * 1.25f, BlockingStrength = 1.4f }
+            OffensiveLine = new OLineProfile { Speed = Constants.OlSpeed * 1.22f, BlockingStrength = 1.34f }
         },
-        OverallRating = 1.35f
+        OverallRating = 1.16f
     };
 
     /// <summary>

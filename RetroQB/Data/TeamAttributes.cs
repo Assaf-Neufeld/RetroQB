@@ -50,6 +50,16 @@ public sealed class OffensiveTeamAttributes : TeamAttributes
     public Color SecondaryColor { get; init; } = Palette.Receiver;
 
     /// <summary>
+    /// When enabled, offensive players render in the primary color instead of the secondary color.
+    /// </summary>
+    public bool UsePrimaryColorForUniforms { get; init; }
+
+    public Color GetUniformColor()
+    {
+        return UsePrimaryColorForUniforms ? PrimaryColor : SecondaryColor;
+    }
+
+    /// <summary>
     /// Creates default offensive attributes (baseline team).
     /// </summary>
     public static OffensiveTeamAttributes Default => new()
