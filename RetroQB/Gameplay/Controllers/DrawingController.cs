@@ -56,9 +56,12 @@ public sealed class DrawingController
         IReadOnlyList<Receiver> receivers,
         IReadOnlyList<Blocker> blockers,
         IReadOnlyList<Defender> defenders,
+        IReadOnlyList<OffensiveTeamAttributes> menuTeams,
         GameState gameState,
         string lastPlayText,
         string driveOverText,
+        string driveOverDetailText,
+        string driveOverPlayText,
         int driveSummaryScrollOffsetFromLatest,
         OffensiveTeamAttributes offensiveTeam,
         DefensiveTeamAttributes defensiveTeam,
@@ -70,6 +73,10 @@ public sealed class DrawingController
         bool isPostSeasonNameEntry,
         LeaderboardSummary leaderboardSummary,
         bool showMenuLeaderboard,
+        bool showSecretTeamPrompt,
+        string secretPasswordInput,
+        string secretPasswordMessage,
+        bool secretTeamUnlocked,
         bool isPaused,
         SeasonStage currentStage,
         SeasonSummary seasonSummary,
@@ -127,7 +134,7 @@ public sealed class DrawingController
 
         if (gameState == GameState.DriveOver)
         {
-            DrawDriveOverBanner(driveOverText, "PRESS ENTER FOR NEXT DRIVE");
+            DrawDriveOverBanner(driveOverText, driveOverDetailText, driveOverPlayText, "PRESS ENTER FOR NEXT DRIVE");
         }
 
         if (gameState == GameState.StageComplete)
@@ -149,17 +156,17 @@ public sealed class DrawingController
 
         if (gameState == GameState.MainMenu)
         {
-            _hudRenderer.DrawMainMenu(selectedTeamIndex, OffensiveTeamPresets.All, leaderboardSummary, showMenuLeaderboard);
+            _hudRenderer.DrawMainMenu(selectedTeamIndex, menuTeams, leaderboardSummary, showMenuLeaderboard, showSecretTeamPrompt, secretPasswordInput, secretPasswordMessage, secretTeamUnlocked);
         }
 
         if (gameState == GameState.PlayerNameEntry)
         {
-            _hudRenderer.DrawPlayerNameEntry(selectedTeamIndex, OffensiveTeamPresets.All, nameInput, nameEntryMessage, leaderboardSummary, isPostSeasonNameEntry);
+            _hudRenderer.DrawPlayerNameEntry(selectedTeamIndex, menuTeams, nameInput, nameEntryMessage, leaderboardSummary, isPostSeasonNameEntry);
         }
 
         if (gameState == GameState.NameConflict)
         {
-            _hudRenderer.DrawNameConflict(selectedTeamIndex, OffensiveTeamPresets.All, pendingPlayerName);
+            _hudRenderer.DrawNameConflict(selectedTeamIndex, menuTeams, pendingPlayerName);
         }
 
         if (isPaused)
@@ -297,13 +304,13 @@ public sealed class DrawingController
         return _priorityManager.GetPriorityLabel(selectedReceiver);
     }
 
-    public static void DrawDriveOverBanner(string titleText, string subText)
+    public static void DrawDriveOverBanner(string titleText, string detailText, string playText, string subText)
     {
         int screenW = Raylib.GetScreenWidth();
         int screenH = Raylib.GetScreenHeight();
 
-        int bannerWidth = Math.Min(760, screenW - 120);
-        int bannerHeight = 130;
+        int bannerWidth = Math.Min(820, screenW - 96);
+        int bannerHeight = 210;
         int x = (screenW - bannerWidth) / 2;
         int y = (screenH - bannerHeight) / 2;
 
@@ -317,6 +324,29 @@ public sealed class DrawingController
         int titleX = x + (bannerWidth - titleWidth) / 2;
         int titleY = y + 18;
         Raylib.DrawText(title, titleX, titleY, titleSize, Palette.Gold);
+
+        int textX = x + 28;
+        int maxTextWidth = bannerWidth - 56;
+        int detailY = titleY + titleSize + 22;
+
+        if (!string.IsNullOrWhiteSpace(detailText))
+        {
+            foreach (string line in WrapTextToWidth(detailText, 20, maxTextWidth))
+            {
+                Raylib.DrawText(line, textX, detailY, 20, Palette.White);
+                detailY += 24;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(playText))
+        {
+            detailY += 4;
+            foreach (string line in WrapTextToWidth(playText, 16, maxTextWidth))
+            {
+                Raylib.DrawText(line, textX, detailY, 16, new Color(210, 210, 218, 255));
+                detailY += 20;
+            }
+        }
 
         string sub = string.IsNullOrWhiteSpace(subText) ? "PRESS ENTER" : subText.ToUpperInvariant();
         int subSize = GetFittedFontSize(sub, 18, bannerWidth - 40, 12);
@@ -338,6 +368,38 @@ public sealed class DrawingController
         }
 
         return fontSize;
+    }
+
+    private static List<string> WrapTextToWidth(string text, int fontSize, int maxWidth)
+    {
+        var lines = new List<string>();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return lines;
+        }
+
+        string[] words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0)
+        {
+            return lines;
+        }
+
+        string currentLine = words[0];
+        for (int i = 1; i < words.Length; i++)
+        {
+            string candidate = $"{currentLine} {words[i]}";
+            if (Raylib.MeasureText(candidate, fontSize) <= maxWidth)
+            {
+                currentLine = candidate;
+                continue;
+            }
+
+            lines.Add(currentLine);
+            currentLine = words[i];
+        }
+
+        lines.Add(currentLine);
+        return lines;
     }
 
     private static void DrawReplayActor(ReplayActorFrame actor)

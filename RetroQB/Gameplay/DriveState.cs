@@ -84,6 +84,7 @@ public sealed class DriveState
         string? catcherLabel,
         RouteType? catcherRoute,
         bool wasRun,
+        string? ballCarrierLabel = null,
         bool isSack = false,
         int sackYardsLost = 0)
     {
@@ -93,6 +94,7 @@ public sealed class DriveState
             CurrentPlayRecord.Gain = gain;
             CurrentPlayRecord.CatcherLabel = catcherLabel;
             CurrentPlayRecord.CatcherRoute = catcherRoute;
+            CurrentPlayRecord.BallCarrierLabel = ballCarrierLabel;
             CurrentPlayRecord.WasRun = wasRun;
             CurrentPlayRecord.IsSack = isSack;
             CurrentPlayRecord.SackYardsLost = sackYardsLost;

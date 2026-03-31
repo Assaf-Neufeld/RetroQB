@@ -27,6 +27,7 @@ public sealed class PlayRecord
     public float Gain { get; set; }
     public string? CatcherLabel { get; set; }
     public RouteType? CatcherRoute { get; set; }
+    public string? BallCarrierLabel { get; set; }
     public bool WasRun { get; set; }
     public bool IsSack { get; set; }
     public int SackYardsLost { get; set; }
@@ -103,6 +104,45 @@ public sealed class PlayRecord
             
             _ => "..."
         };
+    }
+
+    public string GetDriveOverTitle()
+    {
+        return Outcome switch
+        {
+            PlayOutcome.Touchdown => "TOUCHDOWN!",
+            PlayOutcome.Interception => "INTERCEPTION!",
+            PlayOutcome.Turnover => "TURNOVER ON DOWNS",
+            _ => "DRIVE OVER"
+        };
+    }
+
+    public string GetDriveOverDescription(string defensiveTeamName)
+    {
+        return Outcome switch
+        {
+            PlayOutcome.Touchdown when WasRun && !string.IsNullOrWhiteSpace(BallCarrierLabel) =>
+                $"{BallCarrierLabel} scored on a {Gain:F0}-yd run.",
+            PlayOutcome.Touchdown when WasRun =>
+                $"Rushing touchdown for {Gain:F0} yds.",
+            PlayOutcome.Touchdown when CatcherLabel != null && CatcherRoute != null =>
+                $"{CatcherLabel} scored on a {Gain:F0}-yd {GetRouteName(CatcherRoute.Value)}.",
+            PlayOutcome.Touchdown when CatcherLabel != null =>
+                $"{CatcherLabel} scored on a {Gain:F0}-yd touchdown catch.",
+            PlayOutcome.Touchdown =>
+                $"Touchdown for {Gain:F0} yds.",
+
+            PlayOutcome.Interception =>
+                $"{defensiveTeamName} jumped the throw and turned the takeaway into 7.",
+            PlayOutcome.Turnover =>
+                $"{defensiveTeamName} got the stop and cashed in the short field for 7.",
+            _ => GetResultText()
+        };
+    }
+
+    public string GetDriveOverPlayText()
+    {
+        return $"Play: {GetPlayCallText()} | {GetSituationText()}";
     }
 
     private static string FormatGain(float gain)

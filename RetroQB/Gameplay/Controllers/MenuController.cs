@@ -1,3 +1,4 @@
+using System.Text;
 using RetroQB.Input;
 
 namespace RetroQB.Gameplay.Controllers;
@@ -7,12 +8,23 @@ namespace RetroQB.Gameplay.Controllers;
 /// </summary>
 public sealed class MenuController
 {
+    private const string SecretTeamPassword = "1473";
+    private const int SecretTeamPasswordLength = 4;
+
     private readonly InputManager _input;
     private int _selectedTeamIndex;
     private bool _showLeaderboard;
+    private bool _showSecretTeamPrompt;
+    private bool _secretTeamUnlocked;
+    private string _secretPasswordInput = string.Empty;
+    private string _secretPasswordMessage = string.Empty;
 
     public int SelectedTeamIndex => _selectedTeamIndex;
     public bool ShowLeaderboard => _showLeaderboard;
+    public bool ShowSecretTeamPrompt => _showSecretTeamPrompt;
+    public bool SecretTeamUnlocked => _secretTeamUnlocked;
+    public string SecretPasswordInput => _secretPasswordInput;
+    public string SecretPasswordMessage => _secretPasswordMessage;
 
     public MenuController(InputManager input)
     {
@@ -22,8 +34,14 @@ public sealed class MenuController
     /// <summary>
     /// Processes team selection input. Returns true when Enter is pressed to confirm.
     /// </summary>
-    public bool UpdateMainMenu()
+    public bool UpdateMainMenu(int baseTeamCount)
     {
+        if (_showSecretTeamPrompt)
+        {
+            UpdateSecretTeamPrompt(baseTeamCount);
+            return false;
+        }
+
         if (_input.IsLeaderboardPressed())
         {
             _showLeaderboard = !_showLeaderboard;
@@ -35,6 +53,20 @@ public sealed class MenuController
             if (_input.IsEscapePressed() || _input.IsBackspacePressed())
             {
                 _showLeaderboard = false;
+            }
+
+            return false;
+        }
+
+        if (_input.IsZeroPressed())
+        {
+            if (_secretTeamUnlocked)
+            {
+                _selectedTeamIndex = baseTeamCount;
+            }
+            else
+            {
+                OpenSecretTeamPrompt();
             }
 
             return false;
@@ -57,6 +89,82 @@ public sealed class MenuController
     public void OpenLeaderboard()
     {
         _showLeaderboard = true;
+    }
+
+    private void OpenSecretTeamPrompt()
+    {
+        _showSecretTeamPrompt = true;
+        _showLeaderboard = false;
+        _secretPasswordInput = string.Empty;
+        _secretPasswordMessage = string.Empty;
+    }
+
+    private void CloseSecretTeamPrompt()
+    {
+        _showSecretTeamPrompt = false;
+        _secretPasswordInput = string.Empty;
+        _secretPasswordMessage = string.Empty;
+    }
+
+    private void UpdateSecretTeamPrompt(int baseTeamCount)
+    {
+        string typedText = _input.ReadTextInput(SecretTeamPasswordLength);
+        if (!string.IsNullOrEmpty(typedText) && _secretPasswordInput.Length < SecretTeamPasswordLength)
+        {
+            var acceptedDigits = new StringBuilder(SecretTeamPasswordLength);
+            foreach (char ch in typedText)
+            {
+                if (!char.IsDigit(ch))
+                {
+                    continue;
+                }
+
+                acceptedDigits.Append(ch);
+                if (_secretPasswordInput.Length + acceptedDigits.Length >= SecretTeamPasswordLength)
+                {
+                    break;
+                }
+            }
+
+            if (acceptedDigits.Length > 0)
+            {
+                int available = SecretTeamPasswordLength - _secretPasswordInput.Length;
+                string acceptedText = acceptedDigits.ToString();
+                if (acceptedText.Length > available)
+                {
+                    acceptedText = acceptedText[..available];
+                }
+
+                _secretPasswordInput += acceptedText;
+            }
+        }
+
+        if (_input.IsBackspacePressed() && _secretPasswordInput.Length > 0)
+        {
+            _secretPasswordInput = _secretPasswordInput[..^1];
+        }
+
+        if (_input.IsEscapePressed())
+        {
+            CloseSecretTeamPrompt();
+            return;
+        }
+
+        if (!_input.IsEnterPressed())
+        {
+            return;
+        }
+
+        if (_secretPasswordInput == SecretTeamPassword)
+        {
+            _secretTeamUnlocked = true;
+            _selectedTeamIndex = baseTeamCount;
+            CloseSecretTeamPrompt();
+            return;
+        }
+
+        _secretPasswordInput = string.Empty;
+        _secretPasswordMessage = "Wrong password.";
     }
 
     /// <summary>

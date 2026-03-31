@@ -35,9 +35,17 @@ public sealed class HudRenderer
         _sidePanel.Draw(play, resultText, selectedReceiverLabel, state, stage, replayAvailable);
     }
 
-    public void DrawMainMenu(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams, LeaderboardSummary leaderboardSummary, bool showLeaderboard)
+    public void DrawMainMenu(
+        int selectedTeamIndex,
+        IReadOnlyList<OffensiveTeamAttributes> teams,
+        LeaderboardSummary leaderboardSummary,
+        bool showLeaderboard,
+        bool showSecretTeamPrompt,
+        string secretPasswordInput,
+        string secretPasswordMessage,
+        bool secretTeamUnlocked)
     {
-        _menu.Draw(selectedTeamIndex, teams, leaderboardSummary, showLeaderboard);
+        _menu.Draw(selectedTeamIndex, teams, leaderboardSummary, showLeaderboard, showSecretTeamPrompt, secretPasswordInput, secretPasswordMessage, secretTeamUnlocked);
     }
 
     public void DrawPlayerNameEntry(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams, string currentName, string message, LeaderboardSummary leaderboardSummary, bool isPostSeasonSaveMode)

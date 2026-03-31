@@ -41,6 +41,7 @@ public sealed class InputManager
     public bool IsReplaySkipPressed() => Raylib.IsKeyPressed(KeyboardKey.Space);
     public bool IsRestartPressed() => Raylib.IsKeyPressed(KeyboardKey.Z);
     public bool IsLeaderboardPressed() => Raylib.IsKeyPressed(KeyboardKey.L);
+    public bool IsZeroPressed() => Raylib.IsKeyPressed(KeyboardKey.Zero);
     public bool IsDriveSummaryScrollOlderPressed() => Raylib.IsKeyPressed(KeyboardKey.PageUp);
     public bool IsDriveSummaryScrollNewerPressed() => Raylib.IsKeyPressed(KeyboardKey.PageDown);
     public float GetMouseWheelMove() => Raylib.GetMouseWheelMove();

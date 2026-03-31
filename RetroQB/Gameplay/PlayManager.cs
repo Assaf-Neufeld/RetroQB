@@ -84,10 +84,11 @@ public sealed class PlayManager
         string? catcherLabel,
         RouteType? catcherRoute,
         bool wasRun,
+        string? ballCarrierLabel = null,
         bool isSack = false,
         int sackYardsLost = 0)
     {
-        _driveState.FinalizePlayRecord(outcome, gain, catcherLabel, catcherRoute, wasRun, isSack, sackYardsLost);
+        _driveState.FinalizePlayRecord(outcome, gain, catcherLabel, catcherRoute, wasRun, ballCarrierLabel, isSack, sackYardsLost);
     }
 
     public PlayManager()

@@ -11,6 +11,21 @@ namespace RetroQB.Data;
 /// </summary>
 public static class OffensiveTeamPresets
 {
+    private static readonly IReadOnlyList<OffensiveTeamAttributes> StandardTeams = new List<OffensiveTeamAttributes>
+    {
+        Ballers,
+        Lightning,
+        Bulldozers
+    };
+
+    private static readonly IReadOnlyList<OffensiveTeamAttributes> TeamsWithSecret = new List<OffensiveTeamAttributes>
+    {
+        Ballers,
+        Lightning,
+        Bulldozers,
+        GoldenLegion
+    };
+
     /// <summary>
     /// Balanced team with strong all-around attributes.
     /// </summary>
@@ -134,14 +149,54 @@ public static class OffensiveTeamPresets
         OverallRating = 1.05f
     };
 
+    public static OffensiveTeamAttributes GoldenLegion => new()
+    {
+        Name = "Golden Legion",
+        Description = "Secret dynasty",
+        PrimaryColor = Palette.Gold,
+        SecondaryColor = Palette.Red,
+        Roster = new OffensiveRoster
+        {
+            Quarterback = new QbProfile
+            {
+                Name = "Crown",
+                MaxSpeed = Constants.QbMaxSpeed * 1.28f,
+                SprintSpeed = Constants.QbSprintSpeed * 1.28f,
+                Acceleration = Constants.QbAcceleration * 1.3f,
+                ArmStrength = 1.3f,
+                Accuracy = 0.99f,
+                DeepAccuracyPenalty = 1.02f
+            },
+            WideReceivers = new Dictionary<ReceiverSlot, WrProfile>
+            {
+                [ReceiverSlot.WR1] = new WrProfile { Name = "Solar", Speed = Constants.WrSpeed * 1.3f, CatchingAbility = 0.99f, CatchRadius = 1.2f },
+                [ReceiverSlot.WR2] = new WrProfile { Name = "Blaze", Speed = Constants.WrSpeed * 1.28f, CatchingAbility = 0.97f, CatchRadius = 1.18f },
+                [ReceiverSlot.WR3] = new WrProfile { Name = "Glory", Speed = Constants.WrSpeed * 1.25f, CatchingAbility = 0.96f, CatchRadius = 1.16f },
+                [ReceiverSlot.WR4] = new WrProfile { Name = "Prime", Speed = Constants.WrSpeed * 1.23f, CatchingAbility = 0.95f, CatchRadius = 1.14f }
+            },
+            TightEnds = new Dictionary<ReceiverSlot, TeProfile>
+            {
+                [ReceiverSlot.TE1] = new TeProfile { Name = "Titan", Speed = Constants.TeSpeed * 1.22f, CatchingAbility = 0.95f, CatchRadius = 1.14f, BlockingStrength = 1.35f }
+            },
+            RunningBacks = new Dictionary<ReceiverSlot, RbProfile>
+            {
+                [ReceiverSlot.RB1] = new RbProfile { Name = "Inferno", Speed = Constants.RbSpeed * 1.3f, CatchingAbility = 0.95f, CatchRadius = 1.12f, TackleBreakChance = 0.55f }
+            },
+            OffensiveLine = new OLineProfile { Speed = Constants.OlSpeed * 1.25f, BlockingStrength = 1.4f }
+        },
+        OverallRating = 1.35f
+    };
+
     /// <summary>
     /// Preset list for menu selection.
     /// </summary>
-    public static IReadOnlyList<OffensiveTeamAttributes> All { get; } = new List<OffensiveTeamAttributes>
+    public static IReadOnlyList<OffensiveTeamAttributes> All => StandardTeams;
+
+    public static int StandardTeamCount => StandardTeams.Count;
+
+    public static IReadOnlyList<OffensiveTeamAttributes> GetMenuTeams(bool includeSecret)
     {
-        Ballers,
-        Lightning,
-        Bulldozers
-    };
+        return includeSecret ? TeamsWithSecret : StandardTeams;
+    }
 }
 

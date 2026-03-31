@@ -58,6 +58,8 @@ public sealed class GameSession : IDisposable
     // Play state
     private string _lastPlayText = string.Empty;
     private string _driveOverText = string.Empty;
+    private string _driveOverDetailText = string.Empty;
+    private string _driveOverPlayText = string.Empty;
     private bool _qbPastLos;
     private float _playOverTimer;
     private float _playOverDuration = 1.25f;
@@ -252,7 +254,7 @@ public sealed class GameSession : IDisposable
     private void ResetPlayState()
     {
         _lastPlayText = string.Empty;
-        _driveOverText = string.Empty;
+        ClearDriveOverBanner();
         _driveSummaryScrollOffsetFromLatest = 0;
         _playOverTimer = 0f;
         _playOverDuration = 1.25f;
@@ -376,7 +378,7 @@ public sealed class GameSession : IDisposable
         _pendingPlayerName = string.Empty;
         _nameEntryMessage = string.Empty;
         _leaderboardSummary = LeaderboardSummary.Empty;
-        _driveOverText = string.Empty;
+        ClearDriveOverBanner();
         _lastPlayText = string.Empty;
         _driveSummaryScrollOffsetFromLatest = 0;
         _stateManager.ClearPause();
@@ -390,12 +392,12 @@ public sealed class GameSession : IDisposable
     private void HandleMainMenu()
     {
         _leaderboardSummary = BuildMenuLeaderboardSummary();
-        bool confirmed = _menuController.UpdateMainMenu();
-        _selectedTeamIndex = _menuController.SelectedTeamIndex;
+        bool confirmed = _menuController.UpdateMainMenu(OffensiveTeamPresets.StandardTeamCount);
+        IReadOnlyList<OffensiveTeamAttributes> teams = GetMenuTeams();
+        _selectedTeamIndex = Math.Clamp(_menuController.SelectedTeamIndex, 0, teams.Count - 1);
 
         if (confirmed)
         {
-            var teams = OffensiveTeamPresets.All;
             if (_selectedTeamIndex < 0 || _selectedTeamIndex >= teams.Count)
             {
                 _selectedTeamIndex = 0;
@@ -727,6 +729,7 @@ public sealed class GameSession : IDisposable
         bool isSack = false;
         int sackYardsLost = 0;
         string? catcherLabel = null;
+        string? ballCarrierLabel = null;
         RouteType? catcherRoute = null;
 
         if (!incomplete && !intercepted && _entities.Ball.Holder != null)
@@ -743,6 +746,7 @@ public sealed class GameSession : IDisposable
             {
                 _statsTracker.RecordRushYards((int)gain, touchdown);
                 wasRun = true;
+                ballCarrierLabel = GetCatcherLabel(ballCarrier);
             }
             else if (_entities.Ball.Holder is Quarterback)
             {
@@ -756,6 +760,7 @@ public sealed class GameSession : IDisposable
                 {
                     _statsTracker.RecordQbRushYards((int)gain, touchdown);
                     wasRun = true;
+                    ballCarrierLabel = "QB";
                 }
             }
         }
@@ -770,15 +775,12 @@ public sealed class GameSession : IDisposable
             spot = Constants.EndZoneDepth + 100f;
         }
 
-        PlayOutcome outcome = touchdown ? PlayOutcome.Touchdown :
-                              intercepted ? PlayOutcome.Interception :
-                              incomplete ? PlayOutcome.Incomplete :
-                              PlayOutcome.Tackle;
+        PlayResult result = _playManager.ResolvePlay(spot, incomplete, intercepted, touchdown, tackleMessageOverride: isSack ? $"SACK! -{sackYardsLost} yds" : null);
 
-        ReplayClip? clip = _replayRecorder.FinalizeClip(outcome);
+        ReplayClip? clip = _replayRecorder.FinalizeClip(result.Outcome);
         _replayClipStore.Store(clip);
 
-        _playManager.FinalizePlayRecord(outcome, gain, catcherLabel, catcherRoute, wasRun, isSack, sackYardsLost);
+        _playManager.FinalizePlayRecord(result.Outcome, gain, catcherLabel, catcherRoute, wasRun, ballCarrierLabel, isSack, sackYardsLost);
 
         // Feed the result to defensive memory so it learns for future plays
         var lastRecord = _playManager.PlayRecords.LastOrDefault();
@@ -822,9 +824,7 @@ public sealed class GameSession : IDisposable
             _playOverDuration = 1.25f;
         }
 
-        string? tackleMessageOverride = isSack ? $"SACK! -{sackYardsLost} yds" : null;
         Vector2 playEndPosition = GetPlayEndPosition();
-        PlayResult result = _playManager.ResolvePlay(spot, incomplete, intercepted, touchdown, tackleMessageOverride);
         _lastPlayText = result.Message;
         _playOverTimer = 0f;
         ApplyCrowdReaction(result, gain, isSack, playEndPosition);
@@ -841,17 +841,20 @@ public sealed class GameSession : IDisposable
                 var nextStage = _currentStage.GetNextStage();
                 if (nextStage.HasValue)
                 {
+                    ClearDriveOverBanner();
                     _driveOverText = $"{_currentStage.GetDisplayName()} WON!";
                     _stateManager.SetState(GameState.StageComplete);
                 }
                 else
                 {
+                    ClearDriveOverBanner();
                     _driveOverText = "CHAMPION!";
                     BeginPlayerNameEntry(postSeasonSaveMode: true);
                 }
             }
             else
             {
+                ClearDriveOverBanner();
                 _driveOverText = $"ELIMINATED IN {_currentStage.GetDisplayName()}!";
                 BeginPlayerNameEntry(postSeasonSaveMode: true);
             }
@@ -860,7 +863,7 @@ public sealed class GameSession : IDisposable
 
         if (result.Outcome is PlayOutcome.Touchdown or PlayOutcome.Interception or PlayOutcome.Turnover)
         {
-            _driveOverText = result.Message;
+            SetDriveOverBanner(result, lastRecord);
             _stateManager.SetState(GameState.DriveOver);
         }
         else
@@ -903,6 +906,8 @@ public sealed class GameSession : IDisposable
             return;
         }
 
+        IReadOnlyList<OffensiveTeamAttributes> menuTeams = GetMenuTeams();
+
         _drawingController.Draw(
             _playManager,
             _entities.Qb,
@@ -910,9 +915,12 @@ public sealed class GameSession : IDisposable
             _entities.Receivers,
             _entities.Blockers,
             _entities.Defenders,
+            menuTeams,
             _stateManager.State,
             _lastPlayText,
             _driveOverText,
+            _driveOverDetailText,
+            _driveOverPlayText,
             _driveSummaryScrollOffsetFromLatest,
             _offensiveTeam,
             _defensiveTeam,
@@ -924,11 +932,41 @@ public sealed class GameSession : IDisposable
             _isPostSeasonNameEntry,
             _leaderboardSummary,
             _menuController.ShowLeaderboard,
+            _menuController.ShowSecretTeamPrompt,
+            _menuController.SecretPasswordInput,
+            _menuController.SecretPasswordMessage,
+            _menuController.SecretTeamUnlocked,
             _stateManager.IsPaused,
             _currentStage,
             _seasonSummary,
             replayAvailable,
             BuildCrowdBackdropState());
+    }
+
+    private IReadOnlyList<OffensiveTeamAttributes> GetMenuTeams()
+    {
+        return OffensiveTeamPresets.GetMenuTeams(_menuController.SecretTeamUnlocked);
+    }
+
+    private void ClearDriveOverBanner()
+    {
+        _driveOverText = string.Empty;
+        _driveOverDetailText = string.Empty;
+        _driveOverPlayText = string.Empty;
+    }
+
+    private void SetDriveOverBanner(PlayResult result, PlayRecord? record)
+    {
+        if (record == null)
+        {
+            ClearDriveOverBanner();
+            _driveOverText = result.Message;
+            return;
+        }
+
+        _driveOverText = record.GetDriveOverTitle();
+        _driveOverDetailText = record.GetDriveOverDescription(_defensiveTeam.Name);
+        _driveOverPlayText = record.GetDriveOverPlayText();
     }
 
     public void Dispose()
