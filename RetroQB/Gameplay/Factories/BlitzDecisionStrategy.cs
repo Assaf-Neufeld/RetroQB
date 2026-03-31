@@ -373,7 +373,7 @@ public sealed class DefaultBlitzDecisionStrategy : IBlitzDecisionStrategy
         {
             SeasonStage.RegularSeason => 0.82f,
             SeasonStage.Playoff => 1.00f,
-            SeasonStage.SuperBowl => 1.15f,
+            SeasonStage.SuperBowl => 0.95f,
             _ => 1.00f
         };
 
