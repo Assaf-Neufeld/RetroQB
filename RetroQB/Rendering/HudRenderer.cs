@@ -42,10 +42,9 @@ public sealed class HudRenderer
         bool showLeaderboard,
         bool showSecretTeamPrompt,
         string secretPasswordInput,
-        string secretPasswordMessage,
-        bool secretTeamUnlocked)
+        string secretPasswordMessage)
     {
-        _menu.Draw(selectedTeamIndex, teams, leaderboardSummary, showLeaderboard, showSecretTeamPrompt, secretPasswordInput, secretPasswordMessage, secretTeamUnlocked);
+        _menu.Draw(selectedTeamIndex, teams, leaderboardSummary, showLeaderboard, showSecretTeamPrompt, secretPasswordInput, secretPasswordMessage);
     }
 
     public void DrawPlayerNameEntry(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams, string currentName, string message, LeaderboardSummary leaderboardSummary, bool isPostSeasonSaveMode)

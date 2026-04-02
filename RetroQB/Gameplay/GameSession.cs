@@ -457,6 +457,7 @@ public sealed class GameSession : IDisposable
             _drawingController.Fireworks.Clear();
             _currentStage = SeasonStage.RegularSeason;
             _seasonSummary.Reset();
+            _menuController.ResetSecretTeamSelection(OffensiveTeamPresets.StandardTeamCount);
             _stateManager.SetState(GameState.MainMenu);
             _menuController.OpenLeaderboard();
             return;
@@ -708,6 +709,7 @@ public sealed class GameSession : IDisposable
             _currentStage = SeasonStage.RegularSeason;
             _seasonSummary.Reset();
             _leaderboardSummary = LeaderboardSummary.Empty;
+            _menuController.ResetSecretTeamSelection(OffensiveTeamPresets.StandardTeamCount);
             _stateManager.SetState(GameState.MainMenu);
         }
     }
@@ -935,7 +937,6 @@ public sealed class GameSession : IDisposable
             _menuController.ShowSecretTeamPrompt,
             _menuController.SecretPasswordInput,
             _menuController.SecretPasswordMessage,
-            _menuController.SecretTeamUnlocked,
             _stateManager.IsPaused,
             _currentStage,
             _seasonSummary,
@@ -945,7 +946,8 @@ public sealed class GameSession : IDisposable
 
     private IReadOnlyList<OffensiveTeamAttributes> GetMenuTeams()
     {
-        return OffensiveTeamPresets.GetMenuTeams(_menuController.SecretTeamUnlocked);
+        bool includeSecretTeam = _menuController.SelectedTeamIndex >= OffensiveTeamPresets.StandardTeamCount;
+        return OffensiveTeamPresets.GetMenuTeams(includeSecretTeam);
     }
 
     private void ClearDriveOverBanner()

@@ -15,14 +15,12 @@ public sealed class MenuController
     private int _selectedTeamIndex;
     private bool _showLeaderboard;
     private bool _showSecretTeamPrompt;
-    private bool _secretTeamUnlocked;
     private string _secretPasswordInput = string.Empty;
     private string _secretPasswordMessage = string.Empty;
 
     public int SelectedTeamIndex => _selectedTeamIndex;
     public bool ShowLeaderboard => _showLeaderboard;
     public bool ShowSecretTeamPrompt => _showSecretTeamPrompt;
-    public bool SecretTeamUnlocked => _secretTeamUnlocked;
     public string SecretPasswordInput => _secretPasswordInput;
     public string SecretPasswordMessage => _secretPasswordMessage;
 
@@ -60,15 +58,7 @@ public sealed class MenuController
 
         if (_input.IsZeroPressed())
         {
-            if (_secretTeamUnlocked)
-            {
-                _selectedTeamIndex = baseTeamCount;
-            }
-            else
-            {
-                OpenSecretTeamPrompt();
-            }
-
+            OpenSecretTeamPrompt();
             return false;
         }
 
@@ -89,6 +79,16 @@ public sealed class MenuController
     public void OpenLeaderboard()
     {
         _showLeaderboard = true;
+    }
+
+    public void ResetSecretTeamSelection(int baseTeamCount)
+    {
+        if (_selectedTeamIndex >= baseTeamCount)
+        {
+            _selectedTeamIndex = 0;
+        }
+
+        CloseSecretTeamPrompt();
     }
 
     private void OpenSecretTeamPrompt()
@@ -157,7 +157,6 @@ public sealed class MenuController
 
         if (_secretPasswordInput == SecretTeamPassword)
         {
-            _secretTeamUnlocked = true;
             _selectedTeamIndex = baseTeamCount;
             CloseSecretTeamPrompt();
             return;

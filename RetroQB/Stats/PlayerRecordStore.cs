@@ -38,7 +38,7 @@ public sealed class PlayerRecordStore
         var entries = sortedRecords
             .Select((record, entryIndex) => new LeaderboardEntry(
                 record.Name,
-                NormalizeTeamName(record.TeamName),
+                GetDisplayTeamName(record),
                 record.ScoreHistory,
                 record.ScoreDetails,
                 record.DominanceScore,
@@ -58,7 +58,7 @@ public sealed class PlayerRecordStore
     public LeaderboardSummary SaveSeasonResult(string playerName, string teamName, string scoreHistory, string scoreDetails, float seasonScore)
     {
         string normalizedName = NormalizeName(playerName);
-        string normalizedTeamName = NormalizeTeamName(teamName);
+        string normalizedTeamName = NormalizeStoredTeamName(teamName);
         string normalizedScoreHistory = NormalizeScoreHistory(scoreHistory);
         string normalizedScoreDetails = NormalizeScoreDetails(scoreDetails);
         DateTime savedAtUtc = DateTime.UtcNow;
@@ -125,7 +125,7 @@ public sealed class PlayerRecordStore
                     : record.QbRating != 0f
                         ? record.QbRating
                         : record.BestQbRating;
-                string teamName = NormalizeTeamName(record.TeamName);
+                string teamName = NormalizeStoredTeamName(record.TeamName);
                 string scoreHistory = NormalizeScoreHistory(record.ScoreHistory);
                 string scoreDetails = NormalizeScoreDetails(record.ScoreDetails);
                 _records.Add(new PlayerRecord(normalizedName, teamName, scoreHistory, scoreDetails, score, record.LastUpdatedUtc));
@@ -225,17 +225,62 @@ public sealed class PlayerRecordStore
         return rawDetails.Trim();
     }
 
-    private static string NormalizeTeamName(string rawTeamName)
+    private static string NormalizeStoredTeamName(string rawTeamName)
     {
         if (string.IsNullOrWhiteSpace(rawTeamName))
         {
             return "Unknown";
         }
 
-        string normalizedTeamName = rawTeamName.Trim();
-        return string.Equals(normalizedTeamName, OffensiveTeamPresets.GoldenLegion.Name, StringComparison.OrdinalIgnoreCase)
-            ? "Passing Team"
+        return rawTeamName.Trim();
+    }
+
+    private static string GetDisplayTeamName(PlayerRecord record)
+    {
+        string normalizedTeamName = NormalizeStoredTeamName(record.TeamName);
+        return IsSecretTeamName(normalizedTeamName)
+            ? GetStablePublicTeamName(record)
             : normalizedTeamName;
+    }
+
+    private static bool IsSecretTeamName(string teamName)
+    {
+        return string.Equals(teamName, OffensiveTeamPresets.GoldenLegion.Name, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(teamName, "Passing Team", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string GetStablePublicTeamName(PlayerRecord record)
+    {
+        IReadOnlyList<OffensiveTeamAttributes> publicTeams = OffensiveTeamPresets.All;
+        if (publicTeams.Count == 0)
+        {
+            return "Unknown";
+        }
+
+        string seed = string.Concat(
+            NormalizeName(record.Name), "|",
+            record.ScoreHistory.Trim(), "|",
+            record.ScoreDetails.Trim(), "|",
+            record.DominanceScore.ToString("F3", System.Globalization.CultureInfo.InvariantCulture), "|",
+            record.LastUpdatedUtc.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+        int teamIndex = (int)(ComputeStableHash(seed) % (uint)publicTeams.Count);
+        return publicTeams[teamIndex].Name;
+    }
+
+    private static uint ComputeStableHash(string value)
+    {
+        const uint offsetBasis = 2166136261;
+        const uint prime = 16777619;
+
+        uint hash = offsetBasis;
+        foreach (char ch in value)
+        {
+            hash ^= ch;
+            hash *= prime;
+        }
+
+        return hash;
     }
 
     private static bool NamesMatch(string left, string right)

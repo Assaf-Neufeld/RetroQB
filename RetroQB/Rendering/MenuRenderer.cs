@@ -16,10 +16,9 @@ public sealed class MenuRenderer
         bool showLeaderboard,
         bool showSecretTeamPrompt,
         string secretPasswordInput,
-        string secretPasswordMessage,
-        bool secretTeamUnlocked)
+        string secretPasswordMessage)
     {
-        DrawBaseMenu(selectedTeamIndex, teams, secretTeamUnlocked);
+        DrawBaseMenu(selectedTeamIndex, teams);
 
         if (showLeaderboard)
         {
@@ -34,7 +33,7 @@ public sealed class MenuRenderer
 
     public void DrawNameEntry(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams, string currentName, string message, LeaderboardSummary leaderboardSummary, bool isPostSeasonSaveMode)
     {
-        DrawBaseMenu(selectedTeamIndex, teams, teams.Count > OffensiveTeamPresets.StandardTeamCount);
+        DrawBaseMenu(selectedTeamIndex, teams);
         DrawOverlayShell(620, 380, out int panelX, out int panelY, out int panelWidth, out int panelHeight, Palette.Cyan);
 
         int contentX = panelX + 28;
@@ -80,7 +79,7 @@ public sealed class MenuRenderer
 
     public void DrawNameConflict(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams, string duplicateName)
     {
-        DrawBaseMenu(selectedTeamIndex, teams, teams.Count > OffensiveTeamPresets.StandardTeamCount);
+        DrawBaseMenu(selectedTeamIndex, teams);
         DrawOverlayShell(580, 260, out int panelX, out int panelY, out int panelWidth, out int panelHeight, Palette.Orange);
 
         int contentY = panelY + 24;
@@ -99,7 +98,7 @@ public sealed class MenuRenderer
         DrawCenteredText("Press 1 or 2", panelX, panelWidth, contentY, 16, new Color(170, 190, 210, 255));
     }
 
-    private void DrawBaseMenu(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams, bool secretTeamUnlocked)
+    private void DrawBaseMenu(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams)
     {
         var field = Constants.FieldRect;
         int centerX = (int)(field.X + field.Width / 2f);
@@ -213,7 +212,9 @@ public sealed class MenuRenderer
             Raylib.DrawRectangleLines(swatchX + swatchSize + 4, swatchTop, swatchSize, swatchSize, new Color(80, 90, 100, 180));
 
             // Team info
-            string keyHint = $"[{i + 1}]";
+            string keyHint = string.Equals(team.Name, OffensiveTeamPresets.GoldenLegion.Name, StringComparison.OrdinalIgnoreCase)
+                ? "[0]"
+                : $"[{i + 1}]";
             int keyX = swatchX + (compactLayout ? 50 : 56);
             int teamInfoY = teamY + (compactLayout ? 5 : 6);
             Raylib.DrawText(keyHint, keyX, teamInfoY, compactLayout ? 15 : 16, isSelected ? Palette.Cyan : new Color(100, 120, 140, 255));
@@ -233,25 +234,19 @@ public sealed class MenuRenderer
         Raylib.DrawLine(panelX + dividerPadding, contentY, panelX + panelWidth - dividerPadding, contentY, new Color(60, 80, 100, 180));
         contentY += compactLayout ? 10 : 16;
 
-        string controls1 = secretTeamUnlocked
-            ? "Press 1-3 or 0 to select team"
-            : "Press 1-3 to select team";
+        string controls1 = "Press 1-3 to select team";
         string controls2 = "Press ENTER to start";
-        string controls3 = secretTeamUnlocked ? "Press 0 to pick Golden Legion" : "Press 0 for secret team";
         string controls4 = "Press L for leaderboard";
         int ctrlSize = compactLayout ? 14 : 16;
         int ctrlGap = compactLayout ? 6 : 8;
 
         int ctrl1Width = Raylib.MeasureText(controls1, ctrlSize);
         int ctrl2Width = Raylib.MeasureText(controls2, ctrlSize);
-        int ctrl3Width = Raylib.MeasureText(controls3, ctrlSize);
         int ctrl4Width = Raylib.MeasureText(controls4, ctrlSize);
 
         Raylib.DrawText(controls1, panelX + (panelWidth - ctrl1Width) / 2, contentY, ctrlSize, new Color(160, 180, 200, 255));
         contentY += ctrlSize + ctrlGap;
         Raylib.DrawText(controls2, panelX + (panelWidth - ctrl2Width) / 2, contentY, ctrlSize, Palette.Yellow);
-        contentY += ctrlSize + ctrlGap;
-        Raylib.DrawText(controls3, panelX + (panelWidth - ctrl3Width) / 2, contentY, ctrlSize, Palette.Gold);
         contentY += ctrlSize + ctrlGap;
         Raylib.DrawText(controls4, panelX + (panelWidth - ctrl4Width) / 2, contentY, ctrlSize, Palette.Cyan);
     }

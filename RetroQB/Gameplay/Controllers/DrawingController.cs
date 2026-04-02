@@ -76,7 +76,6 @@ public sealed class DrawingController
         bool showSecretTeamPrompt,
         string secretPasswordInput,
         string secretPasswordMessage,
-        bool secretTeamUnlocked,
         bool isPaused,
         SeasonStage currentStage,
         SeasonSummary seasonSummary,
@@ -156,7 +155,7 @@ public sealed class DrawingController
 
         if (gameState == GameState.MainMenu)
         {
-            _hudRenderer.DrawMainMenu(selectedTeamIndex, menuTeams, leaderboardSummary, showMenuLeaderboard, showSecretTeamPrompt, secretPasswordInput, secretPasswordMessage, secretTeamUnlocked);
+            _hudRenderer.DrawMainMenu(selectedTeamIndex, menuTeams, leaderboardSummary, showMenuLeaderboard, showSecretTeamPrompt, secretPasswordInput, secretPasswordMessage);
         }
 
         if (gameState == GameState.PlayerNameEntry)
