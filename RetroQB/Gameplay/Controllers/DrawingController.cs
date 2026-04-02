@@ -305,17 +305,19 @@ public sealed class DrawingController
 
     public static void DrawDriveOverBanner(string titleText, string detailText, string playText, string subText)
     {
-        int screenW = Raylib.GetScreenWidth();
-        int screenH = Raylib.GetScreenHeight();
+        OverlayFrame frame = OverlayChromeRenderer.DrawWindowCentered(
+            preferredWidth: 820,
+            preferredHeight: 210,
+            accent: Palette.Gold,
+            variant: OverlayVariant.Modal,
+            horizontalMargin: 96,
+            verticalMargin: 120,
+            drawScrim: true);
 
-        int bannerWidth = Math.Min(820, screenW - 96);
-        int bannerHeight = 210;
-        int x = (screenW - bannerWidth) / 2;
-        int y = (screenH - bannerHeight) / 2;
-
-        Raylib.DrawRectangle(x, y, bannerWidth, bannerHeight, new Color(10, 10, 14, 235));
-        Raylib.DrawRectangleLinesEx(new Rectangle(x, y, bannerWidth, bannerHeight), 3, Palette.Gold);
-        Raylib.DrawRectangle(x + 6, y + 6, bannerWidth - 12, bannerHeight - 12, new Color(20, 20, 28, 235));
+        int bannerWidth = frame.Width;
+        int bannerHeight = frame.Height;
+        int x = frame.X;
+        int y = frame.Y;
 
         string title = string.IsNullOrWhiteSpace(titleText) ? "DRIVE OVER" : titleText.ToUpperInvariant();
         int titleSize = GetFittedFontSize(title, 40, bannerWidth - 48, 20);

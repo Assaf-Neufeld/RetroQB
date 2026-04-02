@@ -88,18 +88,20 @@ public sealed class BannerRenderer
         bool showFinalRank,
         bool showPodium)
     {
-        int screenW = Raylib.GetScreenWidth();
-        int screenH = Raylib.GetScreenHeight();
-
         int targetBannerWidth = showRankingDetails ? 1040 : 760;
         int targetBannerHeight = showRankingDetails ? 792 : 700;
-        int bannerWidth = Math.Min(targetBannerWidth, screenW - 48);
-        int bannerHeight = Math.Min(targetBannerHeight, screenH - 24);
-        int x = (screenW - bannerWidth) / 2;
-        int y = (screenH - bannerHeight) / 2;
-
-        Raylib.DrawRectangle(0, 0, screenW, screenH, new Color(4, 7, 12, 150));
-        DrawOutcomeBackdrop(x, y, bannerWidth, bannerHeight, accentColor);
+        OverlayFrame frame = OverlayChromeRenderer.DrawWindowCentered(
+            targetBannerWidth,
+            targetBannerHeight,
+            accentColor,
+            OverlayVariant.Hero,
+            horizontalMargin: 48,
+            verticalMargin: 24,
+            drawScrim: true);
+        int bannerWidth = frame.Width;
+        int bannerHeight = frame.Height;
+        int x = frame.X;
+        int y = frame.Y;
 
         int innerX = x + 22;
         int innerY = y + 22;
@@ -145,22 +147,6 @@ public sealed class BannerRenderer
         DrawActionButtons(x, y + bannerHeight - 62, bannerWidth, prompt, "Z TO RESTART");
     }
 
-    private static void DrawOutcomeBackdrop(int x, int y, int width, int height, Color accentColor)
-    {
-        Raylib.DrawRectangle(x + 8, y + 10, width, height, new Color(0, 0, 0, 80));
-        Raylib.DrawRectangle(x - 2, y - 2, width + 4, height + 4, new Color((int)accentColor.R, (int)accentColor.G, (int)accentColor.B, 70));
-        Raylib.DrawRectangle(x, y, width, height, new Color(11, 16, 24, 244));
-        Raylib.DrawRectangle(x, y, width, 8, new Color((int)accentColor.R, (int)accentColor.G, (int)accentColor.B, 110));
-        Raylib.DrawRectangleLines(x, y, width, height, accentColor);
-    }
-
-    private static void DrawPanelSurface(int x, int y, int width, int height, Color accentColor, Color fillColor)
-    {
-        Raylib.DrawRectangle(x, y, width, height, fillColor);
-        Raylib.DrawRectangle(x, y, width, 3, new Color((int)accentColor.R, (int)accentColor.G, (int)accentColor.B, 120));
-        Raylib.DrawRectangleLines(x, y, width, height, new Color((int)accentColor.R, (int)accentColor.G, (int)accentColor.B, 165));
-    }
-
     private void DrawOutcomeHero(
         int x,
         int y,
@@ -173,7 +159,7 @@ public sealed class BannerRenderer
         Color accentColor,
         SeasonSummary seasonSummary)
     {
-        DrawPanelSurface(x, y, width, height, accentColor, new Color(16, 24, 38, 228));
+        OverlayChromeRenderer.DrawPanelSurface(x, y, width, height, accentColor, new Color(16, 24, 38, 228));
 
         int scoreBlockWidth = Math.Min(240, width / 3);
         int scoreX = x + width - scoreBlockWidth - 26;
@@ -209,7 +195,7 @@ public sealed class BannerRenderer
         int? finalRank,
         bool isPodiumFinish)
     {
-        DrawPanelSurface(x, y, width, height, accentColor, new Color(10, 15, 24, 226));
+        OverlayChromeRenderer.DrawPanelSurface(x, y, width, height, accentColor, new Color(10, 15, 24, 226));
 
         bool compact = height < 400;
         DrawFittedLeftText("SEASON BREAKDOWN", x + 18, y + 14, compact ? 18 : 22, width - 36, Palette.White, 12);
@@ -280,7 +266,7 @@ public sealed class BannerRenderer
     private void DrawStageTrack(int x, int y, int width, int height, SeasonSummary summary, Color accentColor)
     {
         bool compact = height < 90;
-        DrawPanelSurface(x, y, width, height, accentColor, new Color(14, 20, 30, 235));
+        OverlayChromeRenderer.DrawPanelSurface(x, y, width, height, accentColor, new Color(14, 20, 30, 235));
 
         int headerY = y + 10;
         int stagesWon = summary.Games.Count(game => game.Won);
@@ -330,7 +316,7 @@ public sealed class BannerRenderer
     private static void DrawStatCard(int x, int y, int width, int height, string title, IReadOnlyList<string> lines, Color borderColor, Color fillColor)
     {
         bool compact = height < 90;
-        DrawPanelSurface(x, y, width, height, borderColor, fillColor);
+        OverlayChromeRenderer.DrawPanelSurface(x, y, width, height, borderColor, fillColor);
         DrawFittedLeftText(title, x + 12, y + 10, compact ? 13 : 15, width - 24, borderColor, 10);
 
         int lineY = y + (compact ? 24 : 36);
@@ -350,7 +336,7 @@ public sealed class BannerRenderer
     private void DrawReceivingCard(int x, int y, int width, int height, GameStatsSnapshot stats, Color accentColor)
     {
         bool compact = height < 90;
-        DrawPanelSurface(x, y, width, height, accentColor, new Color(20, 27, 41, 230));
+        OverlayChromeRenderer.DrawPanelSurface(x, y, width, height, accentColor, new Color(20, 27, 41, 230));
         DrawFittedLeftText("RECEIVING", x + 12, y + 10, compact ? 13 : 15, width - 24, Palette.Cyan, 10);
 
         var leaders = stats.Receivers
@@ -397,7 +383,7 @@ public sealed class BannerRenderer
     private void DrawLeaderboardPanel(int x, int y, int width, int height, LeaderboardSummary summary, Color accentColor)
     {
         const int rowHeight = 42;
-        DrawPanelSurface(x, y, width, height, accentColor, new Color(8, 12, 18, 220));
+        OverlayChromeRenderer.DrawPanelSurface(x, y, width, height, accentColor, new Color(8, 12, 18, 220));
 
         DrawCenteredText("DOMINANCE RANKINGS", x, width, y + 12, 18, Palette.Yellow);
 
@@ -453,7 +439,7 @@ public sealed class BannerRenderer
 
     private void DrawPodiumPanel(int x, int y, int width, int height, LeaderboardSummary summary, Color accentColor)
     {
-        DrawPanelSurface(x, y, width, height, accentColor, new Color(8, 12, 18, 220));
+        OverlayChromeRenderer.DrawPanelSurface(x, y, width, height, accentColor, new Color(8, 12, 18, 220));
 
         DrawCenteredText("PODIUM", x, width, y + 12, 22, Palette.White);
 
@@ -674,17 +660,19 @@ public sealed class BannerRenderer
 
     public void DrawTouchdownPopup()
     {
-        int screenW = Raylib.GetScreenWidth();
-        int screenH = Raylib.GetScreenHeight();
+        OverlayFrame frame = OverlayChromeRenderer.DrawWindowCentered(
+            preferredWidth: 720,
+            preferredHeight: 120,
+            accent: Palette.Gold,
+            variant: OverlayVariant.Toast,
+            horizontalMargin: 120,
+            verticalMargin: 140,
+            drawScrim: false);
 
-        int bannerWidth = Math.Min(720, screenW - 120);
-        int bannerHeight = 120;
-        int x = (screenW - bannerWidth) / 2;
-        int y = (screenH - bannerHeight) / 2;
-
-        Raylib.DrawRectangle(x, y, bannerWidth, bannerHeight, new Color(10, 10, 14, 235));
-        Raylib.DrawRectangleLinesEx(new Rectangle(x, y, bannerWidth, bannerHeight), 3, Palette.Gold);
-        Raylib.DrawRectangle(x + 6, y + 6, bannerWidth - 12, bannerHeight - 12, new Color(20, 20, 28, 235));
+        int bannerWidth = frame.Width;
+        int bannerHeight = frame.Height;
+        int x = frame.X;
+        int y = frame.Y;
 
         string text = "TOUCHDOWN!";
         int fontSize = 52;

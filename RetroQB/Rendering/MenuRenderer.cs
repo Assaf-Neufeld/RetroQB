@@ -34,7 +34,11 @@ public sealed class MenuRenderer
     public void DrawNameEntry(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams, string currentName, string message, LeaderboardSummary leaderboardSummary, bool isPostSeasonSaveMode)
     {
         DrawBaseMenu(selectedTeamIndex, teams);
-        DrawOverlayShell(620, 380, out int panelX, out int panelY, out int panelWidth, out int panelHeight, Palette.Cyan);
+        OverlayFrame nameFrame = OverlayChromeRenderer.DrawWindowCentered(620, 380, Palette.Cyan, OverlayVariant.Modal, horizontalMargin: 80, verticalMargin: 80);
+        int panelX = nameFrame.X;
+        int panelY = nameFrame.Y;
+        int panelWidth = nameFrame.Width;
+        int panelHeight = nameFrame.Height;
 
         int contentX = panelX + 28;
         int contentY = panelY + 22;
@@ -80,7 +84,11 @@ public sealed class MenuRenderer
     public void DrawNameConflict(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams, string duplicateName)
     {
         DrawBaseMenu(selectedTeamIndex, teams);
-        DrawOverlayShell(580, 260, out int panelX, out int panelY, out int panelWidth, out int panelHeight, Palette.Orange);
+        OverlayFrame conflictFrame = OverlayChromeRenderer.DrawWindowCentered(580, 260, Palette.Orange, OverlayVariant.Modal, horizontalMargin: 80, verticalMargin: 80);
+        int panelX = conflictFrame.X;
+        int panelY = conflictFrame.Y;
+        int panelWidth = conflictFrame.Width;
+        int panelHeight = conflictFrame.Height;
 
         int contentY = panelY + 24;
         DrawCenteredText("NAME ALREADY EXISTS", panelX, panelWidth, contentY, 28, Palette.Orange);
@@ -100,25 +108,23 @@ public sealed class MenuRenderer
 
     private void DrawBaseMenu(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams)
     {
-        var field = Constants.FieldRect;
-        int centerX = (int)(field.X + field.Width / 2f);
-        int centerY = (int)(field.Y + field.Height / 2f);
         int screenH = Raylib.GetScreenHeight();
-
-        // Calculate panel dimensions for unified window
         int panelWidth = 560;
         int panelHeight = Math.Min(600, screenH - 40);
-        int panelX = centerX - panelWidth / 2;
-        int panelY = centerY - panelHeight / 2;
-        bool compactLayout = panelHeight < 585;
 
-        // Outer glow/shadow effect
-        Raylib.DrawRectangle(panelX - 8, panelY - 8, panelWidth + 16, panelHeight + 16, new Color(0, 0, 0, 120));
-        
-        // Main panel background with layered borders
-        Raylib.DrawRectangle(panelX - 4, panelY - 4, panelWidth + 8, panelHeight + 8, Palette.Gold);
-        Raylib.DrawRectangle(panelX, panelY, panelWidth, panelHeight, new Color(12, 16, 24, 250));
-        Raylib.DrawRectangle(panelX + 3, panelY + 3, panelWidth - 6, panelHeight - 6, new Color(18, 22, 32, 250));
+        OverlayFrame frame = OverlayChromeRenderer.DrawWindowCentered(
+            panelWidth,
+            panelHeight,
+            Palette.Gold,
+            OverlayVariant.Hero,
+            horizontalMargin: 56,
+            verticalMargin: 40,
+            drawScrim: true);
+        int panelX = frame.X;
+        int panelY = frame.Y;
+        panelWidth = frame.Width;
+        panelHeight = frame.Height;
+        bool compactLayout = panelHeight < 585;
 
         int contentX = panelX + 30;
         int contentY = panelY + (compactLayout ? 18 : 24);
@@ -253,7 +259,11 @@ public sealed class MenuRenderer
 
     private void DrawSecretTeamPrompt(string passwordInput, string message)
     {
-        DrawOverlayShell(560, 280, out int panelX, out int panelY, out int panelWidth, out int panelHeight, Palette.Gold);
+        OverlayFrame secretFrame = OverlayChromeRenderer.DrawWindowCentered(560, 280, Palette.Gold, OverlayVariant.Modal, horizontalMargin: 80, verticalMargin: 80);
+        int panelX = secretFrame.X;
+        int panelY = secretFrame.Y;
+        int panelWidth = secretFrame.Width;
+        int panelHeight = secretFrame.Height;
 
         int contentX = panelX + 28;
         int contentY = panelY + 24;
@@ -284,7 +294,11 @@ public sealed class MenuRenderer
 
     private void DrawLeaderboardOverlay(LeaderboardSummary leaderboardSummary)
     {
-        DrawOverlayShell(760, 620, out int panelX, out int panelY, out int panelWidth, out int panelHeight, Palette.Gold);
+        OverlayFrame lbFrame = OverlayChromeRenderer.DrawWindowCentered(760, 620, Palette.Gold, OverlayVariant.Modal, horizontalMargin: 80, verticalMargin: 80);
+        int panelX = lbFrame.X;
+        int panelY = lbFrame.Y;
+        int panelWidth = lbFrame.Width;
+        int panelHeight = lbFrame.Height;
 
         int contentY = panelY + 22;
         DrawCenteredText("DOMINANCE LEADERBOARD", panelX, panelWidth, contentY, 30, Palette.Gold);
@@ -372,22 +386,6 @@ public sealed class MenuRenderer
         Raylib.DrawRectangleLines(x + (cupWidth - baseWidth) / 2, y + cupHeight + stemHeight, baseWidth, baseHeight, new Color(60, 42, 10, 255));
         Raylib.DrawCircleLines(x - Math.Max(2, (int)(2 * scale)), y + Math.Max(4, (int)(6 * scale)), Math.Max(4, (int)(5 * scale)), color);
         Raylib.DrawCircleLines(x + cupWidth + Math.Max(2, (int)(2 * scale)), y + Math.Max(4, (int)(6 * scale)), Math.Max(4, (int)(5 * scale)), color);
-    }
-
-    private static void DrawOverlayShell(int width, int height, out int panelX, out int panelY, out int panelWidth, out int panelHeight, Color accent)
-    {
-        int screenW = Raylib.GetScreenWidth();
-        int screenH = Raylib.GetScreenHeight();
-
-        panelWidth = Math.Min(width, screenW - 80);
-        panelHeight = Math.Min(height, screenH - 80);
-        panelX = (screenW - panelWidth) / 2;
-        panelY = (screenH - panelHeight) / 2;
-
-        Raylib.DrawRectangle(0, 0, screenW, screenH, new Color(0, 0, 0, 120));
-        Raylib.DrawRectangle(panelX - 6, panelY - 6, panelWidth + 12, panelHeight + 12, accent);
-        Raylib.DrawRectangle(panelX, panelY, panelWidth, panelHeight, new Color(10, 14, 22, 250));
-        Raylib.DrawRectangle(panelX + 4, panelY + 4, panelWidth - 8, panelHeight - 8, new Color(18, 24, 36, 250));
     }
 
     private static void DrawCenteredText(string text, int panelX, int panelWidth, int y, int fontSize, Color color)
@@ -581,7 +579,15 @@ public sealed class MenuRenderer
 
     public void DrawPause()
     {
-        int screenW = Raylib.GetScreenWidth();
-        Raylib.DrawText("PAUSED", screenW / 2 - 60, 40, 24, Palette.Yellow);
+        OverlayFrame frame = OverlayChromeRenderer.DrawWindowCentered(
+            preferredWidth: 320,
+            preferredHeight: 110,
+            accent: Palette.Yellow,
+            variant: OverlayVariant.Toast,
+            horizontalMargin: 120,
+            verticalMargin: 120,
+            drawScrim: true);
+
+        DrawCenteredText("PAUSED", frame.X, frame.Width, frame.Y + 38, 30, Palette.Yellow);
     }
 }
