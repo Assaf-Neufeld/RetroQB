@@ -52,6 +52,11 @@ public abstract class TeamAttributes
 public sealed class OffensiveTeamAttributes : TeamAttributes
 {
     /// <summary>
+    /// Menu-facing overall team score used for ordering and selection display.
+    /// </summary>
+    public int TeamScore { get; init; } = 75;
+
+    /// <summary>
     /// High-level offensive team skill ratings used for roster generation and menu display.
     /// </summary>
     public OffensiveTeamSkills Skills { get; init; } = OffensiveTeamSkills.Default;
@@ -92,6 +97,7 @@ public sealed class OffensiveTeamAttributes : TeamAttributes
     public static OffensiveTeamAttributes Default => new()
     {
         Name = "Home",
+        TeamScore = 75,
         PrimaryColor = Palette.QB,
         SecondaryColor = Palette.Receiver,
         Skills = OffensiveTeamSkills.Default,

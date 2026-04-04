@@ -180,6 +180,12 @@ public sealed class MenuRenderer
         Raylib.DrawText(selectHeader, panelX + (panelWidth - headerWidth) / 2, contentY, headerSize, Palette.Yellow);
         contentY += headerSize + (denseTeamLayout ? 8 : compactLayout ? 10 : 14);
 
+        string sortHint = "Ordered by score, strongest to weakest";
+        int sortHintSize = denseTeamLayout ? 11 : 12;
+        int sortHintWidth = Raylib.MeasureText(sortHint, sortHintSize);
+        Raylib.DrawText(sortHint, panelX + (panelWidth - sortHintWidth) / 2, contentY, sortHintSize, new Color(150, 172, 194, 255));
+        contentY += sortHintSize + (denseTeamLayout ? 8 : 10);
+
         // Team selection area background
         int teamAreaWidth = panelWidth - (denseTeamLayout ? 42 : 50);
         int teamLineHeight = denseTeamLayout ? 52 : compactLayout ? 60 : 68;
@@ -201,9 +207,10 @@ public sealed class MenuRenderer
             int infoWidth = rowWidth;
             int chartX = rowX + 18;
             int chartWidth = rowWidth - 30;
+            int scoreWidth = denseTeamLayout ? 68 : compactLayout ? 74 : 82;
             if (denseTeamLayout)
             {
-                const int denseChartMinWidth = 240;
+                const int denseChartMinWidth = 260;
                 int preferredInfoWidth = (int)(rowWidth * 0.52f);
                 int maxInfoWidth = rowWidth - denseChartMinWidth - 12;
                 infoWidth = Math.Clamp(preferredInfoWidth, 280, Math.Max(280, maxInfoWidth));
@@ -252,8 +259,11 @@ public sealed class MenuRenderer
             Raylib.DrawText(team.Name, teamLineX, teamInfoY, fittedTitleFont, textColor);
             Raylib.DrawText(team.Description, teamLineX, teamInfoY + (denseTeamLayout ? 16 : 18), fittedSubtitleFont, subtitleColor);
 
-            // Stat bar chart
-            DrawTeamStatBars(team, chartX, teamY + (denseTeamLayout ? 8 : compactLayout ? 26 : 32), chartWidth, isSelected, denseTeamLayout);
+            int statWidth = Math.Max(116, chartWidth - scoreWidth - 8);
+            int scoreX = chartX + statWidth + 8;
+
+            DrawTeamStatBars(team, chartX, teamY + (denseTeamLayout ? 8 : compactLayout ? 26 : 32), statWidth, isSelected, denseTeamLayout);
+            DrawTeamScore(team, scoreX, teamY + (denseTeamLayout ? 2 : compactLayout ? 6 : 8), scoreWidth, teamLineHeight - (denseTeamLayout ? 6 : 10), isSelected, denseTeamLayout);
 
             teamY += teamLineHeight;
         }
@@ -543,6 +553,27 @@ public sealed class MenuRenderer
         }
     }
 
+    private static void DrawTeamScore(OffensiveTeamAttributes team, int x, int y, int width, int height, bool highlighted, bool denseLayout)
+    {
+        Color borderColor = highlighted ? Palette.Gold : new Color(74, 92, 112, 220);
+        Color backgroundColor = highlighted ? new Color(30, 44, 62, 235) : new Color(14, 20, 28, 225);
+        Color scoreColor = GetScoreColor(team.TeamScore);
+        int labelSize = denseLayout ? 9 : 10;
+        int scoreSize = denseLayout ? 22 : 26;
+
+        Raylib.DrawRectangle(x, y, width, height, backgroundColor);
+        Raylib.DrawRectangleLines(x, y, width, height, borderColor);
+
+        string label = "OVR";
+        int labelWidth = Raylib.MeasureText(label, labelSize);
+        Raylib.DrawText(label, x + (width - labelWidth) / 2, y + 4, labelSize, new Color(180, 196, 214, 255));
+
+        string scoreText = team.TeamScore.ToString();
+        int scoreWidth = Raylib.MeasureText(scoreText, scoreSize);
+        int scoreY = y + (denseLayout ? 16 : 18);
+        Raylib.DrawText(scoreText, x + (width - scoreWidth) / 2, scoreY, scoreSize, scoreColor);
+    }
+
     private static (string[] Labels, float[] Values) GetTeamSkillMetrics(OffensiveTeamAttributes team)
     {
         OffensiveTeamSkills skills = team.Skills;
@@ -580,6 +611,26 @@ public sealed class MenuRenderer
             float t = (rating - 0.5f) / 0.5f;
             return new Color((byte)(200 - (int)(150 * t)), (byte)200, (byte)(40 + (int)(40 * t)), (byte)255);
         }
+    }
+
+    private static Color GetScoreColor(int score)
+    {
+        if (score >= 90)
+        {
+            return Palette.Gold;
+        }
+
+        if (score >= 80)
+        {
+            return Palette.Lime;
+        }
+
+        if (score >= 70)
+        {
+            return Palette.Yellow;
+        }
+
+        return Palette.Orange;
     }
 
     public void DrawPause()
