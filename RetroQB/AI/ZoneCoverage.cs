@@ -9,6 +9,20 @@ namespace RetroQB.AI;
 /// </summary>
 public static class ZoneCoverage
 {
+    private readonly struct ZoneContext
+    {
+        public readonly Vector2 Anchor;
+        public readonly ZoneBounds Bounds;
+        public readonly bool IsDeepZone;
+
+        public ZoneContext(Vector2 anchor, ZoneBounds bounds, bool isDeepZone)
+        {
+            Anchor = anchor;
+            Bounds = bounds;
+            IsDeepZone = isDeepZone;
+        }
+    }
+
     public readonly struct ZoneBounds
     {
         public readonly float XMin;
@@ -33,26 +47,34 @@ public static class ZoneCoverage
     /// </summary>
     public static Vector2 GetZoneTarget(Defender defender, IReadOnlyList<Receiver> receivers, float lineOfScrimmage)
     {
-        ZoneBounds bounds = GetZoneBounds(defender, lineOfScrimmage);
-        Vector2 baseTarget = GetZoneAnchor(defender, lineOfScrimmage);
+        ZoneContext context = BuildZoneContext(defender, lineOfScrimmage);
+        Vector2 baseTarget = context.Anchor;
 
-        if (IsDeepZone(defender.ZoneRole))
+        if (context.IsDeepZone)
         {
-            baseTarget = new Vector2(baseTarget.X, GetDeepZoneDepth(defender, receivers, bounds, lineOfScrimmage));
+            baseTarget = new Vector2(baseTarget.X, GetDeepZoneDepth(defender, receivers, context.Bounds, lineOfScrimmage));
         }
 
-        if (TryGetZoneMatch(defender, receivers, lineOfScrimmage, out var match))
+        if (TrySelectZoneMatch(defender, receivers, context, lineOfScrimmage, out var match))
         {
-            return CalculateMatchTarget(defender, match, receivers, baseTarget, bounds, lineOfScrimmage);
+            return BuildZoneTarget(defender, match, receivers, baseTarget, context, lineOfScrimmage);
         }
 
-        if (IsDeepZone(defender.ZoneRole)
-            && TryGetNearestReceiverInLane(defender, receivers, bounds, lineOfScrimmage, out var nearest))
+        if (context.IsDeepZone
+            && TryGetNearestReceiverInLane(defender, receivers, context.Bounds, lineOfScrimmage, out var nearest))
         {
-            return CalculateMatchTarget(defender, nearest, receivers, baseTarget, bounds, lineOfScrimmage);
+            return BuildZoneTarget(defender, nearest, receivers, baseTarget, context, lineOfScrimmage);
         }
 
         return baseTarget;
+    }
+
+    private static ZoneContext BuildZoneContext(Defender defender, float lineOfScrimmage)
+    {
+        ZoneBounds bounds = GetZoneBounds(defender, lineOfScrimmage);
+        Vector2 anchor = GetZoneAnchor(defender, lineOfScrimmage);
+        bool isDeepZone = IsDeepZone(defender.ZoneRole);
+        return new ZoneContext(anchor, bounds, isDeepZone);
     }
 
     /// <summary>
@@ -85,6 +107,25 @@ public static class ZoneCoverage
 
         // Apply horizontal jitter, clamped to field bounds
         anchor.X = Math.Clamp(anchor.X + jitterX, 0.5f, Constants.FieldWidth - 0.5f);
+
+        // Nickel underneath zones should gain depth quickly after the snap.
+        if (defender.Slot == DefenderSlot.NB)
+        {
+            float nickelDropBoost = defender.ZoneRole switch
+            {
+                CoverageRole.HookMiddle => 2.2f,
+                CoverageRole.HookLeft or CoverageRole.HookRight => 1.6f,
+                CoverageRole.FlatLeft or CoverageRole.FlatRight => 1.0f,
+                _ => 0f
+            };
+
+            if (nickelDropBoost > 0f)
+            {
+                float maxFieldY = Constants.EndZoneDepth + 100f - 0.5f;
+                anchor.Y = MathF.Min(anchor.Y + nickelDropBoost, maxFieldY);
+            }
+        }
+
         return anchor;
     }
 
@@ -109,20 +150,29 @@ public static class ZoneCoverage
     /// </summary>
     public static bool TryGetZoneMatch(Defender defender, IReadOnlyList<Receiver> receivers, float lineOfScrimmage, out Receiver match)
     {
+        ZoneContext context = BuildZoneContext(defender, lineOfScrimmage);
+        return TrySelectZoneMatch(defender, receivers, context, lineOfScrimmage, out match);
+    }
+
+    private static bool TrySelectZoneMatch(
+        Defender defender,
+        IReadOnlyList<Receiver> receivers,
+        ZoneContext context,
+        float lineOfScrimmage,
+        out Receiver match)
+    {
         match = null!;
-        ZoneBounds bounds = GetZoneBounds(defender, lineOfScrimmage);
-        Vector2 anchor = GetZoneAnchor(defender, lineOfScrimmage);
 
         float bestScore = float.NegativeInfinity;
 
         foreach (var receiver in receivers)
         {
-            if (!IsValidZoneTarget(defender, receiver, receivers, bounds, lineOfScrimmage))
+            if (!IsValidZoneTarget(defender, receiver, receivers, context, lineOfScrimmage))
             {
                 continue;
             }
 
-            float score = CalculateZoneMatchScore(defender, receiver, bounds, anchor, lineOfScrimmage);
+            float score = CalculateZoneMatchScore(defender, receiver, context.Bounds, context.Anchor);
 
             if (score > bestScore)
             {
@@ -144,22 +194,22 @@ public static class ZoneCoverage
     private static bool IsFlatZone(CoverageRole role) =>
         role is CoverageRole.FlatLeft or CoverageRole.FlatRight;
 
-    private static Vector2 CalculateMatchTarget(
+    private static Vector2 BuildZoneTarget(
         Defender defender,
         Receiver match,
         IReadOnlyList<Receiver> receivers,
         Vector2 baseTarget,
-        ZoneBounds bounds,
+        ZoneContext context,
         float lineOfScrimmage)
     {
         Vector2 projected = GetProjectedReceiverPosition(match, defender.ZoneRole);
 
-        if (IsDeepZone(defender.ZoneRole))
+        if (context.IsDeepZone)
         {
-            return CalculateDeepMatchTarget(defender, match, receivers, projected, baseTarget, bounds, lineOfScrimmage);
+            return CalculateDeepMatchTarget(defender, match, receivers, projected, baseTarget, context.Bounds, lineOfScrimmage);
         }
 
-        return CalculateUnderneathMatchTarget(defender, match, projected, baseTarget, bounds, lineOfScrimmage);
+        return CalculateUnderneathMatchTarget(defender, match, projected, baseTarget, context.Bounds, lineOfScrimmage);
     }
 
     private static float GetDeepZoneDepth(Defender defender, IReadOnlyList<Receiver> receivers, ZoneBounds bounds, float lineOfScrimmage)
@@ -251,6 +301,16 @@ public static class ZoneCoverage
         Defender defender,
         Receiver receiver,
         IReadOnlyList<Receiver> receivers,
+        ZoneContext context,
+        float lineOfScrimmage)
+    {
+        return IsValidZoneTarget(defender, receiver, receivers, context.Bounds, lineOfScrimmage);
+    }
+
+    private static bool IsValidZoneTarget(
+        Defender defender,
+        Receiver receiver,
+        IReadOnlyList<Receiver> receivers,
         ZoneBounds bounds,
         float lineOfScrimmage)
     {
@@ -284,17 +344,18 @@ public static class ZoneCoverage
             && ShouldCarryIsolatedVertical(defender, receiver, receivers, bounds, lineOfScrimmage);
     }
 
-    private static float CalculateZoneMatchScore(Defender defender, Receiver receiver, ZoneBounds bounds, Vector2 anchor, float lineOfScrimmage)
+    private static float CalculateZoneMatchScore(Defender defender, Receiver receiver, ZoneBounds bounds, Vector2 anchor)
     {
         Vector2 projected = GetProjectedReceiverPosition(receiver, defender.ZoneRole);
         bool inZoneDepth = projected.Y <= bounds.YMax;
         float horizontalDelta = MathF.Abs(projected.X - anchor.X);
         float travelWidth = MathF.Abs(GetReceiverTravelDirection(receiver).X);
+        float outsidePreference = GetOutsideReceiverPreference(defender.ZoneRole, projected.X);
 
         if (IsDeepZone(defender.ZoneRole))
         {
             float verticalThreat = MathF.Max(receiver.Position.Y, projected.Y);
-            return verticalThreat * 4.2f - horizontalDelta * 1.35f + travelWidth * 1.1f;
+            return verticalThreat * 4.2f - horizontalDelta * 1.35f + travelWidth * 1.1f + outsidePreference;
         }
 
         float distancePenalty = Vector2.Distance(defender.Position, projected) * 0.55f;
@@ -308,9 +369,20 @@ public static class ZoneCoverage
         return (inZoneDepth ? 1000f : 820f)
             + projected.Y * 2.1f
             + travelWidth * 2.0f
+            + outsidePreference
             - widthPenalty
             - sidelinePenalty
             - distancePenalty;
+    }
+
+    private static float GetOutsideReceiverPreference(CoverageRole role, float projectedX)
+    {
+        return role switch
+        {
+            CoverageRole.FlatLeft or CoverageRole.DeepLeft => (Constants.FieldWidth - projectedX) * 0.60f,
+            CoverageRole.FlatRight or CoverageRole.DeepRight => projectedX * 0.60f,
+            _ => 0f
+        };
     }
 
     private static Vector2 CalculateDeepMatchTarget(
@@ -472,6 +544,18 @@ public static class ZoneCoverage
             CoverageRole.Robber => lineOfScrimmage + 3.8f,
             _ => lineOfScrimmage + 4.6f
         };
+
+        if (defender.Slot == DefenderSlot.NB)
+        {
+            minDrop += defender.ZoneRole switch
+            {
+                CoverageRole.HookMiddle => 1.8f,
+                CoverageRole.HookLeft or CoverageRole.HookRight => 1.3f,
+                CoverageRole.FlatLeft or CoverageRole.FlatRight => 0.9f,
+                _ => 0f
+            };
+        }
+
         desiredY = MathF.Max(desiredY, minDrop);
 
         float yTrackBlend = defender.ZoneRole switch
