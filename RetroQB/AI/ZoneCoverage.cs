@@ -76,9 +76,9 @@ public static class ZoneCoverage
             CoverageRole.DeepQuarterRight => new Vector2(Constants.FieldWidth * 0.60f, lineOfScrimmage + Constants.ZoneCoverageDepthDb + 0.6f),
             CoverageRole.FlatLeft => new Vector2(Constants.FieldWidth * 0.12f, lineOfScrimmage + Constants.ZoneCoverageDepthFlat - 0.3f),
             CoverageRole.FlatRight => new Vector2(Constants.FieldWidth * 0.88f, lineOfScrimmage + Constants.ZoneCoverageDepthFlat - 0.3f),
-            CoverageRole.HookLeft => new Vector2(Constants.FieldWidth * 0.38f, lineOfScrimmage + Constants.ZoneCoverageDepth - 0.4f),
-            CoverageRole.HookMiddle => new Vector2(Constants.FieldWidth * 0.50f, lineOfScrimmage + Constants.ZoneCoverageDepth + 0.9f),
-            CoverageRole.HookRight => new Vector2(Constants.FieldWidth * 0.62f, lineOfScrimmage + Constants.ZoneCoverageDepth - 0.4f),
+            CoverageRole.HookLeft => new Vector2(Constants.FieldWidth * 0.34f, lineOfScrimmage + Constants.ZoneCoverageDepth - 0.6f),
+            CoverageRole.HookMiddle => new Vector2(Constants.FieldWidth * 0.50f, lineOfScrimmage + Constants.ZoneCoverageDepth + 0.2f),
+            CoverageRole.HookRight => new Vector2(Constants.FieldWidth * 0.66f, lineOfScrimmage + Constants.ZoneCoverageDepth - 0.6f),
             CoverageRole.Robber => new Vector2(Constants.FieldWidth * 0.50f, lineOfScrimmage + Constants.ZoneCoverageDepthFlat + 1.2f),
             _ => new Vector2(Constants.FieldWidth * 0.50f, lineOfScrimmage + depth)
         };
@@ -455,9 +455,9 @@ public static class ZoneCoverage
         float desiredX = Math.Clamp(projected.X + leverageX, xMin, xMax);
         float xTrackBlend = defender.ZoneRole switch
         {
-            CoverageRole.Robber => 0.62f,
-            CoverageRole.HookMiddle => 0.26f,
-            CoverageRole.HookLeft or CoverageRole.HookRight => 0.34f,
+            CoverageRole.Robber => 0.74f,
+            CoverageRole.HookMiddle => 0.58f,
+            CoverageRole.HookLeft or CoverageRole.HookRight => 0.66f,
             CoverageRole.FlatLeft or CoverageRole.FlatRight => 0.82f,
             _ => 0.55f
         };
@@ -466,14 +466,19 @@ public static class ZoneCoverage
         float routeCutoff = projected.Y - (1.15f + MathF.Abs(travelDir.X) * 0.8f);
         float carryCeiling = GetZoneCarryCeiling(defender.ZoneRole, bounds, lineOfScrimmage);
         float desiredY = Math.Clamp(routeCutoff, bounds.YMin, carryCeiling);
-        float minDrop = MathF.Max(baseTarget.Y, lineOfScrimmage + 3.2f);
+        float minDrop = defender.ZoneRole switch
+        {
+            CoverageRole.FlatLeft or CoverageRole.FlatRight => lineOfScrimmage + 2.6f,
+            CoverageRole.Robber => lineOfScrimmage + 3.8f,
+            _ => lineOfScrimmage + 4.6f
+        };
         desiredY = MathF.Max(desiredY, minDrop);
 
         float yTrackBlend = defender.ZoneRole switch
         {
-            CoverageRole.Robber => 0.66f,
-            CoverageRole.HookMiddle => 0.35f,
-            CoverageRole.HookLeft or CoverageRole.HookRight => 0.40f,
+            CoverageRole.Robber => 0.76f,
+            CoverageRole.HookMiddle => 0.62f,
+            CoverageRole.HookLeft or CoverageRole.HookRight => 0.68f,
             CoverageRole.FlatLeft or CoverageRole.FlatRight => 0.72f,
             _ => 0.55f
         };
@@ -556,7 +561,7 @@ public static class ZoneCoverage
                 lineOfScrimmage + Constants.ZoneCoverageDepthFlat + Constants.ZoneMatchDepthBuffer
             ),
             CoverageRole.HookLeft => (
-                Constants.FieldWidth * 0.38f,
+                Constants.FieldWidth * 0.34f,
                 Constants.ZoneMatchWidthHook,
                 lineOfScrimmage + Constants.ZoneCoverageDepth + Constants.ZoneMatchDepthBuffer
             ),
@@ -566,7 +571,7 @@ public static class ZoneCoverage
                 lineOfScrimmage + Constants.ZoneCoverageDepth + Constants.ZoneMatchDepthBuffer
             ),
             CoverageRole.HookRight => (
-                Constants.FieldWidth * 0.62f,
+                Constants.FieldWidth * 0.66f,
                 Constants.ZoneMatchWidthHook,
                 lineOfScrimmage + Constants.ZoneCoverageDepth + Constants.ZoneMatchDepthBuffer
             ),
