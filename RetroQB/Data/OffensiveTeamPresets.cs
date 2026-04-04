@@ -1,7 +1,5 @@
 using System.Collections.Generic;
 using Raylib_cs;
-using RetroQB.Entities;
-
 using RetroQB.Core;
 
 namespace RetroQB.Data;
@@ -15,7 +13,11 @@ public static class OffensiveTeamPresets
     {
         Ballers,
         Lightning,
-        Bulldozers
+        Bulldozers,
+        Phantoms,
+        Cyclones,
+        Ironclad,
+        Firebirds
     };
 
     private static readonly IReadOnlyList<OffensiveTeamAttributes> TeamsWithSecret = new List<OffensiveTeamAttributes>
@@ -23,170 +25,173 @@ public static class OffensiveTeamPresets
         Ballers,
         Lightning,
         Bulldozers,
+        Phantoms,
+        Cyclones,
+        Ironclad,
+        Firebirds,
         GoldenLegion
     };
 
-    /// <summary>
-    /// Balanced team with strong all-around attributes.
-    /// </summary>
-    public static OffensiveTeamAttributes Ballers => new()
-    {
-        Name = "Ballers",
-        Description = "Balanced",
-        PrimaryColor = new Color(70, 130, 220, 255),
-        SecondaryColor = new Color(24, 64, 138, 255),
-        Roster = new OffensiveRoster
+    public static OffensiveTeamAttributes Ballers => CreateTeam(
+        name: "Ballers",
+        description: "Balanced attack with no weak spot",
+        primaryColor: new Color(70, 130, 220, 255),
+        secondaryColor: new Color(24, 64, 138, 255),
+        skills: new OffensiveTeamSkills
         {
-            Quarterback = new QbProfile
-            {
-                Name = "Ace",
-                MaxSpeed = Constants.QbMaxSpeed * 1.05f,
-                SprintSpeed = Constants.QbSprintSpeed * 1.05f,
-                Acceleration = Constants.QbAcceleration * 1.05f,
-                ArmStrength = 1.0f,
-                Accuracy = 0.765f,
-                DeepAccuracyPenalty = 1.176f
-            },
-            WideReceivers = new Dictionary<ReceiverSlot, WrProfile>
-            {
-                [ReceiverSlot.WR1] = new WrProfile { Name = "Stone", Speed = Constants.WrSpeed * 1.08f, CatchingAbility = 0.8f, CatchRadius = 1.05f },
-                [ReceiverSlot.WR2] = new WrProfile { Name = "Flynn", Speed = Constants.WrSpeed * 1.02f, CatchingAbility = 0.75f, CatchRadius = 1.0f },
-                [ReceiverSlot.WR3] = new WrProfile { Name = "Reed", Speed = Constants.WrSpeed * 1.0f, CatchingAbility = 0.72f, CatchRadius = 0.98f },
-                [ReceiverSlot.WR4] = new WrProfile { Name = "North", Speed = Constants.WrSpeed * 0.98f, CatchingAbility = 0.7f, CatchRadius = 0.95f }
-            },
-            TightEnds = new Dictionary<ReceiverSlot, TeProfile>
-            {
-                [ReceiverSlot.TE1] = new TeProfile { Name = "Griff", Speed = Constants.TeSpeed * 1.05f, CatchingAbility = 0.7f, CatchRadius = 1.0f, BlockingStrength = 1.05f }
-            },
-            RunningBacks = new Dictionary<ReceiverSlot, RbProfile>
-            {
-                [ReceiverSlot.RB1] = new RbProfile { Name = "Jet", Speed = Constants.RbSpeed * 1.08f, CatchingAbility = 0.65f, CatchRadius = 1.0f, TackleBreakChance = 0.28f }
-            },
-            OffensiveLine = new OLineProfile { Speed = Constants.OlSpeed * 1.05f, BlockingStrength = 1.05f }
+            RbPower = 0.56f,
+            RbSpeed = 0.54f,
+            QbThrowPower = 0.56f,
+            QbThrowAccuracy = 0.60f,
+            WrSpeed = 0.56f,
+            WrSkill = 0.58f,
+            OlStrength = 0.56f
         },
-        OverallRating = 1.05f
-    };
+        qbName: "Ace",
+        wideReceiverNames: new[] { "Stone", "Flynn", "Reed", "North" },
+        tightEndName: "Griff",
+        runningBackName: "Jet");
 
-    /// <summary>
-    /// Speed and precision passing team with weak offensive line.
-    /// </summary>
-    public static OffensiveTeamAttributes Lightning => new()
-    {
-        Name = "Lightning",
-        Description = "Speed & passing",
-        PrimaryColor = new Color(150, 90, 220, 255),
-        SecondaryColor = new Color(84, 44, 140, 255),
-        Roster = new OffensiveRoster
+    public static OffensiveTeamAttributes Lightning => CreateTeam(
+        name: "Lightning",
+        description: "Fast spread passing and open grass",
+        primaryColor: new Color(150, 90, 220, 255),
+        secondaryColor: new Color(84, 44, 140, 255),
+        skills: new OffensiveTeamSkills
         {
-            Quarterback = new QbProfile
-            {
-                Name = "Spark",
-                MaxSpeed = Constants.QbMaxSpeed * 0.85f,
-                SprintSpeed = Constants.QbSprintSpeed * 0.9f,
-                Acceleration = Constants.QbAcceleration * 0.9f,
-                ArmStrength = 1.15f,
-                Accuracy = 0.525f,
-                DeepAccuracyPenalty = 1.214f
-            },
-            WideReceivers = new Dictionary<ReceiverSlot, WrProfile>
-            {
-                [ReceiverSlot.WR1] = new WrProfile { Name = "Flash", Speed = Constants.WrSpeed * 1.25f, CatchingAbility = 0.85f, CatchRadius = 1.12f },
-                [ReceiverSlot.WR2] = new WrProfile { Name = "Bolt", Speed = Constants.WrSpeed * 1.2f, CatchingAbility = 0.82f, CatchRadius = 1.08f },
-                [ReceiverSlot.WR3] = new WrProfile { Name = "Blaze", Speed = Constants.WrSpeed * 1.15f, CatchingAbility = 0.78f, CatchRadius = 1.05f },
-                [ReceiverSlot.WR4] = new WrProfile { Name = "Surge", Speed = Constants.WrSpeed * 1.1f, CatchingAbility = 0.75f, CatchRadius = 1.02f }
-            },
-            TightEnds = new Dictionary<ReceiverSlot, TeProfile>
-            {
-                [ReceiverSlot.TE1] = new TeProfile { Name = "Arc", Speed = Constants.TeSpeed * 1.1f, CatchingAbility = 0.72f, CatchRadius = 1.05f, BlockingStrength = 0.85f }
-            },
-            RunningBacks = new Dictionary<ReceiverSlot, RbProfile>
-            {
-                [ReceiverSlot.RB1] = new RbProfile { Name = "Dash", Speed = Constants.RbSpeed * 1.2f, CatchingAbility = 0.7f, CatchRadius = 1.05f, TackleBreakChance = 0.3f }
-            },
-            OffensiveLine = new OLineProfile { Speed = Constants.OlSpeed * 0.8f, BlockingStrength = 0.8f }
+            RbPower = 0.20f,
+            RbSpeed = 0.82f,
+            QbThrowPower = 0.90f,
+            QbThrowAccuracy = 0.82f,
+            WrSpeed = 0.96f,
+            WrSkill = 0.88f,
+            OlStrength = 0.10f
         },
-        OverallRating = 1.0f
-    };
+        qbName: "Spark",
+        wideReceiverNames: new[] { "Flash", "Bolt", "Blaze", "Surge" },
+        tightEndName: "Arc",
+        runningBackName: "Dash");
 
-    /// <summary>
-    /// Power running team with dominant line and QB, limited receivers.
-    /// </summary>
-    public static OffensiveTeamAttributes Bulldozers => new()
-    {
-        Name = "Bulldozers",
-        Description = "Power running",
-        PrimaryColor = new Color(70, 160, 80, 255),
-        SecondaryColor = new Color(34, 96, 44, 255),
-        Roster = new OffensiveRoster
+    public static OffensiveTeamAttributes Bulldozers => CreateTeam(
+        name: "Bulldozers",
+        description: "Heavy line and downhill run game",
+        primaryColor: new Color(70, 160, 80, 255),
+        secondaryColor: new Color(34, 96, 44, 255),
+        skills: new OffensiveTeamSkills
         {
-            Quarterback = new QbProfile
-            {
-                Name = "Hammer",
-                MaxSpeed = Constants.QbMaxSpeed * 1.1f,
-                SprintSpeed = Constants.QbSprintSpeed * 1.1f,
-                Acceleration = Constants.QbAcceleration * 1.1f,
-                ArmStrength = 0.9f,
-                Accuracy = 0.998f,
-                DeepAccuracyPenalty = 1.158f
-            },
-            WideReceivers = new Dictionary<ReceiverSlot, WrProfile>
-            {
-                [ReceiverSlot.WR1] = new WrProfile { Name = "Brick", Speed = Constants.WrSpeed * 0.88f, CatchingAbility = 0.6f, CatchRadius = 0.9f },
-                [ReceiverSlot.WR2] = new WrProfile { Name = "Stone", Speed = Constants.WrSpeed * 0.85f, CatchingAbility = 0.58f, CatchRadius = 0.88f },
-                [ReceiverSlot.WR3] = new WrProfile { Name = "Grind", Speed = Constants.WrSpeed * 0.82f, CatchingAbility = 0.55f, CatchRadius = 0.85f },
-                [ReceiverSlot.WR4] = new WrProfile { Name = "Forge", Speed = Constants.WrSpeed * 0.8f, CatchingAbility = 0.52f, CatchRadius = 0.82f }
-            },
-            TightEnds = new Dictionary<ReceiverSlot, TeProfile>
-            {
-                [ReceiverSlot.TE1] = new TeProfile { Name = "Anvil", Speed = Constants.TeSpeed * 0.9f, CatchingAbility = 0.62f, CatchRadius = 0.95f, BlockingStrength = 1.25f }
-            },
-            RunningBacks = new Dictionary<ReceiverSlot, RbProfile>
-            {
-                [ReceiverSlot.RB1] = new RbProfile { Name = "Pound", Speed = Constants.RbSpeed * 1.15f, CatchingAbility = 0.55f, CatchRadius = 0.9f, TackleBreakChance = 0.4f }
-            },
-            OffensiveLine = new OLineProfile { Speed = Constants.OlSpeed * 1.2f, BlockingStrength = 1.3f }
+            RbPower = 0.98f,
+            RbSpeed = 0.72f,
+            QbThrowPower = 0.24f,
+            QbThrowAccuracy = 0.16f,
+            WrSpeed = 0.08f,
+            WrSkill = 0.10f,
+            OlStrength = 0.98f
         },
-        OverallRating = 1.05f
-    };
+        qbName: "Hammer",
+        wideReceiverNames: new[] { "Brick", "Stone", "Grind", "Forge" },
+        tightEndName: "Anvil",
+        runningBackName: "Pound");
 
-    public static OffensiveTeamAttributes GoldenLegion => new()
-    {
-        Name = "Golden Legion",
-        Description = "Elite balance",
-        PrimaryColor = Palette.Gold,
-        SecondaryColor = Palette.Red,
-        UsePrimaryColorForUniforms = true,
-        Roster = new OffensiveRoster
+    public static OffensiveTeamAttributes Phantoms => CreateTeam(
+        name: "Phantoms",
+        description: "Timing offense built on sharp throws",
+        primaryColor: new Color(92, 188, 208, 255),
+        secondaryColor: new Color(24, 90, 118, 255),
+        skills: new OffensiveTeamSkills
         {
-            Quarterback = new QbProfile
-            {
-                Name = "Crown",
-                    MaxSpeed = Constants.QbMaxSpeed * 0.85f,
-                    SprintSpeed = Constants.QbSprintSpeed * 0.9f,
-                    Acceleration = Constants.QbAcceleration * 0.9f,
-                ArmStrength = 1.22f,
-                Accuracy = 0.6f,
-                DeepAccuracyPenalty = 1.02f
-            },
-            WideReceivers = new Dictionary<ReceiverSlot, WrProfile>
-            {
-                [ReceiverSlot.WR1] = new WrProfile { Name = "Solar", Speed = Constants.WrSpeed * 1.28f, CatchingAbility = 0.94f, CatchRadius = 1.16f },
-                [ReceiverSlot.WR2] = new WrProfile { Name = "Blaze", Speed = Constants.WrSpeed * 1.24f, CatchingAbility = 0.92f, CatchRadius = 1.13f },
-                [ReceiverSlot.WR3] = new WrProfile { Name = "Glory", Speed = Constants.WrSpeed * 1.2f, CatchingAbility = 0.9f, CatchRadius = 1.1f },
-                [ReceiverSlot.WR4] = new WrProfile { Name = "Prime", Speed = Constants.WrSpeed * 1.16f, CatchingAbility = 0.88f, CatchRadius = 1.07f }
-            },
-            TightEnds = new Dictionary<ReceiverSlot, TeProfile>
-            {
-                [ReceiverSlot.TE1] = new TeProfile { Name = "Titan", Speed = Constants.TeSpeed * 1.08f, CatchingAbility = 0.82f, CatchRadius = 1.07f, BlockingStrength = 1.3f }
-            },
-            RunningBacks = new Dictionary<ReceiverSlot, RbProfile>
-            {
-                [ReceiverSlot.RB1] = new RbProfile { Name = "Inferno", Speed = Constants.RbSpeed * 1.22f, CatchingAbility = 0.78f, CatchRadius = 1.06f, TackleBreakChance = 0.45f }
-            },
-            OffensiveLine = new OLineProfile { Speed = Constants.OlSpeed * 1.22f, BlockingStrength = 1.34f }
+            RbPower = 0.16f,
+            RbSpeed = 0.38f,
+            QbThrowPower = 0.58f,
+            QbThrowAccuracy = 0.98f,
+            WrSpeed = 0.62f,
+            WrSkill = 0.96f,
+            OlStrength = 0.24f
         },
-        OverallRating = 1.16f
-    };
+        qbName: "Shade",
+        wideReceiverNames: new[] { "Silk", "Ghost", "Wisp", "Trace" },
+        tightEndName: "Veil",
+        runningBackName: "Slip");
+
+    public static OffensiveTeamAttributes Cyclones => CreateTeam(
+        name: "Cyclones",
+        description: "Explosive speed built for yards after catch",
+        primaryColor: new Color(232, 126, 52, 255),
+        secondaryColor: new Color(120, 52, 18, 255),
+        skills: new OffensiveTeamSkills
+        {
+            RbPower = 0.18f,
+            RbSpeed = 0.99f,
+            QbThrowPower = 0.42f,
+            QbThrowAccuracy = 0.18f,
+            WrSpeed = 1.00f,
+            WrSkill = 0.34f,
+            OlStrength = 0.12f
+        },
+        qbName: "Vortex",
+        wideReceiverNames: new[] { "Rush", "Gale", "Skid", "Jetstream" },
+        tightEndName: "Tailwind",
+        runningBackName: "Whirl");
+
+    public static OffensiveTeamAttributes Ironclad => CreateTeam(
+        name: "Ironclad",
+        description: "Strong pocket arm with sturdy protection",
+        primaryColor: new Color(118, 126, 138, 255),
+        secondaryColor: new Color(52, 58, 66, 255),
+        skills: new OffensiveTeamSkills
+        {
+            RbPower = 0.32f,
+            RbSpeed = 0.24f,
+            QbThrowPower = 0.99f,
+            QbThrowAccuracy = 0.68f,
+            WrSpeed = 0.34f,
+            WrSkill = 0.46f,
+            OlStrength = 0.94f
+        },
+        qbName: "Forge",
+        wideReceiverNames: new[] { "Rivet", "Pike", "Latch", "Barrow" },
+        tightEndName: "Anchor",
+        runningBackName: "Ram");
+
+    public static OffensiveTeamAttributes Firebirds => CreateTeam(
+        name: "Firebirds",
+        description: "Crafty receivers who win on detail",
+        primaryColor: new Color(220, 72, 72, 255),
+        secondaryColor: new Color(118, 24, 38, 255),
+        skills: new OffensiveTeamSkills
+        {
+            RbPower = 0.24f,
+            RbSpeed = 0.42f,
+            QbThrowPower = 0.62f,
+            QbThrowAccuracy = 0.92f,
+            WrSpeed = 0.42f,
+            WrSkill = 0.99f,
+            OlStrength = 0.22f
+        },
+        qbName: "Ember",
+        wideReceiverNames: new[] { "Flare", "Cinder", "Sparks", "Glow" },
+        tightEndName: "Torch",
+        runningBackName: "Kindle");
+
+    public static OffensiveTeamAttributes GoldenLegion => CreateTeam(
+        name: "Golden Legion",
+        description: "Top-end talent across the whole offense",
+        primaryColor: Palette.Gold,
+        secondaryColor: Palette.Red,
+        skills: new OffensiveTeamSkills
+        {
+            RbPower = 0.98f,
+            RbSpeed = 0.98f,
+            QbThrowPower = 1.00f,
+            QbThrowAccuracy = 0.98f,
+            WrSpeed = 0.98f,
+            WrSkill = 1.00f,
+            OlStrength = 0.98f
+        },
+        qbName: "Crown",
+        wideReceiverNames: new[] { "Solar", "Blaze", "Glory", "Prime" },
+        tightEndName: "Titan",
+        runningBackName: "Inferno",
+        usePrimaryColorForUniforms: true);
 
     /// <summary>
     /// Preset list for menu selection.
@@ -199,5 +204,29 @@ public static class OffensiveTeamPresets
     {
         return includeSecret ? TeamsWithSecret : StandardTeams;
     }
-}
 
+    private static OffensiveTeamAttributes CreateTeam(
+        string name,
+        string description,
+        Color primaryColor,
+        Color secondaryColor,
+        OffensiveTeamSkills skills,
+        string qbName,
+        IReadOnlyList<string> wideReceiverNames,
+        string tightEndName,
+        string runningBackName,
+        bool usePrimaryColorForUniforms = false)
+    {
+        return new OffensiveTeamAttributes
+        {
+            Name = name,
+            Description = description,
+            PrimaryColor = primaryColor,
+            SecondaryColor = secondaryColor,
+            UsePrimaryColorForUniforms = usePrimaryColorForUniforms,
+            Skills = skills,
+            Roster = OffensiveRosterFactory.Create(skills, qbName, wideReceiverNames, tightEndName, runningBackName),
+            OverallRating = OffensiveRosterFactory.ComputeOverallRating(skills)
+        };
+    }
+}

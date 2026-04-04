@@ -6,6 +6,28 @@ using RetroQB.Core;
 
 namespace RetroQB.Data;
 
+public sealed record OffensiveTeamSkills
+{
+    public float RbPower { get; init; } = 0.5f;
+    public float RbSpeed { get; init; } = 0.5f;
+    public float QbThrowPower { get; init; } = 0.5f;
+    public float QbThrowAccuracy { get; init; } = 0.5f;
+    public float WrSpeed { get; init; } = 0.5f;
+    public float WrSkill { get; init; } = 0.5f;
+    public float OlStrength { get; init; } = 0.5f;
+
+    public static OffensiveTeamSkills Default => new();
+
+    public float Average => (
+        Math.Clamp(RbPower, 0f, 1f) +
+        Math.Clamp(RbSpeed, 0f, 1f) +
+        Math.Clamp(QbThrowPower, 0f, 1f) +
+        Math.Clamp(QbThrowAccuracy, 0f, 1f) +
+        Math.Clamp(WrSpeed, 0f, 1f) +
+        Math.Clamp(WrSkill, 0f, 1f) +
+        Math.Clamp(OlStrength, 0f, 1f)) / 7f;
+}
+
 /// <summary>
 /// Base attributes for a team, providing configurable player qualities.
 /// Teams can have different skill levels affecting gameplay.
@@ -29,6 +51,11 @@ public abstract class TeamAttributes
 /// </summary>
 public sealed class OffensiveTeamAttributes : TeamAttributes
 {
+    /// <summary>
+    /// High-level offensive team skill ratings used for roster generation and menu display.
+    /// </summary>
+    public OffensiveTeamSkills Skills { get; init; } = OffensiveTeamSkills.Default;
+
     /// <summary>
     /// Offensive roster with per-player profiles.
     /// </summary>
@@ -67,6 +94,7 @@ public sealed class OffensiveTeamAttributes : TeamAttributes
         Name = "Home",
         PrimaryColor = Palette.QB,
         SecondaryColor = Palette.Receiver,
+        Skills = OffensiveTeamSkills.Default,
         Roster = OffensiveRoster.Default
     };
 
@@ -83,6 +111,7 @@ public sealed class OffensiveTeamAttributes : TeamAttributes
     public float GetReceiverSpeed(ReceiverSlot slot) => Roster.GetReceiverSpeed(slot);
     public float GetReceiverCatchingAbility(ReceiverSlot slot) => Roster.GetReceiverCatchingAbility(slot);
     public float GetReceiverCatchRadiusMultiplier(ReceiverSlot slot) => Roster.GetReceiverCatchRadius(slot);
+    public float GetReceiverSkill(ReceiverSlot slot) => Roster.GetReceiverSkill(slot);
     public float GetRbTackleBreakChance(ReceiverSlot slot) => Roster.GetRbTackleBreakChance(slot);
 
     // OLine delegations

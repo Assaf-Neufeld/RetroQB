@@ -207,7 +207,7 @@ public sealed class ReceiverUpdateController
             {
                 if (receiver.PositionRole == OffensivePosition.WR)
                 {
-                    float shakeSkill = receiver.TeamAttributes.GetReceiverCatchingAbility(receiver.Slot);
+                    float shakeSkill = receiver.TeamAttributes.GetReceiverSkill(receiver.Slot);
                     ApplyManCoverageShake(receiver, manDefender, shakeSkill);
                 }
             }

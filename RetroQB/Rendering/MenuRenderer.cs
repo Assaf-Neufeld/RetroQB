@@ -109,57 +109,58 @@ public sealed class MenuRenderer
     private void DrawBaseMenu(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams)
     {
         int screenH = Raylib.GetScreenHeight();
-        int panelWidth = 560;
-        int panelHeight = Math.Min(600, screenH - 40);
+        bool denseTeamLayout = teams.Count > 5;
+        int panelWidth = denseTeamLayout ? 860 : 560;
+        int panelHeight = Math.Min(denseTeamLayout ? 690 : 600, screenH - 24);
 
         OverlayFrame frame = OverlayChromeRenderer.DrawWindowCentered(
             panelWidth,
             panelHeight,
             Palette.Gold,
             OverlayVariant.Hero,
-            horizontalMargin: 56,
-            verticalMargin: 40,
+            horizontalMargin: denseTeamLayout ? 44 : 56,
+            verticalMargin: denseTeamLayout ? 20 : 40,
             drawScrim: true);
         int panelX = frame.X;
         int panelY = frame.Y;
         panelWidth = frame.Width;
         panelHeight = frame.Height;
-        bool compactLayout = panelHeight < 585;
+        bool compactLayout = panelHeight < 585 || denseTeamLayout;
 
         int contentX = panelX + 30;
-        int contentY = panelY + (compactLayout ? 18 : 24);
+        int contentY = panelY + (denseTeamLayout ? 16 : compactLayout ? 18 : 24);
 
         // TITLE SECTION
         string title = "RETRO QB";
-        int titleSize = compactLayout ? 46 : 52;
+        int titleSize = denseTeamLayout ? 40 : compactLayout ? 46 : 52;
         int titleWidth = Raylib.MeasureText(title, titleSize);
         Raylib.DrawText(title, panelX + (panelWidth - titleWidth) / 2, contentY, titleSize, Palette.Gold);
-        contentY += titleSize + (compactLayout ? 4 : 8);
+        contentY += titleSize + (denseTeamLayout ? 2 : compactLayout ? 4 : 8);
 
         // Subtitle
         string subtitle = "2D Football Simulation";
-        int subtitleSize = compactLayout ? 15 : 16;
+        int subtitleSize = denseTeamLayout ? 14 : compactLayout ? 15 : 16;
         int subtitleWidth = Raylib.MeasureText(subtitle, subtitleSize);
         Raylib.DrawText(subtitle, panelX + (panelWidth - subtitleWidth) / 2, contentY, subtitleSize, new Color(140, 160, 180, 255));
-        contentY += subtitleSize + (compactLayout ? 10 : 16);
+        contentY += subtitleSize + (denseTeamLayout ? 8 : compactLayout ? 10 : 16);
 
         // Decorative divider
-        int dividerPadding = compactLayout ? 32 : 40;
+        int dividerPadding = denseTeamLayout ? 28 : compactLayout ? 32 : 40;
         Raylib.DrawLine(panelX + dividerPadding, contentY, panelX + panelWidth - dividerPadding, contentY, new Color(60, 80, 100, 180));
         Raylib.DrawLine(panelX + dividerPadding, contentY + 1, panelX + panelWidth - dividerPadding, contentY + 1, Palette.Gold);
         Raylib.DrawLine(panelX + dividerPadding, contentY + 2, panelX + panelWidth - dividerPadding, contentY + 2, new Color(60, 80, 100, 180));
-        contentY += compactLayout ? 14 : 20;
+        contentY += denseTeamLayout ? 10 : compactLayout ? 14 : 20;
 
         // GAME RULES SECTION
         string goalText = "* WIN 3 STAGES TO BECOME CHAMPION *";
-        int goalSize = compactLayout ? 16 : 18;
+        int goalSize = denseTeamLayout ? 15 : compactLayout ? 16 : 18;
         int goalWidth = Raylib.MeasureText(goalText, goalSize);
         Raylib.DrawText(goalText, panelX + (panelWidth - goalWidth) / 2, contentY, goalSize, Palette.Lime);
-        contentY += goalSize + (compactLayout ? 4 : 6);
+        contentY += goalSize + (denseTeamLayout ? 2 : compactLayout ? 4 : 6);
 
         // Stage descriptions
-        int stageLineFontSize = compactLayout ? 13 : 14;
-        int stageLineSpacing = compactLayout ? 16 : 18;
+        int stageLineFontSize = denseTeamLayout ? 12 : compactLayout ? 13 : 14;
+        int stageLineSpacing = denseTeamLayout ? 14 : compactLayout ? 16 : 18;
         string[] stageLines = {
             "1. Regular Season  ->  2. Playoff  ->  3. Super Bowl",
             "Score 21 each round. Defense gets harder!"
@@ -170,20 +171,20 @@ public sealed class MenuRenderer
             Raylib.DrawText(line, panelX + (panelWidth - lineWidth) / 2, contentY, stageLineFontSize, new Color(180, 200, 220, 255));
             contentY += stageLineSpacing;
         }
-        contentY += compactLayout ? 4 : 8;
+        contentY += denseTeamLayout ? 2 : compactLayout ? 4 : 8;
 
         // TEAM SELECTION SECTION
         string selectHeader = "SELECT YOUR TEAM";
-        int headerSize = compactLayout ? 17 : 18;
+        int headerSize = denseTeamLayout ? 16 : compactLayout ? 17 : 18;
         int headerWidth = Raylib.MeasureText(selectHeader, headerSize);
         Raylib.DrawText(selectHeader, panelX + (panelWidth - headerWidth) / 2, contentY, headerSize, Palette.Yellow);
-        contentY += headerSize + (compactLayout ? 10 : 14);
+        contentY += headerSize + (denseTeamLayout ? 8 : compactLayout ? 10 : 14);
 
         // Team selection area background
-        int teamAreaWidth = panelWidth - 50;
-        int teamLineHeight = compactLayout ? 60 : 68;
+        int teamAreaWidth = panelWidth - (denseTeamLayout ? 42 : 50);
+        int teamLineHeight = denseTeamLayout ? 52 : compactLayout ? 60 : 68;
         int teamAreaHeight = teamLineHeight * teams.Count + 12;
-        int teamAreaX = panelX + 25;
+        int teamAreaX = panelX + (denseTeamLayout ? 21 : 25);
         Raylib.DrawRectangle(teamAreaX, contentY, teamAreaWidth, teamAreaHeight, new Color(8, 12, 18, 220));
         Raylib.DrawRectangleLines(teamAreaX, contentY, teamAreaWidth, teamAreaHeight, new Color(50, 70, 100, 180));
 
@@ -195,8 +196,20 @@ public sealed class MenuRenderer
             bool isSelected = i == selectedTeamIndex;
             Color textColor = isSelected ? Palette.Gold : Palette.White;
 
-            int rowX = teamAreaX + 12;
+            int rowX = teamAreaX + (denseTeamLayout ? 10 : 12);
             int rowWidth = teamAreaWidth - 24;
+            int infoWidth = rowWidth;
+            int chartX = rowX + 18;
+            int chartWidth = rowWidth - 30;
+            if (denseTeamLayout)
+            {
+                const int denseChartMinWidth = 240;
+                int preferredInfoWidth = (int)(rowWidth * 0.52f);
+                int maxInfoWidth = rowWidth - denseChartMinWidth - 12;
+                infoWidth = Math.Clamp(preferredInfoWidth, 280, Math.Max(280, maxInfoWidth));
+                chartX = rowX + infoWidth;
+                chartWidth = rowWidth - infoWidth - 12;
+            }
 
             if (isSelected)
             {
@@ -205,13 +218,13 @@ public sealed class MenuRenderer
                 Raylib.DrawRectangleLines(rowX - 4, teamY - 2, rowWidth + 8, teamLineHeight - 6, team.PrimaryColor);
                 
                 // Selection indicator arrow
-                Raylib.DrawText(">", rowX - 2, teamY + (compactLayout ? 1 : 4), compactLayout ? 16 : 18, Palette.Gold);
+                Raylib.DrawText(">", rowX - 2, teamY + (denseTeamLayout ? 0 : compactLayout ? 1 : 4), denseTeamLayout ? 14 : compactLayout ? 16 : 18, Palette.Gold);
             }
 
             // Team color swatches
             int swatchX = rowX + 20;
-            int swatchSize = compactLayout ? 18 : 20;
-            int swatchTop = teamY + 5;
+            int swatchSize = denseTeamLayout ? 15 : compactLayout ? 18 : 20;
+            int swatchTop = teamY + (denseTeamLayout ? 4 : 5);
             Raylib.DrawRectangle(swatchX, swatchTop, swatchSize, swatchSize, team.PrimaryColor);
             Raylib.DrawRectangle(swatchX + swatchSize + 4, swatchTop, swatchSize, swatchSize, team.SecondaryColor);
             Raylib.DrawRectangleLines(swatchX, swatchTop, swatchSize, swatchSize, new Color(80, 90, 100, 180));
@@ -221,38 +234,53 @@ public sealed class MenuRenderer
             string keyHint = string.Equals(team.Name, OffensiveTeamPresets.GoldenLegion.Name, StringComparison.OrdinalIgnoreCase)
                 ? "[0]"
                 : $"[{i + 1}]";
-            int keyX = swatchX + (compactLayout ? 50 : 56);
-            int teamInfoY = teamY + (compactLayout ? 5 : 6);
-            Raylib.DrawText(keyHint, keyX, teamInfoY, compactLayout ? 15 : 16, isSelected ? Palette.Cyan : new Color(100, 120, 140, 255));
-            
-            string teamLine = $"{team.Name} - {team.Description}";
-            Raylib.DrawText(teamLine, swatchX + (compactLayout ? 82 : 92), teamInfoY, compactLayout ? 16 : 18, textColor);
+            int keyX = swatchX + (denseTeamLayout ? 44 : compactLayout ? 50 : 56);
+            int teamInfoY = teamY + (denseTeamLayout ? 2 : compactLayout ? 5 : 6);
+            int titleFontSize = denseTeamLayout ? 15 : compactLayout ? 16 : 18;
+            int subtitleFontSize = denseTeamLayout ? 11 : 12;
+            Color subtitleColor = isSelected ? new Color(168, 190, 210, 255) : new Color(110, 130, 150, 255);
+            Raylib.DrawText(keyHint, keyX, teamInfoY, denseTeamLayout ? 13 : compactLayout ? 15 : 16, isSelected ? Palette.Cyan : new Color(100, 120, 140, 255));
+
+            int teamLineX = swatchX + (denseTeamLayout ? 78 : compactLayout ? 82 : 92);
+            int teamLineWidth = denseTeamLayout ? infoWidth - (teamLineX - rowX) - 10 : rowWidth - (teamLineX - rowX);
+            int fittedTitleFont = denseTeamLayout
+                ? GetFittedFontSize(team.Name, titleFontSize, teamLineWidth, 10)
+                : titleFontSize;
+            int fittedSubtitleFont = denseTeamLayout
+                ? GetFittedFontSize(team.Description, subtitleFontSize, teamLineWidth, 9)
+                : subtitleFontSize;
+            Raylib.DrawText(team.Name, teamLineX, teamInfoY, fittedTitleFont, textColor);
+            Raylib.DrawText(team.Description, teamLineX, teamInfoY + (denseTeamLayout ? 16 : 18), fittedSubtitleFont, subtitleColor);
 
             // Stat bar chart
-            DrawTeamStatBars(team, rowX + 18, teamY + (compactLayout ? 26 : 32), rowWidth - 30, isSelected);
+            DrawTeamStatBars(team, chartX, teamY + (denseTeamLayout ? 8 : compactLayout ? 26 : 32), chartWidth, isSelected, denseTeamLayout);
 
             teamY += teamLineHeight;
         }
 
-        contentY += teamAreaHeight + (compactLayout ? 16 : 24);
+        contentY += teamAreaHeight + (denseTeamLayout ? 10 : compactLayout ? 16 : 24);
 
         // INSTRUCTIONS FOOTER
         Raylib.DrawLine(panelX + dividerPadding, contentY, panelX + panelWidth - dividerPadding, contentY, new Color(60, 80, 100, 180));
-        contentY += compactLayout ? 10 : 16;
+        contentY += denseTeamLayout ? 8 : compactLayout ? 10 : 16;
 
-        string controls1 = "Press 1-3 to select team";
+        string controls1 = $"Press 1-{Math.Min(teams.Count, OffensiveTeamPresets.StandardTeamCount)} to select team";
         string controls2 = "Press ENTER to start";
+        string controls3 = "Press 0 for secret team";
         string controls4 = "Press L for leaderboard";
-        int ctrlSize = compactLayout ? 14 : 16;
-        int ctrlGap = compactLayout ? 6 : 8;
+        int ctrlSize = denseTeamLayout ? 13 : compactLayout ? 14 : 16;
+        int ctrlGap = denseTeamLayout ? 4 : compactLayout ? 6 : 8;
 
         int ctrl1Width = Raylib.MeasureText(controls1, ctrlSize);
         int ctrl2Width = Raylib.MeasureText(controls2, ctrlSize);
+        int ctrl3Width = Raylib.MeasureText(controls3, ctrlSize);
         int ctrl4Width = Raylib.MeasureText(controls4, ctrlSize);
 
         Raylib.DrawText(controls1, panelX + (panelWidth - ctrl1Width) / 2, contentY, ctrlSize, new Color(160, 180, 200, 255));
         contentY += ctrlSize + ctrlGap;
         Raylib.DrawText(controls2, panelX + (panelWidth - ctrl2Width) / 2, contentY, ctrlSize, Palette.Yellow);
+        contentY += ctrlSize + ctrlGap;
+        Raylib.DrawText(controls3, panelX + (panelWidth - ctrl3Width) / 2, contentY, ctrlSize, Palette.Gold);
         contentY += ctrlSize + ctrlGap;
         Raylib.DrawText(controls4, panelX + (panelWidth - ctrl4Width) / 2, contentY, ctrlSize, Palette.Cyan);
     }
@@ -477,84 +505,61 @@ public sealed class MenuRenderer
     }
 
     /// <summary>
-    /// Draws a horizontal row of four stat bars (WR, RB, QB, OL) for a team.
+    /// Draws a compact stat grid showing four grouped offensive team categories.
     /// </summary>
-    private static void DrawTeamStatBars(OffensiveTeamAttributes team, int x, int y, int availableWidth, bool highlighted)
+    private static void DrawTeamStatBars(OffensiveTeamAttributes team, int x, int y, int availableWidth, bool highlighted, bool denseLayout)
     {
-        var (wrRating, rbRating, qbRating, olRating) = ComputeTeamRatings(team);
-        ReadOnlySpan<string> labels = ["WR", "RB", "QB", "OL"];
-        ReadOnlySpan<float> values = [wrRating, rbRating, qbRating, olRating];
-
-        int labelWidth = 24;
-        int barHeight = 8;
-        int groupSpacing = 8;
-        int groupWidth = (availableWidth - groupSpacing * 3) / 4;
-        int barMaxWidth = groupWidth - labelWidth - 4;
+        var (labels, values) = GetTeamSkillMetrics(team);
+        int metricCount = labels.Length;
+        int groupSpacing = denseLayout ? 6 : 8;
+        int cellWidth = (availableWidth - groupSpacing * (metricCount - 1)) / metricCount;
+        int barHeight = denseLayout ? 6 : 8;
+        int labelFontSize = denseLayout ? 9 : 12;
+        int barY = y + (denseLayout ? 12 : 14);
 
         Color labelColor = highlighted ? new Color(180, 200, 220, 255) : new Color(120, 140, 160, 255);
         Color barBg = new Color(30, 35, 45, 200);
         Color barBorder = new Color(60, 70, 85, 180);
 
-        for (int j = 0; j < 4; j++)
+        for (int j = 0; j < labels.Length; j++)
         {
-            int bx = x + j * (groupWidth + groupSpacing);
+            int cellX = x + j * (cellWidth + groupSpacing);
+            int labelWidth = Raylib.MeasureText(labels[j], labelFontSize);
+            int labelX = cellX + (cellWidth - labelWidth) / 2;
+            int barWidth = Math.Max(20, cellWidth - 4);
+            int barX = cellX + (cellWidth - barWidth) / 2;
 
-            // Label
-            Raylib.DrawText(labels[j], bx, y, 12, labelColor);
+            Raylib.DrawText(labels[j], labelX, y, labelFontSize, labelColor);
+            Raylib.DrawRectangle(barX, barY, barWidth, barHeight, barBg);
 
-            // Bar background
-            int barX = bx + labelWidth;
-            Raylib.DrawRectangle(barX, y + 1, barMaxWidth, barHeight, barBg);
-
-            // Bar fill
-            int fillWidth = (int)(barMaxWidth * Math.Clamp(values[j], 0f, 1f));
+            int fillWidth = (int)(barWidth * Math.Clamp(values[j], 0f, 1f));
             if (fillWidth > 0)
             {
                 Color barColor = GetRatingBarColor(values[j]);
-                Raylib.DrawRectangle(barX, y + 1, fillWidth, barHeight, barColor);
+                Raylib.DrawRectangle(barX, barY, fillWidth, barHeight, barColor);
             }
 
-            // Bar outline
-            Raylib.DrawRectangleLines(barX, y + 1, barMaxWidth, barHeight, barBorder);
+            Raylib.DrawRectangleLines(barX, barY, barWidth, barHeight, barBorder);
         }
     }
 
-    /// <summary>
-    /// Computes 0-1 ratings for WR, RB, QB, and OL from team roster data.
-    /// </summary>
-    private static (float WR, float RB, float QB, float OL) ComputeTeamRatings(OffensiveTeamAttributes team)
+    private static (string[] Labels, float[] Values) GetTeamSkillMetrics(OffensiveTeamAttributes team)
     {
-        var roster = team.Roster;
-
-        // WR: average speed multiplier + average catching ability
-        float wrSpeedSum = 0f, wrCatchSum = 0f;
-        int wrCount = 0;
-        foreach (var wr in roster.WideReceivers.Values)
-        {
-            wrSpeedSum += wr.Speed / Constants.WrSpeed;
-            wrCatchSum += wr.CatchingAbility;
-            wrCount++;
-        }
-        float wrSpeedRating = wrCount > 0 ? Math.Clamp((wrSpeedSum / wrCount - 0.7f) / 0.7f, 0f, 1f) : 0f;
-        float wrCatchRating = wrCount > 0 ? Math.Clamp((wrCatchSum / wrCount - 0.4f) / 0.6f, 0f, 1f) : 0f;
-        float wrRating = (wrSpeedRating + wrCatchRating) / 2f;
-
-        // RB: speed multiplier + tackle break chance
-        var rb = roster.RunningBacks.Values.FirstOrDefault() ?? RbProfile.Default;
-        float rbSpeedRating = Math.Clamp((rb.Speed / Constants.RbSpeed - 0.7f) / 0.7f, 0f, 1f);
-        float rbTackleRating = Math.Clamp((rb.TackleBreakChance - 0.1f) / 0.4f, 0f, 1f);
-        float rbRating = (rbSpeedRating + rbTackleRating) / 2f;
-
-        // QB: accuracy (lower = better, inverted) + arm strength
-        var qb = roster.Quarterback;
-        float qbAccuracyRating = Math.Clamp((1.0f - qb.Accuracy) / 0.5f, 0f, 1f);
-        float qbArmRating = Math.Clamp((qb.ArmStrength - 0.7f) / 0.6f, 0f, 1f);
-        float qbRating = (qbAccuracyRating + qbArmRating) / 2f;
-
-        // OL: blocking strength
-        float olRating = Math.Clamp((roster.OffensiveLine.BlockingStrength - 0.6f) / 0.8f, 0f, 1f);
-
-        return (wrRating, rbRating, qbRating, olRating);
+        OffensiveTeamSkills skills = team.Skills;
+        float qb = (Math.Clamp(skills.QbThrowPower, 0f, 1f) + Math.Clamp(skills.QbThrowAccuracy, 0f, 1f)) / 2f;
+        float wr = (Math.Clamp(skills.WrSpeed, 0f, 1f) + Math.Clamp(skills.WrSkill, 0f, 1f)) / 2f;
+        float rb = (Math.Clamp(skills.RbPower, 0f, 1f) + Math.Clamp(skills.RbSpeed, 0f, 1f)) / 2f;
+        float ol = Math.Clamp(skills.OlStrength, 0f, 1f);
+        return
+        (
+            ["QB", "WR", "RB", "OL"],
+            [
+                qb,
+                wr,
+                rb,
+                ol
+            ]
+        );
     }
 
     /// <summary>

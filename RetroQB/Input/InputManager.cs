@@ -76,13 +76,17 @@ public sealed class InputManager
     }
 
     /// <summary>
-    /// Returns team selection index (0-2) from number keys 1-3, or null if no team key pressed.
+    /// Returns team selection index (0-6) from number keys 1-7, or null if no team key pressed.
     /// </summary>
     public int? GetTeamSelection()
     {
         if (Raylib.IsKeyPressed(KeyboardKey.One)) return 0;
         if (Raylib.IsKeyPressed(KeyboardKey.Two)) return 1;
         if (Raylib.IsKeyPressed(KeyboardKey.Three)) return 2;
+        if (Raylib.IsKeyPressed(KeyboardKey.Four)) return 3;
+        if (Raylib.IsKeyPressed(KeyboardKey.Five)) return 4;
+        if (Raylib.IsKeyPressed(KeyboardKey.Six)) return 5;
+        if (Raylib.IsKeyPressed(KeyboardKey.Seven)) return 6;
         return null;
     }
 

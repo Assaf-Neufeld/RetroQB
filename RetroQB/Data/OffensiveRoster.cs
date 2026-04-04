@@ -37,6 +37,8 @@ public sealed record WrProfile
     public float CatchingAbility { get; init; } = 0.7f;
     /// <summary>Catch radius multiplier. 1.0 = baseline.</summary>
     public float CatchRadius { get; init; } = 1.0f;
+    /// <summary>Route craft and release skill used against man coverage.</summary>
+    public float RouteSkill { get; init; } = 0.7f;
 
     public static WrProfile Default => new();
 }
@@ -134,7 +136,7 @@ public sealed class OffensiveRoster
 
     public float GetQbAccuracy(float distance)
     {
-        float baseAccuracy = Math.Clamp(Quarterback.Accuracy, 0.6f, 1.6f);
+        float baseAccuracy = Math.Clamp(Quarterback.Accuracy, 0.5f, 1.6f);
         float deepPenalty = Math.Clamp(Quarterback.DeepAccuracyPenalty, 1.0f, 1.6f);
         float maxThrowDistance = GetQbMaxThrowDistance();
         float range = maxThrowDistance - Constants.ShortPassMaxDistance;
@@ -143,7 +145,7 @@ public sealed class OffensiveRoster
             : 1f;
 
         float effective = baseAccuracy * (1f + (deepPenalty - 1f) * depthT);
-        return Math.Clamp(effective, 0.6f, 1.6f);
+        return Math.Clamp(effective, 0.5f, 1.6f);
     }
 
     // Receiver accessors by slot
@@ -170,6 +172,21 @@ public sealed class OffensiveRoster
         else
             ability = 0.7f;
         return Math.Clamp(ability, 0.4f, 0.95f);
+    }
+
+    public float GetReceiverSkill(ReceiverSlot slot)
+    {
+        if (slot.IsRunningBackSlot() || slot.IsTightEndSlot())
+        {
+            return GetReceiverCatchingAbility(slot);
+        }
+
+        if (WideReceivers.TryGetValue(slot, out var wr))
+        {
+            return Math.Clamp(wr.RouteSkill, 0.4f, 0.97f);
+        }
+
+        return 0.7f;
     }
 
     public float GetReceiverCatchRadius(ReceiverSlot slot)
