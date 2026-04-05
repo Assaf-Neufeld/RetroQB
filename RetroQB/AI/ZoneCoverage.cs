@@ -83,30 +83,8 @@ public static class ZoneCoverage
     /// </summary>
     public static Vector2 GetZoneAnchor(Defender defender, float lineOfScrimmage)
     {
-        float depth = defender.PositionRole == DefensivePosition.DB
-            ? Constants.ZoneCoverageDepthDb
-            : Constants.ZoneCoverageDepth;
-
-        float jitterX = defender.ZoneJitterX;
-
-        Vector2 anchor = defender.ZoneRole switch
-        {
-            CoverageRole.DeepLeft => new Vector2(Constants.FieldWidth * 0.25f, lineOfScrimmage + Constants.ZoneCoverageDepthDb - 0.9f),
-            CoverageRole.DeepMiddle => new Vector2(Constants.FieldWidth * 0.50f, lineOfScrimmage + Constants.ZoneCoverageDepthDb + 1.4f),
-            CoverageRole.DeepRight => new Vector2(Constants.FieldWidth * 0.75f, lineOfScrimmage + Constants.ZoneCoverageDepthDb - 0.9f),
-            CoverageRole.DeepQuarterLeft => new Vector2(Constants.FieldWidth * 0.40f, lineOfScrimmage + Constants.ZoneCoverageDepthDb + 0.6f),
-            CoverageRole.DeepQuarterRight => new Vector2(Constants.FieldWidth * 0.60f, lineOfScrimmage + Constants.ZoneCoverageDepthDb + 0.6f),
-            CoverageRole.FlatLeft => new Vector2(Constants.FieldWidth * 0.12f, lineOfScrimmage + Constants.ZoneCoverageDepthFlat - 0.3f),
-            CoverageRole.FlatRight => new Vector2(Constants.FieldWidth * 0.88f, lineOfScrimmage + Constants.ZoneCoverageDepthFlat - 0.3f),
-            CoverageRole.HookLeft => new Vector2(Constants.FieldWidth * 0.34f, lineOfScrimmage + Constants.ZoneCoverageDepth - 0.6f),
-            CoverageRole.HookMiddle => new Vector2(Constants.FieldWidth * 0.50f, lineOfScrimmage + Constants.ZoneCoverageDepth + 0.2f),
-            CoverageRole.HookRight => new Vector2(Constants.FieldWidth * 0.66f, lineOfScrimmage + Constants.ZoneCoverageDepth - 0.6f),
-            CoverageRole.Robber => new Vector2(Constants.FieldWidth * 0.50f, lineOfScrimmage + Constants.ZoneCoverageDepthFlat + 1.2f),
-            _ => new Vector2(Constants.FieldWidth * 0.50f, lineOfScrimmage + depth)
-        };
-
-        // Apply horizontal jitter, clamped to field bounds
-        anchor.X = Math.Clamp(anchor.X + jitterX, 0.5f, Constants.FieldWidth - 0.5f);
+        Vector2 anchor = defender.AlignmentPosition;
+        anchor.X = Math.Clamp(anchor.X, 0.5f, Constants.FieldWidth - 0.5f);
 
         // Nickel underneath zones should gain depth quickly after the snap.
         if (defender.Slot == DefenderSlot.NB)
@@ -135,8 +113,8 @@ public static class ZoneCoverage
     public static ZoneBounds GetZoneBounds(Defender defender, float lineOfScrimmage)
     {
         float yMin = lineOfScrimmage + 1.0f;
-        var (xCenter, width, yMax) = GetZoneParameters(defender.ZoneRole, lineOfScrimmage, ref yMin);
-        xCenter += defender.ZoneJitterX;
+        var (_, width, yMax) = GetZoneParameters(defender.ZoneRole, lineOfScrimmage, ref yMin);
+        float xCenter = defender.AlignmentPosition.X;
 
         float halfWidth = width * 0.5f;
         float xMin = Math.Clamp(xCenter - halfWidth, 0.5f, Constants.FieldWidth - 0.5f);

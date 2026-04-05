@@ -44,8 +44,8 @@ public sealed class DefenseFactory : IDefenseFactory
         var attrs = teamAttributes ?? DefensiveTeamAttributes.Default;
         var defenders = new List<Defender>();
 
-        ResolveCoverageIndices(receivers, out int left, out int leftSlot, out int middle, out int rightSlot, out int right);
         OffensiveSurface surface = DefensiveSurfaceAnalyzer.Analyze(receivers, context.LineOfScrimmage);
+        ResolveCoverageIndicesFromSurface(surface, receivers, out int left, out int leftSlot, out int middle, out int rightSlot, out int right);
 
         // Use the pre-decided scheme and blitz from the coordinator
         CoverageScheme scheme = call.Scheme;
@@ -462,33 +462,45 @@ public sealed class DefenseFactory : IDefenseFactory
         return minOffset + (baseOffset - minOffset) * depthScale;
     }
 
-    private static void ResolveCoverageIndices(IReadOnlyList<Receiver> receivers, out int left, out int leftSlot, out int middle, out int rightSlot, out int right)
+    private static void ResolveCoverageIndicesFromSurface(OffensiveSurface surface, IReadOnlyList<Receiver> receivers, out int left, out int leftSlot, out int middle, out int rightSlot, out int right)
     {
-        var coverageReceivers = receivers
+        left = surface.LeftWideReceiverIndex;
+        leftSlot = surface.LeftInsideReceiverIndex;
+        middle = surface.MiddleReceiverIndex;
+        rightSlot = surface.RightInsideReceiverIndex;
+        right = surface.RightWideReceiverIndex;
+
+        var ordered = receivers
             .Where(receiver => receiver.Eligible)
+            .OrderBy(receiver => receiver.Position.X)
+            .Select(receiver => receiver.Index)
             .ToList();
 
-        if (coverageReceivers.Count == 0)
+        if (ordered.Count == 0)
         {
-            coverageReceivers = receivers.ToList();
+            ordered = receivers
+                .OrderBy(receiver => receiver.Position.X)
+                .Select(receiver => receiver.Index)
+                .ToList();
         }
 
-        if (coverageReceivers.Count == 0)
+        if (ordered.Count == 0)
         {
             left = leftSlot = middle = rightSlot = right = -1;
             return;
         }
 
-        var ordered = coverageReceivers
-            .OrderBy(receiver => receiver.Position.X)
-            .Select(item => item.Index)
-            .ToList();
-
-        left = ordered[0];
-        right = ordered[^1];
-        middle = ordered.Count >= 3 ? ordered[ordered.Count / 2] : -1;
-        leftSlot = ordered.Count >= 4 ? ordered[1] : -1;
-        rightSlot = ordered.Count >= 4 ? ordered[^2] : -1;
+        left = left >= 0 ? left : ordered[0];
+        right = right >= 0 ? right : ordered[^1];
+        middle = middle >= 0
+            ? middle
+            : ordered.Count >= 3 ? ordered[ordered.Count / 2] : -1;
+        leftSlot = leftSlot >= 0
+            ? leftSlot
+            : ordered.Count >= 4 ? ordered[1] : middle;
+        rightSlot = rightSlot >= 0
+            ? rightSlot
+            : ordered.Count >= 4 ? ordered[^2] : middle;
     }
 
     private static float GetReceiverXOrDefault(IReadOnlyList<Receiver> receivers, int receiverIndex, float fallbackX)
@@ -754,6 +766,7 @@ public sealed class DefenseFactory : IDefenseFactory
     {
         var coverageReceivers = receivers
             .Where(receiver => receiver.Eligible)
+            .OrderBy(receiver => receiver.Position.X)
             .ToList();
 
         if (coverageReceivers.Count == 0)
@@ -773,49 +786,125 @@ public sealed class DefenseFactory : IDefenseFactory
             candidate.Defender.ZoneRole = candidate.OriginalZoneRole;
         }
 
-        var remainingCandidates = new List<CoverageAssignmentCandidate>(candidates);
-        var availableReceivers = coverageReceivers.Select(receiver => receiver.Index).ToHashSet();
+        var orderedCandidates = candidates
+            .OrderBy(candidate => candidate.Defender.Position.X)
+            .ToList();
+        var availableReceiverIndices = coverageReceivers
+            .Select(receiver => receiver.Index)
+            .ToHashSet();
 
-        while (remainingCandidates.Count > 0 && availableReceivers.Count > 0)
+        foreach (CoverageAssignmentCandidate candidate in orderedCandidates)
         {
-            CoverageAssignmentCandidate? bestCandidate = null;
-            int bestReceiverIndex = -1;
-            float bestDistSq = float.MaxValue;
-
-            foreach (CoverageAssignmentCandidate candidate in remainingCandidates)
+            int preferred = GetPreferredReceiverIndex(candidate, coverageReceivers);
+            if (preferred >= 0 && availableReceiverIndices.Remove(preferred))
             {
-                foreach (int receiverIndex in availableReceivers)
+                candidate.Defender.CoverageReceiverIndex = preferred;
+                if (candidate.ClearZoneRoleOnAssignment)
                 {
-                    float distSq = Vector2.DistanceSquared(candidate.Defender.Position, receivers[receiverIndex].Position);
-                    if (distSq < bestDistSq)
-                    {
-                        bestDistSq = distSq;
-                        bestCandidate = candidate;
-                        bestReceiverIndex = receiverIndex;
-                    }
+                    candidate.Defender.ZoneRole = CoverageRole.None;
                 }
             }
-
-            if (bestCandidate is null || bestReceiverIndex < 0)
-            {
-                break;
-            }
-
-            bestCandidate.Defender.CoverageReceiverIndex = bestReceiverIndex;
-            if (bestCandidate.ClearZoneRoleOnAssignment)
-            {
-                bestCandidate.Defender.ZoneRole = CoverageRole.None;
-            }
-
-            remainingCandidates.Remove(bestCandidate);
-            availableReceivers.Remove(bestReceiverIndex);
         }
 
-        foreach (CoverageAssignmentCandidate candidate in remainingCandidates)
+        foreach (CoverageAssignmentCandidate candidate in orderedCandidates)
         {
-            candidate.Defender.CoverageReceiverIndex = -1;
+            if (candidate.Defender.CoverageReceiverIndex >= 0)
+            {
+                continue;
+            }
+
+            int alignedIndex = SelectAlignedReceiverIndex(candidate.Defender, coverageReceivers, availableReceiverIndices);
+            if (alignedIndex < 0)
+            {
+                continue;
+            }
+
+            candidate.Defender.CoverageReceiverIndex = alignedIndex;
+            availableReceiverIndices.Remove(alignedIndex);
+            if (candidate.ClearZoneRoleOnAssignment)
+            {
+                candidate.Defender.ZoneRole = CoverageRole.None;
+            }
+        }
+
+        foreach (CoverageAssignmentCandidate candidate in orderedCandidates)
+        {
+            if (candidate.Defender.CoverageReceiverIndex >= 0)
+            {
+                continue;
+            }
+
             candidate.Defender.ZoneRole = candidate.OriginalZoneRole;
         }
+    }
+
+    private static int GetPreferredReceiverIndex(CoverageAssignmentCandidate candidate, IReadOnlyList<Receiver> coverageReceivers)
+    {
+        int receiverIndex = candidate.Defender.CoverageReceiverIndex;
+        if (receiverIndex < 0)
+        {
+            return -1;
+        }
+
+        return coverageReceivers.Any(receiver => receiver.Index == receiverIndex)
+            ? receiverIndex
+            : -1;
+    }
+
+    private static int SelectAlignedReceiverIndex(Defender defender, IReadOnlyList<Receiver> coverageReceivers, IReadOnlySet<int> availableReceiverIndices)
+    {
+        if (coverageReceivers.Count == 0 || availableReceiverIndices.Count == 0)
+        {
+            return -1;
+        }
+
+        float defenderX = defender.AlignmentPosition.X;
+        float fieldMidX = Constants.FieldWidth * 0.5f;
+        int defenderSide = defenderX < fieldMidX ? -1 : 1;
+
+        float bestDistance = float.MaxValue;
+        int bestReceiverIndex = -1;
+
+        foreach (Receiver receiver in coverageReceivers)
+        {
+            if (!availableReceiverIndices.Contains(receiver.Index))
+            {
+                continue;
+            }
+
+            int receiverSide = receiver.Position.X < fieldMidX ? -1 : 1;
+            bool sideMismatch = receiverSide != defenderSide;
+            float weightedDistance = MathF.Abs(receiver.Position.X - defenderX) + (sideMismatch ? 1000f : 0f);
+
+            if (weightedDistance < bestDistance)
+            {
+                bestDistance = weightedDistance;
+                bestReceiverIndex = receiver.Index;
+            }
+        }
+
+        if (bestReceiverIndex >= 0)
+        {
+            return bestReceiverIndex;
+        }
+
+        float fallbackDistance = float.MaxValue;
+        foreach (Receiver receiver in coverageReceivers)
+        {
+            if (!availableReceiverIndices.Contains(receiver.Index))
+            {
+                continue;
+            }
+
+            float distance = MathF.Abs(receiver.Position.X - defenderX);
+            if (distance < fallbackDistance)
+            {
+                fallbackDistance = distance;
+                bestReceiverIndex = receiver.Index;
+            }
+        }
+
+        return bestReceiverIndex;
     }
 
     private static List<CoverageAssignmentCandidate> GetCoverageAssignmentCandidates(CoverageScheme scheme, IReadOnlyList<Defender> defenders)

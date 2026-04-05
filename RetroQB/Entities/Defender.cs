@@ -31,6 +31,7 @@ public enum DefensivePosition
 
 public sealed class Defender : Entity
 {
+    public Vector2 AlignmentPosition { get; }
     public DefensivePosition PositionRole { get; }
     public DefenderSlot Slot { get; }
     private readonly float _baseSpeed;
@@ -78,6 +79,7 @@ public sealed class Defender : Entity
     public Defender(Vector2 position, DefensivePosition role, DefenderSlot slot, DefensiveTeamAttributes? teamAttributes = null)
         : base(position, Constants.DefenderRadius, role.ToString(), Palette.Red)
     {
+        AlignmentPosition = position;
         TeamAttributes = teamAttributes ?? DefensiveTeamAttributes.Default;
         PositionRole = role;
         Slot = slot;

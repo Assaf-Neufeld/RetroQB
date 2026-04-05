@@ -117,22 +117,34 @@ internal static class DefensiveSurfaceAnalyzer
         int rightTightEnds,
         float fieldMidX)
     {
-        if (leftTightEnds != rightTightEnds)
+        int detachedCount = left.Count + right.Count;
+        bool heavyDetachedSurface = detachedCount <= 2;
+
+        // In heavy looks, attached TE surface should still set strong side.
+        if (heavyDetachedSurface && leftTightEnds != rightTightEnds)
         {
             return leftTightEnds > rightTightEnds ? FormationStrength.Left : FormationStrength.Right;
         }
 
+        // For spread/base pass looks, detached receiver distribution defines strength first.
         if (left.Count != right.Count)
         {
             return left.Count > right.Count ? FormationStrength.Left : FormationStrength.Right;
         }
 
+        // Tie-break by inside detached leverage toward midfield.
         float leftInsideDistance = left.Count > 0 ? fieldMidX - left[^1].Position.X : float.MaxValue;
         float rightInsideDistance = right.Count > 0 ? right[0].Position.X - fieldMidX : float.MaxValue;
 
         if (leftInsideDistance != rightInsideDistance)
         {
             return leftInsideDistance < rightInsideDistance ? FormationStrength.Left : FormationStrength.Right;
+        }
+
+        // Final tie-break: attached TE distribution.
+        if (leftTightEnds != rightTightEnds)
+        {
+            return leftTightEnds > rightTightEnds ? FormationStrength.Left : FormationStrength.Right;
         }
 
         return FormationStrength.Balanced;
