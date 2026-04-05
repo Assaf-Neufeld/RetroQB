@@ -370,23 +370,13 @@ public sealed class GameSession : IDisposable
 
     private void HandleRestart()
     {
-        _currentStage = SeasonStage.RegularSeason;
-        _statsTracker.Reset();
-        _seasonSummary.Reset();
-        _isPostSeasonNameEntry = false;
-        _nameInput = string.Empty;
-        _pendingPlayerName = string.Empty;
-        _nameEntryMessage = string.Empty;
+        ResetSeasonProgress();
+        ClearNameEntryState();
         _leaderboardSummary = LeaderboardSummary.Empty;
-        ClearDriveOverBanner();
-        _lastPlayText = string.Empty;
-        _driveSummaryScrollOffsetFromLatest = 0;
+        ResetReplayPresentationState();
         _stateManager.ClearPause();
-        _replayPlayer.Unload();
-        _replayClipStore.Clear();
-        _drawingController.Fireworks.Clear();
-        InitializeGame();
-        _stateManager.SetState(GameState.PreSnap);
+        ResetReplayState();
+        StartFreshGame();
     }
 
     private void HandleMainMenu()
@@ -700,12 +690,8 @@ public sealed class GameSession : IDisposable
 
         if (_menuController.IsConfirmPressed())
         {
-            ResetPlayState();
-            _drawingController.Fireworks.Clear();
-            _isPostSeasonNameEntry = false;
-            _nameInput = string.Empty;
-            _pendingPlayerName = string.Empty;
-            _nameEntryMessage = string.Empty;
+            ResetReplayPresentationState();
+            ClearNameEntryState();
             _currentStage = SeasonStage.RegularSeason;
             _seasonSummary.Reset();
             _leaderboardSummary = LeaderboardSummary.Empty;
@@ -1346,36 +1332,21 @@ public sealed class GameSession : IDisposable
 
     private void StartSeasonForPlayer(string playerName)
     {
-        _isPostSeasonNameEntry = false;
+        ClearNameEntryState();
         _playerName = playerName;
         _nameInput = playerName;
-        _pendingPlayerName = string.Empty;
-        _nameEntryMessage = string.Empty;
-        _currentStage = SeasonStage.RegularSeason;
-        _statsTracker.Reset();
-        _seasonSummary.Reset();
+        ResetSeasonProgress();
         _leaderboardSummary = _playerRecordStore.BuildSummary(playerName, 0f);
-        InitializeGame();
-        _stateManager.SetState(GameState.PreSnap);
-        _manualPlaySelection = false;
-        _autoPlaySelectionDone = false;
+        StartFreshGame();
     }
 
     private void StartSeasonFromMenu()
     {
-        _isPostSeasonNameEntry = false;
+        ClearNameEntryState();
         _playerName = string.Empty;
-        _nameInput = string.Empty;
-        _pendingPlayerName = string.Empty;
-        _nameEntryMessage = string.Empty;
-        _currentStage = SeasonStage.RegularSeason;
-        _statsTracker.Reset();
-        _seasonSummary.Reset();
+        ResetSeasonProgress();
         _leaderboardSummary = LeaderboardSummary.Empty;
-        InitializeGame();
-        _stateManager.SetState(GameState.PreSnap);
-        _manualPlaySelection = false;
-        _autoPlaySelectionDone = false;
+        StartFreshGame();
     }
 
     private LeaderboardSummary SaveSeasonLeaderboard()
@@ -1389,5 +1360,40 @@ public sealed class GameSession : IDisposable
         string scoreHistory = _seasonSummary.BuildThreeStageScoreHistory();
         string scoreDetails = _seasonSummary.BuildDominanceScoreDetails();
         return _playerRecordStore.SaveSeasonResult(_playerName, _offensiveTeam.Name, scoreHistory, scoreDetails, dominanceScore);
+    }
+
+    private void ResetSeasonProgress()
+    {
+        _currentStage = SeasonStage.RegularSeason;
+        _statsTracker.Reset();
+        _seasonSummary.Reset();
+    }
+
+    private void ClearNameEntryState()
+    {
+        _isPostSeasonNameEntry = false;
+        _nameInput = string.Empty;
+        _pendingPlayerName = string.Empty;
+        _nameEntryMessage = string.Empty;
+    }
+
+    private void ResetReplayPresentationState()
+    {
+        ResetPlayState();
+        _drawingController.Fireworks.Clear();
+    }
+
+    private void ResetReplayState()
+    {
+        _replayPlayer.Unload();
+        _replayClipStore.Clear();
+    }
+
+    private void StartFreshGame()
+    {
+        InitializeGame();
+        _stateManager.SetState(GameState.PreSnap);
+        _manualPlaySelection = false;
+        _autoPlaySelectionDone = false;
     }
 }
