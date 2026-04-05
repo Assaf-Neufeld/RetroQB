@@ -70,6 +70,9 @@ public static class CoverageSchemeSelector
 {
     // ---- Baseline weight tables (C0, C1, C2Z, C3Z, C4Z, C3M, QMatch, C2M, Robber) ----
 
+    private const float ManCoverageBias = 1.18f;
+    private const float ZoneCoverageBias = 0.92f;
+
     private static readonly float[] Baseline     = { 5f, 18f, 24f, 20f, 8f, 9f, 6f, 13f, 11f };
     private static readonly float[] Aggressive   = { 15f, 26f, 9f, 9f, 4f, 13f, 4f, 24f, 18f };
     private static readonly float[] Conservative = { 0f, 5f, 18f, 28f, 22f, 11f, 18f, 8f, 6f };
@@ -99,7 +102,9 @@ public static class CoverageSchemeSelector
         int score, int awayScore)
     {
         float[] raw = GetSituationalRaw(down, distance, lineOfScrimmage, score, awayScore);
-        return ToDictionary(raw);
+        Dictionary<CoverageScheme, float> weights = ToDictionary(raw);
+        ApplyCoverageBias(weights);
+        return weights;
     }
 
     // ---- Pipeline: Step 2 — stage pool filter ----
@@ -113,22 +118,24 @@ public static class CoverageSchemeSelector
         switch (stage)
         {
             case SeasonStage.RegularSeason:
-                weights[CoverageScheme.Cover0] *= 0.12f;
-                weights[CoverageScheme.Cover1] *= 0.35f;
-                weights[CoverageScheme.Cover2Zone] *= 1.20f;
-                weights[CoverageScheme.Cover3Zone] *= 1.05f;
+                weights[CoverageScheme.Cover0] *= 0.18f;
+                weights[CoverageScheme.Cover1] *= 0.60f;
+                weights[CoverageScheme.Cover2Zone] *= 1.08f;
+                weights[CoverageScheme.Cover3Zone] *= 0.98f;
                 weights[CoverageScheme.Cover4Zone] *= 0.22f;
                 weights[CoverageScheme.Cover3Match] *= 0.20f;
                 weights[CoverageScheme.QuartersMatch] *= 0.18f;
-                weights[CoverageScheme.Cover2Man] *= 0.25f;
-                weights[CoverageScheme.Robber] *= 0.30f;
+                weights[CoverageScheme.Cover2Man] *= 0.55f;
+                weights[CoverageScheme.Robber] *= 0.55f;
                 break;
 
             case SeasonStage.Playoff:
-                weights[CoverageScheme.Cover0] *= 0.35f;
+                weights[CoverageScheme.Cover0] *= 0.50f;
+                weights[CoverageScheme.Cover1] *= 1.08f;
                 weights[CoverageScheme.Cover3Match] *= 1.05f;
                 weights[CoverageScheme.QuartersMatch] *= 0.90f;
-                weights[CoverageScheme.Robber] *= 1.05f;
+                weights[CoverageScheme.Cover2Man] *= 1.10f;
+                weights[CoverageScheme.Robber] *= 1.15f;
                 break;
 
             case SeasonStage.SuperBowl:
@@ -233,4 +240,28 @@ public static class CoverageSchemeSelector
         }
         return dict;
     }
+
+    private static void ApplyCoverageBias(Dictionary<CoverageScheme, float> weights)
+    {
+        foreach (CoverageScheme scheme in SchemeOrder)
+        {
+            if (!weights.TryGetValue(scheme, out float weight))
+            {
+                continue;
+            }
+
+            weights[scheme] = IsManOrientedScheme(scheme)
+                ? weight * ManCoverageBias
+                : weight * ZoneCoverageBias;
+        }
+    }
+
+    private static bool IsManOrientedScheme(CoverageScheme scheme) => scheme switch
+    {
+        CoverageScheme.Cover0 => true,
+        CoverageScheme.Cover1 => true,
+        CoverageScheme.Cover2Man => true,
+        CoverageScheme.Robber => true,
+        _ => false
+    };
 }
