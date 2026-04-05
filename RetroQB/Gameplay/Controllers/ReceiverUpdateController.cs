@@ -31,7 +31,7 @@ public sealed class ReceiverUpdateController
         Vector2 inputDir,
         bool sprint,
         bool qbPastLos,
-        bool isZoneCoverage,
+        bool isUnderneathManCoverage,
         PlayManager playManager,
         float dt,
         Action<Entity> clampToField)
@@ -84,7 +84,7 @@ public sealed class ReceiverUpdateController
                 continue;
             }
 
-            UpdateRouteReceiver(receiver, receivers, qb, ball, defenders, qbPastLos, isZoneCoverage, dt, clampToField);
+            UpdateRouteReceiver(receiver, receivers, qb, ball, defenders, qbPastLos, isUnderneathManCoverage, dt, clampToField);
         }
     }
 
@@ -173,7 +173,7 @@ public sealed class ReceiverUpdateController
         clampToField(receiver);
     }
 
-    private void UpdateRouteReceiver(Receiver receiver, IReadOnlyList<Receiver> receivers, Quarterback qb, Ball ball, IReadOnlyList<Defender> defenders, bool qbPastLos, bool isZoneCoverage, float dt, Action<Entity> clampToField)
+    private void UpdateRouteReceiver(Receiver receiver, IReadOnlyList<Receiver> receivers, Quarterback qb, Ball ball, IReadOnlyList<Defender> defenders, bool qbPastLos, bool isUnderneathManCoverage, float dt, Action<Entity> clampToField)
     {
         RouteRunner.UpdateRoute(receiver, dt);
 
@@ -200,7 +200,7 @@ public sealed class ReceiverUpdateController
         {
             AdjustReceiverToBall(receiver, ball);
         }
-        else if (!isZoneCoverage && receiver.Eligible)
+        else if (isUnderneathManCoverage && receiver.Eligible)
         {
             Defender? manDefender = defenders.FirstOrDefault(d => d.CoverageReceiverIndex == receiver.Index);
             if (manDefender != null && manDefender.PositionRole == DefensivePosition.DB)

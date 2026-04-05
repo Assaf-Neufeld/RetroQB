@@ -12,7 +12,8 @@ internal enum CoverageUnitType
 internal readonly record struct CoverageRoleSet(CoverageRole Left, CoverageRole Middle, CoverageRole Right);
 
 internal readonly record struct CoverageSchemePolicy(
-    bool IsZoneScheme,
+    bool UsesZoneResponsibilities,
+    bool IsUnderneathManCoverage,
     bool LinebackersPlayMan,
     bool SafetiesPlayMan,
     CoverageRoleSet BaseLbRoles,
@@ -24,7 +25,8 @@ internal static class CoverageSchemePolicies
         new Dictionary<CoverageScheme, CoverageSchemePolicy>
         {
             [CoverageScheme.Cover0] = new(
-                IsZoneScheme: false,
+                UsesZoneResponsibilities: false,
+                IsUnderneathManCoverage: true,
                 LinebackersPlayMan: true,
                 SafetiesPlayMan: true,
                 BaseLbRoles: new CoverageRoleSet(CoverageRole.None, CoverageRole.None, CoverageRole.None),
@@ -32,42 +34,48 @@ internal static class CoverageSchemePolicies
 
             [CoverageScheme.Cover1] = new(
                 // Hybrid: underneath is man, but safety/help responsibilities are zone roles.
-                IsZoneScheme: true,
+                UsesZoneResponsibilities: true,
+                IsUnderneathManCoverage: true,
                 LinebackersPlayMan: true,
                 SafetiesPlayMan: false,
                 BaseLbRoles: new CoverageRoleSet(CoverageRole.None, CoverageRole.None, CoverageRole.None),
                 NickelLbRoles: new CoverageRoleSet(CoverageRole.None, CoverageRole.None, CoverageRole.None)),
 
             [CoverageScheme.Cover2Zone] = new(
-                IsZoneScheme: true,
+                UsesZoneResponsibilities: true,
+                IsUnderneathManCoverage: false,
                 LinebackersPlayMan: false,
                 SafetiesPlayMan: false,
                 BaseLbRoles: new CoverageRoleSet(CoverageRole.HookLeft, CoverageRole.HookMiddle, CoverageRole.HookRight),
                 NickelLbRoles: new CoverageRoleSet(CoverageRole.HookLeft, CoverageRole.HookMiddle, CoverageRole.HookRight)),
 
             [CoverageScheme.Cover3Zone] = new(
-                IsZoneScheme: true,
+                UsesZoneResponsibilities: true,
+                IsUnderneathManCoverage: false,
                 LinebackersPlayMan: false,
                 SafetiesPlayMan: false,
                 BaseLbRoles: new CoverageRoleSet(CoverageRole.FlatLeft, CoverageRole.HookMiddle, CoverageRole.FlatRight),
                 NickelLbRoles: new CoverageRoleSet(CoverageRole.HookLeft, CoverageRole.HookMiddle, CoverageRole.HookRight)),
 
             [CoverageScheme.Cover4Zone] = new(
-                IsZoneScheme: true,
+                UsesZoneResponsibilities: true,
+                IsUnderneathManCoverage: false,
                 LinebackersPlayMan: false,
                 SafetiesPlayMan: false,
                 BaseLbRoles: new CoverageRoleSet(CoverageRole.HookLeft, CoverageRole.HookMiddle, CoverageRole.HookRight),
                 NickelLbRoles: new CoverageRoleSet(CoverageRole.HookLeft, CoverageRole.HookMiddle, CoverageRole.HookRight)),
 
             [CoverageScheme.Cover3Match] = new(
-                IsZoneScheme: true,
+                UsesZoneResponsibilities: true,
+                IsUnderneathManCoverage: false,
                 LinebackersPlayMan: false,
                 SafetiesPlayMan: false,
                 BaseLbRoles: new CoverageRoleSet(CoverageRole.HookLeft, CoverageRole.HookMiddle, CoverageRole.HookRight),
                 NickelLbRoles: new CoverageRoleSet(CoverageRole.HookLeft, CoverageRole.HookMiddle, CoverageRole.HookRight)),
 
             [CoverageScheme.QuartersMatch] = new(
-                IsZoneScheme: true,
+                UsesZoneResponsibilities: true,
+                IsUnderneathManCoverage: false,
                 LinebackersPlayMan: false,
                 SafetiesPlayMan: false,
                 BaseLbRoles: new CoverageRoleSet(CoverageRole.HookLeft, CoverageRole.HookMiddle, CoverageRole.HookRight),
@@ -75,7 +83,8 @@ internal static class CoverageSchemePolicies
 
             [CoverageScheme.Cover2Man] = new(
                 // Hybrid: corners/LBs carry man underneath while safeties still play deep zone halves.
-                IsZoneScheme: true,
+                UsesZoneResponsibilities: true,
+                IsUnderneathManCoverage: true,
                 LinebackersPlayMan: true,
                 SafetiesPlayMan: false,
                 BaseLbRoles: new CoverageRoleSet(CoverageRole.None, CoverageRole.None, CoverageRole.None),
@@ -83,16 +92,22 @@ internal static class CoverageSchemePolicies
 
             [CoverageScheme.Robber] = new(
                 // Hybrid: man underneath with a zone robber/deep-middle safety structure.
-                IsZoneScheme: true,
+                UsesZoneResponsibilities: true,
+                IsUnderneathManCoverage: true,
                 LinebackersPlayMan: true,
                 SafetiesPlayMan: false,
                 BaseLbRoles: new CoverageRoleSet(CoverageRole.None, CoverageRole.None, CoverageRole.None),
                 NickelLbRoles: new CoverageRoleSet(CoverageRole.None, CoverageRole.None, CoverageRole.None))
         };
 
-    public static bool IsZoneScheme(CoverageScheme scheme)
+    public static bool UsesZoneResponsibilities(CoverageScheme scheme)
     {
-        return GetPolicy(scheme).IsZoneScheme;
+        return GetPolicy(scheme).UsesZoneResponsibilities;
+    }
+
+    public static bool IsUnderneathManCoverage(CoverageScheme scheme)
+    {
+        return GetPolicy(scheme).IsUnderneathManCoverage;
     }
 
     public static bool IsManForUnit(CoverageScheme scheme, CoverageUnitType unit)

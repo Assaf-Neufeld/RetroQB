@@ -33,7 +33,8 @@ public sealed class PlayExecutionController
         IReadOnlyList<Blocker> blockers,
         PlayManager playManager,
         bool qbPastLos,
-        bool isZoneCoverage,
+        bool usesZoneResponsibilities,
+        bool isUnderneathManCoverage,
         Action<Entity> clampToField,
         float dt)
     {
@@ -48,10 +49,10 @@ public sealed class PlayExecutionController
         UpdateQuarterback(qb, ball, defenders, inputDir, sprint, dt, clampToField);
 
         // Update receivers
-        _receiverController.UpdateAll(receivers, qb, ball, defenders, controlledReceiver, inputDir, sprint, qbPastLos, isZoneCoverage, playManager, dt, clampToField);
+        _receiverController.UpdateAll(receivers, qb, ball, defenders, controlledReceiver, inputDir, sprint, qbPastLos, isUnderneathManCoverage, playManager, dt, clampToField);
 
         // Update defenders
-        UpdateDefenders(defenders, qb, receivers, ball, playManager, qbPastLos, isZoneCoverage, clampToField, dt);
+        UpdateDefenders(defenders, qb, receivers, ball, playManager, qbPastLos, usesZoneResponsibilities, clampToField, dt);
 
         // Update blockers
         UpdateBlockers(blockers, defenders, qb, ball, playManager, clampToField, dt);
@@ -148,7 +149,7 @@ public sealed class PlayExecutionController
         Ball ball,
         PlayManager playManager,
         bool qbPastLos,
-        bool isZoneCoverage,
+        bool usesZoneResponsibilities,
         Action<Entity> clampToField,
         float dt)
     {
@@ -167,7 +168,7 @@ public sealed class PlayExecutionController
                 dt,
                 qbPastLos,
                 isRunPlayWithRb,
-                isZoneCoverage,
+                usesZoneResponsibilities,
                 playManager.LineOfScrimmage);
             clampToField(defender);
         }

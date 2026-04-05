@@ -18,7 +18,7 @@ public sealed class PlayRecord
     public PlayType PlayFamily { get; init; }
     
     // Defensive scheme info
-    public bool IsZoneCoverage { get; init; }
+    public bool IsUnderneathManCoverage { get; init; }
     public CoverageScheme CoverageScheme { get; init; }
     public List<string> Blitzers { get; init; } = new();
     
@@ -67,7 +67,7 @@ public sealed class PlayRecord
             _ => "Play"
         };
         
-        string coverageType = IsZoneCoverage ? "Zone" : "Man";
+        string coverageType = IsUnderneathManCoverage ? "Man" : "Zone";
         string coverageShell = GetCoverageShellName(CoverageScheme);
         string blitzInfo = Blitzers.Count > 0 
             ? $" ({string.Join(", ", Blitzers)} blitz)" 

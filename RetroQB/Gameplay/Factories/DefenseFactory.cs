@@ -25,7 +25,8 @@ public interface IDefenseFactory
 public sealed class DefenseResult
 {
     public List<Defender> Defenders { get; init; } = new();
-    public bool IsZoneCoverage { get; init; }
+    public bool UsesZoneResponsibilities { get; init; }
+    public bool IsUnderneathManCoverage { get; init; }
     public List<string> Blitzers { get; init; } = new();
     public CoverageScheme Scheme { get; init; }
 }
@@ -51,7 +52,8 @@ public sealed class DefenseFactory : IDefenseFactory
         BlitzDecision blitzDecision = call.Blitz;
         bool hasNickelPackage = ShouldUseNickelPackage(surface);
 
-        bool useZone = CoverageSchemePolicies.IsZoneScheme(scheme);
+        bool usesZoneResponsibilities = CoverageSchemePolicies.UsesZoneResponsibilities(scheme);
+        bool isUnderneathManCoverage = CoverageSchemePolicies.IsUnderneathManCoverage(scheme);
 
         float maxY = Constants.FieldLength - 1f;
         bool isGoalLineSituation = context.LineOfScrimmage >= FieldGeometry.OpponentGoalLine - 2.5f;
@@ -173,7 +175,8 @@ public sealed class DefenseFactory : IDefenseFactory
         return new DefenseResult
         {
             Defenders = defenders,
-            IsZoneCoverage = useZone,
+            UsesZoneResponsibilities = usesZoneResponsibilities,
+            IsUnderneathManCoverage = isUnderneathManCoverage,
             Blitzers = DefensePostProcessor.BuildBlitzerSummary(defenders),
             Scheme = scheme
         };

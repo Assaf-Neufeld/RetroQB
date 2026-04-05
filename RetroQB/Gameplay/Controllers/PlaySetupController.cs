@@ -56,7 +56,8 @@ public sealed class PlaySetupController
             formationResult.Receivers,
             formationResult.Blockers,
             defenseResult.Defenders,
-            defenseResult.IsZoneCoverage,
+            defenseResult.UsesZoneResponsibilities,
+            defenseResult.IsUnderneathManCoverage,
             defenseResult.Blitzers,
             defenseResult.Scheme);
     }
@@ -72,7 +73,8 @@ public sealed class PlaySetupResult
     public List<Receiver> Receivers { get; }
     public List<Blocker> Blockers { get; }
     public List<Defender> Defenders { get; }
-    public bool IsZoneCoverage { get; }
+    public bool UsesZoneResponsibilities { get; }
+    public bool IsUnderneathManCoverage { get; }
     public List<string> Blitzers { get; }
     public CoverageScheme CoverageScheme { get; }
 
@@ -82,7 +84,8 @@ public sealed class PlaySetupResult
         List<Receiver> receivers,
         List<Blocker> blockers,
         List<Defender> defenders,
-        bool isZoneCoverage,
+        bool usesZoneResponsibilities,
+        bool isUnderneathManCoverage,
         List<string> blitzers,
         CoverageScheme coverageScheme)
     {
@@ -91,7 +94,8 @@ public sealed class PlaySetupResult
         Receivers = receivers;
         Blockers = blockers;
         Defenders = defenders;
-        IsZoneCoverage = isZoneCoverage;
+        UsesZoneResponsibilities = usesZoneResponsibilities;
+        IsUnderneathManCoverage = isUnderneathManCoverage;
         Blitzers = blitzers;
         CoverageScheme = coverageScheme;
     }

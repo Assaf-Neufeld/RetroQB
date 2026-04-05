@@ -65,7 +65,8 @@ public sealed class GameSession : IDisposable
     private float _playOverDuration = 1.25f;
     private bool _manualPlaySelection;
     private bool _autoPlaySelectionDone;
-    private bool _isZoneCoverage;
+    private bool _usesZoneResponsibilities;
+    private bool _isUnderneathManCoverage;
     private CoverageScheme _coverageScheme;
     private List<string> _blitzers = new();
     private int _selectedTeamIndex;
@@ -293,7 +294,8 @@ public sealed class GameSession : IDisposable
             _defensiveTeam);
 
         _entities.LoadFrom(result);
-        _isZoneCoverage = result.IsZoneCoverage;
+        _usesZoneResponsibilities = result.UsesZoneResponsibilities;
+        _isUnderneathManCoverage = result.IsUnderneathManCoverage;
         _coverageScheme = result.CoverageScheme;
         _blitzers = result.Blitzers;
 
@@ -517,7 +519,7 @@ public sealed class GameSession : IDisposable
             _replayClipStore.Clear();
             _replayPlayer.Unload();
             _playManager.StartPlay();
-            _playManager.StartPlayRecord(_isZoneCoverage, _coverageScheme, _blitzers);
+            _playManager.StartPlayRecord(_isUnderneathManCoverage, _coverageScheme, _blitzers);
             _replayRecorder.Begin(_playManager.PlayNumber);
             _stateManager.SetState(GameState.PlayActive);
         }
@@ -541,7 +543,8 @@ public sealed class GameSession : IDisposable
             _entities.Blockers,
             _playManager,
             _qbPastLos,
-            _isZoneCoverage,
+            _usesZoneResponsibilities,
+            _isUnderneathManCoverage,
             ClampToField,
             dt);
 

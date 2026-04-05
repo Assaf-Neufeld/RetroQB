@@ -58,7 +58,7 @@ public sealed class DriveState
     /// <summary>
     /// Creates a new PlayRecord for the current play with pre-snap information.
     /// </summary>
-    public void StartPlayRecord(string playName, PlayType playFamily, bool isZoneCoverage, CoverageScheme coverageScheme, List<string> blitzers)
+    public void StartPlayRecord(string playName, PlayType playFamily, bool isUnderneathManCoverage, CoverageScheme coverageScheme, List<string> blitzers)
     {
         float yardLine = FieldGeometry.GetYardLineDisplay(LineOfScrimmage);
         CurrentPlayRecord = new PlayRecord
@@ -69,7 +69,7 @@ public sealed class DriveState
             YardLine = yardLine,
             OffensivePlayName = playName,
             PlayFamily = playFamily,
-            IsZoneCoverage = isZoneCoverage,
+            IsUnderneathManCoverage = isUnderneathManCoverage,
             CoverageScheme = coverageScheme,
             Blitzers = new List<string>(blitzers)
         };

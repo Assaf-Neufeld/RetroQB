@@ -70,9 +70,9 @@ public sealed class PlayManager
     /// <summary>
     /// Starts recording a new play with pre-snap information.
     /// </summary>
-    public void StartPlayRecord(bool isZoneCoverage, CoverageScheme coverageScheme, List<string> blitzers)
+    public void StartPlayRecord(bool isUnderneathManCoverage, CoverageScheme coverageScheme, List<string> blitzers)
     {
-        _driveState.StartPlayRecord(SelectedPlay.Name, SelectedPlayType, isZoneCoverage, coverageScheme, blitzers);
+        _driveState.StartPlayRecord(SelectedPlay.Name, SelectedPlayType, isUnderneathManCoverage, coverageScheme, blitzers);
     }
 
     /// <summary>
