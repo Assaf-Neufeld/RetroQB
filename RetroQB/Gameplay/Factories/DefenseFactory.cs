@@ -32,16 +32,11 @@ public sealed class DefenseResult
 
 public sealed class DefenseFactory : IDefenseFactory
 {
-    private enum CoverageUnit
-    {
-        Linebacker,
-        Safety
-    }
-
     /// <summary>
     /// Maximum horizontal jitter (in world units) applied to zone anchors per play.
     /// </summary>
     private const float MaxZoneJitter = 1.8f;
+    private const float DbMinX = 0.75f;
 
     public DefenseResult CreateDefense(DefensiveContext context, DefensiveCallDecision call, List<Receiver> receivers, Random rng, DefensiveTeamAttributes? teamAttributes = null)
     {
@@ -49,13 +44,14 @@ public sealed class DefenseFactory : IDefenseFactory
         var defenders = new List<Defender>();
 
         ResolveCoverageIndices(receivers, out int left, out int leftSlot, out int middle, out int rightSlot, out int right);
+        OffensiveSurface surface = DefensiveSurfaceAnalyzer.Analyze(receivers, context.LineOfScrimmage);
 
         // Use the pre-decided scheme and blitz from the coordinator
         CoverageScheme scheme = call.Scheme;
         BlitzDecision blitzDecision = call.Blitz;
-        bool hasNickelPackage = UsesNickelPackage(scheme);
+        bool hasNickelPackage = ShouldUseNickelPackage(surface);
 
-        bool useZone = IsZoneScheme(scheme);
+        bool useZone = CoverageSchemePolicies.IsZoneScheme(scheme);
 
         float maxY = Constants.FieldLength - 1f;
         bool isGoalLineSituation = context.LineOfScrimmage >= FieldGeometry.OpponentGoalLine - 2.5f;
@@ -64,48 +60,52 @@ public sealed class DefenseFactory : IDefenseFactory
             : MathF.Min(context.LineOfScrimmage + 0.35f, maxY);
         float availableDepth = maxY - context.LineOfScrimmage;
         float depthScale = MathF.Max(availableDepth < 18f ? availableDepth / 18f : 1f, 0.3f);
+        float frontCenterX = GetFrontCenterX(surface);
+        float leftBoxX = GetBoxAlignmentX(receivers, surface, leftSide: true, Constants.FieldWidth * 0.40f);
+        float rightBoxX = GetBoxAlignmentX(receivers, surface, leftSide: false, Constants.FieldWidth * 0.60f);
+        float mikeX = GetMikeAlignmentX(surface, leftBoxX, rightBoxX);
 
         // Defensive line - DEs on the outside (circular rush), DTs inside (straight rush)
         float dlDepth = ClampDefenderY(context.LineOfScrimmage + GetSituationalDepthOffset(1.8f, 1.2f, depthScale), minY, maxY);
-        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, dlDepth), DefensivePosition.DE, DefenderSlot.DE1, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -5.0f });
-        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.46f, dlDepth), DefensivePosition.DL, DefenderSlot.DT1, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -2.0f });
-        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.54f, dlDepth), DefensivePosition.DL, DefenderSlot.DT2, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 2.0f });
-        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, dlDepth), DefensivePosition.DE, DefenderSlot.DE2, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 5.0f });
+        defenders.Add(new Defender(new Vector2(ClampDbX(frontCenterX - 5.3f), dlDepth), DefensivePosition.DE, DefenderSlot.DE1, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -5.0f });
+        defenders.Add(new Defender(new Vector2(ClampDbX(frontCenterX - 2.1f), dlDepth), DefensivePosition.DL, DefenderSlot.DT1, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -2.0f });
+        defenders.Add(new Defender(new Vector2(ClampDbX(frontCenterX + 2.1f), dlDepth), DefensivePosition.DL, DefenderSlot.DT2, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 2.0f });
+        defenders.Add(new Defender(new Vector2(ClampDbX(frontCenterX + 5.3f), dlDepth), DefensivePosition.DE, DefenderSlot.DE2, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 5.0f });
 
         float lbDepth = ClampDefenderY(context.LineOfScrimmage + GetSituationalDepthOffset(7.6f, 4.8f, depthScale), minY, maxY);
-        var lbRoles = GetLbZoneRoles(scheme);
+        CoverageRoleSet lbRoles = CoverageSchemePolicies.GetLbRoles(scheme, hasNickelPackage);
 
-        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.40f, lbDepth), DefensivePosition.LB, DefenderSlot.OLB1, attrs)
+        defenders.Add(new Defender(new Vector2(leftBoxX, lbDepth), DefensivePosition.LB, DefenderSlot.OLB1, attrs)
         {
             IsRusher = blitzDecision.IsBlitzer(DefenderSlot.OLB1),
-            CoverageReceiverIndex = IsManForPosition(scheme, DefenderSlot.OLB1, CoverageUnit.Linebacker) ? leftSlot : -1,
-            ZoneRole = lbRoles.left,
+            CoverageReceiverIndex = CoverageSchemePolicies.IsManForUnit(scheme, CoverageUnitType.Linebacker) ? leftSlot : -1,
+            ZoneRole = lbRoles.Left,
             ZoneJitterX = GetJitter(rng),
             RushLaneOffsetX = -7.0f
         });
         if (!hasNickelPackage)
         {
-            defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.50f, lbDepth), DefensivePosition.LB, DefenderSlot.MLB, attrs)
+            defenders.Add(new Defender(new Vector2(mikeX, lbDepth), DefensivePosition.LB, DefenderSlot.MLB, attrs)
             {
                 IsRusher = blitzDecision.IsBlitzer(DefenderSlot.MLB),
-                CoverageReceiverIndex = IsManForPosition(scheme, DefenderSlot.MLB, CoverageUnit.Linebacker) ? middle : -1,
-                ZoneRole = lbRoles.middle,
+                CoverageReceiverIndex = CoverageSchemePolicies.IsManForUnit(scheme, CoverageUnitType.Linebacker) ? middle : -1,
+                ZoneRole = lbRoles.Middle,
                 ZoneJitterX = GetJitter(rng),
                 RushLaneOffsetX = 0f
             });
         }
-        defenders.Add(new Defender(new Vector2(Constants.FieldWidth * 0.60f, lbDepth), DefensivePosition.LB, DefenderSlot.OLB2, attrs)
+        defenders.Add(new Defender(new Vector2(rightBoxX, lbDepth), DefensivePosition.LB, DefenderSlot.OLB2, attrs)
         {
             IsRusher = blitzDecision.IsBlitzer(DefenderSlot.OLB2),
-            CoverageReceiverIndex = IsManForPosition(scheme, DefenderSlot.OLB2, CoverageUnit.Linebacker) ? rightSlot : -1,
-            ZoneRole = lbRoles.right,
+            CoverageReceiverIndex = CoverageSchemePolicies.IsManForUnit(scheme, CoverageUnitType.Linebacker) ? rightSlot : -1,
+            ZoneRole = lbRoles.Right,
             ZoneJitterX = GetJitter(rng),
             RushLaneOffsetX = 7.0f
         });
 
         // DBs - positioning and roles vary by scheme
         var dbConfig = GetDbConfiguration(scheme, context.LineOfScrimmage, depthScale, minY, maxY,
-            receivers, left, leftSlot, middle, rightSlot, right, rng);
+            receivers, surface, hasNickelPackage, rng);
 
         // Cornerbacks
         defenders.Add(new Defender(new Vector2(dbConfig.LeftCbX, dbConfig.LeftCbDepth), DefensivePosition.DB, DefenderSlot.CB1, attrs)
@@ -130,10 +130,10 @@ public sealed class DefenseFactory : IDefenseFactory
         // Nickel DB (extra DB replacing MLB in nickel packages)
         if (hasNickelPackage)
         {
-            int nickelTarget = middle >= 0 ? middle : leftSlot >= 0 ? leftSlot : rightSlot;
+            int nickelTarget = GetNickelTarget(surface);
             float nickelX = dbConfig.NickelX >= 0
                 ? dbConfig.NickelX
-                : GetReceiverXOrDefault(receivers, nickelTarget, Constants.FieldWidth * 0.50f);
+                : GetReceiverXOrDefault(receivers, nickelTarget, GetMiddleFieldAlignmentX(surface));
 
             defenders.Add(new Defender(new Vector2(nickelX, dbConfig.NickelDepth), DefensivePosition.DB, DefenderSlot.NB, attrs)
             {
@@ -150,7 +150,7 @@ public sealed class DefenseFactory : IDefenseFactory
         defenders.Add(new Defender(new Vector2(dbConfig.LeftSafetyX, dbConfig.LeftSafetyDepth), DefensivePosition.DB, DefenderSlot.FS, attrs)
         {
             IsRusher = blitzDecision.IsBlitzer(DefenderSlot.FS),
-            CoverageReceiverIndex = IsManForPosition(scheme, DefenderSlot.FS, CoverageUnit.Safety) ? leftSlot : -1,
+            CoverageReceiverIndex = CoverageSchemePolicies.IsManForUnit(scheme, CoverageUnitType.Safety) ? leftSlot : -1,
             ZoneRole = dbConfig.LeftSafetyZone,
             IsPressCoverage = false,
             ZoneJitterX = GetJitter(rng),
@@ -159,7 +159,7 @@ public sealed class DefenseFactory : IDefenseFactory
         defenders.Add(new Defender(new Vector2(dbConfig.RightSafetyX, dbConfig.RightSafetyDepth), DefensivePosition.DB, DefenderSlot.SS, attrs)
         {
             IsRusher = blitzDecision.IsBlitzer(DefenderSlot.SS),
-            CoverageReceiverIndex = IsManForPosition(scheme, DefenderSlot.SS, CoverageUnit.Safety) ? rightSlot : -1,
+            CoverageReceiverIndex = CoverageSchemePolicies.IsManForUnit(scheme, CoverageUnitType.Safety) ? rightSlot : -1,
             ZoneRole = dbConfig.RightSafetyZone,
             IsPressCoverage = false,
             ZoneJitterX = GetJitter(rng),
@@ -168,184 +168,19 @@ public sealed class DefenseFactory : IDefenseFactory
 
         ApplyUniqueCoverageAssignments(scheme, defenders, receivers);
 
-        ApplyStarPlayers(defenders, context.Stage);
+        DefensePostProcessor.ApplyStarPlayers(defenders, context.Stage);
 
         return new DefenseResult
         {
             Defenders = defenders,
             IsZoneCoverage = useZone,
-            Blitzers = BuildBlitzerSummary(defenders),
+            Blitzers = DefensePostProcessor.BuildBlitzerSummary(defenders),
             Scheme = scheme
         };
     }
 
-    private static void ApplyStarPlayers(IReadOnlyList<Defender> defenders, SeasonStage stage)
-    {
-        if (stage == SeasonStage.RegularSeason)
-        {
-            return;
-        }
+    private static bool ShouldUseNickelPackage(OffensiveSurface surface) => surface.IsSpread && !surface.IsHeavy;
 
-        if (stage == SeasonStage.Playoff)
-        {
-            ApplyStarToSlot(defenders, DefenderSlot.FS);
-            ApplyStarToSlot(defenders, DefenderSlot.DE1);
-            return;
-        }
-
-        if (stage == SeasonStage.SuperBowl)
-        {
-            ApplyStarToSlot(defenders, DefenderSlot.DE1);
-            ApplyStarToSlot(defenders, DefenderSlot.DE2);
-            ApplyStarToSlot(defenders, DefenderSlot.MLB);
-            ApplyStarToSlot(defenders, DefenderSlot.CB1);
-            ApplyStarToSlot(defenders, DefenderSlot.FS);
-        }
-    }
-
-    private static void ApplyStarToSlot(IReadOnlyList<Defender> defenders, DefenderSlot slot)
-    {
-        Defender? defender = defenders.FirstOrDefault(d => d.Slot == slot);
-        if (defender == null)
-        {
-            return;
-        }
-
-        switch (defender.PositionRole)
-        {
-            case DefensivePosition.DB:
-                defender.ApplyStarBoost(speedMultiplier: 1.08f, tackleMultiplier: 1.02f, interceptionMultiplier: 1.40f, blockShedMultiplier: 1.05f);
-                break;
-            case DefensivePosition.DE:
-                defender.ApplyStarBoost(speedMultiplier: 1.10f, tackleMultiplier: 1.10f, interceptionMultiplier: 1.00f, blockShedMultiplier: 1.35f);
-                break;
-            case DefensivePosition.LB:
-                defender.ApplyStarBoost(speedMultiplier: 1.07f, tackleMultiplier: 1.25f, interceptionMultiplier: 1.10f, blockShedMultiplier: 1.20f);
-                break;
-            default:
-                defender.ApplyStarBoost(speedMultiplier: 1.05f, tackleMultiplier: 1.15f, interceptionMultiplier: 1.00f, blockShedMultiplier: 1.25f);
-                break;
-        }
-    }
-
-    private static List<string> BuildBlitzerSummary(IReadOnlyList<Defender> defenders)
-    {
-        int lbCount = 0;
-        int dbCount = 0;
-
-        for (int i = 0; i < defenders.Count; i++)
-        {
-            Defender defender = defenders[i];
-            if (!defender.IsRusher)
-            {
-                continue;
-            }
-
-            if (IsLinebackerSlot(defender.Slot))
-            {
-                lbCount++;
-                continue;
-            }
-
-            if (IsDefensiveBackSlot(defender.Slot))
-            {
-                dbCount++;
-                continue;
-            }
-
-            // Fallback classification for any non-standard slot mapping.
-            switch (defender.PositionRole)
-            {
-                case DefensivePosition.LB:
-                    lbCount++;
-                    break;
-                case DefensivePosition.DB:
-                    dbCount++;
-                    break;
-            }
-        }
-
-        var blitzers = new List<string>(lbCount + dbCount);
-        for (int i = 0; i < lbCount; i++)
-        {
-            blitzers.Add("LB");
-        }
-
-        for (int i = 0; i < dbCount; i++)
-        {
-            blitzers.Add("DB");
-        }
-
-        return blitzers;
-    }
-
-    private static bool IsLinebackerSlot(DefenderSlot slot)
-    {
-        return slot is DefenderSlot.MLB or DefenderSlot.OLB1 or DefenderSlot.OLB2;
-    }
-
-    private static bool IsDefensiveBackSlot(DefenderSlot slot)
-    {
-        return slot is DefenderSlot.CB1 or DefenderSlot.CB2 or DefenderSlot.FS or DefenderSlot.SS or DefenderSlot.NB;
-    }
-
-    // --- Scheme classification helpers ---
-
-    private static bool IsZoneScheme(CoverageScheme scheme) => scheme switch
-    {
-        CoverageScheme.Cover2Zone => true,
-        CoverageScheme.Cover3Zone => true,
-        CoverageScheme.Cover4Zone => true,
-        CoverageScheme.Cover3Match => true,
-        CoverageScheme.QuartersMatch => true,
-        // Cover1, Cover2Man, and Robber are hybrid: the zone flag must be true
-        // so that defenders with ZoneRole != None use zone logic.
-        CoverageScheme.Cover1 => true,
-        CoverageScheme.Cover2Man => true,
-        CoverageScheme.Robber => true,
-        _ => false
-    };
-
-    private static bool UsesNickelPackage(CoverageScheme scheme)
-    {
-        return scheme is CoverageScheme.Cover2Zone or CoverageScheme.Cover3Zone or CoverageScheme.Cover4Zone;
-    }
-
-    /// <summary>
-    /// Returns true if the given unit plays man coverage in this scheme.
-    /// </summary>
-    private static bool IsManForPosition(CoverageScheme scheme, DefenderSlot slot, CoverageUnit unit) => scheme switch
-    {
-        CoverageScheme.Cover0 => true,
-        CoverageScheme.Cover1 => unit != CoverageUnit.Safety,
-        CoverageScheme.Cover2Man => unit == CoverageUnit.Linebacker,
-        CoverageScheme.Cover3Match => false,
-        CoverageScheme.QuartersMatch => false,
-        CoverageScheme.Robber => unit == CoverageUnit.Linebacker,
-        CoverageScheme.Cover2Zone => false,
-        CoverageScheme.Cover3Zone => false,
-        CoverageScheme.Cover4Zone => false,
-        _ => false
-    };
-    // --- LB zone role assignment per scheme ---
-
-    private static (CoverageRole left, CoverageRole middle, CoverageRole right) GetLbZoneRoles(
-        CoverageScheme scheme)
-    {
-        return scheme switch
-        {
-            CoverageScheme.Cover0 => (CoverageRole.None, CoverageRole.None, CoverageRole.None),
-            CoverageScheme.Cover1 => (CoverageRole.None, CoverageRole.None, CoverageRole.None),
-            CoverageScheme.Cover3Match => (CoverageRole.HookLeft, CoverageRole.HookMiddle, CoverageRole.HookRight),
-            CoverageScheme.QuartersMatch => (CoverageRole.HookLeft, CoverageRole.HookMiddle, CoverageRole.HookRight),
-            CoverageScheme.Cover2Man => (CoverageRole.None, CoverageRole.None, CoverageRole.None),
-            CoverageScheme.Robber => (CoverageRole.None, CoverageRole.None, CoverageRole.None),
-            CoverageScheme.Cover2Zone => (CoverageRole.HookLeft, CoverageRole.HookMiddle, CoverageRole.HookRight),
-            CoverageScheme.Cover3Zone => (CoverageRole.HookLeft, CoverageRole.HookMiddle, CoverageRole.HookRight),
-            CoverageScheme.Cover4Zone => (CoverageRole.HookLeft, CoverageRole.HookMiddle, CoverageRole.HookRight),
-            _ => (CoverageRole.HookLeft, CoverageRole.HookMiddle, CoverageRole.HookRight)
-        };
-    }
 
     // --- DB configuration per scheme ---
 
@@ -383,10 +218,9 @@ public sealed class DefenseFactory : IDefenseFactory
 
     private static DbConfig GetDbConfiguration(
         CoverageScheme scheme, float lineOfScrimmage, float depthScale, float minY, float maxY,
-        List<Receiver> receivers, int left, int leftSlot, int middle, int rightSlot, int right,
+        List<Receiver> receivers, OffensiveSurface surface, bool hasNickelPackage,
         Random rng)
     {
-        bool hasNickelPackage = UsesNickelPackage(scheme);
         float fw = Constants.FieldWidth;
         bool cover1Press = rng.NextDouble() < 0.6;
         bool robberPress = rng.NextDouble() < 0.78;
@@ -397,67 +231,83 @@ public sealed class DefenseFactory : IDefenseFactory
         float offCbDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(8.0f, 5.4f, depthScale), minY, maxY);
         float shallowSafetyDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(10.0f, 6.8f, depthScale), minY, maxY);
         float deepSafetyDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(16.0f, 10.5f, depthScale), minY, maxY);
+        float robberDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(7.0f, 4.6f, depthScale), minY, maxY);
+
+        float leftOutsideX = GetOutsideAlignmentX(receivers, surface, leftSide: true, fw * 0.18f, boundaryShade: 0.28f);
+        float rightOutsideX = GetOutsideAlignmentX(receivers, surface, leftSide: false, fw * 0.82f, boundaryShade: 0.28f);
+        float leftFlatX = GetOutsideAlignmentX(receivers, surface, leftSide: true, fw * 0.14f, boundaryShade: 0.95f);
+        float rightFlatX = GetOutsideAlignmentX(receivers, surface, leftSide: false, fw * 0.86f, boundaryShade: 0.95f);
+        float leftApexX = GetApexAlignmentX(receivers, surface, leftSide: true, fw * 0.28f);
+        float rightApexX = GetApexAlignmentX(receivers, surface, leftSide: false, fw * 0.72f);
+        float leftDeepHalfX = GetDeepHalfAlignmentX(receivers, surface, leftSide: true, fw * 0.35f);
+        float rightDeepHalfX = GetDeepHalfAlignmentX(receivers, surface, leftSide: false, fw * 0.65f);
+        float leftQuarterX = GetQuarterAlignmentX(receivers, surface, leftSide: true, fw * 0.40f);
+        float rightQuarterX = GetQuarterAlignmentX(receivers, surface, leftSide: false, fw * 0.60f);
+        float middleFieldX = GetMiddleFieldAlignmentX(surface);
+        float strongInsideX = GetStrongInsideAlignmentX(receivers, surface);
+        float robberX = GetRobberAlignmentX(surface, middleFieldX, strongInsideX);
+        float matchNickelX = GetMatchNickelAlignmentX(surface, middleFieldX, strongInsideX);
 
         return scheme switch
         {
             // Cover 0: All man, press, no deep help
             CoverageScheme.Cover0 => new DbConfig(
-                leftCbX: GetReceiverXOrDefault(receivers, left, fw * 0.18f),
+                leftCbX: leftOutsideX,
                 leftCbDepth: pressDepth,
                 leftCbZone: CoverageRole.None,
-                rightCbX: GetReceiverXOrDefault(receivers, right, fw * 0.82f),
+                rightCbX: rightOutsideX,
                 rightCbDepth: pressDepth,
                 rightCbZone: CoverageRole.None,
                 cbPress: true,
-                leftSafetyX: GetReceiverXOrDefault(receivers, leftSlot, fw * 0.40f),
+                leftSafetyX: leftApexX,
                 leftSafetyDepth: shallowSafetyDepth,
                 leftSafetyZone: CoverageRole.None,
-                rightSafetyX: GetReceiverXOrDefault(receivers, rightSlot, fw * 0.60f),
+                rightSafetyX: rightApexX,
                 rightSafetyDepth: shallowSafetyDepth,
                 rightSafetyZone: CoverageRole.None,
-                nickelX: hasNickelPackage ? GetReceiverXOrDefault(receivers, middle, fw * 0.50f) : -1,
+                nickelX: hasNickelPackage ? strongInsideX : -1,
                 nickelDepth: shallowSafetyDepth,
                 nickelZone: CoverageRole.None
             ),
 
             // Cover 1: Man with single-high free safety
             CoverageScheme.Cover1 => new DbConfig(
-                leftCbX: GetReceiverXOrDefault(receivers, left, fw * 0.18f),
+                leftCbX: leftOutsideX,
                 leftCbDepth: cover1Press ? pressDepth : offCbDepth,
                 leftCbZone: CoverageRole.None,
-                rightCbX: GetReceiverXOrDefault(receivers, right, fw * 0.82f),
+                rightCbX: rightOutsideX,
                 rightCbDepth: cover1Press ? pressDepth : offCbDepth,
                 rightCbZone: CoverageRole.None,
                 cbPress: cover1Press,
                 // Free safety stays high in the deep middle.
-                leftSafetyX: fw * 0.50f,
+                leftSafetyX: middleFieldX,
                 leftSafetyDepth: deepSafetyDepth,
                 leftSafetyZone: CoverageRole.DeepMiddle,
                 // Strong safety plays a shallow robber/hook role instead of defaulting at the QB.
-                rightSafetyX: GetReceiverXOrDefault(receivers, middle, fw * 0.50f),
+                rightSafetyX: robberX,
                 rightSafetyDepth: shallowSafetyDepth,
                 rightSafetyZone: CoverageRole.HookMiddle,
-                nickelX: hasNickelPackage ? GetReceiverXOrDefault(receivers, middle, fw * 0.50f) : -1,
+                nickelX: hasNickelPackage ? strongInsideX : -1,
                 nickelDepth: shallowSafetyDepth,
                 nickelZone: CoverageRole.None
             ),
 
             // Cover 2 Zone: Two deep halves, CBs in flat zones, classic two-high
             CoverageScheme.Cover2Zone => new DbConfig(
-                leftCbX: hasNickelPackage ? fw * 0.12f : fw * 0.18f,
+                leftCbX: leftFlatX,
                 leftCbDepth: offCbDepth,
                 leftCbZone: CoverageRole.FlatLeft,
-                rightCbX: hasNickelPackage ? fw * 0.88f : fw * 0.82f,
+                rightCbX: rightFlatX,
                 rightCbDepth: offCbDepth,
                 rightCbZone: CoverageRole.FlatRight,
                 cbPress: false,
-                leftSafetyX: hasNickelPackage ? fw * 0.33f : fw * 0.40f,
+                leftSafetyX: leftDeepHalfX,
                 leftSafetyDepth: deepSafetyDepth,
                 leftSafetyZone: CoverageRole.DeepLeft,
-                rightSafetyX: hasNickelPackage ? fw * 0.67f : fw * 0.60f,
+                rightSafetyX: rightDeepHalfX,
                 rightSafetyDepth: deepSafetyDepth,
                 rightSafetyZone: CoverageRole.DeepRight,
-                nickelX: hasNickelPackage ? fw * 0.50f : -1,
+                nickelX: hasNickelPackage ? middleFieldX : -1,
                 nickelDepth: shallowSafetyDepth,
                 nickelZone: CoverageRole.HookMiddle
             ),
@@ -465,123 +315,123 @@ public sealed class DefenseFactory : IDefenseFactory
             // Cover 3 Zone: Three deep thirds, SS drops to flat
             CoverageScheme.Cover3Zone => new DbConfig(
                 // CBs line up over the outer WRs, then bail to deep thirds post-snap.
-                leftCbX: GetReceiverXOrDefault(receivers, left, fw * 0.18f),
+                leftCbX: leftOutsideX,
                 leftCbDepth: offCbDepth,
                 leftCbZone: CoverageRole.DeepLeft,
-                rightCbX: GetReceiverXOrDefault(receivers, right, fw * 0.82f),
+                rightCbX: rightOutsideX,
                 rightCbDepth: offCbDepth,
                 rightCbZone: CoverageRole.DeepRight,
                 cbPress: false,
-                // SS roles up to flat, FS takes deep middle
-                leftSafetyX: fw * 0.25f,
-                leftSafetyDepth: ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(7.0f, 4.6f, depthScale), minY, maxY),
-                leftSafetyZone: CoverageRole.FlatLeft,
-                rightSafetyX: fw * 0.50f,
+                // Nickel looks can widen both flats; base looks roll one safety down to strength.
+                leftSafetyX: hasNickelPackage ? leftApexX : strongInsideX,
+                leftSafetyDepth: hasNickelPackage ? robberDepth : robberDepth,
+                leftSafetyZone: hasNickelPackage ? CoverageRole.FlatLeft : CoverageRole.Robber,
+                rightSafetyX: middleFieldX,
                 rightSafetyDepth: deepSafetyDepth,
                 rightSafetyZone: CoverageRole.DeepMiddle,
-                nickelX: hasNickelPackage ? fw * 0.75f : -1,
-                nickelDepth: ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(7.0f, 4.6f, depthScale), minY, maxY),
+                nickelX: hasNickelPackage ? rightApexX : -1,
+                nickelDepth: robberDepth,
                 nickelZone: CoverageRole.FlatRight
             ),
 
             // Cover 4 Zone: Four deep quarters, NB drops to hook underneath
             CoverageScheme.Cover4Zone => new DbConfig(
                 // Corners align over the widest WRs and open to quarter coverage after the snap.
-                leftCbX: GetReceiverXOrDefault(receivers, left, fw * 0.18f),
+                leftCbX: leftOutsideX,
                 leftCbDepth: offCbDepth,
                 leftCbZone: CoverageRole.DeepLeft,
-                rightCbX: GetReceiverXOrDefault(receivers, right, fw * 0.82f),
+                rightCbX: rightOutsideX,
                 rightCbDepth: offCbDepth,
                 rightCbZone: CoverageRole.DeepRight,
                 cbPress: false,
                 // Safeties take inside deep-quarter zones
-                leftSafetyX: fw * 0.38f,
+                leftSafetyX: leftQuarterX,
                 leftSafetyDepth: deepSafetyDepth,
                 leftSafetyZone: CoverageRole.DeepQuarterLeft,
-                rightSafetyX: fw * 0.62f,
+                rightSafetyX: rightQuarterX,
                 rightSafetyDepth: deepSafetyDepth,
                 rightSafetyZone: CoverageRole.DeepQuarterRight,
-                nickelX: hasNickelPackage ? fw * 0.50f : -1,
+                nickelX: hasNickelPackage ? middleFieldX : -1,
                 nickelDepth: shallowSafetyDepth,
                 nickelZone: CoverageRole.HookMiddle
             ),
 
             // Cover 3 Match: three-deep shell with a shallow robber helping on crossers.
             CoverageScheme.Cover3Match => new DbConfig(
-                leftCbX: GetReceiverXOrDefault(receivers, left, fw * 0.18f),
+                leftCbX: leftOutsideX,
                 leftCbDepth: offCbDepth,
                 leftCbZone: CoverageRole.DeepLeft,
-                rightCbX: GetReceiverXOrDefault(receivers, right, fw * 0.82f),
+                rightCbX: rightOutsideX,
                 rightCbDepth: offCbDepth,
                 rightCbZone: CoverageRole.DeepRight,
                 cbPress: false,
-                leftSafetyX: fw * 0.50f,
+                leftSafetyX: middleFieldX,
                 leftSafetyDepth: deepSafetyDepth,
                 leftSafetyZone: CoverageRole.DeepMiddle,
-                rightSafetyX: GetReceiverXOrDefault(receivers, middle, fw * 0.50f),
+                rightSafetyX: robberX,
                 rightSafetyDepth: ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(8.2f, 5.6f, depthScale), minY, maxY),
                 rightSafetyZone: CoverageRole.Robber,
-                nickelX: -1f,
+                nickelX: hasNickelPackage ? matchNickelX : -1f,
                 nickelDepth: shallowSafetyDepth,
-                nickelZone: CoverageRole.None
+                nickelZone: hasNickelPackage ? CoverageRole.HookMiddle : CoverageRole.None
             ),
 
             // Quarters Match: four deep defenders with linebackers carrying underneath routes.
             CoverageScheme.QuartersMatch => new DbConfig(
-                leftCbX: GetReceiverXOrDefault(receivers, left, fw * 0.18f),
+                leftCbX: leftOutsideX,
                 leftCbDepth: offCbDepth,
                 leftCbZone: CoverageRole.DeepLeft,
-                rightCbX: GetReceiverXOrDefault(receivers, right, fw * 0.82f),
+                rightCbX: rightOutsideX,
                 rightCbDepth: offCbDepth,
                 rightCbZone: CoverageRole.DeepRight,
                 cbPress: false,
-                leftSafetyX: fw * 0.38f,
+                leftSafetyX: leftQuarterX,
                 leftSafetyDepth: ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(14.2f, 9.4f, depthScale), minY, maxY),
                 leftSafetyZone: CoverageRole.DeepQuarterLeft,
-                rightSafetyX: fw * 0.62f,
+                rightSafetyX: rightQuarterX,
                 rightSafetyDepth: ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(14.2f, 9.4f, depthScale), minY, maxY),
                 rightSafetyZone: CoverageRole.DeepQuarterRight,
-                nickelX: -1f,
+                nickelX: hasNickelPackage ? middleFieldX : -1f,
                 nickelDepth: shallowSafetyDepth,
-                nickelZone: CoverageRole.None
+                nickelZone: hasNickelPackage ? CoverageRole.HookMiddle : CoverageRole.None
             ),
 
             // Cover 2 Man: Two deep safeties (zone), CBs and LBs play man underneath
             CoverageScheme.Cover2Man => new DbConfig(
-                leftCbX: GetReceiverXOrDefault(receivers, left, fw * 0.18f),
+                leftCbX: leftOutsideX,
                 leftCbDepth: cover2ManPress ? pressDepth : offCbDepth,
                 leftCbZone: CoverageRole.None,
-                rightCbX: GetReceiverXOrDefault(receivers, right, fw * 0.82f),
+                rightCbX: rightOutsideX,
                 rightCbDepth: cover2ManPress ? pressDepth : offCbDepth,
                 rightCbZone: CoverageRole.None,
                 cbPress: cover2ManPress,
-                leftSafetyX: fw * 0.35f,
+                leftSafetyX: leftDeepHalfX,
                 leftSafetyDepth: deepSafetyDepth,
                 leftSafetyZone: CoverageRole.DeepLeft,
-                rightSafetyX: fw * 0.65f,
+                rightSafetyX: rightDeepHalfX,
                 rightSafetyDepth: deepSafetyDepth,
                 rightSafetyZone: CoverageRole.DeepRight,
-                nickelX: hasNickelPackage ? GetReceiverXOrDefault(receivers, middle, fw * 0.50f) : -1,
+                nickelX: hasNickelPackage ? strongInsideX : -1,
                 nickelDepth: shallowSafetyDepth,
                 nickelZone: CoverageRole.None
             ),
 
             // Robber: tight outside man with a low-hole safety poaching the middle.
             CoverageScheme.Robber => new DbConfig(
-                leftCbX: GetReceiverXOrDefault(receivers, left, fw * 0.18f),
+                leftCbX: leftOutsideX,
                 leftCbDepth: robberPress ? pressDepth : offCbDepth,
                 leftCbZone: CoverageRole.None,
-                rightCbX: GetReceiverXOrDefault(receivers, right, fw * 0.82f),
+                rightCbX: rightOutsideX,
                 rightCbDepth: robberPress ? pressDepth : offCbDepth,
                 rightCbZone: CoverageRole.None,
                 cbPress: robberPress,
-                leftSafetyX: fw * 0.50f,
+                leftSafetyX: middleFieldX,
                 leftSafetyDepth: deepSafetyDepth,
                 leftSafetyZone: CoverageRole.DeepMiddle,
-                rightSafetyX: GetReceiverXOrDefault(receivers, middle, fw * 0.50f),
-                rightSafetyDepth: ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(7.0f, 4.6f, depthScale), minY, maxY),
+                rightSafetyX: robberX,
+                rightSafetyDepth: robberDepth,
                 rightSafetyZone: CoverageRole.Robber,
-                nickelX: -1f,
+                nickelX: hasNickelPackage ? strongInsideX : -1f,
                 nickelDepth: shallowSafetyDepth,
                 nickelZone: CoverageRole.None
             ),
@@ -646,6 +496,255 @@ public sealed class DefenseFactory : IDefenseFactory
         }
 
         return fallbackX;
+    }
+
+    private static int GetNickelTarget(OffensiveSurface surface)
+    {
+        int strongInside = GetStrongInsideReceiverIndex(surface);
+        if (strongInside >= 0)
+        {
+            return strongInside;
+        }
+
+        if (surface.MiddleReceiverIndex >= 0)
+        {
+            return surface.MiddleReceiverIndex;
+        }
+
+        return surface.Strength == FormationStrength.Left
+            ? surface.LeftWideReceiverIndex
+            : surface.RightWideReceiverIndex;
+    }
+
+    private static int GetStrongInsideReceiverIndex(OffensiveSurface surface)
+    {
+        if (surface.IsHeavy)
+        {
+            return surface.Strength switch
+            {
+                FormationStrength.Left when surface.LeftInsideReceiverIndex >= 0 => surface.LeftInsideReceiverIndex,
+                FormationStrength.Right when surface.RightInsideReceiverIndex >= 0 => surface.RightInsideReceiverIndex,
+                _ => -1
+            };
+        }
+
+        return surface.Strength switch
+        {
+            FormationStrength.Left when surface.LeftInsideReceiverIndex >= 0 => surface.LeftInsideReceiverIndex,
+            FormationStrength.Right when surface.RightInsideReceiverIndex >= 0 => surface.RightInsideReceiverIndex,
+            _ when surface.MiddleReceiverIndex >= 0 => surface.MiddleReceiverIndex,
+            _ when surface.LeftInsideReceiverIndex >= 0 => surface.LeftInsideReceiverIndex,
+            _ => surface.RightInsideReceiverIndex
+        };
+    }
+
+    private static float GetOutsideAlignmentX(
+        IReadOnlyList<Receiver> receivers,
+        OffensiveSurface surface,
+        bool leftSide,
+        float fallbackX,
+        float boundaryShade)
+    {
+        int receiverIndex = leftSide ? surface.LeftWideReceiverIndex : surface.RightWideReceiverIndex;
+        float receiverX = GetReceiverXOrDefault(receivers, receiverIndex, fallbackX);
+        return ShadeTowardBoundary(receiverX, leftSide, boundaryShade);
+    }
+
+    private static float GetInsideAlignmentX(
+        IReadOnlyList<Receiver> receivers,
+        OffensiveSurface surface,
+        bool leftSide,
+        float fallbackX)
+    {
+        int receiverIndex = leftSide ? surface.LeftInsideReceiverIndex : surface.RightInsideReceiverIndex;
+        if (receiverIndex < 0)
+        {
+            receiverIndex = surface.MiddleReceiverIndex;
+        }
+
+        return ClampDbX(GetReceiverXOrDefault(receivers, receiverIndex, fallbackX));
+    }
+
+    private static float GetApexAlignmentX(
+        IReadOnlyList<Receiver> receivers,
+        OffensiveSurface surface,
+        bool leftSide,
+        float fallbackX)
+    {
+        float outsideX = GetOutsideAlignmentX(receivers, surface, leftSide, fallbackX, boundaryShade: 0f);
+        float insideX = GetInsideAlignmentX(receivers, surface, leftSide, fallbackX);
+
+        if (MathF.Abs(outsideX - insideX) < 1.25f)
+        {
+            return insideX;
+        }
+
+        float influence = surface.IsHeavy ? 0.78f : 0.58f;
+        return ClampDbX(Blend(outsideX, insideX, influence));
+    }
+
+    private static float GetDeepHalfAlignmentX(
+        IReadOnlyList<Receiver> receivers,
+        OffensiveSurface surface,
+        bool leftSide,
+        float fallbackX)
+    {
+        float shellX = fallbackX;
+        float apexX = GetApexAlignmentX(receivers, surface, leftSide, fallbackX);
+        float outsideX = GetOutsideAlignmentX(receivers, surface, leftSide, fallbackX, boundaryShade: 0f);
+        float laneX = Blend(outsideX, apexX, 0.50f);
+        float influence = surface.IsHeavy ? 0.18f : surface.IsSpread ? 0.55f : 0.35f;
+        return ClampDbX(Blend(shellX, laneX, influence));
+    }
+
+    private static float GetQuarterAlignmentX(
+        IReadOnlyList<Receiver> receivers,
+        OffensiveSurface surface,
+        bool leftSide,
+        float fallbackX)
+    {
+        float shellX = fallbackX;
+        float insideX = GetInsideAlignmentX(receivers, surface, leftSide, fallbackX);
+        float influence = surface.IsHeavy ? 0.24f : surface.IsSpread ? 0.72f : 0.50f;
+        return ClampDbX(Blend(shellX, insideX, influence));
+    }
+
+    private static float GetMiddleFieldAlignmentX(OffensiveSurface surface)
+    {
+        if (!surface.IsSpread)
+        {
+            // Keep shells neutral unless offense is truly spread detached across the field.
+            return Constants.FieldWidth * 0.50f;
+        }
+
+        float influence = 0.45f;
+        return ClampDbX(Blend(Constants.FieldWidth * 0.50f, surface.CenterX, influence));
+    }
+
+    private static float GetStrongInsideAlignmentX(IReadOnlyList<Receiver> receivers, OffensiveSurface surface)
+    {
+        int receiverIndex = GetStrongInsideReceiverIndex(surface);
+        float fallbackX = surface.Strength switch
+        {
+            FormationStrength.Left => Constants.FieldWidth * 0.44f,
+            FormationStrength.Right => Constants.FieldWidth * 0.56f,
+            _ => Constants.FieldWidth * 0.50f
+        };
+
+        return ClampDbX(GetReceiverXOrDefault(receivers, receiverIndex, fallbackX));
+    }
+
+    private static float GetFrontCenterX(OffensiveSurface surface)
+    {
+        float middleFieldX = GetMiddleFieldAlignmentX(surface);
+        if (!surface.IsSpread)
+        {
+            // Prevent full-front lateral drifting in tight/base formations.
+            return middleFieldX;
+        }
+
+        float strengthOffset = surface.Strength switch
+        {
+            FormationStrength.Left => -0.85f,
+            FormationStrength.Right => 0.85f,
+            _ => 0f
+        };
+
+        float countBiasScale = 0.22f;
+        float countBias = (surface.RightDetachedCount - surface.LeftDetachedCount) * countBiasScale;
+        return ClampDbX(middleFieldX + strengthOffset + countBias);
+    }
+
+    private static float GetBoxAlignmentX(
+        IReadOnlyList<Receiver> receivers,
+        OffensiveSurface surface,
+        bool leftSide,
+        float fallbackX)
+    {
+        if (!surface.IsSpread)
+        {
+            return ClampDbX(fallbackX);
+        }
+
+        float apexX = GetApexAlignmentX(receivers, surface, leftSide, fallbackX);
+        float insideX = GetInsideAlignmentX(receivers, surface, leftSide, fallbackX);
+        int detachedCount = leftSide ? surface.LeftDetachedCount : surface.RightDetachedCount;
+        bool isStrengthSide = (leftSide && surface.Strength == FormationStrength.Left)
+            || (!leftSide && surface.Strength == FormationStrength.Right);
+
+        float targetX = surface.IsHeavy ? insideX : detachedCount >= 2 ? apexX : insideX;
+        float influence = surface.IsHeavy
+            ? isStrengthSide ? 0.34f : 0.18f
+            : detachedCount >= 2 ? 0.70f : detachedCount == 1 ? 0.48f : 0.28f;
+
+        if (isStrengthSide && !surface.IsHeavy)
+        {
+            influence += 0.10f;
+        }
+
+        return ClampDbX(Blend(fallbackX, targetX, influence));
+    }
+
+    private static float GetMikeAlignmentX(OffensiveSurface surface, float leftBoxX, float rightBoxX)
+    {
+        float baseX = GetMiddleFieldAlignmentX(surface);
+        if (!surface.IsSpread)
+        {
+            return baseX;
+        }
+
+        float boxMidX = Blend(leftBoxX, rightBoxX, 0.50f);
+        float influence = surface.IsHeavy
+            ? surface.Strength == FormationStrength.Balanced ? 0.20f : 0.32f
+            : surface.Strength == FormationStrength.Balanced ? 0.35f : 0.55f;
+        return ClampDbX(Blend(baseX, boxMidX, influence));
+    }
+
+    private static float GetRobberAlignmentX(OffensiveSurface surface, float middleFieldX, float strongInsideX)
+    {
+        if (!surface.IsSpread)
+        {
+            return middleFieldX;
+        }
+
+        int maxDetachedSurfaceCount = Math.Max(surface.LeftDetachedCount, surface.RightDetachedCount);
+        float influence = maxDetachedSurfaceCount >= 3
+            ? 0.58f
+            : surface.IsHeavy ? 0.18f : surface.IsSpread ? 0.42f : 0.30f;
+
+        if (surface.Strength == FormationStrength.Balanced)
+        {
+            influence *= 0.7f;
+        }
+
+        return ClampDbX(Blend(middleFieldX, strongInsideX, influence));
+    }
+
+    private static float GetMatchNickelAlignmentX(OffensiveSurface surface, float middleFieldX, float strongInsideX)
+    {
+        if (!surface.IsSpread)
+        {
+            return middleFieldX;
+        }
+
+        int maxDetachedSurfaceCount = Math.Max(surface.LeftDetachedCount, surface.RightDetachedCount);
+        float influence = surface.IsHeavy ? 0.24f : maxDetachedSurfaceCount >= 3 ? 0.82f : surface.IsSpread ? 0.62f : 0.45f;
+        return ClampDbX(Blend(middleFieldX, strongInsideX, influence));
+    }
+
+    private static float ShadeTowardBoundary(float x, bool leftSide, float amount)
+    {
+        return ClampDbX(x + (leftSide ? -amount : amount));
+    }
+
+    private static float ClampDbX(float x)
+    {
+        return Math.Clamp(x, DbMinX, Constants.FieldWidth - DbMinX);
+    }
+
+    private static float Blend(float start, float end, float weight)
+    {
+        return start + (end - start) * weight;
     }
 
     private static void ApplyUniqueCoverageAssignments(CoverageScheme scheme, List<Defender> defenders, IReadOnlyList<Receiver> receivers)
