@@ -19,7 +19,7 @@ public readonly record struct DefensiveContext(
 
 public interface IDefenseFactory
 {
-    DefenseResult CreateDefense(DefensiveContext context, DefensiveCallDecision call, List<Receiver> receivers, Random rng, DefensiveTeamAttributes? teamAttributes = null);
+    DefenseResult CreateDefense(DefensiveContext context, DefensiveCallDecision call, DefensivePersonnel personnel, List<Receiver> receivers, Random rng, DefensiveTeamAttributes? teamAttributes = null);
 }
 
 public sealed class DefenseResult
@@ -39,18 +39,19 @@ public sealed class DefenseFactory : IDefenseFactory
     private const float MaxZoneJitter = 1.8f;
     private const float DbMinX = 0.75f;
 
-    public DefenseResult CreateDefense(DefensiveContext context, DefensiveCallDecision call, List<Receiver> receivers, Random rng, DefensiveTeamAttributes? teamAttributes = null)
+    public DefenseResult CreateDefense(DefensiveContext context, DefensiveCallDecision call, DefensivePersonnel personnel, List<Receiver> receivers, Random rng, DefensiveTeamAttributes? teamAttributes = null)
     {
         var attrs = teamAttributes ?? DefensiveTeamAttributes.Default;
         var defenders = new List<Defender>();
 
         OffensiveSurface surface = DefensiveSurfaceAnalyzer.Analyze(receivers, context.LineOfScrimmage);
+        DefensivePersonnel resolvedPersonnel = personnel.IsDefined ? personnel : DefensivePersonnelPolicy.Create(surface);
         ResolveCoverageIndicesFromSurface(surface, receivers, out int left, out int leftSlot, out int middle, out int rightSlot, out int right);
 
         // Use the pre-decided scheme and blitz from the coordinator
         CoverageScheme scheme = call.Scheme;
         BlitzDecision blitzDecision = call.Blitz;
-        bool hasNickelPackage = ShouldUseNickelPackage(surface);
+        bool hasNickelPackage = resolvedPersonnel.UsesNickel;
 
         bool usesZoneResponsibilities = CoverageSchemePolicies.UsesZoneResponsibilities(scheme);
         bool isUnderneathManCoverage = CoverageSchemePolicies.IsUnderneathManCoverage(scheme);
@@ -181,9 +182,6 @@ public sealed class DefenseFactory : IDefenseFactory
             Scheme = scheme
         };
     }
-
-    private static bool ShouldUseNickelPackage(OffensiveSurface surface) => surface.IsSpread && !surface.IsHeavy;
-
 
     // --- DB configuration per scheme ---
 
@@ -920,13 +918,22 @@ public sealed class DefenseFactory : IDefenseFactory
 
             CoverageScheme.Cover3Match or CoverageScheme.QuartersMatch => defenders
                 .Where(defender => !defender.IsRusher
-                    && defender.PositionRole is DefensivePosition.LB or DefensivePosition.DB
-                    && !IsDeepZoneRole(defender.ZoneRole))
+                    && IsMatchCarryCandidate(defender))
                 .Select(defender => new CoverageAssignmentCandidate(defender, defender.ZoneRole, ClearZoneRoleOnAssignment: true))
                 .ToList(),
 
             _ => new List<CoverageAssignmentCandidate>()
         };
+    }
+
+    private static bool IsMatchCarryCandidate(Defender defender)
+    {
+        if (defender.ZoneRole == CoverageRole.Robber || IsDeepZoneRole(defender.ZoneRole))
+        {
+            return false;
+        }
+
+        return defender.PositionRole == DefensivePosition.LB || defender.Slot == DefenderSlot.NB;
     }
 
     private sealed record CoverageAssignmentCandidate(

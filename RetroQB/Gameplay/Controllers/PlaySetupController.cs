@@ -13,15 +13,18 @@ public sealed class PlaySetupController
 {
     private readonly IFormationFactory _formationFactory;
     private readonly IDefenseFactory _defenseFactory;
+    private readonly DefensiveCoordinator _defensiveCoordinator;
     private readonly Random _rng;
 
     public PlaySetupController(
         IFormationFactory formationFactory,
         IDefenseFactory defenseFactory,
+        DefensiveCoordinator defensiveCoordinator,
         Random rng)
     {
         _formationFactory = formationFactory;
         _defenseFactory = defenseFactory;
+        _defensiveCoordinator = defensiveCoordinator;
         _rng = rng;
     }
 
@@ -42,10 +45,15 @@ public sealed class PlaySetupController
         // eligible receivers instead of the raw pre-snap formation shell.
         RouteAssigner.AssignRoutes(formationResult.Receivers, selectedPlay, _rng);
 
-        // Create defense using the pre-decided scheme + blitz
+        DefensivePersonnel personnel = DefensivePersonnelPolicy.Create(formationResult.Receivers, context.LineOfScrimmage);
+        BlitzDecision blitz = _defensiveCoordinator.DecideBlitz(call.Scheme, context, defensiveTeam, personnel, _rng);
+        DefensiveCallDecision resolvedCall = call with { Blitz = blitz };
+
+        // Create defense using the pre-decided scheme and personnel-aware blitz.
         var defenseResult = _defenseFactory.CreateDefense(
             context,
-            call,
+            resolvedCall,
+            personnel,
             formationResult.Receivers,
             _rng,
             defensiveTeam);

@@ -12,9 +12,8 @@ namespace RetroQB.AI;
 ///   2. Season-stage coverage pool (which schemes are available)
 ///   3. Adaptive memory (what has worked / been burned this game)
 ///
-/// Produces a <see cref="DefensiveCallDecision"/> containing the chosen
-/// coverage scheme and blitz decision which the <see cref="DefenseFactory"/>
-/// uses to lay out defenders.
+/// Produces coverage first, then a personnel-aware blitz once the offensive
+/// surface is known.
 /// </summary>
 public sealed class DefensiveCoordinator
 {
@@ -28,17 +27,27 @@ public sealed class DefensiveCoordinator
     }
 
     /// <summary>
-    /// Makes the defensive call for one play: scheme + blitz.
+    /// Makes the defensive call for one play when personnel is not yet known.
     /// </summary>
     public DefensiveCallDecision Decide(DefensiveContext context, DefensiveTeamAttributes attributes, Random rng)
     {
-        // --- Step 1: Choose coverage scheme ---
-        CoverageScheme scheme = SelectScheme(context, rng);
+        return DecideCoverage(context, rng);
+    }
 
-        // --- Step 2: Choose blitz package (strategy may use its own memory hooks) ---
-        BlitzDecision blitz = _blitzStrategy.DecideBlitzers(scheme, attributes, context, _memory, rng);
+    /// <summary>
+    /// Chooses coverage from situation, stage and memory before personnel is known.
+    /// </summary>
+    public DefensiveCallDecision DecideCoverage(DefensiveContext context, Random rng)
+    {
+        return new DefensiveCallDecision(SelectScheme(context, rng), BlitzDecision.None);
+    }
 
-        return new DefensiveCallDecision(scheme, blitz);
+    /// <summary>
+    /// Chooses blitzers from the active personnel package for the play.
+    /// </summary>
+    public BlitzDecision DecideBlitz(CoverageScheme scheme, DefensiveContext context, DefensiveTeamAttributes attributes, DefensivePersonnel personnel, Random rng)
+    {
+        return _blitzStrategy.DecideBlitzers(scheme, attributes, context, personnel, _memory, rng);
     }
 
     /// <summary>

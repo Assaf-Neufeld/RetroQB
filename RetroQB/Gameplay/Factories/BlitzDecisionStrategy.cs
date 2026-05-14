@@ -6,15 +6,17 @@ namespace RetroQB.Gameplay;
 
 public readonly record struct BlitzDecision(IReadOnlySet<DefenderSlot> BlitzingSlots)
 {
+    public static BlitzDecision None { get; } = new(new HashSet<DefenderSlot>());
+
     public bool IsBlitzer(DefenderSlot slot)
     {
-        return BlitzingSlots.Contains(slot);
+        return BlitzingSlots?.Contains(slot) == true;
     }
 }
 
 public interface IBlitzDecisionStrategy
 {
-    BlitzDecision DecideBlitzers(CoverageScheme scheme, DefensiveTeamAttributes attributes, DefensiveContext context, DefensiveMemory? memory, Random rng);
+    BlitzDecision DecideBlitzers(CoverageScheme scheme, DefensiveTeamAttributes attributes, DefensiveContext context, DefensivePersonnel personnel, DefensiveMemory? memory, Random rng);
 }
 
 public sealed class DefaultBlitzDecisionStrategy : IBlitzDecisionStrategy
@@ -31,11 +33,12 @@ public sealed class DefaultBlitzDecisionStrategy : IBlitzDecisionStrategy
         ZeroPressure
     }
 
-    public BlitzDecision DecideBlitzers(CoverageScheme scheme, DefensiveTeamAttributes attributes, DefensiveContext context, DefensiveMemory? memory, Random rng)
+    public BlitzDecision DecideBlitzers(CoverageScheme scheme, DefensiveTeamAttributes attributes, DefensiveContext context, DefensivePersonnel personnel, DefensiveMemory? memory, Random rng)
     {
-        bool usesNickelPackage = UsesNickelPackage(scheme);
+        bool usesNickelPackage = personnel.UsesNickel;
         BlitzPackage selectedPackage = SelectBlitzPackage(scheme, context, attributes, usesNickelPackage, memory, rng);
         HashSet<DefenderSlot> blitzingSlots = BuildBlitzersFromPackage(selectedPackage, usesNickelPackage, rng);
+        blitzingSlots.RemoveWhere(slot => !personnel.ActiveSlots.Contains(slot));
         return new BlitzDecision(blitzingSlots);
     }
 
@@ -340,31 +343,6 @@ public sealed class DefaultBlitzDecisionStrategy : IBlitzDecisionStrategy
         }
 
         return BlitzPackage.None;
-    }
-
-    private static IEnumerable<DefenderSlot> GetActiveBackfieldSlots(CoverageScheme scheme)
-    {
-        yield return DefenderSlot.OLB1;
-        if (!UsesNickelPackage(scheme))
-        {
-            yield return DefenderSlot.MLB;
-        }
-
-        yield return DefenderSlot.OLB2;
-        yield return DefenderSlot.CB1;
-        yield return DefenderSlot.CB2;
-        yield return DefenderSlot.FS;
-        yield return DefenderSlot.SS;
-
-        if (UsesNickelPackage(scheme))
-        {
-            yield return DefenderSlot.NB;
-        }
-    }
-
-    private static bool UsesNickelPackage(CoverageScheme scheme)
-    {
-        return scheme is CoverageScheme.Cover2Zone or CoverageScheme.Cover3Zone or CoverageScheme.Cover4Zone;
     }
 
     private static float GetBlitzSituationalMultiplier(DefensiveContext context)

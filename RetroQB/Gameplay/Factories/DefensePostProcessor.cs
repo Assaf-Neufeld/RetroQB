@@ -23,7 +23,7 @@ internal static class DefensePostProcessor
         {
             ApplyStarToSlot(defenders, DefenderSlot.DE1);
             ApplyStarToSlot(defenders, DefenderSlot.DE2);
-            ApplyStarToSlot(defenders, DefenderSlot.MLB);
+            ApplyStarToFirstExistingSlot(defenders, DefenderSlot.MLB, DefenderSlot.NB);
             ApplyStarToSlot(defenders, DefenderSlot.CB1);
             ApplyStarToSlot(defenders, DefenderSlot.FS);
         }
@@ -101,6 +101,18 @@ internal static class DefensePostProcessor
             default:
                 defender.ApplyStarBoost(speedMultiplier: 1.05f, tackleMultiplier: 1.15f, interceptionMultiplier: 1.00f, blockShedMultiplier: 1.25f);
                 break;
+        }
+    }
+
+    private static void ApplyStarToFirstExistingSlot(IReadOnlyList<Defender> defenders, params DefenderSlot[] slots)
+    {
+        foreach (DefenderSlot slot in slots)
+        {
+            if (defenders.Any(defender => defender.Slot == slot))
+            {
+                ApplyStarToSlot(defenders, slot);
+                return;
+            }
         }
     }
 

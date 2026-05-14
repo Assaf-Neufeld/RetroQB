@@ -140,7 +140,7 @@ public sealed class GameSession : IDisposable
         _receiverPriorityManager = new ReceiverPriorityManager();
         _menuController = new MenuController(input);
         
-        _playSetupController = new PlaySetupController(formationFactory, defenseFactory, rng);
+        _playSetupController = new PlaySetupController(formationFactory, defenseFactory, _defensiveCoordinator, rng);
         _playExecutionController = new PlayExecutionController(input, new BlockingController());
         _ballController = new BallController(rng, throwingMechanics, statsTracker, _receiverPriorityManager);
         _tackleController = new TackleController(rng, _overlapResolver);
@@ -283,8 +283,8 @@ public sealed class GameSession : IDisposable
             _playManager.AwayScore,
             _currentStage);
 
-        // Single decision point: coordinator handles situation + stage + memory
-        var call = _defensiveCoordinator.Decide(context, _defensiveTeam, _sessionRng);
+        // Single decision point for coverage; blitz is resolved after route/personnel setup.
+        var call = _defensiveCoordinator.DecideCoverage(context, _sessionRng);
 
         var result = _playSetupController.SetupPlay(
             _playManager.SelectedPlay,
