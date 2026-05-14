@@ -311,7 +311,7 @@ public sealed class ReceiverUpdateController
     private static void AdjustReceiverToBall(Receiver receiver, Ball ball)
     {
         Vector2 routeVelocity = receiver.Velocity;
-        Vector2 predictedLanding = GetPredictedBallLanding(ball);
+        Vector2 predictedLanding = ball.GetPredictedLanding();
         float flightProgress = ball.GetFlightProgress();
 
         Vector2 ballPath = predictedLanding - ball.Position;
@@ -377,22 +377,6 @@ public sealed class ReceiverUpdateController
 
         float speedMult = 1f + flightProgress * 0.10f;
         receiver.Velocity = blendedDir * (receiver.Speed * speedMult);
-    }
-
-    /// <summary>
-    /// Projects where the ball will land based on its throw start, velocity direction,
-    /// and intended distance.
-    /// </summary>
-    private static Vector2 GetPredictedBallLanding(Ball ball)
-    {
-        Vector2 velocity = ball.Velocity;
-        if (velocity.LengthSquared() < 0.001f)
-        {
-            return ball.Position;
-        }
-
-        Vector2 throwDir = Vector2.Normalize(velocity);
-        return ball.ThrowStart + throwDir * ball.IntendedDistance;
     }
 
     internal static Defender? GetClosestDefender(IReadOnlyList<Defender> defenders, Vector2 position, float maxDistance, bool preferRushers)

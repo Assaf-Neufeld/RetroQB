@@ -527,12 +527,12 @@ public sealed class GameSession : IDisposable
 
     private void HandlePlayActive(float dt)
     {
-        _qbPastLos = _entities.Qb.Position.Y > _playManager.LineOfScrimmage + 0.1f && 
-                     _entities.Ball.State == BallState.HeldByQB;
-
         // Try handoff on run plays
         _playExecutionController.TryHandoffToRunningBack(
             _playManager, _entities.Ball, _entities.Qb, _entities.Receivers);
+
+        _qbPastLos = _entities.Qb.Position.Y > _playManager.LineOfScrimmage + 0.1f &&
+                     _entities.Ball.State == BallState.HeldByQB;
 
         // Update all entities
         _playExecutionController.UpdatePlay(

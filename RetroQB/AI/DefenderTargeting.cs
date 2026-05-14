@@ -53,7 +53,7 @@ public static class DefenderTargeting
         bool useZoneCoverage,
         float lineOfScrimmage)
     {
-        if (qbIsRunner)
+        if (qbIsRunner && ball.State == BallState.HeldByQB)
         {
             return qb.Position;
         }
@@ -127,31 +127,37 @@ public static class DefenderTargeting
         bool useZoneCoverage,
         float lineOfScrimmage)
     {
+        float flightProgress = ball.GetFlightProgress();
+        float ballFocus = GetPassBreakFocus(defender, ball, flightProgress);
+
+        Vector2 ballLead = GetDefenderBallLead(ball, flightProgress, ballFocus);
+
+        if (HasZoneResponsibility(defender, useZoneCoverage))
+        {
+            Vector2 zoneTarget = ZoneCoverage.GetZoneTarget(defender, receivers, lineOfScrimmage);
+            return ballFocus > 0f ? Vector2.Lerp(zoneTarget, ballLead, ballFocus) : zoneTarget;
+        }
+
+        if (TryGetCoveredReceiver(defender, receivers, out Receiver receiver))
+        {
+            Vector2 receiverTarget = receiver.Position;
+            return ballFocus > 0f ? Vector2.Lerp(receiverTarget, ballLead, ballFocus) : receiverTarget;
+        }
+
+        return ballLead;
+    }
+
+    private static float GetPassBreakFocus(Defender defender, Ball ball, float flightProgress)
+    {
         float distToBall = Vector2.Distance(defender.Position, ball.Position);
         float maxBreakDistance = defender.PositionRole == DefensivePosition.DB ? 18f : 14f;
         float distanceFocus = Math.Clamp(1f - (distToBall / maxBreakDistance), 0f, 1f);
 
         // Defenders should break later than receivers to preserve offensive advantage,
         // but still close decisively once the throw is clearly committed.
-        float flightProgress = ball.GetFlightProgress();
         float startBreakAt = defender.PositionRole == DefensivePosition.DB ? 0.36f : 0.46f;
         float progressFocus = Math.Clamp((flightProgress - startBreakAt) / (1f - startBreakAt), 0f, 1f);
-        float ballFocus = distanceFocus * progressFocus;
-
-        Vector2 ballLead = GetDefenderBallLead(ball, flightProgress, ballFocus);
-
-        if (useZoneCoverage && defender.ZoneRole != CoverageRole.None)
-        {
-            return ballLead;
-        }
-
-        if (defender.CoverageReceiverIndex >= 0 && defender.CoverageReceiverIndex < receivers.Count)
-        {
-            Vector2 receiverTarget = receivers[defender.CoverageReceiverIndex].Position;
-            return ballFocus > 0f ? Vector2.Lerp(receiverTarget, ballLead, ballFocus) : receiverTarget;
-        }
-
-        return ballLead;
+        return distanceFocus * progressFocus;
     }
 
     private static Vector2 GetDefenderBallLead(Ball ball, float flightProgress, float ballFocus)
@@ -161,8 +167,7 @@ public static class DefenderTargeting
             return ball.Position;
         }
 
-        Vector2 throwDir = Vector2.Normalize(ball.Velocity);
-        Vector2 predictedLanding = ball.ThrowStart + throwDir * ball.IntendedDistance;
+        Vector2 predictedLanding = ball.GetPredictedLanding();
         Vector2 remainingPath = predictedLanding - ball.Position;
 
         if (remainingPath.LengthSquared() < 0.001f)
@@ -240,15 +245,13 @@ public static class DefenderTargeting
         bool useZoneCoverage,
         float lineOfScrimmage)
     {
-        if (useZoneCoverage && defender.ZoneRole != CoverageRole.None)
+        if (HasZoneResponsibility(defender, useZoneCoverage))
         {
             return ZoneCoverage.GetZoneTarget(defender, receivers, lineOfScrimmage);
         }
 
-        if (defender.CoverageReceiverIndex >= 0 && defender.CoverageReceiverIndex < receivers.Count)
+        if (TryGetCoveredReceiver(defender, receivers, out Receiver receiver))
         {
-            var receiver = receivers[defender.CoverageReceiverIndex];
-
             if (defender.PositionRole == DefensivePosition.DB)
             {
                 return GetDbCoverageTarget(defender, receiver);
@@ -258,6 +261,21 @@ public static class DefenderTargeting
         }
 
         return qb.Position;
+    }
+
+    private static bool HasZoneResponsibility(Defender defender, bool useZoneCoverage) =>
+        useZoneCoverage && defender.ZoneRole != CoverageRole.None;
+
+    private static bool TryGetCoveredReceiver(Defender defender, IReadOnlyList<Receiver> receivers, out Receiver receiver)
+    {
+        if (defender.CoverageReceiverIndex >= 0 && defender.CoverageReceiverIndex < receivers.Count)
+        {
+            receiver = receivers[defender.CoverageReceiverIndex];
+            return true;
+        }
+
+        receiver = null!;
+        return false;
     }
 
     private static Vector2 GetDbCoverageTarget(Defender defender, Receiver receiver)
@@ -275,7 +293,7 @@ public static class DefenderTargeting
         }
 
         // Route-end behavior: try to undercut from in front (between QB and WR).
-        if (IsNearRouteEnd(receiver))
+        if (!receiver.IsRunningBack && !receiver.IsTightEnd && RouteGeometry.HasCompletedBreak(receiver))
         {
             float xShade = -receiver.RouteSide * 0.25f;
             return receiver.Position + new Vector2(xShade, -0.95f);
@@ -289,48 +307,5 @@ public static class DefenderTargeting
             recvPos += trailOffset;
         }
         return recvPos;
-    }
-
-    private static bool IsNearRouteEnd(Receiver receiver)
-    {
-        if (receiver.IsRunningBack || receiver.IsTightEnd)
-        {
-            return false;
-        }
-
-        float yProgress = receiver.Position.Y - receiver.RouteStart.Y;
-        var stems = RouteGeometry.GetStemDistances(receiver);
-
-        return receiver.Route switch
-        {
-            RouteType.Go => yProgress >= stems.Deep,
-            RouteType.Slant => Vector2.Distance(receiver.Position, receiver.RouteStart) >= RouteGeometry.SlantLength * 0.9f,
-            RouteType.OutShallow => HasReachedHorizontalBreakEnd(receiver, stems.Shallow, RouteGeometry.OutBreakLength),
-            RouteType.OutDeep => HasReachedHorizontalBreakEnd(receiver, stems.Deep, RouteGeometry.OutBreakLength),
-            RouteType.InShallow => HasReachedHorizontalBreakEnd(receiver, stems.Shallow, RouteGeometry.InBreakLength),
-            RouteType.InDeep => HasReachedHorizontalBreakEnd(receiver, stems.Deep, RouteGeometry.InBreakLength),
-            RouteType.DoubleMove => HasReachedHorizontalBreakEnd(receiver, stems.Deep, RouteGeometry.InBreakLength),
-            RouteType.PostShallow => yProgress >= stems.Shallow + RouteGeometry.PostBreakLength * 0.75f,
-            RouteType.PostDeep => yProgress >= stems.Deep + RouteGeometry.PostBreakLength * 0.75f,
-            RouteType.Flat => yProgress >= 2.5f,
-            _ => false
-        };
-    }
-
-    private static bool HasReachedHorizontalBreakEnd(Receiver receiver, float stemDistance, float breakLength)
-    {
-        if (receiver.Position.Y - receiver.RouteStart.Y < stemDistance)
-        {
-            return false;
-        }
-
-        float expectedBreakX = receiver.Route switch
-        {
-            RouteType.OutShallow or RouteType.OutDeep => receiver.RouteStart.X + receiver.RouteSide * breakLength,
-            RouteType.InShallow or RouteType.InDeep or RouteType.DoubleMove => receiver.RouteStart.X - receiver.RouteSide * breakLength,
-            _ => receiver.RouteStart.X
-        };
-
-        return MathF.Abs(receiver.Position.X - expectedBreakX) <= 1.0f;
     }
 }

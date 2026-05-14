@@ -79,6 +79,17 @@ public sealed class Ball : Entity
         return Math.Clamp(GetTravelDistance() / IntendedDistance, 0f, 1f);
     }
 
+    public Vector2 GetPredictedLanding()
+    {
+        if (Velocity.LengthSquared() < 0.001f)
+        {
+            return Position;
+        }
+
+        Vector2 throwDir = Vector2.Normalize(Velocity);
+        return ThrowStart + throwDir * IntendedDistance;
+    }
+
     public float GetArcHeight()
     {
         if (State != BallState.InAir || ArcApexHeight <= 0f)
