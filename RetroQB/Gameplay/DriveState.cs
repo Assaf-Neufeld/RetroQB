@@ -13,6 +13,7 @@ public sealed class DriveState
     private const int MaxDowns = 4;
     private const int TouchdownPoints = 7;
     private const int DefensiveScorePoints = 7;
+    private const int SafetyPoints = 2;
 
     public int Down { get; private set; } = 1;
     public float Distance { get; private set; } = DefaultDistance;
@@ -131,6 +132,12 @@ public sealed class DriveState
     public PlayResult ResolveTackle(float newBallY, string? tackleMessageOverride = null)
     {
         float gain = newBallY - LineOfScrimmage;
+
+        if (newBallY < FieldGeometry.EndZoneDepth)
+        {
+            return ResolveSafety(gain);
+        }
+
         LineOfScrimmage = MathF.Min(newBallY, FieldGeometry.OpponentGoalLine);
 
         if (gain >= Distance)
@@ -144,6 +151,14 @@ public sealed class DriveState
         
         string defaultMessage = gain >= 0f ? $"+{gain:F0} yds" : $"{gain:F0} yds";
         var result = CheckTurnoverOnDowns() ?? new PlayResult(PlayOutcome.Tackle, gain, tackleMessageOverride ?? defaultMessage);
+        RecordPlay(result);
+        return result;
+    }
+
+    private PlayResult ResolveSafety(float gain)
+    {
+        AwayScore += SafetyPoints;
+        var result = new PlayResult(PlayOutcome.Safety, gain, "SAFETY! AWAY +2");
         RecordPlay(result);
         return result;
     }

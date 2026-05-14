@@ -15,7 +15,8 @@ public enum PlayOutcome
     Incomplete,
     Touchdown,
     Interception,
-    Turnover
+    Turnover,
+    Safety
 }
 
 /// <summary>

@@ -120,6 +120,7 @@ public sealed class DefensiveMemory
             bool blitzSuccess = record.IsSack
                 || record.Outcome == PlayOutcome.Incomplete
                 || record.Outcome == PlayOutcome.Interception
+                || record.Outcome == PlayOutcome.Safety
                 || record.Gain < 0f;
             bool blitzFail = record.Gain >= BlitzFailGainThreshold || record.Outcome == PlayOutcome.Touchdown;
 

@@ -92,6 +92,7 @@ public sealed class PlayRecord
             PlayOutcome.Interception => "INTERCEPTED!",
             PlayOutcome.Incomplete => "Incomplete",
             PlayOutcome.Turnover => "Turnover on downs",
+            PlayOutcome.Safety => "SAFETY!",
 
             PlayOutcome.Tackle when IsSack =>
                 $"SACK! -{SackYardsLost} yds",
@@ -113,6 +114,7 @@ public sealed class PlayRecord
             PlayOutcome.Touchdown => "TOUCHDOWN!",
             PlayOutcome.Interception => "INTERCEPTION!",
             PlayOutcome.Turnover => "TURNOVER ON DOWNS",
+            PlayOutcome.Safety => "SAFETY!",
             _ => "DRIVE OVER"
         };
     }
@@ -136,6 +138,8 @@ public sealed class PlayRecord
                 $"{defensiveTeamName} jumped the throw and turned the takeaway into 7.",
             PlayOutcome.Turnover =>
                 $"{defensiveTeamName} got the stop and cashed in the short field for 7.",
+            PlayOutcome.Safety =>
+                $"{defensiveTeamName} trapped the offense in its own end zone for 2.",
             _ => GetResultText()
         };
     }

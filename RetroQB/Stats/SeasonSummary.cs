@@ -397,7 +397,7 @@ public sealed class SeasonSummary
             return true;
         }
 
-        if (play.Outcome is PlayOutcome.Interception or PlayOutcome.Incomplete || play.IsSack)
+        if (play.Outcome is PlayOutcome.Interception or PlayOutcome.Incomplete or PlayOutcome.Safety || play.IsSack)
         {
             return false;
         }

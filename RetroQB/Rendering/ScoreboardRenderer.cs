@@ -323,6 +323,7 @@ DrawResultTicker:
             PlayOutcome.Interception => Palette.Red,
             PlayOutcome.Incomplete => Palette.Orange,
             PlayOutcome.Turnover => Palette.Red,
+            PlayOutcome.Safety => Palette.Red,
             _ when record.Gain >= 10 => Palette.Lime,
             _ when record.Gain < 0 => Palette.Orange,
             _ => panelText

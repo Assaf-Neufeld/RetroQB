@@ -852,7 +852,7 @@ public sealed class GameSession : IDisposable
             return;
         }
 
-        if (result.Outcome is PlayOutcome.Touchdown or PlayOutcome.Interception or PlayOutcome.Turnover)
+        if (result.Outcome is PlayOutcome.Touchdown or PlayOutcome.Interception or PlayOutcome.Turnover or PlayOutcome.Safety)
         {
             SetDriveOverBanner(result, lastRecord);
             _stateManager.SetState(GameState.DriveOver);
@@ -1032,6 +1032,7 @@ public sealed class GameSession : IDisposable
             PlayOutcome.Touchdown => 1.0f,
             PlayOutcome.Interception => -1.0f,
             PlayOutcome.Turnover => -0.85f,
+            PlayOutcome.Safety => -1.0f,
             PlayOutcome.Incomplete => -0.28f,
             _ => isSack ? -0.78f : Math.Clamp(gain / 22f, -0.7f, 0.8f)
         };
@@ -1041,6 +1042,7 @@ public sealed class GameSession : IDisposable
             PlayOutcome.Touchdown => 1.0f,
             PlayOutcome.Interception => 0.92f,
             PlayOutcome.Turnover => 0.85f,
+            PlayOutcome.Safety => 0.95f,
             _ => Math.Clamp(MathF.Abs(gain) / 20f, 0.15f, isSack ? 0.82f : 0.7f)
         };
 
@@ -1193,7 +1195,7 @@ public sealed class GameSession : IDisposable
             };
         }
 
-        if (result.Outcome == PlayOutcome.Interception || result.Outcome == PlayOutcome.Turnover)
+        if (result.Outcome == PlayOutcome.Interception || result.Outcome == PlayOutcome.Turnover || result.Outcome == PlayOutcome.Safety)
         {
             return variant switch
             {
