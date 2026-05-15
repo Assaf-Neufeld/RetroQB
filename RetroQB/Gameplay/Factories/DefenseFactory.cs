@@ -52,6 +52,7 @@ public sealed class DefenseFactory : IDefenseFactory
         CoverageScheme scheme = call.Scheme;
         BlitzDecision blitzDecision = call.Blitz;
         bool hasNickelPackage = resolvedPersonnel.UsesNickel;
+        ManCoveragePlan manPlan = BuildManCoveragePlan(scheme, receivers, hasNickelPackage, blitzDecision);
 
         bool usesZoneResponsibilities = CoverageSchemePolicies.UsesZoneResponsibilities(scheme);
         bool isUnderneathManCoverage = CoverageSchemePolicies.IsUnderneathManCoverage(scheme);
@@ -64,8 +65,8 @@ public sealed class DefenseFactory : IDefenseFactory
         float availableDepth = maxY - context.LineOfScrimmage;
         float depthScale = MathF.Max(availableDepth < 18f ? availableDepth / 18f : 1f, 0.3f);
         float frontCenterX = GetFrontCenterX(surface);
-        float leftBoxX = GetBoxAlignmentX(receivers, surface, leftSide: true, Constants.FieldWidth * 0.40f);
-        float rightBoxX = GetBoxAlignmentX(receivers, surface, leftSide: false, Constants.FieldWidth * 0.60f);
+        float leftBoxX = GetBoxAlignmentX(receivers, surface, leftSide: true, Constants.FieldWidth * 0.40f, keepInBox: manPlan.IsActive);
+        float rightBoxX = GetBoxAlignmentX(receivers, surface, leftSide: false, Constants.FieldWidth * 0.60f, keepInBox: manPlan.IsActive);
         float mikeX = GetMikeAlignmentX(surface, leftBoxX, rightBoxX);
 
         // Defensive line - DEs on the outside (circular rush), DTs inside (straight rush)
@@ -81,7 +82,7 @@ public sealed class DefenseFactory : IDefenseFactory
         defenders.Add(new Defender(new Vector2(leftBoxX, lbDepth), DefensivePosition.LB, DefenderSlot.OLB1, attrs)
         {
             IsRusher = blitzDecision.IsBlitzer(DefenderSlot.OLB1),
-            CoverageReceiverIndex = CoverageSchemePolicies.IsManForUnit(scheme, CoverageUnitType.Linebacker) ? leftSlot : -1,
+            CoverageReceiverIndex = GetInitialCoverageIndex(manPlan, DefenderSlot.OLB1, CoverageSchemePolicies.IsManForUnit(scheme, CoverageUnitType.Linebacker) ? leftSlot : -1),
             ZoneRole = lbRoles.Left,
             ZoneJitterX = GetJitter(rng),
             RushLaneOffsetX = -7.0f
@@ -91,7 +92,7 @@ public sealed class DefenseFactory : IDefenseFactory
             defenders.Add(new Defender(new Vector2(mikeX, lbDepth), DefensivePosition.LB, DefenderSlot.MLB, attrs)
             {
                 IsRusher = blitzDecision.IsBlitzer(DefenderSlot.MLB),
-                CoverageReceiverIndex = CoverageSchemePolicies.IsManForUnit(scheme, CoverageUnitType.Linebacker) ? middle : -1,
+                CoverageReceiverIndex = GetInitialCoverageIndex(manPlan, DefenderSlot.MLB, CoverageSchemePolicies.IsManForUnit(scheme, CoverageUnitType.Linebacker) ? middle : -1),
                 ZoneRole = lbRoles.Middle,
                 ZoneJitterX = GetJitter(rng),
                 RushLaneOffsetX = 0f
@@ -100,7 +101,7 @@ public sealed class DefenseFactory : IDefenseFactory
         defenders.Add(new Defender(new Vector2(rightBoxX, lbDepth), DefensivePosition.LB, DefenderSlot.OLB2, attrs)
         {
             IsRusher = blitzDecision.IsBlitzer(DefenderSlot.OLB2),
-            CoverageReceiverIndex = CoverageSchemePolicies.IsManForUnit(scheme, CoverageUnitType.Linebacker) ? rightSlot : -1,
+            CoverageReceiverIndex = GetInitialCoverageIndex(manPlan, DefenderSlot.OLB2, CoverageSchemePolicies.IsManForUnit(scheme, CoverageUnitType.Linebacker) ? rightSlot : -1),
             ZoneRole = lbRoles.Right,
             ZoneJitterX = GetJitter(rng),
             RushLaneOffsetX = 7.0f
@@ -111,19 +112,19 @@ public sealed class DefenseFactory : IDefenseFactory
             receivers, surface, hasNickelPackage, rng);
 
         // Cornerbacks
-        defenders.Add(new Defender(new Vector2(dbConfig.LeftCbX, dbConfig.LeftCbDepth), DefensivePosition.DB, DefenderSlot.CB1, attrs)
+        defenders.Add(new Defender(new Vector2(GetManAlignmentXOrDefault(receivers, manPlan, DefenderSlot.CB1, dbConfig.LeftCbX), dbConfig.LeftCbDepth), DefensivePosition.DB, DefenderSlot.CB1, attrs)
         {
             IsRusher = blitzDecision.IsBlitzer(DefenderSlot.CB1),
-            CoverageReceiverIndex = left,
+            CoverageReceiverIndex = GetInitialCoverageIndex(manPlan, DefenderSlot.CB1, left),
             ZoneRole = dbConfig.LeftCbZone,
             IsPressCoverage = dbConfig.CbPress,
             ZoneJitterX = GetJitter(rng),
             RushLaneOffsetX = -10.0f
         });
-        defenders.Add(new Defender(new Vector2(dbConfig.RightCbX, dbConfig.RightCbDepth), DefensivePosition.DB, DefenderSlot.CB2, attrs)
+        defenders.Add(new Defender(new Vector2(GetManAlignmentXOrDefault(receivers, manPlan, DefenderSlot.CB2, dbConfig.RightCbX), dbConfig.RightCbDepth), DefensivePosition.DB, DefenderSlot.CB2, attrs)
         {
             IsRusher = blitzDecision.IsBlitzer(DefenderSlot.CB2),
-            CoverageReceiverIndex = right,
+            CoverageReceiverIndex = GetInitialCoverageIndex(manPlan, DefenderSlot.CB2, right),
             ZoneRole = dbConfig.RightCbZone,
             IsPressCoverage = dbConfig.CbPress,
             ZoneJitterX = GetJitter(rng),
@@ -138,10 +139,12 @@ public sealed class DefenseFactory : IDefenseFactory
                 ? dbConfig.NickelX
                 : GetReceiverXOrDefault(receivers, nickelTarget, GetMiddleFieldAlignmentX(surface));
 
-            defenders.Add(new Defender(new Vector2(nickelX, dbConfig.NickelDepth), DefensivePosition.DB, DefenderSlot.NB, attrs)
+            defenders.Add(new Defender(new Vector2(
+                GetManAlignmentXOrDefault(receivers, manPlan, DefenderSlot.NB, nickelX),
+                GetManDepthOrDefault(manPlan, DefenderSlot.NB, dbConfig.NickelDepth, dbConfig.LeftCbDepth)), DefensivePosition.DB, DefenderSlot.NB, attrs)
             {
                 IsRusher = blitzDecision.IsBlitzer(DefenderSlot.NB),
-                CoverageReceiverIndex = nickelTarget,
+                CoverageReceiverIndex = GetInitialCoverageIndex(manPlan, DefenderSlot.NB, nickelTarget),
                 ZoneRole = dbConfig.NickelZone,
                 IsPressCoverage = false,
                 ZoneJitterX = GetJitter(rng),
@@ -150,20 +153,27 @@ public sealed class DefenseFactory : IDefenseFactory
         }
 
         // Safeties
-        defenders.Add(new Defender(new Vector2(dbConfig.LeftSafetyX, dbConfig.LeftSafetyDepth), DefensivePosition.DB, DefenderSlot.FS, attrs)
+        float freeSafetyX = manPlan.UsesSingleHighHelp
+            ? GetMiddleFieldAlignmentX(surface)
+            : dbConfig.LeftSafetyX;
+        defenders.Add(new Defender(new Vector2(
+            GetManAlignmentXOrDefault(receivers, manPlan, DefenderSlot.FS, freeSafetyX),
+            GetManDepthOrDefault(manPlan, DefenderSlot.FS, dbConfig.LeftSafetyDepth, dbConfig.LeftCbDepth)), DefensivePosition.DB, DefenderSlot.FS, attrs)
         {
             IsRusher = blitzDecision.IsBlitzer(DefenderSlot.FS),
-            CoverageReceiverIndex = CoverageSchemePolicies.IsManForUnit(scheme, CoverageUnitType.Safety) ? leftSlot : -1,
-            ZoneRole = dbConfig.LeftSafetyZone,
+            CoverageReceiverIndex = GetInitialCoverageIndex(manPlan, DefenderSlot.FS, CoverageSchemePolicies.IsManForUnit(scheme, CoverageUnitType.Safety) ? leftSlot : -1),
+            ZoneRole = GetInitialZoneRole(manPlan, DefenderSlot.FS, dbConfig.LeftSafetyZone),
             IsPressCoverage = false,
             ZoneJitterX = GetJitter(rng),
             RushLaneOffsetX = -3.5f
         });
-        defenders.Add(new Defender(new Vector2(dbConfig.RightSafetyX, dbConfig.RightSafetyDepth), DefensivePosition.DB, DefenderSlot.SS, attrs)
+        defenders.Add(new Defender(new Vector2(
+            GetManAlignmentXOrDefault(receivers, manPlan, DefenderSlot.SS, dbConfig.RightSafetyX),
+            GetManDepthOrDefault(manPlan, DefenderSlot.SS, dbConfig.RightSafetyDepth, dbConfig.RightCbDepth)), DefensivePosition.DB, DefenderSlot.SS, attrs)
         {
             IsRusher = blitzDecision.IsBlitzer(DefenderSlot.SS),
-            CoverageReceiverIndex = CoverageSchemePolicies.IsManForUnit(scheme, CoverageUnitType.Safety) ? rightSlot : -1,
-            ZoneRole = dbConfig.RightSafetyZone,
+            CoverageReceiverIndex = GetInitialCoverageIndex(manPlan, DefenderSlot.SS, CoverageSchemePolicies.IsManForUnit(scheme, CoverageUnitType.Safety) ? rightSlot : -1),
+            ZoneRole = GetInitialZoneRole(manPlan, DefenderSlot.SS, dbConfig.RightSafetyZone),
             IsPressCoverage = false,
             ZoneJitterX = GetJitter(rng),
             RushLaneOffsetX = 3.5f
@@ -672,9 +682,10 @@ public sealed class DefenseFactory : IDefenseFactory
         IReadOnlyList<Receiver> receivers,
         OffensiveSurface surface,
         bool leftSide,
-        float fallbackX)
+        float fallbackX,
+        bool keepInBox = false)
     {
-        if (!surface.IsSpread)
+        if (keepInBox || !surface.IsSpread)
         {
             return ClampDbX(fallbackX);
         }
@@ -758,6 +769,182 @@ public sealed class DefenseFactory : IDefenseFactory
     private static float Blend(float start, float end, float weight)
     {
         return start + (end - start) * weight;
+    }
+
+    private static ManCoveragePlan BuildManCoveragePlan(
+        CoverageScheme scheme,
+        IReadOnlyList<Receiver> receivers,
+        bool hasNickelPackage,
+        BlitzDecision blitzDecision)
+    {
+        if (!CoverageSchemePolicies.IsUnderneathManCoverage(scheme))
+        {
+            return ManCoveragePlan.Empty;
+        }
+
+        var assignments = new Dictionary<DefenderSlot, int>();
+        var eligibleReceivers = receivers
+            .Where(receiver => receiver.Eligible)
+            .ToList();
+
+        var wideReceivers = eligibleReceivers
+            .Where(receiver => receiver.PositionRole == OffensivePosition.WR)
+            .OrderBy(receiver => receiver.Position.X)
+            .ToList();
+
+        bool usesSingleHighHelp = hasNickelPackage
+            && wideReceivers.Count >= 4
+            && scheme is CoverageScheme.Cover1 or CoverageScheme.Cover2Man or CoverageScheme.Robber;
+
+        AssignWideReceivers(assignments, wideReceivers, hasNickelPackage);
+        AssignBacksAndTightEnds(assignments, eligibleReceivers, hasNickelPackage, blitzDecision);
+
+        return assignments.Count == 0
+            ? ManCoveragePlan.Empty
+            : new ManCoveragePlan(assignments, usesSingleHighHelp);
+    }
+
+    private static void AssignWideReceivers(
+        IDictionary<DefenderSlot, int> assignments,
+        IReadOnlyList<Receiver> wideReceivers,
+        bool hasNickelPackage)
+    {
+        if (wideReceivers.Count == 0)
+        {
+            return;
+        }
+
+        if (hasNickelPackage && wideReceivers.Count >= 4)
+        {
+            assignments[DefenderSlot.CB1] = wideReceivers[0].Index;
+            assignments[DefenderSlot.NB] = wideReceivers[1].Index;
+            assignments[DefenderSlot.SS] = wideReceivers[^2].Index;
+            assignments[DefenderSlot.CB2] = wideReceivers[^1].Index;
+            return;
+        }
+
+        if (wideReceivers.Count == 1)
+        {
+            DefenderSlot slot = wideReceivers[0].Position.X < Constants.FieldWidth * 0.5f
+                ? DefenderSlot.CB1
+                : DefenderSlot.CB2;
+            assignments[slot] = wideReceivers[0].Index;
+            return;
+        }
+
+        assignments[DefenderSlot.CB1] = wideReceivers[0].Index;
+        assignments[DefenderSlot.CB2] = wideReceivers[^1].Index;
+
+        var insideReceivers = wideReceivers
+            .Skip(1)
+            .Take(Math.Max(0, wideReceivers.Count - 2))
+            .ToList();
+        DefenderSlot[] insideDbSlots = hasNickelPackage
+            ? new[] { DefenderSlot.NB, DefenderSlot.SS }
+            : new[] { DefenderSlot.SS };
+
+        for (int i = 0; i < insideReceivers.Count && i < insideDbSlots.Length; i++)
+        {
+            assignments[insideDbSlots[i]] = insideReceivers[i].Index;
+        }
+    }
+
+    private static void AssignBacksAndTightEnds(
+        IDictionary<DefenderSlot, int> assignments,
+        IReadOnlyList<Receiver> eligibleReceivers,
+        bool hasNickelPackage,
+        BlitzDecision blitzDecision)
+    {
+        var availableLinebackers = GetManLinebackerSlots(hasNickelPackage)
+            .Where(slot => !blitzDecision.IsBlitzer(slot))
+            .ToList();
+
+        foreach (Receiver receiver in eligibleReceivers
+            .Where(receiver => receiver.PositionRole is OffensivePosition.TE or OffensivePosition.RB)
+            .OrderBy(receiver => receiver.PositionRole == OffensivePosition.TE ? 0 : 1)
+            .ThenBy(receiver => receiver.Position.X))
+        {
+            if (availableLinebackers.Count == 0)
+            {
+                return;
+            }
+
+            DefenderSlot slot = SelectNearestLinebackerSlot(receiver, availableLinebackers);
+            assignments[slot] = receiver.Index;
+            availableLinebackers.Remove(slot);
+        }
+    }
+
+    private static IEnumerable<DefenderSlot> GetManLinebackerSlots(bool hasNickelPackage)
+    {
+        yield return DefenderSlot.OLB1;
+        if (!hasNickelPackage)
+        {
+            yield return DefenderSlot.MLB;
+        }
+        yield return DefenderSlot.OLB2;
+    }
+
+    private static DefenderSlot SelectNearestLinebackerSlot(Receiver receiver, IReadOnlyList<DefenderSlot> availableLinebackers)
+    {
+        DefenderSlot bestSlot = availableLinebackers[0];
+        float bestDistance = float.MaxValue;
+
+        foreach (DefenderSlot slot in availableLinebackers)
+        {
+            float distance = MathF.Abs(receiver.Position.X - GetBaseLinebackerX(slot));
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                bestSlot = slot;
+            }
+        }
+
+        return bestSlot;
+    }
+
+    private static float GetBaseLinebackerX(DefenderSlot slot) => slot switch
+    {
+        DefenderSlot.OLB1 => Constants.FieldWidth * 0.40f,
+        DefenderSlot.MLB => Constants.FieldWidth * 0.50f,
+        DefenderSlot.OLB2 => Constants.FieldWidth * 0.60f,
+        _ => Constants.FieldWidth * 0.50f
+    };
+
+    private static int GetInitialCoverageIndex(ManCoveragePlan manPlan, DefenderSlot slot, int fallback)
+    {
+        if (!manPlan.IsActive)
+        {
+            return fallback;
+        }
+
+        return manPlan.TryGetAssignment(slot, out int receiverIndex) ? receiverIndex : -1;
+    }
+
+    private static CoverageRole GetInitialZoneRole(ManCoveragePlan manPlan, DefenderSlot slot, CoverageRole fallback)
+    {
+        if (manPlan.UsesSingleHighHelp && slot == DefenderSlot.FS && !manPlan.HasAssignment(slot))
+        {
+            return CoverageRole.DeepMiddle;
+        }
+
+        return manPlan.HasAssignment(slot) ? CoverageRole.None : fallback;
+    }
+
+    private static float GetManAlignmentXOrDefault(
+        IReadOnlyList<Receiver> receivers,
+        ManCoveragePlan manPlan,
+        DefenderSlot slot,
+        float fallbackX)
+    {
+        return manPlan.TryGetAssignment(slot, out int receiverIndex)
+            ? GetReceiverXOrDefault(receivers, receiverIndex, fallbackX)
+            : fallbackX;
+    }
+
+    private static float GetManDepthOrDefault(ManCoveragePlan manPlan, DefenderSlot slot, float fallbackDepth, float manDepth)
+    {
+        return manPlan.HasAssignment(slot) ? manDepth : fallbackDepth;
     }
 
     private static void ApplyUniqueCoverageAssignments(CoverageScheme scheme, List<Defender> defenders, IReadOnlyList<Receiver> receivers)
@@ -940,4 +1127,26 @@ public sealed class DefenseFactory : IDefenseFactory
         Defender Defender,
         CoverageRole OriginalZoneRole,
         bool ClearZoneRoleOnAssignment);
+
+    private sealed class ManCoveragePlan
+    {
+        public static ManCoveragePlan Empty { get; } = new(new Dictionary<DefenderSlot, int>(), UsesSingleHighHelp: false);
+
+        private readonly IReadOnlyDictionary<DefenderSlot, int> _assignments;
+
+        public ManCoveragePlan(IReadOnlyDictionary<DefenderSlot, int> assignments, bool UsesSingleHighHelp)
+        {
+            _assignments = assignments;
+            this.UsesSingleHighHelp = UsesSingleHighHelp;
+        }
+
+        public bool IsActive => _assignments.Count > 0;
+
+        public bool UsesSingleHighHelp { get; }
+
+        public bool TryGetAssignment(DefenderSlot slot, out int receiverIndex) =>
+            _assignments.TryGetValue(slot, out receiverIndex);
+
+        public bool HasAssignment(DefenderSlot slot) => _assignments.ContainsKey(slot);
+    }
 }
