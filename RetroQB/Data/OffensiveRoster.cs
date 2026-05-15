@@ -149,57 +149,44 @@ public sealed class OffensiveRoster
     }
 
     // Receiver accessors by slot
-    public float GetReceiverSpeed(ReceiverSlot slot)
-    {
-        if (slot.IsRunningBackSlot() && RunningBacks.TryGetValue(slot, out var rb))
-            return rb.Speed;
-        if (slot.IsTightEndSlot() && TightEnds.TryGetValue(slot, out var te))
-            return te.Speed;
-        if (WideReceivers.TryGetValue(slot, out var wr))
-            return wr.Speed;
-        return Constants.WrSpeed;
-    }
+    public float GetReceiverSpeed(ReceiverSlot slot) => MatchReceiver(
+        slot,
+        rb => rb.Speed,
+        te => te.Speed,
+        wr => wr.Speed,
+        GetDefaultReceiverSpeed(slot));
 
     public float GetReceiverCatchingAbility(ReceiverSlot slot)
     {
-        float ability;
-        if (slot.IsRunningBackSlot() && RunningBacks.TryGetValue(slot, out var rb))
-            ability = rb.CatchingAbility;
-        else if (slot.IsTightEndSlot() && TightEnds.TryGetValue(slot, out var te))
-            ability = te.CatchingAbility;
-        else if (WideReceivers.TryGetValue(slot, out var wr))
-            ability = wr.CatchingAbility;
-        else
-            ability = 0.7f;
+        float ability = MatchReceiver(
+            slot,
+            rb => rb.CatchingAbility,
+            te => te.CatchingAbility,
+            wr => wr.CatchingAbility,
+            GetDefaultReceiverCatchingAbility(slot));
+
         return Math.Clamp(ability, 0.4f, 0.95f);
     }
 
     public float GetReceiverSkill(ReceiverSlot slot)
     {
-        if (slot.IsRunningBackSlot() || slot.IsTightEndSlot())
-        {
-            return GetReceiverCatchingAbility(slot);
-        }
-
-        if (WideReceivers.TryGetValue(slot, out var wr))
+        if (slot.IsWideReceiverSlot() && WideReceivers.TryGetValue(slot, out var wr))
         {
             return Math.Clamp(wr.RouteSkill, 0.4f, 0.97f);
         }
 
-        return 0.7f;
+        return GetReceiverCatchingAbility(slot);
     }
 
     public float GetReceiverCatchRadius(ReceiverSlot slot)
     {
-        float radius;
-        if (slot.IsRunningBackSlot() && RunningBacks.TryGetValue(slot, out var rb))
-            radius = rb.CatchRadius;
-        else if (slot.IsTightEndSlot() && TightEnds.TryGetValue(slot, out var te))
-            radius = te.CatchRadius;
-        else if (WideReceivers.TryGetValue(slot, out var wr))
-            radius = wr.CatchRadius;
-        else
-            radius = 1.0f;
+        float radius = MatchReceiver(
+            slot,
+            rb => rb.CatchRadius,
+            te => te.CatchRadius,
+            wr => wr.CatchRadius,
+            1.0f);
+
         return Math.Clamp(radius, 0.8f, 1.25f);
     }
 
@@ -210,27 +197,59 @@ public sealed class OffensiveRoster
         return 0.1f; // Non-RBs have minimal tackle break ability
     }
 
-    public string GetReceiverName(ReceiverSlot slot)
-    {
-        if (slot.IsRunningBackSlot() && RunningBacks.TryGetValue(slot, out var rb))
-            return rb.Name;
-        if (slot.IsTightEndSlot() && TightEnds.TryGetValue(slot, out var te))
-            return te.Name;
-        if (WideReceivers.TryGetValue(slot, out var wr))
-            return wr.Name;
-        return slot.GetLabel();
-    }
+    public string GetReceiverName(ReceiverSlot slot) => MatchReceiver(
+        slot,
+        rb => rb.Name,
+        te => te.Name,
+        wr => wr.Name,
+        slot.GetLabel());
 
     // OLine accessors
     public float GetOLineSpeed() => OffensiveLine.Speed;
     public float GetOLineBlockingStrength() => OffensiveLine.BlockingStrength;
     
     // TE blocking accessor
-    public float GetTeBlockingStrength(ReceiverSlot slot)
+    public float GetTeBlockingStrength(ReceiverSlot slot) => slot.IsTightEndSlot() && TightEnds.TryGetValue(slot, out var te)
+        ? te.BlockingStrength
+        : 0.8f;
+
+    private T MatchReceiver<T>(
+        ReceiverSlot slot,
+        Func<RbProfile, T> runningBackValue,
+        Func<TeProfile, T> tightEndValue,
+        Func<WrProfile, T> wideReceiverValue,
+        T fallback)
     {
+        if (slot.IsRunningBackSlot() && RunningBacks.TryGetValue(slot, out var rb))
+        {
+            return runningBackValue(rb);
+        }
+
         if (slot.IsTightEndSlot() && TightEnds.TryGetValue(slot, out var te))
-            return te.BlockingStrength;
-        return 0.8f; // Non-TEs have reduced blocking
+        {
+            return tightEndValue(te);
+        }
+
+        if (slot.IsWideReceiverSlot() && WideReceivers.TryGetValue(slot, out var wr))
+        {
+            return wideReceiverValue(wr);
+        }
+
+        return fallback;
+    }
+
+    private static float GetDefaultReceiverSpeed(ReceiverSlot slot)
+    {
+        if (slot.IsRunningBackSlot()) return Constants.RbSpeed;
+        if (slot.IsTightEndSlot()) return Constants.TeSpeed;
+        return Constants.WrSpeed;
+    }
+
+    private static float GetDefaultReceiverCatchingAbility(ReceiverSlot slot)
+    {
+        if (slot.IsRunningBackSlot()) return 0.6f;
+        if (slot.IsTightEndSlot()) return 0.65f;
+        return 0.7f;
     }
 }
 

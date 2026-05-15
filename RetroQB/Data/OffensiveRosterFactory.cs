@@ -82,28 +82,8 @@ public static class OffensiveRosterFactory
                 DeepAccuracyPenalty = Lerp(1.38f, 1.00f, qbThrowAccuracy)
             },
             WideReceivers = wideReceivers,
-            TightEnds = new Dictionary<ReceiverSlot, TeProfile>
-            {
-                [ReceiverSlot.TE1] = new TeProfile
-                {
-                    Name = tightEndName,
-                    Speed = Constants.TeSpeed * teSpeedFactor,
-                    CatchingAbility = teCatching,
-                    CatchRadius = teCatchRadius,
-                    BlockingStrength = teBlocking
-                }
-            },
-            RunningBacks = new Dictionary<ReceiverSlot, RbProfile>
-            {
-                [ReceiverSlot.RB1] = new RbProfile
-                {
-                    Name = runningBackName,
-                    Speed = Constants.RbSpeed * rbSpeedFactor,
-                    CatchingAbility = rbCatching,
-                    CatchRadius = rbCatchRadius,
-                    TackleBreakChance = rbTackleBreak
-                }
-            },
+            TightEnds = CreateTightEnds(tightEndName, teSpeedFactor, teCatching, teCatchRadius, teBlocking),
+            RunningBacks = CreateRunningBacks(runningBackName, rbSpeedFactor, rbCatching, rbCatchRadius, rbTackleBreak),
             OffensiveLine = new OLineProfile
             {
                 Speed = Constants.OlSpeed * olSpeedFactor,
@@ -118,6 +98,52 @@ public static class OffensiveRosterFactory
     }
 
     private static float ClampSkill(float value) => Math.Clamp(value, 0f, 1f);
+
+    private static IReadOnlyDictionary<ReceiverSlot, TeProfile> CreateTightEnds(
+        string tightEndName,
+        float speedFactor,
+        float catchingAbility,
+        float catchRadius,
+        float blockingStrength)
+    {
+        var starter = new TeProfile
+        {
+            Name = tightEndName,
+            Speed = Constants.TeSpeed * speedFactor,
+            CatchingAbility = catchingAbility,
+            CatchRadius = catchRadius,
+            BlockingStrength = blockingStrength
+        };
+
+        return new Dictionary<ReceiverSlot, TeProfile>
+        {
+            [ReceiverSlot.TE1] = starter,
+            [ReceiverSlot.TE2] = starter with { Name = $"{tightEndName} II" }
+        };
+    }
+
+    private static IReadOnlyDictionary<ReceiverSlot, RbProfile> CreateRunningBacks(
+        string runningBackName,
+        float speedFactor,
+        float catchingAbility,
+        float catchRadius,
+        float tackleBreakChance)
+    {
+        var starter = new RbProfile
+        {
+            Name = runningBackName,
+            Speed = Constants.RbSpeed * speedFactor,
+            CatchingAbility = catchingAbility,
+            CatchRadius = catchRadius,
+            TackleBreakChance = tackleBreakChance
+        };
+
+        return new Dictionary<ReceiverSlot, RbProfile>
+        {
+            [ReceiverSlot.RB1] = starter,
+            [ReceiverSlot.RB2] = starter with { Name = $"{runningBackName} II" }
+        };
+    }
 
     private static float Lerp(float a, float b, float t)
     {
