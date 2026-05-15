@@ -100,7 +100,7 @@ public sealed class DefaultBlitzDecisionStrategy : IBlitzDecisionStrategy
             }
         }
 
-        ScaleDbPressurePackages(weights, 0.62f);
+        ScaleDbPressurePackages(weights, 0.35f);
 
         return WeightedPick(weights, rng);
     }
