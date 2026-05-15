@@ -91,6 +91,7 @@ public sealed class PlayRecord
             
             PlayOutcome.Interception => "INTERCEPTED!",
             PlayOutcome.Incomplete => "Incomplete",
+            PlayOutcome.PassDefended => "Pass defended",
             PlayOutcome.Turnover => "Turnover on downs",
             PlayOutcome.Safety => "SAFETY!",
 

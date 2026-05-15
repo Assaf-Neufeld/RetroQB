@@ -129,6 +129,14 @@ public sealed class DriveState
         return result;
     }
 
+    public PlayResult ResolvePassDefended()
+    {
+        Down++;
+        var result = CheckTurnoverOnDowns() ?? new PlayResult(PlayOutcome.PassDefended, 0f, "Pass defended");
+        RecordPlay(result);
+        return result;
+    }
+
     public PlayResult ResolveTackle(float newBallY, string? tackleMessageOverride = null)
     {
         float gain = newBallY - LineOfScrimmage;

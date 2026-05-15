@@ -13,6 +13,7 @@ public enum PlayOutcome
     Ongoing,
     Tackle,
     Incomplete,
+    PassDefended,
     Touchdown,
     Interception,
     Turnover,
@@ -355,7 +356,7 @@ public sealed class PlayManager
         return $"{typeName}: {SelectedPlay.Name}";
     }
 
-    public PlayResult ResolvePlay(float newBallY, bool incomplete, bool intercepted, bool touchdown, string? tackleMessageOverride = null)
+    public PlayResult ResolvePlay(float newBallY, bool incomplete, bool passDefended, bool intercepted, bool touchdown, string? tackleMessageOverride = null)
     {
         PlayResult result;
         float gain = newBallY - LineOfScrimmage;
@@ -371,6 +372,10 @@ public sealed class PlayManager
         else if (incomplete)
         {
             result = _driveState.ResolveIncomplete();
+        }
+        else if (passDefended)
+        {
+            result = _driveState.ResolvePassDefended();
         }
         else
         {

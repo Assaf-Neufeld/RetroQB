@@ -233,7 +233,7 @@ DrawResultTicker:
             contentY += 4;
             Color resultTickerColor = resultText.Contains("TD") || resultText.Contains("1ST") ? Palette.Gold :
                                resultText.Contains("INT") || resultText.Contains("TURN") ? Palette.Red :
-                               resultText.Contains("Incomplete") ? Palette.Orange :
+                               resultText.Contains("Incomplete") || resultText.Contains("defended") ? Palette.Orange :
                                panelText;
 
             Raylib.DrawRectangle(contentX - 4, contentY - 4, ScoreboardWidth - 24, 26, panelHeader);
@@ -322,6 +322,7 @@ DrawResultTicker:
             PlayOutcome.Touchdown => Palette.Gold,
             PlayOutcome.Interception => Palette.Red,
             PlayOutcome.Incomplete => Palette.Orange,
+            PlayOutcome.PassDefended => Palette.Orange,
             PlayOutcome.Turnover => Palette.Red,
             PlayOutcome.Safety => Palette.Red,
             _ when record.Gain >= 10 => Palette.Lime,

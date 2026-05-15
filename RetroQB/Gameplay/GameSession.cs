@@ -592,6 +592,9 @@ public sealed class GameSession : IDisposable
             case BallUpdateResult.Incomplete:
                 EndPlay(incomplete: true);
                 return;
+            case BallUpdateResult.PassDefended:
+                EndPlay(passDefended: true);
+                return;
             case BallUpdateResult.Intercepted:
                 EndPlay(intercepted: true);
                 return;
@@ -709,7 +712,7 @@ public sealed class GameSession : IDisposable
         _replayStateHandler.Update(dt, _input, _replayPlayer, _stateManager);
     }
 
-    private void EndPlay(bool tackle = false, bool incomplete = false, bool intercepted = false, bool touchdown = false)
+    private void EndPlay(bool tackle = false, bool incomplete = false, bool passDefended = false, bool intercepted = false, bool touchdown = false)
     {
         if (_ballController.PassAttemptedThisPlay && intercepted)
         {
@@ -724,7 +727,7 @@ public sealed class GameSession : IDisposable
         string? ballCarrierLabel = null;
         RouteType? catcherRoute = null;
 
-        if (!incomplete && !intercepted && _entities.Ball.Holder != null)
+        if (!incomplete && !passDefended && !intercepted && _entities.Ball.Holder != null)
         {
             gain = MathF.Round(_entities.Ball.Holder.Position.Y - _ballController.PlayStartLos);
             if (_ballController.PassCompletedThisPlay && _ballController.PassCatcher != null)
@@ -767,7 +770,7 @@ public sealed class GameSession : IDisposable
             spot = Constants.EndZoneDepth + 100f;
         }
 
-        PlayResult result = _playManager.ResolvePlay(spot, incomplete, intercepted, touchdown, tackleMessageOverride: isSack ? $"SACK! -{sackYardsLost} yds" : null);
+        PlayResult result = _playManager.ResolvePlay(spot, incomplete, passDefended, intercepted, touchdown, tackleMessageOverride: isSack ? $"SACK! -{sackYardsLost} yds" : null);
 
         ReplayClip? clip = _replayRecorder.FinalizeClip(result.Outcome);
         _replayClipStore.Store(clip);
@@ -1035,6 +1038,7 @@ public sealed class GameSession : IDisposable
             PlayOutcome.Turnover => -0.85f,
             PlayOutcome.Safety => -1.0f,
             PlayOutcome.Incomplete => -0.28f,
+            PlayOutcome.PassDefended => -0.42f,
             _ => isSack ? -0.78f : Math.Clamp(gain / 22f, -0.7f, 0.8f)
         };
 
@@ -1236,7 +1240,7 @@ public sealed class GameSession : IDisposable
             };
         }
 
-        if (result.Outcome == PlayOutcome.Incomplete)
+        if (result.Outcome is PlayOutcome.Incomplete or PlayOutcome.PassDefended)
         {
             return variant switch
             {

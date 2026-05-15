@@ -119,6 +119,7 @@ public sealed class DefensiveMemory
             string blitzKey = BuildBlitzKey(record.Blitzers);
             bool blitzSuccess = record.IsSack
                 || record.Outcome == PlayOutcome.Incomplete
+                || record.Outcome == PlayOutcome.PassDefended
                 || record.Outcome == PlayOutcome.Interception
                 || record.Outcome == PlayOutcome.Safety
                 || record.Gain < 0f;

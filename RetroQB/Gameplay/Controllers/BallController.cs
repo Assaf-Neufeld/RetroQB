@@ -17,6 +17,7 @@ public sealed class BallController
 
     private bool _passAttemptedThisPlay;
     private bool _passCompletedThisPlay;
+    private bool _passDefenseAttemptedThisThrow;
     private Receiver? _passCatcher;
     private float _playStartLos;
 
@@ -44,6 +45,7 @@ public sealed class BallController
     {
         _passAttemptedThisPlay = false;
         _passCompletedThisPlay = false;
+        _passDefenseAttemptedThisThrow = false;
         _passCatcher = null;
         _playStartLos = lineOfScrimmage;
     }
@@ -103,6 +105,117 @@ public sealed class BallController
         return BallUpdateResult.Continue;
     }
 
+    private BallUpdateResult TryDefendPass(
+        Ball ball,
+        IReadOnlyList<Defender> defenders,
+        DefensiveTeamAttributes defensiveTeam)
+    {
+        if (_passDefenseAttemptedThisThrow || defenders.Count == 0)
+        {
+            return BallUpdateResult.Continue;
+        }
+
+        float flightProgress = ball.GetFlightProgress();
+        float depthFactor = GetPassDepthFactor(ball.IntendedDistance);
+        float minProgress = Lerp(0.42f, 0.62f, depthFactor);
+        if (flightProgress < minProgress)
+        {
+            return BallUpdateResult.Continue;
+        }
+
+        Vector2 landing = ball.GetPredictedLanding();
+        float landingRadius = Lerp(Constants.PassDefendShortLandingRadius, Constants.PassDefendLongLandingRadius, depthFactor);
+
+        Defender? bestDefender = null;
+        float bestScore = 0f;
+        foreach (var defender in defenders)
+        {
+            float distToBall = Vector2.Distance(defender.Position, ball.Position);
+            if (distToBall > Constants.PassDefendBallRadius)
+            {
+                continue;
+            }
+
+            float distToLanding = Vector2.Distance(defender.Position, landing);
+            if (distToLanding > landingRadius)
+            {
+                continue;
+            }
+
+            float pathDistance = DistanceToSegment(defender.Position, ball.ThrowStart, landing);
+            if (pathDistance > Constants.PassDefendPathRadius)
+            {
+                continue;
+            }
+
+            float ballScore = 1f - Math.Clamp(distToBall / Constants.PassDefendBallRadius, 0f, 1f);
+            float landingScore = 1f - Math.Clamp(distToLanding / landingRadius, 0f, 1f);
+            float pathScore = 1f - Math.Clamp(pathDistance / Constants.PassDefendPathRadius, 0f, 1f);
+            float score = (ballScore * 0.45f) + (landingScore * 0.35f) + (pathScore * 0.2f);
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestDefender = defender;
+            }
+        }
+
+        if (bestDefender == null)
+        {
+            return BallUpdateResult.Continue;
+        }
+
+        _passDefenseAttemptedThisThrow = true;
+        float chance = GetPassDefendedChance(ball, bestDefender, defensiveTeam, depthFactor, bestScore);
+        return _rng.NextDouble() < chance ? BallUpdateResult.PassDefended : BallUpdateResult.Continue;
+    }
+
+    private static float GetPassDefendedChance(
+        Ball ball,
+        Defender defender,
+        DefensiveTeamAttributes defensiveTeam,
+        float depthFactor,
+        float proximityScore)
+    {
+        float baseChance = Lerp(0.58f, 0.22f, depthFactor);
+        float defenderSkill = defensiveTeam.InterceptionAbility
+            * defensiveTeam.GetPositionInterceptionMultiplier(defender.PositionRole)
+            * defender.InterceptionMultiplier;
+        float skillMultiplier = Math.Clamp(defenderSkill, 0.45f, 1.65f);
+        float heightFactor = 1f - Math.Clamp(ball.GetArcHeight() / Constants.PassCatchMaxHeight, 0f, 1f);
+        float lowBallBoost = Lerp(1.2f, 0.75f, depthFactor) * (0.65f + heightFactor * 0.35f);
+        float chance = baseChance * skillMultiplier * lowBallBoost * Math.Clamp(proximityScore, 0.35f, 1f);
+
+        return Math.Clamp(chance, 0.04f, 0.68f);
+    }
+
+    private static float GetPassDepthFactor(float intendedDistance)
+    {
+        float range = Constants.PassArcLongDistance - Constants.PassArcShortDistance;
+        if (range <= 0.01f)
+        {
+            return 0f;
+        }
+
+        return Math.Clamp((intendedDistance - Constants.PassArcShortDistance) / range, 0f, 1f);
+    }
+
+    private static float DistanceToSegment(Vector2 point, Vector2 start, Vector2 end)
+    {
+        Vector2 segment = end - start;
+        float lengthSquared = segment.LengthSquared();
+        if (lengthSquared <= 0.001f)
+        {
+            return Vector2.Distance(point, start);
+        }
+
+        float t = Math.Clamp(Vector2.Dot(point - start, segment) / lengthSquared, 0f, 1f);
+        Vector2 projection = start + segment * t;
+        return Vector2.Distance(point, projection);
+    }
+
+    private static float Lerp(float a, float b, float t)
+        => a + (b - a) * Math.Clamp(t, 0f, 1f);
+
     private BallUpdateResult TryCompleteCatch(
         Ball ball,
         IReadOnlyList<Receiver> receivers,
@@ -141,6 +254,12 @@ public sealed class BallController
                 if (closestDefender != null && closestDefenderDist <= interceptRadius && closestDefenderDist < receiverDist)
                 {
                     return BallUpdateResult.Intercepted;
+                }
+
+                BallUpdateResult defendedResult = TryDefendPass(ball, defenders, defensiveTeam);
+                if (defendedResult != BallUpdateResult.Continue)
+                {
+                    return defendedResult;
                 }
 
                 // Check for contested catch drop
@@ -281,6 +400,7 @@ public sealed class BallController
         float maxTravelDistance = MathF.Min(intendedDistance + overthrowAllowance, qbMaxThrowDistance);
         float arcApexHeight = GetPassArcApex(intendedDistance);
 
+        _passDefenseAttemptedThisThrow = false;
         ball.SetInAir(qb.Position, throwVelocity, intendedDistance, maxTravelDistance, arcApexHeight);
     }
 
@@ -383,5 +503,6 @@ public enum BallUpdateResult
 {
     Continue,
     Incomplete,
+    PassDefended,
     Intercepted
 }
