@@ -65,8 +65,9 @@ public sealed class DefenseFactory : IDefenseFactory
         float availableDepth = maxY - context.LineOfScrimmage;
         float depthScale = MathF.Max(availableDepth < 18f ? availableDepth / 18f : 1f, 0.3f);
         float frontCenterX = GetFrontCenterX(surface);
-        float leftBoxX = GetBoxAlignmentX(receivers, surface, leftSide: true, Constants.FieldWidth * 0.40f, keepInBox: manPlan.IsActive);
-        float rightBoxX = GetBoxAlignmentX(receivers, surface, leftSide: false, Constants.FieldWidth * 0.60f, keepInBox: manPlan.IsActive);
+        CoverageRoleSet lbRoles = CoverageSchemePolicies.GetLbRoles(scheme, hasNickelPackage);
+        float leftBoxX = GetBoxAlignmentX(receivers, surface, leftSide: true, Constants.FieldWidth * 0.40f, keepInBox: ShouldKeepLinebackerInBox(manPlan, lbRoles.Left));
+        float rightBoxX = GetBoxAlignmentX(receivers, surface, leftSide: false, Constants.FieldWidth * 0.60f, keepInBox: ShouldKeepLinebackerInBox(manPlan, lbRoles.Right));
         float mikeX = GetMikeAlignmentX(surface, leftBoxX, rightBoxX);
 
         // Defensive line - DEs on the outside (circular rush), DTs inside (straight rush)
@@ -77,7 +78,6 @@ public sealed class DefenseFactory : IDefenseFactory
         defenders.Add(new Defender(new Vector2(ClampDbX(frontCenterX + 5.3f), dlDepth), DefensivePosition.DE, DefenderSlot.DE2, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 5.0f });
 
         float lbDepth = ClampDefenderY(context.LineOfScrimmage + GetSituationalDepthOffset(7.6f, 4.8f, depthScale), minY, maxY);
-        CoverageRoleSet lbRoles = CoverageSchemePolicies.GetLbRoles(scheme, hasNickelPackage);
 
         defenders.Add(new Defender(new Vector2(leftBoxX, lbDepth), DefensivePosition.LB, DefenderSlot.OLB1, attrs)
         {
@@ -250,6 +250,8 @@ public sealed class DefenseFactory : IDefenseFactory
         float rightFlatX = GetOutsideAlignmentX(receivers, surface, leftSide: false, fw * 0.86f, boundaryShade: 0.95f);
         float leftApexX = GetApexAlignmentX(receivers, surface, leftSide: true, fw * 0.28f);
         float rightApexX = GetApexAlignmentX(receivers, surface, leftSide: false, fw * 0.72f);
+        float leftFlatDropX = GetFlatDropAlignmentX(receivers, surface, leftSide: true, fw * 0.28f);
+        float rightFlatDropX = GetFlatDropAlignmentX(receivers, surface, leftSide: false, fw * 0.72f);
         float leftDeepHalfX = GetDeepHalfAlignmentX(receivers, surface, leftSide: true, fw * 0.35f);
         float rightDeepHalfX = GetDeepHalfAlignmentX(receivers, surface, leftSide: false, fw * 0.65f);
         float leftQuarterX = GetQuarterAlignmentX(receivers, surface, leftSide: true, fw * 0.40f);
@@ -334,13 +336,13 @@ public sealed class DefenseFactory : IDefenseFactory
                 rightCbZone: CoverageRole.DeepRight,
                 cbPress: false,
                 // Nickel looks can widen both flats; base looks roll one safety down to strength.
-                leftSafetyX: hasNickelPackage ? leftApexX : strongInsideX,
+                leftSafetyX: hasNickelPackage ? leftFlatDropX : strongInsideX,
                 leftSafetyDepth: hasNickelPackage ? robberDepth : robberDepth,
                 leftSafetyZone: hasNickelPackage ? CoverageRole.FlatLeft : CoverageRole.Robber,
                 rightSafetyX: middleFieldX,
                 rightSafetyDepth: deepSafetyDepth,
                 rightSafetyZone: CoverageRole.DeepMiddle,
-                nickelX: hasNickelPackage ? rightApexX : -1,
+                nickelX: hasNickelPackage ? rightFlatDropX : -1,
                 nickelDepth: robberDepth,
                 nickelZone: CoverageRole.FlatRight
             ),
@@ -606,6 +608,24 @@ public sealed class DefenseFactory : IDefenseFactory
         return ClampDbX(Blend(outsideX, insideX, influence));
     }
 
+    private static float GetFlatDropAlignmentX(
+        IReadOnlyList<Receiver> receivers,
+        OffensiveSurface surface,
+        bool leftSide,
+        float fallbackX)
+    {
+        float outsideX = GetOutsideAlignmentX(receivers, surface, leftSide, fallbackX, boundaryShade: 0f);
+        float insideX = GetInsideAlignmentX(receivers, surface, leftSide, fallbackX);
+
+        if (MathF.Abs(outsideX - insideX) < 1.25f)
+        {
+            return insideX;
+        }
+
+        float influence = surface.IsSpread ? 0.76f : 0.64f;
+        return ClampDbX(Blend(outsideX, insideX, influence));
+    }
+
     private static float GetDeepHalfAlignmentX(
         IReadOnlyList<Receiver> receivers,
         OffensiveSurface surface,
@@ -769,6 +789,16 @@ public sealed class DefenseFactory : IDefenseFactory
     private static float Blend(float start, float end, float weight)
     {
         return start + (end - start) * weight;
+    }
+
+    private static bool ShouldKeepLinebackerInBox(ManCoveragePlan manPlan, CoverageRole role)
+    {
+        if (manPlan.IsActive)
+        {
+            return true;
+        }
+
+        return role is not CoverageRole.FlatLeft and not CoverageRole.FlatRight;
     }
 
     private static ManCoveragePlan BuildManCoveragePlan(

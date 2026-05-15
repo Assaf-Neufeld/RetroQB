@@ -326,12 +326,12 @@ public static class ZoneCoverage
         bool inZoneDepth = projected.Y <= bounds.YMax;
         float horizontalDelta = MathF.Abs(projected.X - anchor.X);
         float travelWidth = MathF.Abs(GetReceiverTravelDirection(receiver).X);
-        float outsidePreference = GetOutsideReceiverPreference(defender.ZoneRole, projected.X);
+        float horizontalPreference = GetHorizontalReceiverPreference(defender.ZoneRole, projected.X);
 
         if (defender.ZoneRole.IsDeepZone())
         {
             float verticalThreat = MathF.Max(receiver.Position.Y, projected.Y);
-            return verticalThreat * 4.2f - horizontalDelta * 1.35f + travelWidth * 1.1f + outsidePreference;
+            return verticalThreat * 4.2f - horizontalDelta * 1.35f + travelWidth * 1.1f + horizontalPreference;
         }
 
         float distancePenalty = Vector2.Distance(defender.Position, projected) * 0.55f;
@@ -345,18 +345,20 @@ public static class ZoneCoverage
         return (inZoneDepth ? 1000f : 820f)
             + projected.Y * 2.1f
             + travelWidth * 2.0f
-            + outsidePreference
+            + horizontalPreference
             - widthPenalty
             - sidelinePenalty
             - distancePenalty;
     }
 
-    private static float GetOutsideReceiverPreference(CoverageRole role, float projectedX)
+    private static float GetHorizontalReceiverPreference(CoverageRole role, float projectedX)
     {
         return role switch
         {
-            CoverageRole.FlatLeft or CoverageRole.DeepLeft => (Constants.FieldWidth - projectedX) * 0.60f,
-            CoverageRole.FlatRight or CoverageRole.DeepRight => projectedX * 0.60f,
+            CoverageRole.DeepLeft => (Constants.FieldWidth - projectedX) * 0.60f,
+            CoverageRole.DeepRight => projectedX * 0.60f,
+            CoverageRole.FlatLeft => projectedX * 0.42f,
+            CoverageRole.FlatRight => (Constants.FieldWidth - projectedX) * 0.42f,
             _ => 0f
         };
     }
