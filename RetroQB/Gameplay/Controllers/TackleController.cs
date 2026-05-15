@@ -118,7 +118,7 @@ public sealed class TackleController
         
         if (_rng.NextDouble() < breakChance)
         {
-            _overlapResolver.AddBrokenTackleDefender(defender, ballCarrier.Position);
+            _overlapResolver.AddBrokenTackleDefender(defender);
 
             // Push defender away from the ball carrier
             if (ballCarrier != null)

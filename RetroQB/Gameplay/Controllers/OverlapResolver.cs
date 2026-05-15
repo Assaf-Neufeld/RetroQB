@@ -10,7 +10,6 @@ namespace RetroQB.Gameplay.Controllers;
 public sealed class OverlapResolver
 {
     private readonly HashSet<Defender> _brokenTackleDefenders = new();
-    private readonly Dictionary<Defender, Vector2> _brokenTacklePositions = new();
     
     /// <summary>
     /// Minimum separation distance required before a defender can attempt another tackle.
@@ -23,16 +22,14 @@ public sealed class OverlapResolver
     public void Reset()
     {
         _brokenTackleDefenders.Clear();
-        _brokenTacklePositions.Clear();
     }
 
     /// <summary>
-    /// Marks a defender as having their tackle broken at a specific position.
+    /// Marks a defender as having their tackle broken.
     /// </summary>
-    public void AddBrokenTackleDefender(Defender defender, Vector2 breakPosition)
+    public void AddBrokenTackleDefender(Defender defender)
     {
         _brokenTackleDefenders.Add(defender);
-        _brokenTacklePositions[defender] = breakPosition;
     }
 
     /// <summary>
@@ -44,22 +41,19 @@ public sealed class OverlapResolver
     }
     
     /// <summary>
-    /// Checks if a defender who broke a tackle has separated enough to re-engage.
-    /// If the defender has moved far enough from where they broke the tackle, they can try again.
+    /// Checks if a defender who broke a tackle has separated enough from the carrier to re-engage.
     /// </summary>
-    public bool CanReengageAfterBrokenTackle(Defender defender, Vector2 currentCarrierPosition)
+    public bool CanReengageAfterBrokenTackle(Defender defender, Vector2 carrierPosition)
     {
-        if (!_brokenTacklePositions.TryGetValue(defender, out var breakPosition))
+        if (!_brokenTackleDefenders.Contains(defender))
         {
-            return true; // No record, can engage
+            return true;
         }
         
-        float distanceFromBreak = Vector2.Distance(currentCarrierPosition, breakPosition);
-        if (distanceFromBreak >= ReengageSeparationDistance)
+        float separation = Vector2.Distance(defender.Position, carrierPosition);
+        if (separation >= ReengageSeparationDistance)
         {
-            // Enough separation - remove from broken tackle set to allow fresh attempt
             _brokenTackleDefenders.Remove(defender);
-            _brokenTacklePositions.Remove(defender);
             return true;
         }
         
@@ -67,13 +61,10 @@ public sealed class OverlapResolver
     }
 
     /// <summary>
-    /// Resolves overlaps between all entities.
-    /// </summary>
-    /// <summary>
     /// Maximum distance past the line of scrimmage where defenders can physically
     /// impede (press/jam) receivers. Beyond this, only the defender is pushed.
     /// </summary>
-    private const float PressZoneYards = 2f;
+    private const float PressZoneYards = 5f;
 
     /// <summary>
     /// How much of the overlap push goes to the defender vs the receiver
@@ -131,16 +122,7 @@ public sealed class OverlapResolver
                                 continue;
                             }
                             
-                            // Still in immunity zone - push defender away
-                            Vector2 deltaToDefender = defender.Position - ballCarrier.Position;
-                            if (deltaToDefender.LengthSquared() > 0.0001f)
-                            {
-                                Vector2 pushDir = Vector2.Normalize(deltaToDefender);
-                                float minSeparation = defender.Radius + ballCarrier.Radius + 0.6f;
-                                defender.Position = ballCarrier.Position + pushDir * minSeparation;
-                                defender.Velocity = pushDir * (defender.Speed * 0.6f);
-                                clampToField(defender);
-                            }
+                            PushBrokenTackleDefenderAway(defender, ballCarrier, clampToField);
                             continue;
                         }
                         continue;
@@ -181,45 +163,15 @@ public sealed class OverlapResolver
 
                     if (aIsReceiver && bIsDefender)
                     {
-                        var recv = (Receiver)a;
-                        if (!recv.IsBlocking && recv.Position.Y > pressLimit)
+                        if (TryResolveReceiverDefenderOverlap((Receiver)a, (Defender)b, pushDir, push, pressLimit, receiverIsFirst: true, clampToField))
                         {
-                            // Only push the defender (b) away
-                            b.Position += pushDir * (push * 2f);
-                            clampToField(b);
-                            continue;
-                        }
-                        // Inside press zone: receiver gets release advantage
-                        if (!recv.IsBlocking)
-                        {
-                            float recvPush = push * 2f * (1f - PressReceiverAdvantage);
-                            float defPush = push * 2f * PressReceiverAdvantage;
-                            a.Position -= pushDir * recvPush;
-                            b.Position += pushDir * defPush;
-                            clampToField(a);
-                            clampToField(b);
                             continue;
                         }
                     }
                     else if (bIsReceiver && aIsDefender)
                     {
-                        var recv = (Receiver)b;
-                        if (!recv.IsBlocking && recv.Position.Y > pressLimit)
+                        if (TryResolveReceiverDefenderOverlap((Receiver)b, (Defender)a, pushDir, push, pressLimit, receiverIsFirst: false, clampToField))
                         {
-                            // Only push the defender (a) away
-                            a.Position -= pushDir * (push * 2f);
-                            clampToField(a);
-                            continue;
-                        }
-                        // Inside press zone: receiver gets release advantage
-                        if (!recv.IsBlocking)
-                        {
-                            float defPush = push * 2f * PressReceiverAdvantage;
-                            float recvPush = push * 2f * (1f - PressReceiverAdvantage);
-                            a.Position -= pushDir * defPush;
-                            b.Position += pushDir * recvPush;
-                            clampToField(a);
-                            clampToField(b);
                             continue;
                         }
                     }
@@ -231,6 +183,64 @@ public sealed class OverlapResolver
                 }
             }
         }
+    }
+
+    private static void PushBrokenTackleDefenderAway(Defender defender, Entity ballCarrier, Action<Entity> clampToField)
+    {
+        Vector2 pushDir = defender.Position - ballCarrier.Position;
+        if (pushDir.LengthSquared() <= 0.0001f)
+        {
+            Vector2 fallback = ballCarrier.Velocity;
+            if (fallback.LengthSquared() <= 0.0001f)
+            {
+                fallback = new Vector2(0f, -1f);
+            }
+
+            pushDir = -Vector2.Normalize(fallback);
+        }
+        else
+        {
+            pushDir = Vector2.Normalize(pushDir);
+        }
+
+        float minSeparation = defender.Radius + ballCarrier.Radius + 0.6f;
+        defender.Position = ballCarrier.Position + pushDir * minSeparation;
+        defender.Velocity = pushDir * (defender.Speed * 0.6f);
+        clampToField(defender);
+    }
+
+    private static bool TryResolveReceiverDefenderOverlap(
+        Receiver receiver,
+        Defender defender,
+        Vector2 pairPushDir,
+        float halfOverlap,
+        float pressLimit,
+        bool receiverIsFirst,
+        Action<Entity> clampToField)
+    {
+        if (receiver.IsBlocking)
+        {
+            return false;
+        }
+
+        Vector2 receiverPushDir = receiverIsFirst ? -pairPushDir : pairPushDir;
+        Vector2 defenderPushDir = -receiverPushDir;
+        float totalOverlap = halfOverlap * 2f;
+
+        if (receiver.Position.Y > pressLimit)
+        {
+            defender.Position += defenderPushDir * totalOverlap;
+            clampToField(defender);
+            return true;
+        }
+
+        float receiverPush = totalOverlap * (1f - PressReceiverAdvantage);
+        float defenderPush = totalOverlap * PressReceiverAdvantage;
+        receiver.Position += receiverPushDir * receiverPush;
+        defender.Position += defenderPushDir * defenderPush;
+        clampToField(receiver);
+        clampToField(defender);
+        return true;
     }
 
     private static void ResolveRouteRunnerOverlap(Receiver a, Receiver b, float overlap, Action<Entity> clampToField)
@@ -283,10 +293,13 @@ public sealed class OverlapResolver
 
         Vector2 leadLag = forwardDir * orderingSign * forwardNudge;
 
-        a.Position -= separation;
-        b.Position += separation;
-        a.Position -= leadLag;
-        b.Position += leadLag;
+        Vector2 halfSeparation = separation * 0.5f;
+        Vector2 halfLeadLag = leadLag * 0.5f;
+
+        a.Position -= halfSeparation;
+        b.Position += halfSeparation;
+        a.Position -= halfLeadLag;
+        b.Position += halfLeadLag;
 
         clampToField(a);
         clampToField(b);
