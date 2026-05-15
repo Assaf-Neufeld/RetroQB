@@ -928,7 +928,7 @@ public sealed class DefenseFactory : IDefenseFactory
 
     private static bool IsMatchCarryCandidate(Defender defender)
     {
-        if (defender.ZoneRole == CoverageRole.Robber || IsDeepZoneRole(defender.ZoneRole))
+        if (defender.ZoneRole == CoverageRole.Robber || defender.ZoneRole.IsDeepZone())
         {
             return false;
         }
@@ -940,13 +940,4 @@ public sealed class DefenseFactory : IDefenseFactory
         Defender Defender,
         CoverageRole OriginalZoneRole,
         bool ClearZoneRoleOnAssignment);
-
-    private static bool IsDeepZoneRole(CoverageRole role)
-    {
-        return role is CoverageRole.DeepLeft
-            or CoverageRole.DeepMiddle
-            or CoverageRole.DeepRight
-            or CoverageRole.DeepQuarterLeft
-            or CoverageRole.DeepQuarterRight;
-    }
 }
