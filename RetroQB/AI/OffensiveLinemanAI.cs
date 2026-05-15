@@ -50,7 +50,7 @@ public static class OffensiveLinemanAI
                 engageRadius *= 1.35f;
             }
             // On run plays, engage any defender (including DBs coming up); on pass plays prefer rushers
-            Defender? target = GetClosestDefender(defenders, blocker.Position, engageRadius, preferRushers: !context.IsRunPlay && !isCenter);
+            Defender? target = BlockingUtils.GetClosestDefender(defenders, blocker.Position, engageRadius, preferRushers: !context.IsRunPlay && !isCenter);
             bool closeToAnchor = IsWithinEngageRange(blocker.Position, targetAnchor, 0.9f);
             
             // For pass plays, prioritize getting to anchor position first before engaging
@@ -392,38 +392,6 @@ public static class OffensiveLinemanAI
     {
         float rangeSq = range * range;
         return Vector2.DistanceSquared(a, b) <= rangeSq;
-    }
-
-    private static Defender? GetClosestDefender(
-        IReadOnlyList<Defender> defenders,
-        Vector2 position,
-        float maxDistance,
-        bool preferRushers)
-    {
-        Defender? closest = null;
-        float bestDistSq = maxDistance * maxDistance;
-
-        IEnumerable<Defender> candidates = defenders;
-        if (preferRushers)
-        {
-            var rushers = defenders.Where(d => d.IsRusher).ToList();
-            if (rushers.Count > 0)
-            {
-                candidates = rushers;
-            }
-        }
-
-        foreach (var defender in candidates)
-        {
-            float distSq = Vector2.DistanceSquared(position, defender.Position);
-            if (distSq < bestDistSq)
-            {
-                bestDistSq = distSq;
-                closest = defender;
-            }
-        }
-
-        return closest;
     }
 
     private static float GetOlBlockStrength(Blocker blocker, Defender defender)

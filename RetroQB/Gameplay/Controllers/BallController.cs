@@ -58,6 +58,7 @@ public sealed class BallController
         IReadOnlyList<Defender> defenders,
         OffensiveTeamAttributes offensiveTeam,
         DefensiveTeamAttributes defensiveTeam,
+        int selectedReceiverIndex,
         float dt)
     {
         if (ball.State == BallState.HeldByQB)
@@ -96,7 +97,7 @@ public sealed class BallController
             }
 
             // Check for catches
-            return TryCompleteCatch(ball, receivers, defenders, offensiveTeam, defensiveTeam);
+            return TryCompleteCatch(ball, receivers, defenders, offensiveTeam, defensiveTeam, selectedReceiverIndex);
         }
 
         return BallUpdateResult.Continue;
@@ -107,9 +108,10 @@ public sealed class BallController
         IReadOnlyList<Receiver> receivers,
         IReadOnlyList<Defender> defenders,
         OffensiveTeamAttributes offensiveTeam,
-        DefensiveTeamAttributes defensiveTeam)
+        DefensiveTeamAttributes defensiveTeam,
+        int selectedReceiverIndex)
     {
-        foreach (var receiver in receivers)
+        foreach (var receiver in GetCatchCandidateOrder(receivers, selectedReceiverIndex))
         {
             if (!receiver.Eligible) continue;
 
@@ -165,6 +167,23 @@ public sealed class BallController
         }
 
         return BallUpdateResult.Continue;
+    }
+
+    private static IEnumerable<Receiver> GetCatchCandidateOrder(IReadOnlyList<Receiver> receivers, int selectedReceiverIndex)
+    {
+        Receiver? selectedReceiver = receivers.FirstOrDefault(r => r.Index == selectedReceiverIndex);
+        if (selectedReceiver != null)
+        {
+            yield return selectedReceiver;
+        }
+
+        foreach (var receiver in receivers)
+        {
+            if (receiver != selectedReceiver)
+            {
+                yield return receiver;
+            }
+        }
     }
 
     /// <summary>

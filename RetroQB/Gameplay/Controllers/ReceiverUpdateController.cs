@@ -40,35 +40,29 @@ public sealed class ReceiverUpdateController
         bool isRunPlayWithRb = BlockingUtils.IsRunPlayActiveWithRunningBack(playManager.SelectedPlayType, ball);
         bool isBallHeldByReceiver = ball.State == BallState.HeldByReceiver;
         bool isPassCompletion = isBallHeldByReceiver && !isRunPlayWithRb;
+        int selectedReceiver = playManager.SelectedReceiver;
 
         foreach (var receiver in receivers)
         {
             bool isBallCarrier = isBallHeldByReceiver && ball.Holder == receiver;
 
-            // After a pass completion, non-catching receivers track toward the ball carrier
-            if (isPassCompletion && !isBallCarrier && receiver != controlledReceiver)
-            {
-                UpdateReceiverTrackingBallCarrier(receiver, ball.Holder!, dt, clampToField);
-                continue;
-            }
-
-            bool autoBlockWr = !receiver.IsBlocking
-                && !receiver.IsRunningBack
-                && !receiver.IsTightEnd
-                && !isBallCarrier
-                && receiver != controlledReceiver
-                && (isRunPlayWithRb || isBallHeldByReceiver);
-
-            if (receiver.IsBlocking || autoBlockWr)
+            if (ShouldBlockReceiver(receiver, isRunPlayWithRb, isBallHeldByReceiver, isBallCarrier, controlledReceiver))
             {
                 _blockingController.UpdateBlockingReceiver(
                     receiver, qb, ball, defenders,
                     playManager.SelectedPlay, playManager.SelectedPlayType,
                     playManager.LineOfScrimmage, dt,
-                    (pos, radius, preferRushers) => GetClosestDefender(defenders, pos, radius, preferRushers),
+                    (pos, radius, preferRushers) => BlockingUtils.GetClosestDefender(defenders, pos, radius, preferRushers),
                     clampToField);
                 receiver.Update(dt);
                 clampToField(receiver);
+                continue;
+            }
+
+            // After a pass completion, non-blocking receivers flow toward the ball carrier.
+            if (isPassCompletion && !isBallCarrier && receiver != controlledReceiver)
+            {
+                UpdateReceiverTrackingBallCarrier(receiver, ball.Holder!, dt, clampToField);
                 continue;
             }
 
@@ -84,8 +78,23 @@ public sealed class ReceiverUpdateController
                 continue;
             }
 
-            UpdateRouteReceiver(receiver, receivers, qb, ball, defenders, qbPastLos, isUnderneathManCoverage, dt, clampToField);
+            UpdateRouteReceiver(receiver, qb, ball, defenders, qbPastLos, isUnderneathManCoverage, selectedReceiver, dt, clampToField);
         }
+    }
+
+    private static bool ShouldBlockReceiver(Receiver receiver, bool isRunPlayWithRb, bool isBallHeldByReceiver, bool isBallCarrier, Receiver? controlledReceiver)
+    {
+        if (receiver.IsBlocking)
+        {
+            return true;
+        }
+
+        if (isBallCarrier || receiver == controlledReceiver || receiver.IsRunningBack || receiver.IsTightEnd)
+        {
+            return false;
+        }
+
+        return isRunPlayWithRb || isBallHeldByReceiver;
     }
 
     private void UpdateRunningBackPreHandoff(Receiver receiver, Quarterback qb, PlayDefinition selectedPlay, float dt, Action<Entity> clampToField)
@@ -155,14 +164,16 @@ public sealed class ReceiverUpdateController
         {
             carrierSpeed *= 1.08f;
         }
+
+        Vector2 previousVelocity = receiver.Velocity;
         receiver.Velocity = inputDir * carrierSpeed;
 
         if (isRunPlayWithRb && receiver.IsRunningBack && inputDir.LengthSquared() > 0.001f)
         {
-            Vector2 currentDir = receiver.Velocity.LengthSquared() > 0.001f
-                ? Vector2.Normalize(receiver.Velocity)
+            Vector2 previousDir = previousVelocity.LengthSquared() > 0.001f
+                ? Vector2.Normalize(previousVelocity)
                 : inputDir;
-            float turnDot = Vector2.Dot(currentDir, inputDir);
+            float turnDot = Vector2.Dot(previousDir, inputDir);
             if (turnDot < 0.45f)
             {
                 receiver.Velocity += inputDir * (carrierSpeed * 0.35f);
@@ -173,7 +184,7 @@ public sealed class ReceiverUpdateController
         clampToField(receiver);
     }
 
-    private void UpdateRouteReceiver(Receiver receiver, IReadOnlyList<Receiver> receivers, Quarterback qb, Ball ball, IReadOnlyList<Defender> defenders, bool qbPastLos, bool isUnderneathManCoverage, float dt, Action<Entity> clampToField)
+    private void UpdateRouteReceiver(Receiver receiver, Quarterback qb, Ball ball, IReadOnlyList<Defender> defenders, bool qbPastLos, bool isUnderneathManCoverage, int selectedReceiver, float dt, Action<Entity> clampToField)
     {
         RouteRunner.UpdateRoute(receiver, dt);
 
@@ -185,18 +196,14 @@ public sealed class ReceiverUpdateController
         if (qbPastLos)
         {
             // Block for scrambling QB
-            Defender? target = GetClosestDefender(defenders, receiver.Position, Constants.BlockEngageRadius, preferRushers: true);
+            Defender? target = BlockingUtils.GetClosestDefender(defenders, receiver.Position, Constants.BlockEngageRadius, preferRushers: true);
             if (target != null)
             {
-                Vector2 toTarget = target.Position - receiver.Position;
-                if (toTarget.LengthSquared() > 0.001f)
-                {
-                    toTarget = Vector2.Normalize(toTarget);
-                }
+                Vector2 toTarget = BlockingUtils.SafeNormalize(target.Position - receiver.Position);
                 receiver.Velocity = toTarget * (receiver.Speed * 0.9f);
             }
         }
-        else if (ball.State == BallState.InAir && receiver.Eligible)
+        else if (ball.State == BallState.InAir && receiver.Eligible && receiver.Index == selectedReceiver)
         {
             AdjustReceiverToBall(receiver, ball);
         }
@@ -379,36 +386,8 @@ public sealed class ReceiverUpdateController
         receiver.Velocity = blendedDir * (receiver.Speed * speedMult);
     }
 
-    internal static Defender? GetClosestDefender(IReadOnlyList<Defender> defenders, Vector2 position, float maxDistance, bool preferRushers)
-    {
-        Defender? closest = null;
-        float bestDistSq = maxDistance * maxDistance;
-
-        IEnumerable<Defender> candidates = defenders;
-        if (preferRushers)
-        {
-            var rushers = defenders.Where(d => d.IsRusher).ToList();
-            if (rushers.Count > 0)
-            {
-                candidates = rushers;
-            }
-        }
-
-        foreach (var defender in candidates)
-        {
-            float distSq = Vector2.DistanceSquared(position, defender.Position);
-            if (distSq < bestDistSq)
-            {
-                bestDistSq = distSq;
-                closest = defender;
-            }
-        }
-
-        return closest;
-    }
-
     /// <summary>
-    /// After a pass completion, non-catching receivers jog toward the ball carrier.
+    /// After a pass completion, non-blocking receivers jog toward the ball carrier.
     /// </summary>
     private static void UpdateReceiverTrackingBallCarrier(Receiver receiver, Entity ballCarrier, float dt, Action<Entity> clampToField)
     {

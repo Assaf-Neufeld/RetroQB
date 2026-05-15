@@ -46,6 +46,46 @@ public static class BlockingUtils
         return vector.LengthSquared() > 0.001f ? Vector2.Normalize(vector) : Vector2.Zero;
     }
 
+    public static Defender? GetClosestDefender(
+        IReadOnlyList<Defender> defenders,
+        Vector2 position,
+        float maxDistance,
+        bool preferRushers)
+    {
+        Defender? closest = preferRushers
+            ? GetClosestDefenderCore(defenders, position, maxDistance, onlyRushers: true)
+            : null;
+
+        return closest ?? GetClosestDefenderCore(defenders, position, maxDistance, onlyRushers: false);
+    }
+
+    private static Defender? GetClosestDefenderCore(
+        IReadOnlyList<Defender> defenders,
+        Vector2 position,
+        float maxDistance,
+        bool onlyRushers)
+    {
+        Defender? closest = null;
+        float bestDistSq = maxDistance * maxDistance;
+
+        foreach (var defender in defenders)
+        {
+            if (onlyRushers && !defender.IsRusher)
+            {
+                continue;
+            }
+
+            float distSq = Vector2.DistanceSquared(position, defender.Position);
+            if (distSq < bestDistSq)
+            {
+                bestDistSq = distSq;
+                closest = defender;
+            }
+        }
+
+        return closest;
+    }
+
     /// <summary>
     /// Calculates how much a defender should slow down when being blocked.
     /// </summary>

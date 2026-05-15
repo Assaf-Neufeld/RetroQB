@@ -584,6 +584,7 @@ public sealed class GameSession : IDisposable
             _entities.Defenders,
             _offensiveTeam,
             _defensiveTeam,
+            _playManager.SelectedReceiver,
             dt);
 
         switch (result)
