@@ -53,6 +53,7 @@ public sealed class DefenseFactory : IDefenseFactory
     /// </summary>
     private const float MaxZoneJitter = 1.8f;
     private const float DbMinX = 0.75f;
+    private const float LongYardageThreshold = 7f;
 
     public DefenseResult CreateDefense(DefensiveContext context, DefensiveCallDecision call, DefensivePersonnel personnel, List<Receiver> receivers, Random rng, DefensiveTeamAttributes? teamAttributes = null)
     {
@@ -86,11 +87,12 @@ public sealed class DefenseFactory : IDefenseFactory
         float mikeX = GetMikeAlignmentX(surface, leftBoxX, rightBoxX);
 
         // Defensive line - DEs on the outside (circular rush), DTs inside (straight rush)
+        DefensiveLineFront lineFront = GetDefensiveLineFront(context, rng);
         float dlDepth = ClampDefenderY(context.LineOfScrimmage + GetSituationalDepthOffset(1.8f, 1.2f, depthScale), minY, maxY);
-        defenders.Add(new Defender(new Vector2(ClampDbX(frontCenterX - 5.3f), dlDepth), DefensivePosition.DE, DefenderSlot.DE1, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -5.0f });
-        defenders.Add(new Defender(new Vector2(ClampDbX(frontCenterX - 2.1f), dlDepth), DefensivePosition.DL, DefenderSlot.DT1, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -2.0f });
-        defenders.Add(new Defender(new Vector2(ClampDbX(frontCenterX + 2.1f), dlDepth), DefensivePosition.DL, DefenderSlot.DT2, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 2.0f });
-        defenders.Add(new Defender(new Vector2(ClampDbX(frontCenterX + 5.3f), dlDepth), DefensivePosition.DE, DefenderSlot.DE2, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 5.0f });
+        defenders.Add(new Defender(new Vector2(ClampDbX(frontCenterX - lineFront.EndOffset), dlDepth), DefensivePosition.DE, DefenderSlot.DE1, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -lineFront.EdgeRushLaneOffset });
+        defenders.Add(new Defender(new Vector2(ClampDbX(frontCenterX - lineFront.TackleOffset), dlDepth), DefensivePosition.DL, DefenderSlot.DT1, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -lineFront.InteriorRushLaneOffset });
+        defenders.Add(new Defender(new Vector2(ClampDbX(frontCenterX + lineFront.TackleOffset), dlDepth), DefensivePosition.DL, DefenderSlot.DT2, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = lineFront.InteriorRushLaneOffset });
+        defenders.Add(new Defender(new Vector2(ClampDbX(frontCenterX + lineFront.EndOffset), dlDepth), DefensivePosition.DE, DefenderSlot.DE2, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = lineFront.EdgeRushLaneOffset });
 
         float lbDepth = ClampDefenderY(context.LineOfScrimmage + GetLinebackerDepthOffset(context, depthScale), minY, maxY);
 
@@ -355,12 +357,12 @@ public sealed class DefenseFactory : IDefenseFactory
                 rightCbZone: CoverageRole.DeepRight,
                 cbPress: false,
                 // Nickel looks can widen both flats; base looks roll one safety down to strength.
-                leftSafetyX: hasNickelPackage ? leftFlatDropX : strongInsideX,
-                leftSafetyDepth: hasNickelPackage ? robberDepth : robberDepth,
-                leftSafetyZone: hasNickelPackage ? CoverageRole.FlatLeft : CoverageRole.Robber,
-                rightSafetyX: middleFieldX,
-                rightSafetyDepth: deepSafetyDepth,
-                rightSafetyZone: CoverageRole.DeepMiddle,
+                leftSafetyX: middleFieldX,
+                leftSafetyDepth: deepSafetyDepth,
+                leftSafetyZone: CoverageRole.DeepMiddle,
+                rightSafetyX: hasNickelPackage ? leftFlatDropX : strongInsideX,
+                rightSafetyDepth: robberDepth,
+                rightSafetyZone: hasNickelPackage ? CoverageRole.FlatLeft : CoverageRole.Robber,
                 nickelX: hasNickelPackage ? rightFlatDropX : -1,
                 nickelDepth: robberDepth,
                 nickelZone: CoverageRole.FlatRight
@@ -489,6 +491,24 @@ public sealed class DefenseFactory : IDefenseFactory
     private static float GetSituationalDepthOffset(float baseOffset, float minOffset, float depthScale)
     {
         return minOffset + (baseOffset - minOffset) * depthScale;
+    }
+
+    private static DefensiveLineFront GetDefensiveLineFront(DefensiveContext context, Random rng)
+    {
+        if (context.Distance >= LongYardageThreshold)
+        {
+            return DefensiveLineFront.Wide;
+        }
+
+        if (!context.IsShortYardage)
+        {
+            return DefensiveLineFront.Normal;
+        }
+
+        float tightFrontChance = context.Down >= 3 || context.IsGoalToGo ? 0.72f : 0.48f;
+        return rng.NextDouble() < tightFrontChance
+            ? DefensiveLineFront.Tight
+            : DefensiveLineFront.Normal;
     }
 
     private static float GetLinebackerDepthOffset(DefensiveContext context, float depthScale)
@@ -652,7 +672,7 @@ public sealed class DefenseFactory : IDefenseFactory
         float fallbackX)
     {
         float outsideX = GetOutsideAlignmentX(receivers, surface, leftSide, fallbackX, boundaryShade: 0f);
-        float insideX = GetInsideAlignmentX(receivers, surface, leftSide, fallbackX);
+        float insideX = GetSameSideInsideAlignmentXOrDefault(receivers, surface, leftSide, fallbackX);
 
         if (MathF.Abs(outsideX - insideX) < 1.25f)
         {
@@ -670,7 +690,7 @@ public sealed class DefenseFactory : IDefenseFactory
         float fallbackX)
     {
         float outsideX = GetOutsideAlignmentX(receivers, surface, leftSide, fallbackX, boundaryShade: 0f);
-        float insideX = GetInsideAlignmentX(receivers, surface, leftSide, fallbackX);
+        float insideX = GetSameSideInsideAlignmentXOrDefault(receivers, surface, leftSide, fallbackX);
 
         if (MathF.Abs(outsideX - insideX) < 1.25f)
         {
@@ -702,9 +722,30 @@ public sealed class DefenseFactory : IDefenseFactory
         float fallbackX)
     {
         float shellX = fallbackX;
-        float insideX = GetInsideAlignmentX(receivers, surface, leftSide, fallbackX);
+        float insideX = GetSameSideInsideAlignmentXOrDefault(receivers, surface, leftSide, fallbackX);
         float influence = surface.IsHeavy ? 0.24f : surface.IsSpread ? 0.72f : 0.50f;
         return ClampDbX(Blend(shellX, insideX, influence));
+    }
+
+    private static float GetSameSideInsideAlignmentXOrDefault(
+        IReadOnlyList<Receiver> receivers,
+        OffensiveSurface surface,
+        bool leftSide,
+        float fallbackX)
+    {
+        int receiverIndex = leftSide ? surface.LeftInsideReceiverIndex : surface.RightInsideReceiverIndex;
+        float fieldMidX = Constants.FieldWidth * 0.5f;
+
+        if (receiverIndex >= 0 && receiverIndex < receivers.Count)
+        {
+            float receiverX = receivers[receiverIndex].Position.X;
+            if ((leftSide && receiverX < fieldMidX) || (!leftSide && receiverX > fieldMidX))
+            {
+                return ClampDbX(receiverX);
+            }
+        }
+
+        return ClampDbX(fallbackX);
     }
 
     private static float GetMiddleFieldAlignmentX(OffensiveSurface surface)
@@ -1212,6 +1253,17 @@ public sealed class DefenseFactory : IDefenseFactory
         Defender Defender,
         CoverageRole OriginalZoneRole,
         bool ClearZoneRoleOnAssignment);
+
+    private readonly record struct DefensiveLineFront(
+        float EndOffset,
+        float TackleOffset,
+        float EdgeRushLaneOffset,
+        float InteriorRushLaneOffset)
+    {
+        public static DefensiveLineFront Tight { get; } = new(4.2f, 1.35f, 4.0f, 1.35f);
+        public static DefensiveLineFront Normal { get; } = new(5.3f, 2.1f, 5.0f, 2.0f);
+        public static DefensiveLineFront Wide { get; } = new(6.7f, 2.75f, 6.4f, 2.7f);
+    }
 
     private sealed class ManCoveragePlan
     {
