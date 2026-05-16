@@ -77,7 +77,7 @@ public static class CoverageSchemeSelector
     private static readonly float[] Aggressive   = { 15f, 26f, 9f, 9f, 4f, 13f, 4f, 24f, 18f };
     private static readonly float[] Conservative = { 0f, 5f, 18f, 28f, 22f, 11f, 18f, 8f, 6f };
     private static readonly float[] ShortYardage = { 10f, 28f, 14f, 9f, 4f, 11f, 5f, 23f, 17f };
-    private static readonly float[] RedZone      = { 12f, 30f, 13f, 12f, 7f, 14f, 10f, 13f, 19f };
+    private static readonly float[] RedZone      = { 10f, 34f, 17f, 9f, 4f, 16f, 5f, 17f, 24f };
 
     private static readonly CoverageScheme[] SchemeOrder =
     {
@@ -104,6 +104,7 @@ public static class CoverageSchemeSelector
         float[] raw = GetSituationalRaw(down, distance, lineOfScrimmage, score, awayScore);
         Dictionary<CoverageScheme, float> weights = ToDictionary(raw);
         ApplyCoverageBias(weights);
+        ApplyRedZoneShortPassBias(weights, lineOfScrimmage, distance);
         return weights;
     }
 
@@ -203,7 +204,7 @@ public static class CoverageSchemeSelector
         bool isProtectingLead = score > awayScore + 7;
 
         if (isRedZone)
-            return Blend(RedZone, isPassingDown ? Aggressive : Baseline, 0.6f);
+            return Blend(RedZone, isPassingDown ? Aggressive : Baseline, isPassingDown ? 0.82f : 0.70f);
 
         if (isPassingDown)
             return Blend(Aggressive, Baseline, 0.7f);
@@ -253,6 +254,43 @@ public static class CoverageSchemeSelector
             weights[scheme] = IsManOrientedScheme(scheme)
                 ? weight * ManCoverageBias
                 : weight * ZoneCoverageBias;
+        }
+    }
+
+    private static void ApplyRedZoneShortPassBias(Dictionary<CoverageScheme, float> weights, float lineOfScrimmage, float distance)
+    {
+        float yardsToGoal = FieldGeometry.OpponentGoalLine - lineOfScrimmage;
+        if (yardsToGoal > 20f)
+        {
+            return;
+        }
+
+        bool tightRedZone = yardsToGoal <= 10f;
+        bool shortYardage = distance <= 4f;
+        float shortAreaBoost = tightRedZone || shortYardage ? 1.22f : 1.12f;
+        float deepShellPenalty = tightRedZone ? 0.42f : 0.62f;
+
+        ScaleWeight(weights, CoverageScheme.Cover1, shortAreaBoost);
+        ScaleWeight(weights, CoverageScheme.Cover2Zone, 1.08f);
+        ScaleWeight(weights, CoverageScheme.Cover2Man, shortAreaBoost);
+        ScaleWeight(weights, CoverageScheme.Robber, shortAreaBoost + 0.08f);
+        ScaleWeight(weights, CoverageScheme.Cover3Match, 1.08f);
+
+        ScaleWeight(weights, CoverageScheme.Cover3Zone, tightRedZone ? 0.62f : 0.78f);
+        ScaleWeight(weights, CoverageScheme.Cover4Zone, deepShellPenalty);
+        ScaleWeight(weights, CoverageScheme.QuartersMatch, deepShellPenalty);
+
+        if (tightRedZone)
+        {
+            ScaleWeight(weights, CoverageScheme.Cover0, 0.72f);
+        }
+    }
+
+    private static void ScaleWeight(Dictionary<CoverageScheme, float> weights, CoverageScheme scheme, float multiplier)
+    {
+        if (weights.ContainsKey(scheme))
+        {
+            weights[scheme] *= multiplier;
         }
     }
 

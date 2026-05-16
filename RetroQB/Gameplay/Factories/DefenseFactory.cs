@@ -15,7 +15,22 @@ public readonly record struct DefensiveContext(
     int Down,
     int Score,
     int AwayScore,
-    SeasonStage Stage);
+    SeasonStage Stage,
+    float FirstDownLine = float.NaN)
+{
+    private const float ShortYardageThreshold = 3f;
+    private const float PassingDownThreshold = 7f;
+    private const float RedZoneThreshold = 20f;
+    private const float TightRedZoneThreshold = 10f;
+    private const int ThirdDown = 3;
+
+    public float YardsToGoal => MathF.Max(0f, FieldGeometry.OpponentGoalLine - LineOfScrimmage);
+    public bool IsRedZone => YardsToGoal <= RedZoneThreshold;
+    public bool IsTightRedZone => YardsToGoal <= TightRedZoneThreshold;
+    public bool IsGoalToGo => !float.IsNaN(FirstDownLine) && FirstDownLine >= FieldGeometry.OpponentGoalLine;
+    public bool IsShortYardage => Distance <= ShortYardageThreshold;
+    public bool IsPassingDown => Down >= ThirdDown && Distance >= PassingDownThreshold;
+}
 
 public interface IDefenseFactory
 {
@@ -45,7 +60,7 @@ public sealed class DefenseFactory : IDefenseFactory
         var defenders = new List<Defender>();
 
         OffensiveSurface surface = DefensiveSurfaceAnalyzer.Analyze(receivers, context.LineOfScrimmage);
-        DefensivePersonnel resolvedPersonnel = personnel.IsDefined ? personnel : DefensivePersonnelPolicy.Create(surface);
+        DefensivePersonnel resolvedPersonnel = personnel.IsDefined ? personnel : DefensivePersonnelPolicy.Create(surface, context);
         ResolveCoverageIndicesFromSurface(surface, receivers, out int left, out int leftSlot, out int middle, out int rightSlot, out int right);
 
         // Use the pre-decided scheme and blitz from the coordinator
@@ -58,7 +73,7 @@ public sealed class DefenseFactory : IDefenseFactory
         bool isUnderneathManCoverage = CoverageSchemePolicies.IsUnderneathManCoverage(scheme);
 
         float maxY = Constants.FieldLength - 1f;
-        bool isGoalLineSituation = context.LineOfScrimmage >= FieldGeometry.OpponentGoalLine - 2.5f;
+        bool isGoalLineSituation = context.YardsToGoal <= 2.5f;
         float minY = isGoalLineSituation
             ? MathF.Min(FieldGeometry.OpponentGoalLine + 0.2f, maxY)
             : MathF.Min(context.LineOfScrimmage + 0.35f, maxY);
@@ -77,7 +92,7 @@ public sealed class DefenseFactory : IDefenseFactory
         defenders.Add(new Defender(new Vector2(ClampDbX(frontCenterX + 2.1f), dlDepth), DefensivePosition.DL, DefenderSlot.DT2, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 2.0f });
         defenders.Add(new Defender(new Vector2(ClampDbX(frontCenterX + 5.3f), dlDepth), DefensivePosition.DE, DefenderSlot.DE2, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = 5.0f });
 
-        float lbDepth = ClampDefenderY(context.LineOfScrimmage + GetSituationalDepthOffset(7.6f, 4.8f, depthScale), minY, maxY);
+        float lbDepth = ClampDefenderY(context.LineOfScrimmage + GetLinebackerDepthOffset(context, depthScale), minY, maxY);
 
         defenders.Add(new Defender(new Vector2(leftBoxX, lbDepth), DefensivePosition.LB, DefenderSlot.OLB1, attrs)
         {
@@ -108,7 +123,7 @@ public sealed class DefenseFactory : IDefenseFactory
         });
 
         // DBs - positioning and roles vary by scheme
-        var dbConfig = GetDbConfiguration(scheme, context.LineOfScrimmage, depthScale, minY, maxY,
+        var dbConfig = GetDbConfiguration(scheme, context, depthScale, minY, maxY,
             receivers, surface, hasNickelPackage, rng);
 
         // Cornerbacks
@@ -228,21 +243,25 @@ public sealed class DefenseFactory : IDefenseFactory
     }
 
     private static DbConfig GetDbConfiguration(
-        CoverageScheme scheme, float lineOfScrimmage, float depthScale, float minY, float maxY,
+        CoverageScheme scheme, DefensiveContext context, float depthScale, float minY, float maxY,
         List<Receiver> receivers, OffensiveSurface surface, bool hasNickelPackage,
         Random rng)
     {
+        float lineOfScrimmage = context.LineOfScrimmage;
         float fw = Constants.FieldWidth;
-        bool cover1Press = rng.NextDouble() < 0.6;
-        bool robberPress = rng.NextDouble() < 0.78;
-        bool cover2ManPress = rng.NextDouble() < 0.4;
+        float pressBoost = context.IsRedZone ? 0.18f : 0f;
+        bool cover1Press = rng.NextDouble() < 0.6f + pressBoost;
+        bool robberPress = rng.NextDouble() < 0.78f + pressBoost;
+        bool cover2ManPress = rng.NextDouble() < 0.4f + pressBoost;
 
         // Common depth calculations
-        float pressDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(3.5f, 2.2f, depthScale), minY, maxY);
-        float offCbDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(8.0f, 5.4f, depthScale), minY, maxY);
-        float shallowSafetyDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(10.0f, 6.8f, depthScale), minY, maxY);
-        float deepSafetyDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(16.0f, 10.5f, depthScale), minY, maxY);
-        float robberDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(7.0f, 4.6f, depthScale), minY, maxY);
+        float shortAreaScale = GetShortAreaDepthScale(context);
+        float deepShellScale = GetDeepShellDepthScale(context);
+        float pressDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(3.5f, 2.2f, depthScale) * shortAreaScale, minY, maxY);
+        float offCbDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(8.0f, 5.4f, depthScale) * shortAreaScale, minY, maxY);
+        float shallowSafetyDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(10.0f, 6.8f, depthScale) * shortAreaScale, minY, maxY);
+        float deepSafetyDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(16.0f, 10.5f, depthScale) * deepShellScale, minY, maxY);
+        float robberDepth = ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(7.0f, 4.6f, depthScale) * shortAreaScale, minY, maxY);
 
         float leftOutsideX = GetOutsideAlignmentX(receivers, surface, leftSide: true, fw * 0.18f, boundaryShade: 0.28f);
         float rightOutsideX = GetOutsideAlignmentX(receivers, surface, leftSide: false, fw * 0.82f, boundaryShade: 0.28f);
@@ -382,7 +401,7 @@ public sealed class DefenseFactory : IDefenseFactory
                 leftSafetyDepth: deepSafetyDepth,
                 leftSafetyZone: CoverageRole.DeepMiddle,
                 rightSafetyX: robberX,
-                rightSafetyDepth: ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(8.2f, 5.6f, depthScale), minY, maxY),
+                rightSafetyDepth: ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(8.2f, 5.6f, depthScale) * shortAreaScale, minY, maxY),
                 rightSafetyZone: CoverageRole.Robber,
                 nickelX: hasNickelPackage ? matchNickelX : -1f,
                 nickelDepth: shallowSafetyDepth,
@@ -399,10 +418,10 @@ public sealed class DefenseFactory : IDefenseFactory
                 rightCbZone: CoverageRole.DeepRight,
                 cbPress: false,
                 leftSafetyX: leftQuarterX,
-                leftSafetyDepth: ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(14.2f, 9.4f, depthScale), minY, maxY),
+                leftSafetyDepth: ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(14.2f, 9.4f, depthScale) * deepShellScale, minY, maxY),
                 leftSafetyZone: CoverageRole.DeepQuarterLeft,
                 rightSafetyX: rightQuarterX,
-                rightSafetyDepth: ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(14.2f, 9.4f, depthScale), minY, maxY),
+                rightSafetyDepth: ClampDefenderY(lineOfScrimmage + GetSituationalDepthOffset(14.2f, 9.4f, depthScale) * deepShellScale, minY, maxY),
                 rightSafetyZone: CoverageRole.DeepQuarterRight,
                 nickelX: hasNickelPackage ? middleFieldX : -1f,
                 nickelDepth: shallowSafetyDepth,
@@ -470,6 +489,42 @@ public sealed class DefenseFactory : IDefenseFactory
     private static float GetSituationalDepthOffset(float baseOffset, float minOffset, float depthScale)
     {
         return minOffset + (baseOffset - minOffset) * depthScale;
+    }
+
+    private static float GetLinebackerDepthOffset(DefensiveContext context, float depthScale)
+    {
+        float offset = GetSituationalDepthOffset(7.6f, 4.8f, depthScale);
+        if (context.IsTightRedZone || context.IsShortYardage)
+        {
+            return offset * 0.74f;
+        }
+
+        if (context.IsRedZone)
+        {
+            return offset * 0.84f;
+        }
+
+        return offset;
+    }
+
+    private static float GetShortAreaDepthScale(DefensiveContext context)
+    {
+        if (context.IsTightRedZone || context.IsShortYardage)
+        {
+            return 0.72f;
+        }
+
+        return context.IsRedZone ? 0.84f : 1f;
+    }
+
+    private static float GetDeepShellDepthScale(DefensiveContext context)
+    {
+        if (!context.IsRedZone)
+        {
+            return 1f;
+        }
+
+        return context.IsTightRedZone ? 0.72f : 0.84f;
     }
 
     private static void ResolveCoverageIndicesFromSurface(OffensiveSurface surface, IReadOnlyList<Receiver> receivers, out int left, out int leftSlot, out int middle, out int rightSlot, out int right)

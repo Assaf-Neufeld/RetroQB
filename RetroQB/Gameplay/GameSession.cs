@@ -281,7 +281,8 @@ public sealed class GameSession : IDisposable
             _playManager.Down,
             _playManager.Score,
             _playManager.AwayScore,
-            _currentStage);
+            _currentStage,
+            _playManager.FirstDownLine);
 
         // Single decision point for coverage; blitz is resolved after route/personnel setup.
         var call = _defensiveCoordinator.DecideCoverage(context, _sessionRng);

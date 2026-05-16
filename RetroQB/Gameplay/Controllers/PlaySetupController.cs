@@ -45,7 +45,7 @@ public sealed class PlaySetupController
         // eligible receivers instead of the raw pre-snap formation shell.
         RouteAssigner.AssignRoutes(formationResult.Receivers, selectedPlay, _rng);
 
-        DefensivePersonnel personnel = DefensivePersonnelPolicy.Create(formationResult.Receivers, context.LineOfScrimmage);
+        DefensivePersonnel personnel = DefensivePersonnelPolicy.Create(formationResult.Receivers, context);
         BlitzDecision blitz = _defensiveCoordinator.DecideBlitz(call.Scheme, context, defensiveTeam, personnel, _rng);
         DefensiveCallDecision resolvedCall = call with { Blitz = blitz };
 

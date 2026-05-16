@@ -16,9 +16,26 @@ internal static class DefensivePersonnelPolicy
         return Create(surface);
     }
 
+    public static DefensivePersonnel Create(IReadOnlyList<Receiver> receivers, DefensiveContext context)
+    {
+        OffensiveSurface surface = DefensiveSurfaceAnalyzer.Analyze(receivers, context.LineOfScrimmage);
+        return Create(surface, context);
+    }
+
     internal static DefensivePersonnel Create(OffensiveSurface surface)
     {
         bool usesNickel = surface.IsSpread && !surface.IsHeavy;
+        return new DefensivePersonnel(usesNickel, BuildActiveSlots(usesNickel));
+    }
+
+    internal static DefensivePersonnel Create(OffensiveSurface surface, DefensiveContext context)
+    {
+        bool usesNickel = surface.IsSpread && !surface.IsHeavy;
+        if (context.IsRedZone)
+        {
+            usesNickel = usesNickel && context.IsPassingDown && !context.IsTightRedZone;
+        }
+
         return new DefensivePersonnel(usesNickel, BuildActiveSlots(usesNickel));
     }
 
