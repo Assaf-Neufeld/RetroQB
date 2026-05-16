@@ -167,12 +167,13 @@ public sealed class PlayManager
 
     public bool AutoSelectPlayBySituation(Random rng)
     {
-        float passFamilyWeight = PlaySuggestion.GetFamilyWeight(PlayType.Pass, Down, Distance);
-        float runFamilyWeight = PlaySuggestion.GetFamilyWeight(PlayType.Run, Down, Distance);
+        PlaySituation situation = GetPlaySituation();
+        float passFamilyWeight = PlaySuggestion.GetFamilyWeight(PlayType.Pass, situation);
+        float runFamilyWeight = PlaySuggestion.GetFamilyWeight(PlayType.Run, situation);
 
         var candidates = new List<(PlayType Type, int Index, float Weight)>(PassPlayCount + RunPlayCount);
-        AddAutoPlayCandidates(candidates, PlayType.Pass, _passPlays, _autoPassSelectionCounts, _recentAutoPassSelections, passFamilyWeight);
-        AddAutoPlayCandidates(candidates, PlayType.Run, _runPlays, _autoRunSelectionCounts, _recentAutoRunSelections, runFamilyWeight);
+        AddAutoPlayCandidates(candidates, PlayType.Pass, _passPlays, _autoPassSelectionCounts, _recentAutoPassSelections, passFamilyWeight, situation);
+        AddAutoPlayCandidates(candidates, PlayType.Run, _runPlays, _autoRunSelectionCounts, _recentAutoRunSelections, runFamilyWeight, situation);
 
         if (candidates.Count == 0)
         {
@@ -214,11 +215,12 @@ public sealed class PlayManager
         IReadOnlyList<PlayDefinition> plays,
         int[] selectionCounts,
         Queue<int> recentSelections,
-        float familyWeight)
+        float familyWeight,
+        PlaySituation situation)
     {
         for (int index = 0; index < plays.Count; index++)
         {
-            float situationalWeight = PlaySuggestion.GetPlayWeight(plays[index], Down, Distance);
+            float situationalWeight = PlaySuggestion.GetPlayWeight(plays[index], situation);
             float diversityWeight = GetAutoSelectionDiversityWeight(index, selectionCounts, recentSelections);
             float wildcardWeight = index == WildcardIndex ? 0.85f : 1f;
             float totalWeight = familyWeight * situationalWeight * diversityWeight * wildcardWeight;
@@ -347,7 +349,12 @@ public sealed class PlayManager
 
     private (PlayType Type, int Index) GetSuggestedPlaySelection()
     {
-        return PlaySuggestion.GetSuggestedPlay(Down, Distance, _passPlays, _runPlays);
+        return PlaySuggestion.GetSuggestedPlay(GetPlaySituation(), _passPlays, _runPlays);
+    }
+
+    private PlaySituation GetPlaySituation()
+    {
+        return new PlaySituation(Down, Distance, LineOfScrimmage, FirstDownLine);
     }
 
     public string GetPlayLabel()

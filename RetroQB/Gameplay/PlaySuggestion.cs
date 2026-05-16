@@ -1,6 +1,35 @@
 namespace RetroQB.Gameplay;
 
 /// <summary>
+/// Captures the football situation needed to recommend plays.
+/// </summary>
+public readonly record struct PlaySituation(
+    int Down,
+    float Distance,
+    float LineOfScrimmage = float.NaN,
+    float FirstDownLine = float.NaN)
+{
+    private const float ShortYardageThreshold = 3f;
+    private const float LongYardageThreshold = 9f;
+    private const float ThirdDownLongThreshold = 6f;
+    private const float RedZoneThreshold = 20f;
+    private const float TightRedZoneThreshold = 10f;
+    private const int ThirdDown = 3;
+
+    public bool HasFieldPosition => !float.IsNaN(LineOfScrimmage);
+    public float YardsToGoal => HasFieldPosition
+        ? MathF.Max(0f, FieldGeometry.OpponentGoalLine - LineOfScrimmage)
+        : float.PositiveInfinity;
+    public bool IsRedZone => YardsToGoal <= RedZoneThreshold;
+    public bool IsTightRedZone => YardsToGoal <= TightRedZoneThreshold;
+    public bool IsGoalToGo => HasFieldPosition && FirstDownLine >= FieldGeometry.OpponentGoalLine;
+    public bool IsShortYardage => Distance <= ShortYardageThreshold;
+    public bool IsLongYardage => Distance >= LongYardageThreshold ||
+                                  (Down >= ThirdDown && Distance >= ThirdDownLongThreshold);
+    public bool IsMustConvert => Down >= ThirdDown;
+}
+
+/// <summary>
 /// Suggests plays based on down and distance situation.
 /// Encapsulates play-calling AI logic separate from selection mechanics.
 /// </summary>
@@ -8,10 +37,7 @@ public static class PlaySuggestion
 {
     // Situational thresholds
     private const float VeryShortYardageThreshold = 2.5f;
-    private const float LongYardageThreshold = 9f;
     private const float ThirdDownLongThreshold = 6f;
-    private const float ShortYardageThreshold = 3f;
-    private const int ThirdDown = 3;
     private const int FourthDown = 4;
 
     /// <summary>
@@ -19,8 +45,16 @@ public static class PlaySuggestion
     /// </summary>
     public static PlayType GetSuggested(int down, float distance)
     {
-        float passWeight = GetFamilyWeight(PlayType.Pass, down, distance);
-        float runWeight = GetFamilyWeight(PlayType.Run, down, distance);
+        return GetSuggested(new PlaySituation(down, distance));
+    }
+
+    /// <summary>
+    /// Gets the single best suggested play type for the situation.
+    /// </summary>
+    public static PlayType GetSuggested(PlaySituation situation)
+    {
+        float passWeight = GetFamilyWeight(PlayType.Pass, situation);
+        float runWeight = GetFamilyWeight(PlayType.Run, situation);
         return passWeight >= runWeight ? PlayType.Pass : PlayType.Run;
     }
 
@@ -30,11 +64,19 @@ public static class PlaySuggestion
         IReadOnlyList<PlayDefinition> passPlays,
         IReadOnlyList<PlayDefinition> runPlays)
     {
-        var bestPass = GetBestPlayCandidate(passPlays, down, distance);
-        var bestRun = GetBestPlayCandidate(runPlays, down, distance);
+        return GetSuggestedPlay(new PlaySituation(down, distance), passPlays, runPlays);
+    }
 
-        float passScore = GetFamilyWeight(PlayType.Pass, down, distance) * bestPass.Weight;
-        float runScore = GetFamilyWeight(PlayType.Run, down, distance) * bestRun.Weight;
+    public static (PlayType Type, int Index) GetSuggestedPlay(
+        PlaySituation situation,
+        IReadOnlyList<PlayDefinition> passPlays,
+        IReadOnlyList<PlayDefinition> runPlays)
+    {
+        var bestPass = GetBestPlayCandidate(passPlays, situation);
+        var bestRun = GetBestPlayCandidate(runPlays, situation);
+
+        float passScore = GetFamilyWeight(PlayType.Pass, situation) * bestPass.Weight;
+        float runScore = GetFamilyWeight(PlayType.Run, situation) * bestRun.Weight;
 
         return passScore >= runScore
             ? (PlayType.Pass, bestPass.Index)
@@ -47,8 +89,17 @@ public static class PlaySuggestion
     /// </summary>
     public static List<PlayType> GetWeightedCandidates(int down, float distance)
     {
-        int passWeight = Math.Max(1, (int)MathF.Round(GetFamilyWeight(PlayType.Pass, down, distance)));
-        int runWeight = Math.Max(1, (int)MathF.Round(GetFamilyWeight(PlayType.Run, down, distance)));
+        return GetWeightedCandidates(new PlaySituation(down, distance));
+    }
+
+    /// <summary>
+    /// Gets weighted list of play types for random selection.
+    /// Types appear multiple times based on situational preference.
+    /// </summary>
+    public static List<PlayType> GetWeightedCandidates(PlaySituation situation)
+    {
+        int passWeight = Math.Max(1, (int)MathF.Round(GetFamilyWeight(PlayType.Pass, situation)));
+        int runWeight = Math.Max(1, (int)MathF.Round(GetFamilyWeight(PlayType.Run, situation)));
 
         var candidates = new List<PlayType>(passWeight + runWeight);
         for (int i = 0; i < passWeight; i++)
@@ -66,14 +117,49 @@ public static class PlaySuggestion
 
     public static float GetFamilyWeight(PlayType type, int down, float distance)
     {
-        if (down >= FourthDown)
+        return GetFamilyWeight(type, new PlaySituation(down, distance));
+    }
+
+    public static float GetFamilyWeight(PlayType type, PlaySituation situation)
+    {
+        if (situation.IsGoalToGo)
         {
-            if (distance <= VeryShortYardageThreshold)
+            if (situation.Distance <= VeryShortYardageThreshold)
+            {
+                return type == PlayType.Run ? 2.7f : 1.2f;
+            }
+
+            if (situation.IsLongYardage)
+            {
+                return type == PlayType.Pass ? 2.6f : 0.65f;
+            }
+
+            return type == PlayType.Pass ? 1.75f : 1.35f;
+        }
+
+        if (situation.IsRedZone)
+        {
+            if (situation.Distance <= VeryShortYardageThreshold)
+            {
+                return type == PlayType.Run ? 2.45f : 1.25f;
+            }
+
+            if (situation.IsLongYardage)
+            {
+                return type == PlayType.Pass ? 2.35f : 0.75f;
+            }
+
+            return type == PlayType.Pass ? 1.45f : 1.25f;
+        }
+
+        if (situation.Down >= FourthDown)
+        {
+            if (situation.Distance <= VeryShortYardageThreshold)
             {
                 return type == PlayType.Run ? 2.6f : 1.1f;
             }
 
-            if (distance >= ThirdDownLongThreshold)
+            if (situation.Distance >= ThirdDownLongThreshold)
             {
                 return type == PlayType.Pass ? 3.5f : 0.35f;
             }
@@ -81,17 +167,17 @@ public static class PlaySuggestion
             return type == PlayType.Pass ? 2.4f : 0.9f;
         }
 
-        if (IsLongYardageSituation(down, distance))
+        if (situation.IsLongYardage)
         {
             return type == PlayType.Pass ? 3.25f : 0.45f;
         }
 
-        if (IsShortYardageSituation(distance))
+        if (situation.IsShortYardage)
         {
             return type == PlayType.Run ? 2.25f : 1.15f;
         }
 
-        if (down == 2 && distance >= 7f)
+        if (situation.Down == 2 && situation.Distance >= 7f)
         {
             return type == PlayType.Pass ? 1.85f : 0.85f;
         }
@@ -101,124 +187,198 @@ public static class PlaySuggestion
 
     public static float GetPlayWeight(PlayDefinition play, int down, float distance)
     {
-        return play.Family == PlayType.Pass
-            ? GetPassPlayWeight(play, down, distance)
-            : GetRunPlayWeight(play, down, distance);
+        return GetPlayWeight(play, new PlaySituation(down, distance));
     }
 
-    private static float GetPassPlayWeight(PlayDefinition play, int down, float distance)
+    public static float GetPlayWeight(PlayDefinition play, PlaySituation situation)
+    {
+        return play.Family == PlayType.Pass
+            ? GetPassPlayWeight(play, situation)
+            : GetRunPlayWeight(play, situation);
+    }
+
+    private static float GetPassPlayWeight(PlayDefinition play, PlaySituation situation)
     {
         RouteProfile profile = AnalyzeRoutes(play.Routes.Values);
-        float protectionBonus = 0f;
+        float weight = GetPassDistanceFit(profile, situation)
+            * GetRedZonePassFit(profile, play.Formation, situation)
+            * GetPassProtectionFit(play, situation)
+            * GetPassFormationFit(play.Formation, situation);
+
+        if (play.Routes.Count == 0)
+        {
+            weight *= 0.75f;
+        }
+
+        return Math.Clamp(weight, 0.05f, 4f);
+    }
+
+    private static float GetRunPlayWeight(PlayDefinition play, PlaySituation situation)
+    {
+        float weight = GetRunDistanceFit(play.RunConcept, situation)
+            * GetRedZoneRunFit(play, situation)
+            * GetRunFormationFit(play.Formation, play.RunConcept, situation);
+
+        if (play.Routes.Count == 0)
+        {
+            weight *= 0.85f;
+        }
+
+        return Math.Clamp(weight, 0.05f, 4f);
+    }
+
+    private static float GetPassDistanceFit(RouteProfile profile, PlaySituation situation)
+    {
+        if (situation.Distance <= VeryShortYardageThreshold)
+        {
+            return 0.85f
+                + (profile.QuickRoutes * 0.22f)
+                + (profile.IntermediateRoutes * 0.08f)
+                - (profile.DeepRoutes * 0.12f);
+        }
+
+        if (situation.IsLongYardage)
+        {
+            return 0.65f
+                + (profile.DeepRoutes * 0.28f)
+                + (profile.IntermediateRoutes * 0.2f)
+                + (profile.QuickRoutes * 0.03f);
+        }
+
+        return 0.9f
+            + (profile.QuickRoutes * 0.12f)
+            + (profile.IntermediateRoutes * 0.18f)
+            + (profile.DeepRoutes * 0.1f);
+    }
+
+    private static float GetRedZonePassFit(RouteProfile profile, FormationType formation, PlaySituation situation)
+    {
+        if (!situation.IsRedZone)
+        {
+            return 1f;
+        }
+
+        float weight = 1f
+            + (profile.QuickRoutes * 0.13f)
+            + (profile.IntermediateRoutes * 0.04f)
+            - (profile.DeepRoutes * (situation.IsTightRedZone ? 0.22f : 0.13f));
+
+        if (IsVerticalShot(profile))
+        {
+            weight *= situation.IsTightRedZone ? 0.35f : 0.55f;
+        }
+
+        if (formation is FormationType.BaseBunchRight or FormationType.BaseBunchLeft or
+            FormationType.PassBunchRight or FormationType.PassBunchLeft)
+        {
+            weight += 0.12f;
+        }
+
+        if (formation == FormationType.PassEmpty && situation.IsTightRedZone)
+        {
+            weight -= 0.08f;
+        }
+
+        return Math.Clamp(weight, 0.2f, 1.7f);
+    }
+
+    private static float GetPassProtectionFit(PlayDefinition play, PlaySituation situation)
+    {
+        float weight = 1f;
         if (play.RunningBackRole == RunningBackRole.Block)
         {
-            protectionBonus += 0.2f;
+            weight += situation.IsLongYardage ? 0.18f : 0.1f;
         }
 
         if (play.TightEndRole == TightEndRole.Block)
         {
-            protectionBonus += 0.18f;
+            weight += situation.IsLongYardage ? 0.14f : 0.08f;
         }
 
-        float formationBonus = GetPassFormationBonus(play.Formation, down, distance);
-        float weight;
-
-        if (distance <= VeryShortYardageThreshold)
-        {
-            weight = 0.85f
-                + (profile.QuickRoutes * 0.26f)
-                + (profile.IntermediateRoutes * 0.1f)
-                + protectionBonus
-                + formationBonus
-                - (profile.DeepRoutes * 0.12f);
-        }
-        else if (IsLongYardageSituation(down, distance))
-        {
-            weight = 0.6f
-                + (profile.DeepRoutes * 0.3f)
-                + (profile.IntermediateRoutes * 0.22f)
-                + (protectionBonus * 0.9f)
-                + formationBonus
-                - (profile.QuickRoutes * 0.04f);
-        }
-        else
-        {
-            weight = 0.9f
-                + (profile.QuickRoutes * 0.14f)
-                + (profile.IntermediateRoutes * 0.2f)
-                + (profile.DeepRoutes * 0.16f)
-                + (protectionBonus * 0.6f)
-                + formationBonus;
-        }
-
-        return Math.Clamp(weight, 0.2f, 3.5f);
+        return weight;
     }
 
-    private static float GetRunPlayWeight(PlayDefinition play, int down, float distance)
+    private static float GetPassFormationFit(FormationType formation, PlaySituation situation)
     {
-        float weight = play.RunConcept switch
-        {
-            RunConcept.Dive => distance <= VeryShortYardageThreshold ? 1.65f : IsLongYardageSituation(down, distance) ? 0.55f : 0.95f,
-            RunConcept.Power => distance <= VeryShortYardageThreshold ? 1.5f : IsLongYardageSituation(down, distance) ? 0.65f : 1.15f,
-            RunConcept.Counter => distance <= VeryShortYardageThreshold ? 1.0f : IsLongYardageSituation(down, distance) ? 0.9f : 1.15f,
-            RunConcept.Sweep => distance <= VeryShortYardageThreshold ? 0.9f : IsLongYardageSituation(down, distance) ? 0.75f : 1.1f,
-            RunConcept.Stretch => distance <= VeryShortYardageThreshold ? 0.95f : IsLongYardageSituation(down, distance) ? 0.8f : 1.05f,
-            RunConcept.Draw => distance <= VeryShortYardageThreshold ? 0.75f : IsLongYardageSituation(down, distance) ? 1.25f : 0.95f,
-            _ => 1f
-        };
-
-        weight += GetRunFormationBonus(play.Formation, play.RunConcept, distance);
-        return Math.Clamp(weight, 0.2f, 3.5f);
-    }
-
-    private static float GetPassFormationBonus(FormationType formation, int down, float distance)
-    {
-        if (distance <= VeryShortYardageThreshold)
+        if (situation.Distance <= VeryShortYardageThreshold)
         {
             return formation switch
             {
-                FormationType.BaseBunchRight or FormationType.BaseBunchLeft or FormationType.PassBunchRight or FormationType.PassBunchLeft => 0.18f,
-                FormationType.PassEmpty => -0.08f,
-                _ => 0f
+                FormationType.BaseBunchRight or FormationType.BaseBunchLeft or FormationType.PassBunchRight or FormationType.PassBunchLeft => 1.14f,
+                FormationType.PassEmpty => 0.92f,
+                _ => 1f
             };
         }
 
-        if (IsLongYardageSituation(down, distance))
+        if (situation.IsLongYardage && !situation.IsRedZone)
         {
             return formation switch
             {
-                FormationType.PassSpread or FormationType.PassEmpty => 0.18f,
-                FormationType.PassBunchRight or FormationType.PassBunchLeft => 0.1f,
-                _ => 0f
+                FormationType.PassSpread or FormationType.PassEmpty => 1.12f,
+                FormationType.PassBunchRight or FormationType.PassBunchLeft => 1.07f,
+                _ => 1f
             };
         }
 
         return formation switch
         {
-            FormationType.BaseBunchRight or FormationType.BaseBunchLeft or FormationType.PassBunchRight or FormationType.PassBunchLeft => 0.08f,
-            FormationType.PassSpread => 0.06f,
-            _ => 0f
+            FormationType.BaseBunchRight or FormationType.BaseBunchLeft or FormationType.PassBunchRight or FormationType.PassBunchLeft => 1.06f,
+            FormationType.PassSpread => 1.04f,
+            _ => 1f
         };
     }
 
-    private static float GetRunFormationBonus(FormationType formation, RunConcept concept, float distance)
+    private static float GetRunDistanceFit(RunConcept concept, PlaySituation situation)
     {
-        if (distance <= VeryShortYardageThreshold)
+        return concept switch
+        {
+            RunConcept.Dive => situation.Distance <= VeryShortYardageThreshold ? 1.65f : situation.IsLongYardage ? 0.5f : 0.95f,
+            RunConcept.Power => situation.Distance <= VeryShortYardageThreshold ? 1.5f : situation.IsLongYardage ? 0.6f : 1.15f,
+            RunConcept.Counter => situation.Distance <= VeryShortYardageThreshold ? 0.95f : situation.IsLongYardage ? 0.85f : 1.1f,
+            RunConcept.Sweep => situation.Distance <= VeryShortYardageThreshold ? 0.85f : situation.IsLongYardage ? 0.7f : 1.08f,
+            RunConcept.Stretch => situation.Distance <= VeryShortYardageThreshold ? 0.9f : situation.IsLongYardage ? 0.75f : 1.05f,
+            RunConcept.Draw => situation.Distance <= VeryShortYardageThreshold ? 0.65f : situation.IsLongYardage ? 1.2f : 0.92f,
+            _ => 1f
+        };
+    }
+
+    private static float GetRedZoneRunFit(PlayDefinition play, PlaySituation situation)
+    {
+        if (!situation.IsRedZone)
+        {
+            return 1f;
+        }
+
+        return play.RunConcept switch
+        {
+            RunConcept.Dive => situation.IsTightRedZone ? 1.35f : 1.18f,
+            RunConcept.Power => situation.IsTightRedZone ? 1.25f : 1.15f,
+            RunConcept.Counter => situation.IsTightRedZone ? 0.82f : 1.02f,
+            RunConcept.Sweep => situation.IsTightRedZone ? 0.68f : 0.92f,
+            RunConcept.Stretch => situation.IsTightRedZone ? 0.76f : 0.98f,
+            RunConcept.Draw => situation.IsLongYardage && !situation.IsGoalToGo ? 0.95f : 0.55f,
+            _ => 1f
+        };
+    }
+
+    private static float GetRunFormationFit(FormationType formation, RunConcept concept, PlaySituation situation)
+    {
+        if (situation.Distance <= VeryShortYardageThreshold)
         {
             return formation switch
             {
-                FormationType.RunIForm => 0.25f,
-                FormationType.RunPowerRight or FormationType.RunPowerLeft => 0.15f,
-                _ => 0f
+                FormationType.RunIForm => 1.2f,
+                FormationType.RunPowerRight or FormationType.RunPowerLeft => 1.12f,
+                _ => 1f
             };
         }
 
         return (formation, concept) switch
         {
-            (FormationType.RunSinglebackTripsRight, RunConcept.Sweep) or (FormationType.RunSinglebackTripsLeft, RunConcept.Sweep) => 0.15f,
-            (FormationType.RunSinglebackTripsRight, RunConcept.Draw) or (FormationType.RunSinglebackTripsLeft, RunConcept.Draw) => 0.12f,
-            (FormationType.RunPistolStrongRight, RunConcept.Counter) or (FormationType.RunPistolStrongLeft, RunConcept.Counter) => 0.1f,
-            _ => 0f
+            (FormationType.RunSinglebackTripsRight, RunConcept.Sweep) or (FormationType.RunSinglebackTripsLeft, RunConcept.Sweep) => 1.12f,
+            (FormationType.RunSinglebackTripsRight, RunConcept.Draw) or (FormationType.RunSinglebackTripsLeft, RunConcept.Draw) => 1.1f,
+            (FormationType.RunPistolStrongRight, RunConcept.Counter) or (FormationType.RunPistolStrongLeft, RunConcept.Counter) => 1.08f,
+            _ => 1f
         };
     }
 
@@ -234,18 +394,21 @@ public static class PlaySuggestion
                 case RouteType.InShallow:
                 case RouteType.Flat:
                     profile.QuickRoutes++;
+                    profile.TotalRoutes++;
                     break;
 
                 case RouteType.OutDeep:
                 case RouteType.InDeep:
                 case RouteType.PostShallow:
                     profile.IntermediateRoutes++;
+                    profile.TotalRoutes++;
                     break;
 
                 case RouteType.Go:
                 case RouteType.PostDeep:
                 case RouteType.DoubleMove:
                     profile.DeepRoutes++;
+                    profile.TotalRoutes++;
                     break;
             }
         }
@@ -255,15 +418,14 @@ public static class PlaySuggestion
 
     private static (int Index, float Weight) GetBestPlayCandidate(
         IReadOnlyList<PlayDefinition> plays,
-        int down,
-        float distance)
+        PlaySituation situation)
     {
         int bestIndex = 0;
         float bestWeight = float.MinValue;
 
         for (int index = 0; index < plays.Count; index++)
         {
-            float weight = GetPlayWeight(plays[index], down, distance);
+            float weight = GetPlayWeight(plays[index], situation);
 
             // Wildcard has no fixed route tree, so named plays should usually win the suggestion slot.
             if (index == 0 && plays[index].Routes.Count == 0)
@@ -281,19 +443,16 @@ public static class PlaySuggestion
         return (bestIndex, bestWeight);
     }
 
-    private static bool IsLongYardageSituation(int down, float distance)
+    private static bool IsVerticalShot(RouteProfile profile)
     {
-        return distance >= LongYardageThreshold || 
-               (down >= ThirdDown && distance >= ThirdDownLongThreshold);
-    }
-
-    private static bool IsShortYardageSituation(float distance)
-    {
-        return distance <= ShortYardageThreshold;
+        return profile.TotalRoutes > 0 &&
+               profile.DeepRoutes >= Math.Max(3, profile.TotalRoutes - 1) &&
+               profile.QuickRoutes == 0;
     }
 
     private struct RouteProfile
     {
+        public int TotalRoutes;
         public int QuickRoutes;
         public int IntermediateRoutes;
         public int DeepRoutes;
