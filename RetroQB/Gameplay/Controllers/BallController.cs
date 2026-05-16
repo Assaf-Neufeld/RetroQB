@@ -131,19 +131,12 @@ public sealed class BallController
         foreach (var defender in defenders)
         {
             float distToBall = Vector2.Distance(defender.Position, ball.Position);
-            if (distToBall > Constants.PassDefendBallRadius)
-            {
-                continue;
-            }
-
             float distToLanding = Vector2.Distance(defender.Position, landing);
-            if (distToLanding > landingRadius)
-            {
-                continue;
-            }
-
             float pathDistance = DistanceToSegment(defender.Position, ball.ThrowStart, landing);
-            if (pathDistance > Constants.PassDefendPathRadius)
+
+            bool canPlayBall = distToBall <= Constants.PassDefendBallRadius;
+            bool canCutOffLanding = distToLanding <= landingRadius && pathDistance <= Constants.PassDefendPathRadius;
+            if (!canPlayBall && !canCutOffLanding)
             {
                 continue;
             }

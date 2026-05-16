@@ -59,10 +59,10 @@ public static class Constants
     public const float CatchRadius = 1.8f;
     public const float InterceptRadius = 1.2f;
     public const float ContestedCatchRadius = 2.5f;
-    public const float PassDefendPathRadius = 1.75f;
-    public const float PassDefendBallRadius = 2.1f;
-    public const float PassDefendShortLandingRadius = 4.2f;
-    public const float PassDefendLongLandingRadius = 2.6f;
+    public const float PassDefendPathRadius = 2.35f;
+    public const float PassDefendBallRadius = 2.75f;
+    public const float PassDefendShortLandingRadius = 5.2f;
+    public const float PassDefendLongLandingRadius = 3.4f;
 
     public const float QbMaxSpeed = 8f;
     public const float QbSprintSpeed = 11f;
