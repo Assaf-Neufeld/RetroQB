@@ -38,6 +38,9 @@ public static class PlaySuggestion
     // Situational thresholds
     private const float VeryShortYardageThreshold = 2.5f;
     private const float ThirdDownLongThreshold = 6f;
+    private const float QuickRouteFieldNeed = 3f;
+    private const float IntermediateRouteFieldNeed = 8f;
+    private const float DeepRouteFieldNeed = 18f;
     private const int FourthDown = 4;
 
     /// <summary>
@@ -200,7 +203,13 @@ public static class PlaySuggestion
     private static float GetPassPlayWeight(PlayDefinition play, PlaySituation situation)
     {
         RouteProfile profile = AnalyzeRoutes(play.Routes.Values);
+        if (IsVerticalShot(profile) && situation.HasFieldPosition && situation.IsTightRedZone)
+        {
+            return 0f;
+        }
+
         float weight = GetPassDistanceFit(profile, situation)
+            * GetAvailableFieldPassFit(profile, situation)
             * GetRedZonePassFit(profile, play.Formation, situation)
             * GetPassProtectionFit(play, situation)
             * GetPassFormationFit(play.Formation, situation);
@@ -249,6 +258,33 @@ public static class PlaySuggestion
             + (profile.QuickRoutes * 0.12f)
             + (profile.IntermediateRoutes * 0.18f)
             + (profile.DeepRoutes * 0.1f);
+    }
+
+    private static float GetAvailableFieldPassFit(RouteProfile profile, PlaySituation situation)
+    {
+        if (!situation.HasFieldPosition || profile.TotalRoutes == 0)
+        {
+            return 1f;
+        }
+
+        float usefulField = MathF.Max(situation.YardsToGoal, situation.Distance);
+        float weightedNeed = ((profile.QuickRoutes * QuickRouteFieldNeed) +
+                              (profile.IntermediateRoutes * IntermediateRouteFieldNeed) +
+                              (profile.DeepRoutes * DeepRouteFieldNeed)) /
+                             profile.TotalRoutes;
+
+        float fit = usefulField / weightedNeed;
+        if (IsVerticalShot(profile) && situation.YardsToGoal <= IntermediateRouteFieldNeed)
+        {
+            return 0.02f;
+        }
+
+        if (IsVerticalShot(profile) && situation.IsRedZone)
+        {
+            fit *= 0.18f;
+        }
+
+        return Math.Clamp(fit, 0.05f, 1.2f);
     }
 
     private static float GetRedZonePassFit(RouteProfile profile, FormationType formation, PlaySituation situation)
