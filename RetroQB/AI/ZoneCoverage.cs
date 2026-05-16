@@ -85,7 +85,7 @@ public static class ZoneCoverage
     {
         Vector2 anchor = defender.AlignmentPosition;
         anchor.X += defender.ZoneJitterX;
-        anchor.X = Math.Clamp(anchor.X, 0.5f, Constants.FieldWidth - 0.5f);
+        anchor.X = ClampAnchorInsideZoneBorders(defender, lineOfScrimmage, anchor.X);
 
         if (defender.Slot == DefenderSlot.NB)
         {
@@ -98,6 +98,22 @@ public static class ZoneCoverage
         }
 
         return anchor;
+    }
+
+    private static float ClampAnchorInsideZoneBorders(Defender defender, float lineOfScrimmage, float xCenter)
+    {
+        float yMin = lineOfScrimmage + 1.0f;
+        var (width, _) = GetZoneDimensions(defender, lineOfScrimmage, ref yMin);
+        float halfWidth = width * 0.5f;
+        float minX = 0.5f + halfWidth;
+        float maxX = Constants.FieldWidth - 0.5f - halfWidth;
+
+        if (minX > maxX)
+        {
+            return Constants.FieldWidth * 0.5f;
+        }
+
+        return Math.Clamp(xCenter, minX, maxX);
     }
 
     /// <summary>
