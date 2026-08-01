@@ -1332,7 +1332,8 @@ public sealed class GameSession : IDisposable
                 : _playerName;
         _pendingPlayerName = string.Empty;
         _nameEntryMessage = postSeasonSaveMode ? "Enter your name to save this season score." : string.Empty;
-        _leaderboardSummary = BuildMenuLeaderboardSummary();
+        float seasonScore = postSeasonSaveMode ? _seasonSummary.ComputeDominanceScore() : 0f;
+        _leaderboardSummary = _playerRecordStore.BuildSummary(_playerName, seasonScore);
         _stateManager.SetState(GameState.PlayerNameEntry);
     }
 

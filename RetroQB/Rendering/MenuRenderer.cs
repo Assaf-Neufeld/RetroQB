@@ -34,16 +34,17 @@ public sealed class MenuRenderer
     public void DrawNameEntry(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams, string currentName, string message, LeaderboardSummary leaderboardSummary, bool isPostSeasonSaveMode)
     {
         DrawBaseMenu(selectedTeamIndex, teams);
-        OverlayFrame nameFrame = OverlayChromeRenderer.DrawWindowCentered(620, 380, Palette.Cyan, OverlayVariant.Modal, horizontalMargin: 80, verticalMargin: 80);
+        OverlayFrame nameFrame = OverlayChromeRenderer.DrawWindowCentered(620, 560, Palette.Cyan, OverlayVariant.Modal, horizontalMargin: 80, verticalMargin: 80);
         int panelX = nameFrame.X;
         int panelY = nameFrame.Y;
         int panelWidth = nameFrame.Width;
-        int panelHeight = nameFrame.Height;
 
         int contentX = panelX + 28;
         int contentY = panelY + 22;
 
-        string title = isPostSeasonSaveMode ? "SAVE SEASON SCORE" : "ENTER YOUR NAME";
+        string title = isPostSeasonSaveMode
+            ? $"SAVE SEASON SCORE: {leaderboardSummary.SeasonScore:F1}"
+            : "ENTER YOUR NAME";
         DrawCenteredText(title, panelX, panelWidth, contentY, 28, Palette.Cyan);
         contentY += 42;
 
@@ -52,6 +53,19 @@ public sealed class MenuRenderer
             : "Type a name, then press ENTER to start the season.";
         DrawCenteredText(help, panelX, panelWidth, contentY, 16, new Color(180, 200, 220, 255));
         contentY += 34;
+
+        if (isPostSeasonSaveMode)
+        {
+            Raylib.DrawRectangle(contentX, contentY, panelWidth - 56, 66, new Color(8, 14, 22, 235));
+            Raylib.DrawRectangleLinesEx(new Rectangle(contentX, contentY, panelWidth - 56, 66), 2f, Palette.Gold);
+            DrawCenteredText("YOUR FINAL SEASON SCORE", panelX, panelWidth, contentY + 8, 16, Palette.Yellow);
+
+            string seasonScore = leaderboardSummary.SeasonScore.ToString("F1");
+            int scoreFontSize = 34;
+            int scoreWidth = Raylib.MeasureText(seasonScore, scoreFontSize);
+            Raylib.DrawText(seasonScore, contentX + (panelWidth - 56 - scoreWidth) / 2, contentY + 28, scoreFontSize, Palette.Gold);
+            contentY += 80;
+        }
 
         Raylib.DrawRectangle(contentX, contentY, panelWidth - 56, 54, new Color(8, 14, 22, 235));
         Raylib.DrawRectangleLines(contentX, contentY, panelWidth - 56, 54, Palette.Gold);
