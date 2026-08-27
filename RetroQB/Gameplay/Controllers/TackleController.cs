@@ -101,7 +101,7 @@ public sealed class TackleController
         if (_overlapResolver.HasBrokenTackle(defender))
         {
             // Check if they've moved far enough to get another tackle attempt
-            if (!_overlapResolver.CanReengageAfterBrokenTackle(defender, ballCarrier.Position))
+            if (!_overlapResolver.CanReengageAfterBrokenTackle(defender, ballCarrier))
             {
                 // Still too close to the break point - can't tackle yet
                 return true;

@@ -12,11 +12,6 @@ public sealed class OverlapResolver
     private readonly HashSet<Defender> _brokenTackleDefenders = new();
     
     /// <summary>
-    /// Minimum separation distance required before a defender can attempt another tackle.
-    /// </summary>
-    private const float ReengageSeparationDistance = 3.5f;
-
-    /// <summary>
     /// Clears the set of defenders who have had their tackles broken this play.
     /// </summary>
     public void Reset()
@@ -43,15 +38,16 @@ public sealed class OverlapResolver
     /// <summary>
     /// Checks if a defender who broke a tackle has separated enough from the carrier to re-engage.
     /// </summary>
-    public bool CanReengageAfterBrokenTackle(Defender defender, Vector2 carrierPosition)
+    public bool CanReengageAfterBrokenTackle(Defender defender, Entity ballCarrier)
     {
         if (!_brokenTackleDefenders.Contains(defender))
         {
             return true;
         }
         
-        float separation = Vector2.Distance(defender.Position, carrierPosition);
-        if (separation >= ReengageSeparationDistance)
+        float separation = Vector2.Distance(defender.Position, ballCarrier.Position);
+        float reengageDistance = defender.Radius + ballCarrier.Radius + 0.35f;
+        if (separation >= reengageDistance)
         {
             _brokenTackleDefenders.Remove(defender);
             return true;
@@ -116,7 +112,7 @@ public sealed class OverlapResolver
                         if (_brokenTackleDefenders.Contains(defender))
                         {
                             // Check if carrier has moved far enough for defender to re-engage
-                            if (CanReengageAfterBrokenTackle(defender, ballCarrier.Position))
+                            if (CanReengageAfterBrokenTackle(defender, ballCarrier))
                             {
                                 // Defender can re-engage - don't push, allow tackle check
                                 continue;

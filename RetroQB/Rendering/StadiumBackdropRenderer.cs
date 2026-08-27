@@ -18,6 +18,8 @@ internal sealed class StadiumBackdropRenderer
         Rectangle rect = Constants.FieldRect;
         int screenW = Raylib.GetScreenWidth();
 
+        DrawArenaShell(rect, homeTeamColor, awayTeamColor);
+
         int margin = 6;
         int bleacherWidth = Math.Max(24, (int)(rect.Width * 0.14f));
         int sidelineBuffer = Math.Max(16, (int)(rect.Width * 0.08f));
@@ -43,6 +45,55 @@ internal sealed class StadiumBackdropRenderer
         DrawExcitedCrowdProps(leftBleacherX, rightBleacherX, bleacherWidth, homeAccent, awayAccent, crowdState);
         DrawRibbonBoards(leftBleacherX, rightBleacherX, bleacherWidth, topLimit, bottomLimit, homeAccent, awayAccent);
         DrawFieldEdgeShadow(rect, leftBleacherX, rightBleacherX, bleacherWidth);
+    }
+
+    private static void DrawArenaShell(Rectangle field, Color homeColor, Color awayColor)
+    {
+        int screenW = Raylib.GetScreenWidth();
+        int screenH = Raylib.GetScreenHeight();
+        int leftPanelEdge = (int)(Constants.OuterMargin + Constants.SidePanelWidth + 3);
+        int rightPanelEdge = screenW - (int)(Constants.OuterMargin + Constants.ScoreboardPanelWidth + 3);
+
+        Raylib.DrawRectangleGradientV(0, 0, screenW, screenH, Palette.Cabinet, Palette.Background);
+
+        // Recessed bay behind the stadium. At ultrawide sizes this turns dead space into cabinet art.
+        int bayX = leftPanelEdge;
+        int bayWidth = Math.Max(0, rightPanelEdge - leftPanelEdge);
+        Raylib.DrawRectangle(bayX, 0, bayWidth, screenH, new Color(3, 5, 9, 225));
+
+        Color grid = new(24, 40, 52, 80);
+        for (int x = bayX + 24; x < bayX + bayWidth; x += 48)
+        {
+            Raylib.DrawLine(x, 0, x, screenH, grid);
+        }
+        for (int y = 24; y < screenH; y += 48)
+        {
+            Raylib.DrawLine(bayX, y, bayX + bayWidth, y, grid);
+        }
+
+        // Team-colored light rails frame the play surface without competing with it.
+        int railLeft = (int)field.X - 18;
+        int railRight = (int)(field.X + field.Width + 14);
+        Color homeRail = new(homeColor.R, homeColor.G, homeColor.B, (byte)105);
+        Color awayRail = new(awayColor.R, awayColor.G, awayColor.B, (byte)105);
+        Raylib.DrawRectangle(railLeft, 0, 4, screenH, homeRail);
+        Raylib.DrawRectangle(railRight, 0, 4, screenH, awayRail);
+        Raylib.DrawRectangle(railLeft - 4, 0, 12, screenH, new Color(homeColor.R, homeColor.G, homeColor.B, (byte)20));
+        Raylib.DrawRectangle(railRight - 4, 0, 12, screenH, new Color(awayColor.R, awayColor.G, awayColor.B, (byte)20));
+
+        DrawBayTicks(bayX, bayWidth, 10, homeColor);
+        DrawBayTicks(bayX, bayWidth, screenH - 14, awayColor);
+    }
+
+    private static void DrawBayTicks(int x, int width, int y, Color color)
+    {
+        int center = x + width / 2;
+        for (int i = -4; i <= 4; i++)
+        {
+            int tickWidth = i == 0 ? 34 : 16;
+            int tickX = center + (i * 42) - (tickWidth / 2);
+            Raylib.DrawRectangle(tickX, y, tickWidth, 2, new Color(color.R, color.G, color.B, (byte)110));
+        }
     }
 
     public void DrawChantOverlay(Color homeTeamColor, CrowdBackdropState crowdState)

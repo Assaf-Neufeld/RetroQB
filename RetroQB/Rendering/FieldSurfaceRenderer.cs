@@ -37,7 +37,80 @@ internal sealed class FieldSurfaceRenderer
             // Light stripes are already the base fill color — no draw needed
         }
 
+        DrawTurfGrain(rect);
+        DrawMidfieldTurfEmblem(rect);
+
         DrawEndZones(rect, homeTeamName, homeTeamColor, awayTeamName, awayTeamColor);
+    }
+
+    private static void DrawMidfieldTurfEmblem(Rectangle field)
+    {
+        int centerX = (int)MathF.Round(field.X + field.Width / 2f);
+        int centerY = (int)MathF.Round(Constants.WorldToScreenY(Constants.EndZoneDepth + 50f));
+        int halfWidth = Math.Clamp((int)(field.Width * 0.14f), 38, 84);
+        int halfHeight = Math.Clamp((int)(halfWidth * 0.48f), 18, 40);
+
+        Color outer = new(6, 61, 28, 210);
+        Color middle = new(19, 96, 43, 220);
+        Color inner = new(12, 76, 34, 225);
+        Color detail = new(31, 111, 51, 185);
+
+        DrawSteppedDiamond(centerX, centerY, halfWidth, halfHeight, outer);
+        DrawSteppedDiamond(centerX, centerY, halfWidth - 7, halfHeight - 5, middle);
+        DrawSteppedDiamond(centerX, centerY, halfWidth - 15, halfHeight - 10, inner);
+
+        // Tonal chevrons suggest motion without creating a ball, badge, or target marker.
+        int chevronWidth = Math.Max(12, halfWidth / 4);
+        int chevronHeight = Math.Max(8, halfHeight / 2);
+        DrawTurfChevron(centerX - chevronWidth - 3, centerY, chevronWidth, chevronHeight, pointsRight: true, detail);
+        DrawTurfChevron(centerX + chevronWidth + 3, centerY, chevronWidth, chevronHeight, pointsRight: false, detail);
+        Raylib.DrawRectangle(centerX - 3, centerY - halfHeight + 11, 6, (halfHeight * 2) - 22, detail);
+    }
+
+    private static void DrawSteppedDiamond(int centerX, int centerY, int halfWidth, int halfHeight, Color color)
+    {
+        int steps = Math.Clamp(halfHeight / 4, 4, 8);
+        for (int step = 0; step < steps; step++)
+        {
+            float progress = step / (float)steps;
+            int insetX = (int)MathF.Round(halfWidth * (1f - progress));
+            int y = centerY - halfHeight + (step * halfHeight / steps);
+            int width = Math.Max(2, (halfWidth - insetX) * 2);
+            int bandHeight = Math.Max(2, halfHeight / steps);
+            Raylib.DrawRectangle(centerX - width / 2, y, width, bandHeight, color);
+            Raylib.DrawRectangle(centerX - width / 2, centerY + halfHeight - (step + 1) * bandHeight, width, bandHeight, color);
+        }
+    }
+
+    private static void DrawTurfChevron(int centerX, int centerY, int width, int height, bool pointsRight, Color color)
+    {
+        int direction = pointsRight ? 1 : -1;
+        for (int row = -height; row <= height; row += 3)
+        {
+            int taper = Math.Abs(row) / 2;
+            int startX = pointsRight ? centerX - width / 2 : centerX + width / 2;
+            int endX = centerX + direction * (width / 2 - taper);
+            Raylib.DrawLine(startX, centerY + row, endX, centerY + row, color);
+        }
+    }
+
+    private static void DrawTurfGrain(Rectangle rect)
+    {
+        int left = (int)rect.X + 4;
+        int top = (int)rect.Y + 4;
+        int width = Math.Max(1, (int)rect.Width - 8);
+        int height = Math.Max(1, (int)rect.Height - 8);
+
+        // Fixed pattern: no allocations, no per-frame randomness or shimmer.
+        for (int i = 0; i < 150; i++)
+        {
+            int px = left + Math.Abs((i * 73 + 19) % width);
+            int py = top + Math.Abs((i * 137 + 31) % height);
+            Color speck = (i & 1) == 0
+                ? new Color(88, 142, 76, 36)
+                : new Color(2, 38, 17, 42);
+            Raylib.DrawRectangle(px, py, (i % 5 == 0) ? 2 : 1, 1, speck);
+        }
     }
 
     private static void DrawEndZones(Rectangle rect, string homeTeamName, Color homeTeamColor, string awayTeamName, Color awayTeamColor)
@@ -54,6 +127,9 @@ internal sealed class FieldSurfaceRenderer
 
         Raylib.DrawRectangle((int)rect.X, (int)ownEndY, (int)rect.Width, endzoneHeight, homeEndZoneFill);
         Raylib.DrawRectangle((int)rect.X, (int)rect.Y, (int)rect.Width, topEndzoneHeight, awayEndZoneFill);
+
+        Raylib.DrawRectangleLinesEx(new Rectangle(rect.X + 3, ownEndY + 3, rect.Width - 6, endzoneHeight - 6), 2f, new Color(255, 255, 255, 75));
+        Raylib.DrawRectangleLinesEx(new Rectangle(rect.X + 3, rect.Y + 3, rect.Width - 6, topEndzoneHeight - 6), 2f, new Color(255, 255, 255, 75));
 
         int stripeCount = 6;
         int stripeHeight = Math.Max(2, endzoneHeight / (stripeCount * 2));

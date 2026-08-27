@@ -17,15 +17,25 @@ public sealed class SidePanelRenderer
         int screenH = Raylib.GetScreenHeight();
         int panelHeight = screenH - (int)(Constants.OuterMargin * 2);
 
-        // Draw panel background
-        Raylib.DrawRectangle(PanelX, (int)Constants.OuterMargin, PanelWidth, panelHeight, new Color(20, 20, 25, 220));
-        Raylib.DrawRectangleLines(PanelX, (int)Constants.OuterMargin, PanelWidth, panelHeight, Palette.DarkGreen);
+        // Arcade cabinet panel: stepped shadow, double edge, and restrained scan bands.
+        int panelY = (int)Constants.OuterMargin;
+        Raylib.DrawRectangle(PanelX + 4, panelY + 4, PanelWidth, panelHeight, new Color(0, 0, 0, 110));
+        Raylib.DrawRectangle(PanelX, panelY, PanelWidth, panelHeight, Palette.Panel);
+        Raylib.DrawRectangleLinesEx(new Rectangle(PanelX, panelY, PanelWidth, panelHeight), 2f, new Color(32, 92, 66, 255));
+        Raylib.DrawRectangleLines(PanelX + 5, panelY + 5, PanelWidth - 10, panelHeight - 10, Palette.PanelLine);
+        for (int bandY = panelY + 8; bandY < panelY + panelHeight - 8; bandY += 10)
+        {
+            Raylib.DrawRectangle(PanelX + 7, bandY, PanelWidth - 14, 1, new Color(255, 255, 255, 5));
+        }
 
         int y = (int)Constants.OuterMargin + 15;
         int x = PanelX + 15;
 
         // Title
-        Raylib.DrawText("RETRO QB", x, y, 34, Palette.Gold);
+        Raylib.DrawRectangle(x - 5, y - 5, PanelWidth - 20, 42, new Color(29, 39, 38, 230));
+        Raylib.DrawRectangle(x - 5, y - 5, 5, 42, Palette.Gold);
+        Raylib.DrawText("RETRO QB", x + 7, y, 34, Palette.Gold);
+        Raylib.DrawText("'86", x + PanelWidth - 73, y + 16, 12, Palette.Muted);
         y += 46;
 
         // Divider
@@ -50,6 +60,11 @@ public sealed class SidePanelRenderer
             for (int i = 0; i < passPlays.Count && i < 10; i++)
             {
                 bool isSelected = play.SelectedPlayType == PlayType.Pass && play.SelectedPlayIndex == i;
+                if (isSelected)
+                {
+                    Raylib.DrawRectangle(x - 4, y - 1, PanelWidth - 28, 16, new Color(52, 46, 18, 210));
+                    Raylib.DrawRectangle(x - 4, y - 1, 3, 16, Palette.Gold);
+                }
                 Raylib.DrawText($"{passKeys[i]}) {passPlays[i].Name}", x, y, 14, isSelected ? Palette.Gold : Palette.White);
                 y += 16;
             }
@@ -65,6 +80,11 @@ public sealed class SidePanelRenderer
             for (int i = 0; i < runPlays.Count && i < 10; i++)
             {
                 bool isSelected = play.SelectedPlayType == PlayType.Run && play.SelectedPlayIndex == i;
+                if (isSelected)
+                {
+                    Raylib.DrawRectangle(x - 4, y - 1, PanelWidth - 28, 16, new Color(52, 35, 18, 210));
+                    Raylib.DrawRectangle(x - 4, y - 1, 3, 16, Palette.Orange);
+                }
                 Raylib.DrawText($"{runKeys[i]}) {runPlays[i].Name}", x, y, 14, isSelected ? Palette.Gold : Palette.White);
                 y += 16;
             }
@@ -97,7 +117,6 @@ public sealed class SidePanelRenderer
 
         // Goal
         y = goalY;
-        Raylib.DrawRectangle(x - 4, y - 4, PanelWidth - 22, 42, new Color(30, 50, 30, 200));
         string stageLabel = stage.GetDisplayName();
         int stageNum = stage.GetStageNumber();
         Color stageColor = stage switch
@@ -107,6 +126,8 @@ public sealed class SidePanelRenderer
             SeasonStage.SuperBowl => Palette.Gold,
             _ => Palette.White
         };
+        Raylib.DrawRectangle(x - 4, y - 4, PanelWidth - 22, 42, new Color(18, 48, 29, 235));
+        Raylib.DrawRectangle(x - 4, y - 4, 4, 42, stageColor);
         Raylib.DrawText($"STAGE {stageNum}/3: {stageLabel}", x, y, 14, stageColor);
         y += 18;
         Raylib.DrawText("Score 21 to advance!", x, y, 14, Palette.Gold);

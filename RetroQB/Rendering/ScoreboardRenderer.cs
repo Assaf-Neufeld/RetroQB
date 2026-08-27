@@ -21,22 +21,25 @@ public sealed class ScoreboardRenderer
         int x = Raylib.GetScreenWidth() - ScoreboardWidth - (int)Constants.OuterMargin;
         int y = ScoreboardY;
 
-        Color panelBg = new(10, 16, 28, 235);
-        Color panelBorder = new(36, 90, 150, 255);
-        Color panelHeader = new(20, 28, 45, 255);
+        Color panelBg = Palette.Panel;
+        Color panelBorder = new(36, 96, 156, 255);
+        Color panelHeader = Palette.PanelRaised;
         Color panelAccent = new(30, 110, 170, 255);
         Color panelText = Palette.EndZoneText;
 
         // Outer shell
+        Raylib.DrawRectangle(x + 4, y + 4, ScoreboardWidth, ScoreboardHeight, new Color(0, 0, 0, 110));
         Raylib.DrawRectangle(x, y, ScoreboardWidth, ScoreboardHeight, panelBg);
-        Raylib.DrawRectangleLines(x, y, ScoreboardWidth, ScoreboardHeight, panelBorder);
+        Raylib.DrawRectangleLinesEx(new Rectangle(x, y, ScoreboardWidth, ScoreboardHeight), 2f, panelBorder);
+        Raylib.DrawRectangleLines(x + 5, y + 5, ScoreboardWidth - 10, ScoreboardHeight - 10, Palette.PanelLine);
 
         // Header bar
-        Raylib.DrawRectangle(x + 2, y + 2, ScoreboardWidth - 4, 22, panelHeader);
-        Raylib.DrawText("STATS BOARD", x + 10, y + 5, 14, offensiveTeam.PrimaryColor);
+        Raylib.DrawRectangle(x + 7, y + 7, ScoreboardWidth - 14, 24, panelHeader);
+        Raylib.DrawRectangle(x + 7, y + 7, 4, 24, offensiveTeam.PrimaryColor);
+        Raylib.DrawText("STATS BOARD", x + 18, y + 11, 14, offensiveTeam.PrimaryColor);
 
         int contentX = x + 12;
-        int contentY = y + 30;
+        int contentY = y + 40;
         int innerWidth = ScoreboardWidth - 24;
 
         void DrawRightText(string text, int rightX, int drawY, int fontSize, Color color)

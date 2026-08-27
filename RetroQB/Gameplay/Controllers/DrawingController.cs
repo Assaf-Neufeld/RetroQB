@@ -181,6 +181,7 @@ public sealed class DrawingController
 
         // Draw flash overlay on top of everything
         _screenEffects.DrawFlash();
+        RetroScreenOverlay.Draw();
     }
 
     public void DrawReplay(
@@ -233,6 +234,7 @@ public sealed class DrawingController
         _hudRenderer.DrawScoreboard(playManager, lastPlayText, GameState.Replay, offensiveTeam, defensiveTeam, currentStage, driveSummaryScrollOffsetFromLatest);
         _hudRenderer.DrawSidePanel(playManager, lastPlayText, "-", GameState.Replay, currentStage, replayAvailable);
         _replayOverlayRenderer.DrawReplayBadge(isPaused);
+        RetroScreenOverlay.Draw();
     }
 
     /// <summary>
@@ -256,7 +258,7 @@ public sealed class DrawingController
             {
                 Vector2 a = Constants.WorldToScreen(points[i]);
                 Vector2 b = Constants.WorldToScreen(points[i + 1]);
-                Raylib.DrawLineEx(a, b, 2.0f, Palette.Yellow);
+                DrawRetroRouteSegment(a, b, i == points.Count - 2);
             }
         }
 
@@ -264,6 +266,32 @@ public sealed class DrawingController
             blockers.ToList(),
             playManager.SelectedPlay,
             playManager.LineOfScrimmage);
+    }
+
+    private static void DrawRetroRouteSegment(Vector2 a, Vector2 b, bool drawArrow)
+    {
+        Vector2 delta = b - a;
+        float length = delta.Length();
+        if (length < 0.5f) return;
+
+        Vector2 dir = delta / length;
+        Raylib.DrawLineEx(a + new Vector2(1, 2), b + new Vector2(1, 2), 4f, new Color(2, 20, 10, 130));
+
+        const float dash = 7f;
+        const float gap = 3f;
+        for (float start = 0; start < length; start += dash + gap)
+        {
+            Vector2 p1 = a + dir * start;
+            Vector2 p2 = a + dir * MathF.Min(start + dash, length);
+            Raylib.DrawLineEx(p1, p2, 2f, Palette.Yellow);
+        }
+
+        if (!drawArrow) return;
+        Vector2 side = new(-dir.Y, dir.X);
+        Vector2 tip = b;
+        Vector2 back = b - dir * 9f;
+        Raylib.DrawTriangle(tip, back + side * 5f, back - side * 5f, Palette.Yellow);
+        Raylib.DrawTriangle(tip - dir * 2f, back - side * 3f, back + side * 3f, new Color(255, 236, 145, 255));
     }
 
     private void DrawReceiverPriorityLabels(IReadOnlyList<Receiver> receivers)
@@ -287,9 +315,12 @@ public sealed class DrawingController
             int drawX = (int)center.X + offsetX;
             int drawY = (int)center.Y + offsetY;
 
-            // Drop shadow + gold text
-            Raylib.DrawText(priorityLabel, drawX + 1, drawY + 1, fontSize, new Color(10, 10, 14, 180));
-            Raylib.DrawText(priorityLabel, drawX, drawY, fontSize, Palette.Gold);
+            // Arcade keycap: clearer than floating text when routes and players overlap.
+            int keyWidth = textWidth + 8;
+            Raylib.DrawRectangle(drawX + 2, drawY + 2, keyWidth, fontSize + 5, new Color(0, 0, 0, 120));
+            Raylib.DrawRectangle(drawX, drawY, keyWidth, fontSize + 5, new Color(18, 24, 34, 245));
+            Raylib.DrawRectangleLines(drawX, drawY, keyWidth, fontSize + 5, Palette.Gold);
+            Raylib.DrawText(priorityLabel, drawX + 4, drawY + 2, fontSize, Palette.Gold);
         }
     }
 
@@ -406,26 +437,7 @@ public sealed class DrawingController
     private static void DrawReplayActor(ReplayActorFrame actor)
     {
         Vector2 screen = Constants.WorldToScreen(actor.Position);
-
-        float baseRadius = actor.Glyph switch
-        {
-            "OL" or "DL" => 11.5f,
-            "DE" or "LB" or "TE" => 10.5f,
-            "QB" => 10f,
-            "WR" or "RB" or "DB" => 9.5f,
-            _ => 10f
-        };
-
-        Raylib.DrawCircleV(screen + new Vector2(1f, 1.5f), baseRadius, new Color(10, 10, 12, 120));
-        Raylib.DrawCircleV(screen, baseRadius, actor.Color);
-        Raylib.DrawCircleLines((int)screen.X, (int)screen.Y, baseRadius, new Color(16, 16, 20, 220));
-
-        int fontSize = 12;
-        int textWidth = Raylib.MeasureText(actor.Glyph, fontSize);
-        int labelX = (int)screen.X - textWidth / 2;
-        int labelY = (int)screen.Y - fontSize / 2;
-        Raylib.DrawText(actor.Glyph, labelX + 1, labelY + 1, fontSize, new Color(10, 10, 12, 160));
-        Raylib.DrawText(actor.Glyph, labelX, labelY, fontSize, Palette.White);
+        PixelPlayerRenderer.Draw(screen, actor.Velocity, actor.Glyph, actor.Color);
     }
 
     private static void DrawReplayBall(ReplayBallFrame ball, ReplayFrame frame)

@@ -167,12 +167,28 @@ public sealed class Ball : Entity
         Color darkBrown = new Color(100, 60, 25, 255);
         Color laceWhite = new Color(230, 230, 230, 255);
 
+        // Airborne trail makes release speed and direction instantly readable.
+        if (State == BallState.InAir && Velocity.LengthSquared() > 0.1f)
+        {
+            Vector2 trailDir = Vector2.Normalize(new Vector2(Velocity.X, -Velocity.Y));
+            for (int i = 3; i >= 1; i--)
+            {
+                Vector2 trailPos = screen - trailDir * (i * 7f);
+                int alpha = 28 + ((3 - i) * 22);
+                Raylib.DrawRectangle((int)trailPos.X - 2, (int)trailPos.Y - 1, 4, 2, new Color(255, 205, 92, alpha));
+            }
+        }
+
         // Drop shadow
         Vector2 shadowOff = new Vector2(1f, 2f);
         DrawFootballBody(screen + shadowOff, major, minor, majorRadius, minorRadius, new Color(10, 10, 12, 100));
 
         // Main football body
         DrawFootballBody(screen, major, minor, majorRadius, minorRadius, brown);
+
+        // One-pixel highlight keeps the ball crisp against dark turf.
+        Vector2 glint = screen - major * 1.5f - minor * 1.5f;
+        Raylib.DrawRectangle((int)glint.X, (int)glint.Y, 2, 1, new Color(235, 170, 92, 235));
 
         // Pointed tips at each end
         Vector2 tipFront = screen + major * majorRadius;

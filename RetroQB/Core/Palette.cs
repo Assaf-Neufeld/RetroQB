@@ -4,10 +4,16 @@ namespace RetroQB.Core;
 
 public static class Palette
 {
-    public static readonly Color Background = new(8, 8, 10, 255);
-    public static readonly Color Field = new(14, 80, 36, 255);
-    public static readonly Color DarkGreen = new(8, 60, 28, 255);
-    public static readonly Color YardLine = new(230, 230, 230, 255);
+    public static readonly Color Background = new(5, 7, 12, 255);
+    public static readonly Color Cabinet = new(8, 12, 20, 255);
+    public static readonly Color Panel = new(10, 16, 26, 244);
+    public static readonly Color PanelRaised = new(17, 25, 38, 244);
+    public static readonly Color PanelLine = new(38, 72, 94, 220);
+    public static readonly Color Ink = new(7, 9, 12, 255);
+    public static readonly Color Muted = new(132, 154, 170, 255);
+    public static readonly Color Field = new(15, 86, 39, 255);
+    public static readonly Color DarkGreen = new(8, 58, 27, 255);
+    public static readonly Color YardLine = new(206, 224, 205, 235);
     public static readonly Color Yellow = new(255, 214, 74, 255);
     public static readonly Color Orange = new(255, 165, 50, 255);
     public static readonly Color White = new(230, 230, 230, 255);
