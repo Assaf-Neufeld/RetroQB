@@ -97,6 +97,7 @@ public sealed class DrawingController
             offensiveTeam.PrimaryColor,
             defensiveTeam.Name,
             defensiveTeam.PrimaryColor,
+            currentStage,
             crowdState);
 
         _fireworks.Draw();
@@ -211,6 +212,7 @@ public sealed class DrawingController
             offensiveTeam.PrimaryColor,
             defensiveTeam.Name,
             defensiveTeam.PrimaryColor,
+            currentStage,
             crowdState);
 
         foreach (var receiver in replayFrame.Receivers)

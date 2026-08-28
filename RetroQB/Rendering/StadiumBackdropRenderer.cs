@@ -1,5 +1,6 @@
 using Raylib_cs;
 using RetroQB.Core;
+using System.Numerics;
 
 namespace RetroQB.Rendering;
 
@@ -13,16 +14,17 @@ internal sealed class StadiumBackdropRenderer
         new Color(214, 210, 196, 255)
     ];
 
-    public void Draw(Color homeTeamColor, Color awayTeamColor, CrowdBackdropState crowdState)
+    public void Draw(Color homeTeamColor, Color awayTeamColor, SeasonStage stage, CrowdBackdropState crowdState)
     {
         Rectangle rect = Constants.FieldRect;
         int screenW = Raylib.GetScreenWidth();
+        StadiumTier tier = StadiumTier.For(stage);
 
         DrawArenaShell(rect, homeTeamColor, awayTeamColor);
 
         int margin = 6;
-        int bleacherWidth = Math.Max(24, (int)(rect.Width * 0.14f));
-        int sidelineBuffer = Math.Max(16, (int)(rect.Width * 0.08f));
+        int bleacherWidth = Math.Max(24, (int)(rect.Width * tier.BleacherWidthFactor));
+        int sidelineBuffer = Math.Max(14, (int)(rect.Width * tier.SidelineBufferFactor));
         int leftBleacherX = (int)Math.Max(margin, rect.X - bleacherWidth - sidelineBuffer);
         int rightBleacherX = (int)Math.Min(screenW - margin - bleacherWidth, rect.X + rect.Width + sidelineBuffer);
         int stadiumLeft = leftBleacherX;
@@ -35,12 +37,20 @@ internal sealed class StadiumBackdropRenderer
         int topLimit = (int)Constants.WorldToScreenY(Constants.EndZoneDepth + 90f);
         int bottomLimit = (int)Constants.WorldToScreenY(Constants.EndZoneDepth + 10f);
 
+        DrawFloodlights(rect, leftBleacherX, rightBleacherX, bleacherWidth, homeAccent, awayAccent, tier);
         DrawBleachersColumn(rect, leftBleacherX, bleacherWidth, isLeftSide: true, bleacherBase, bleacherEdge);
         DrawBleachersColumn(rect, rightBleacherX, bleacherWidth, isLeftSide: false, bleacherBase, bleacherEdge);
-        DrawBleacherSideExtension(leftBleacherX, bleacherWidth, bleacherBase, bleacherEdge, homeAccent, awayAccent, isLeftSide: true);
-        DrawBleacherSideExtension(rightBleacherX, bleacherWidth, bleacherBase, bleacherEdge, awayAccent, homeAccent, isLeftSide: false);
-        DrawUpperDeckBands(rect, stadiumLeft, stadiumRight, bleacherEdge, homeAccent, awayAccent);
-        DrawCrowdSections(rect, leftBleacherX, bleacherWidth, rightBleacherX, homeAccent, awayAccent, crowdState);
+        if (tier.HasCornerStands)
+        {
+            DrawBleacherSideExtension(leftBleacherX, bleacherWidth, bleacherBase, bleacherEdge, homeAccent, awayAccent, isLeftSide: true);
+            DrawBleacherSideExtension(rightBleacherX, bleacherWidth, bleacherBase, bleacherEdge, awayAccent, homeAccent, isLeftSide: false);
+        }
+        DrawUpperDeckBands(rect, stadiumLeft, stadiumRight, bleacherEdge, homeAccent, awayAccent, tier.DeckLevel);
+        if (tier.HasChampionshipDeck)
+        {
+            DrawChampionshipDeck(rect, stadiumLeft, stadiumRight, bleacherBase, bleacherEdge, homeAccent, awayAccent);
+        }
+        DrawCrowdSections(rect, leftBleacherX, bleacherWidth, rightBleacherX, homeAccent, awayAccent, crowdState, tier.Attendance);
         DrawExcitedCrowdFlares(leftBleacherX, rightBleacherX, bleacherWidth, homeAccent, awayAccent, crowdState);
         DrawExcitedCrowdProps(leftBleacherX, rightBleacherX, bleacherWidth, homeAccent, awayAccent, crowdState);
         DrawRibbonBoards(leftBleacherX, rightBleacherX, bleacherWidth, topLimit, bottomLimit, homeAccent, awayAccent);
@@ -96,14 +106,15 @@ internal sealed class StadiumBackdropRenderer
         }
     }
 
-    public void DrawChantOverlay(Color homeTeamColor, CrowdBackdropState crowdState)
+    public void DrawChantOverlay(Color homeTeamColor, SeasonStage stage, CrowdBackdropState crowdState)
     {
         Rectangle rect = Constants.FieldRect;
         int screenW = Raylib.GetScreenWidth();
 
         int margin = 6;
-        int bleacherWidth = Math.Max(24, (int)(rect.Width * 0.14f));
-        int sidelineBuffer = Math.Max(16, (int)(rect.Width * 0.08f));
+        StadiumTier tier = StadiumTier.For(stage);
+        int bleacherWidth = Math.Max(24, (int)(rect.Width * tier.BleacherWidthFactor));
+        int sidelineBuffer = Math.Max(14, (int)(rect.Width * tier.SidelineBufferFactor));
         int leftBleacherX = (int)Math.Max(margin, rect.X - bleacherWidth - sidelineBuffer);
         int rightBleacherX = (int)Math.Min(screenW - margin - bleacherWidth, rect.X + rect.Width + sidelineBuffer);
         Color homeAccent = CreateAccentColor(homeTeamColor, 0.82f, 18);
@@ -183,17 +194,18 @@ internal sealed class StadiumBackdropRenderer
         int rightBleacherX,
         Color homeAccent,
         Color awayAccent,
-        CrowdBackdropState crowdState)
+        CrowdBackdropState crowdState,
+        float attendance)
     {
         GetSeatingBounds(rect, out int topLimit, out int splitTop, out int splitBottom, out int bottomLimit);
 
         int upperHeight = splitTop - topLimit;
         int lowerHeight = bottomLimit - splitBottom;
 
-        DrawCrowdBlock(leftBleacherX + 3, topLimit + 6, bleacherWidth - 6, upperHeight - 10, homeAccent, awayAccent, CrowdMix.HomeHeavy, alignFromBottom: true, crowdState);
-        DrawCrowdBlock(leftBleacherX + 3, splitBottom + 4, bleacherWidth - 6, lowerHeight - 8, homeAccent, awayAccent, CrowdMix.BalancedHome, alignFromBottom: false, crowdState);
-        DrawCrowdBlock(rightBleacherX + 3, topLimit + 6, bleacherWidth - 6, upperHeight - 10, homeAccent, awayAccent, CrowdMix.BalancedHome, alignFromBottom: true, crowdState);
-        DrawCrowdBlock(rightBleacherX + 3, splitBottom + 4, bleacherWidth - 6, lowerHeight - 8, homeAccent, awayAccent, CrowdMix.HomeHeavy, alignFromBottom: false, crowdState);
+        DrawCrowdBlock(leftBleacherX + 3, topLimit + 6, bleacherWidth - 6, upperHeight - 10, homeAccent, awayAccent, CrowdMix.HomeHeavy, alignFromBottom: true, crowdState, attendance);
+        DrawCrowdBlock(leftBleacherX + 3, splitBottom + 4, bleacherWidth - 6, lowerHeight - 8, homeAccent, awayAccent, CrowdMix.BalancedHome, alignFromBottom: false, crowdState, attendance);
+        DrawCrowdBlock(rightBleacherX + 3, topLimit + 6, bleacherWidth - 6, upperHeight - 10, homeAccent, awayAccent, CrowdMix.BalancedHome, alignFromBottom: true, crowdState, attendance);
+        DrawCrowdBlock(rightBleacherX + 3, splitBottom + 4, bleacherWidth - 6, lowerHeight - 8, homeAccent, awayAccent, CrowdMix.HomeHeavy, alignFromBottom: false, crowdState, attendance);
     }
 
     private static void DrawCrowdBlock(
@@ -205,7 +217,8 @@ internal sealed class StadiumBackdropRenderer
         Color awayCrowd,
         CrowdMix mix,
         bool alignFromBottom,
-        CrowdBackdropState crowdState)
+        CrowdBackdropState crowdState,
+        float attendance)
     {
         if (width < 12 || height < 12)
         {
@@ -214,8 +227,10 @@ internal sealed class StadiumBackdropRenderer
 
         float time = (float)Raylib.GetTime();
         float overallEnergy = Math.Clamp(crowdState.OverallEnergy, 0f, 1f);
-        int rowSpacing = overallEnergy >= 0.78f ? 9 : 10;
-        int colSpacing = overallEnergy >= 0.86f ? 6 : 7;
+        // Attendance controls how tightly rows are packed. Never remove isolated
+        // spectators: random empty seats read as holes rather than a smaller crowd.
+        int rowSpacing = attendance >= 0.95f ? 7 : attendance >= 0.82f ? 8 : 10;
+        int colSpacing = attendance >= 0.95f ? 5 : attendance >= 0.82f ? 6 : 7;
         int startRowY = alignFromBottom
             ? y + height - 8
             : y + 2;
@@ -324,11 +339,11 @@ internal sealed class StadiumBackdropRenderer
         return AdjustColor(color, brighten - darken);
     }
 
-    private static void DrawUpperDeckBands(Rectangle rect, int stadiumLeft, int stadiumRight, Color edgeColor, Color homeAccent, Color awayAccent)
+    private static void DrawUpperDeckBands(Rectangle rect, int stadiumLeft, int stadiumRight, Color edgeColor, Color homeAccent, Color awayAccent, int deckLevel)
     {
         int upperY = (int)Constants.WorldToScreenY(Constants.EndZoneDepth + 95f);
         int lowerY = (int)Constants.WorldToScreenY(Constants.EndZoneDepth + 5f) - 12;
-        int deckHeight = 10;
+        int deckHeight = deckLevel == 1 ? 7 : 10;
 
         Color baseBand = new Color(28, 30, 38, 220);
         Color rail = AdjustColor(edgeColor, 16);
@@ -338,13 +353,150 @@ internal sealed class StadiumBackdropRenderer
         Raylib.DrawRectangle(stadiumLeft, upperY + deckHeight - 2, stadiumRight - stadiumLeft, 2, rail);
         Raylib.DrawRectangle(stadiumLeft, lowerY, stadiumRight - stadiumLeft, 2, rail);
 
-        int segmentWidth = Math.Max(18, (stadiumRight - stadiumLeft) / 6);
-        for (int i = 0; i < 6; i++)
+        int segmentCount = deckLevel == 1 ? 4 : 6;
+        int segmentWidth = Math.Max(18, (stadiumRight - stadiumLeft) / segmentCount);
+        for (int i = 0; i < segmentCount; i++)
         {
             int segmentX = stadiumLeft + (i * segmentWidth);
             Color accent = i % 2 == 0 ? homeAccent : awayAccent;
             Raylib.DrawRectangle(segmentX + 2, upperY + 2, segmentWidth - 4, 3, accent);
             Raylib.DrawRectangle(segmentX + 2, lowerY + 5, segmentWidth - 4, 3, accent);
+        }
+    }
+
+    private static void DrawChampionshipDeck(
+        Rectangle rect,
+        int stadiumLeft,
+        int stadiumRight,
+        Color baseColor,
+        Color edgeColor,
+        Color homeAccent,
+        Color awayAccent)
+    {
+        int width = stadiumRight - stadiumLeft;
+        int topY = Math.Max(6, (int)rect.Y - 18);
+        int bottomY = Math.Min(Raylib.GetScreenHeight() - 18, (int)(rect.Y + rect.Height) + 7);
+        Color deckFace = AdjustColor(baseColor, -12);
+        Color brightRail = AdjustColor(edgeColor, 24);
+
+        DrawChampionshipDeckFace(stadiumLeft, topY, width, deckFace, brightRail, homeAccent, awayAccent, invert: false);
+        DrawChampionshipDeckFace(stadiumLeft, bottomY, width, deckFace, brightRail, homeAccent, awayAccent, invert: true);
+
+        string label = "CHAMPIONSHIP STADIUM";
+        int fontSize = 10;
+        int labelWidth = Raylib.MeasureText(label, fontSize);
+        int labelX = stadiumLeft + (width - labelWidth) / 2;
+        Raylib.DrawRectangle(labelX - 7, topY + 3, labelWidth + 14, 14, new Color(9, 12, 20, 245));
+        Raylib.DrawRectangleLines(labelX - 7, topY + 3, labelWidth + 14, 14, Palette.Gold);
+        Raylib.DrawText(label, labelX, topY + 5, fontSize, Palette.Gold);
+    }
+
+    private static void DrawChampionshipDeckFace(
+        int x,
+        int y,
+        int width,
+        Color baseColor,
+        Color edgeColor,
+        Color homeAccent,
+        Color awayAccent,
+        bool invert)
+    {
+        const int height = 18;
+        Raylib.DrawRectangle(x, y, width, height, baseColor);
+        Raylib.DrawRectangleLines(x, y, width, height, edgeColor);
+
+        int sectionWidth = Math.Max(16, width / 12);
+        for (int sectionX = x + 4, index = 0; sectionX < x + width - 5; sectionX += sectionWidth, index++)
+        {
+            Color accent = (index + (invert ? 1 : 0)) % 2 == 0 ? homeAccent : awayAccent;
+            Raylib.DrawRectangle(sectionX, y + (invert ? 4 : 11), Math.Min(sectionWidth - 3, x + width - sectionX - 3), 3, accent);
+
+            for (int fanX = sectionX + 2; fanX < Math.Min(sectionX + sectionWidth - 3, x + width - 4); fanX += 6)
+            {
+                int fanY = y + (invert ? 10 : 5) + Math.Abs(Hash(fanX, y, index) % 3);
+                Color fanColor = (fanX / 6 + index) % 2 == 0 ? AdjustColor(accent, 24) : NeutralCrowdPalette[Math.Abs(index + fanX) % NeutralCrowdPalette.Length];
+                Raylib.DrawRectangle(fanX, fanY, 3, 3, fanColor);
+            }
+        }
+    }
+
+    private static void DrawFloodlights(
+        Rectangle rect,
+        int leftBleacherX,
+        int rightBleacherX,
+        int bleacherWidth,
+        Color homeAccent,
+        Color awayAccent,
+        StadiumTier tier)
+    {
+        int outerLeft = leftBleacherX - (tier.HasCornerStands ? Math.Clamp((int)(bleacherWidth * 0.6f), 16, 28) : 5);
+        int outerRight = rightBleacherX + bleacherWidth + (tier.HasCornerStands ? Math.Clamp((int)(bleacherWidth * 0.6f), 16, 28) : 5);
+        int top = (int)Constants.WorldToScreenY(Constants.EndZoneDepth + 92f);
+        int bottom = (int)Constants.WorldToScreenY(Constants.EndZoneDepth + 8f);
+
+        DrawLightTower(outerLeft, top, (int)rect.X, top + 38, pointsRight: true, homeAccent, tier.LightRows);
+        DrawLightTower(outerRight, bottom, (int)(rect.X + rect.Width), bottom - 38, pointsRight: false, awayAccent, tier.LightRows);
+
+        if (tier.LightTowerCount >= 4)
+        {
+            DrawLightTower(outerRight, top, (int)(rect.X + rect.Width), top + 38, pointsRight: false, awayAccent, tier.LightRows);
+            DrawLightTower(outerLeft, bottom, (int)rect.X, bottom - 38, pointsRight: true, homeAccent, tier.LightRows);
+        }
+
+        if (tier.LightTowerCount >= 6)
+        {
+            int midfield = (top + bottom) / 2;
+            DrawLightTower(outerLeft - 3, midfield, (int)rect.X, midfield, pointsRight: true, homeAccent, tier.LightRows);
+            DrawLightTower(outerRight + 3, midfield, (int)(rect.X + rect.Width), midfield, pointsRight: false, awayAccent, tier.LightRows);
+        }
+    }
+
+    private static void DrawLightTower(int x, int y, int beamTargetX, int beamTargetY, bool pointsRight, Color accent, int lightRows)
+    {
+        int direction = pointsRight ? 1 : -1;
+        int poleX = x - (direction * 3);
+        int poleTop = y - 16;
+        int poleBottom = y + 17;
+        Color steel = new(82, 92, 108, 255);
+        Color dimSteel = new(40, 48, 62, 255);
+
+        Raylib.DrawLine(poleX - 3, poleBottom, poleX, poleTop, dimSteel);
+        Raylib.DrawLine(poleX + 3, poleBottom, poleX, poleTop, steel);
+        for (int braceY = poleTop + 7; braceY < poleBottom; braceY += 8)
+        {
+            Raylib.DrawLine(poleX - 2, braceY, poleX + 2, braceY + 5, steel);
+        }
+
+        int bankWidth = lightRows >= 2 ? 18 : 14;
+        int bankHeight = lightRows >= 2 ? 13 : 8;
+        int bankX = pointsRight ? x - 3 : x - bankWidth + 3;
+        int bankY = y - bankHeight / 2;
+
+        Color beam = new(255, 244, 186, lightRows >= 2 ? 24 : 15);
+        Vector2 beamTop = new(bankX + (pointsRight ? bankWidth : 0), bankY + 2);
+        Vector2 beamBottom = new(bankX + (pointsRight ? bankWidth : 0), bankY + bankHeight - 2);
+        Vector2 target = new(beamTargetX, beamTargetY);
+        // Raylib culls triangles with the opposite winding. Mirror the vertex
+        // order as well as the geometry so both sides cast a visible beam.
+        if (pointsRight)
+        {
+            Raylib.DrawTriangle(beamBottom, target, beamTop, beam);
+        }
+        else
+        {
+            Raylib.DrawTriangle(beamTop, target, beamBottom, beam);
+        }
+
+        Raylib.DrawRectangle(bankX, bankY, bankWidth, bankHeight, new Color(22, 28, 38, 255));
+        Raylib.DrawRectangleLines(bankX, bankY, bankWidth, bankHeight, accent);
+        for (int row = 0; row < lightRows; row++)
+        {
+            int bulbY = bankY + 3 + (row * 6);
+            for (int bulbX = bankX + 3; bulbX <= bankX + bankWidth - 3; bulbX += 5)
+            {
+                Raylib.DrawCircle(bulbX, bulbY, 2f, new Color(255, 247, 204, 255));
+                Raylib.DrawCircle(bulbX, bulbY, 4f, new Color(255, 236, 154, 35));
+            }
         }
     }
 
@@ -751,6 +903,49 @@ internal sealed class StadiumBackdropRenderer
     }
 
     private readonly record struct CrowdFanVisual(Color Color, CrowdAffiliation Affiliation);
+
+    private readonly record struct StadiumTier(
+        float BleacherWidthFactor,
+        float SidelineBufferFactor,
+        float Attendance,
+        int DeckLevel,
+        int LightTowerCount,
+        int LightRows,
+        bool HasCornerStands,
+        bool HasChampionshipDeck)
+    {
+        public static StadiumTier For(SeasonStage stage) => stage switch
+        {
+            SeasonStage.RegularSeason => new StadiumTier(
+                BleacherWidthFactor: 0.14f,
+                SidelineBufferFactor: 0.08f,
+                Attendance: 0.74f,
+                DeckLevel: 2,
+                LightTowerCount: 2,
+                LightRows: 1,
+                HasCornerStands: true,
+                HasChampionshipDeck: false),
+            SeasonStage.Playoff => new StadiumTier(
+                BleacherWidthFactor: 0.17f,
+                SidelineBufferFactor: 0.085f,
+                Attendance: 0.90f,
+                DeckLevel: 2,
+                LightTowerCount: 4,
+                LightRows: 1,
+                HasCornerStands: true,
+                HasChampionshipDeck: false),
+            SeasonStage.SuperBowl => new StadiumTier(
+                BleacherWidthFactor: 0.20f,
+                SidelineBufferFactor: 0.09f,
+                Attendance: 0.98f,
+                DeckLevel: 3,
+                LightTowerCount: 6,
+                LightRows: 2,
+                HasCornerStands: true,
+                HasChampionshipDeck: true),
+            _ => throw new ArgumentOutOfRangeException(nameof(stage), stage, null)
+        };
+    }
 }
 
 public readonly record struct CrowdBackdropState(

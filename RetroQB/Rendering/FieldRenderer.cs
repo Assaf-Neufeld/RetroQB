@@ -34,14 +34,15 @@ public sealed class FieldRenderer
         Color homeTeamColor,
         string awayTeamName,
         Color awayTeamColor,
+        SeasonStage stage,
         CrowdBackdropState crowdState)
     {
-        _stadiumBackdrop.Draw(homeTeamColor, awayTeamColor, crowdState);
+        _stadiumBackdrop.Draw(homeTeamColor, awayTeamColor, stage, crowdState);
         _fieldSurface.Draw(homeTeamName, homeTeamColor, awayTeamName, awayTeamColor);
         _fieldMarkings.Draw(lineOfScrimmage, firstDownLine);
         _sidelineRenderer.Draw();
         DrawBoundary();
-        _stadiumBackdrop.DrawChantOverlay(homeTeamColor, crowdState);
+        _stadiumBackdrop.DrawChantOverlay(homeTeamColor, stage, crowdState);
     }
 
     private static void DrawBoundary()
