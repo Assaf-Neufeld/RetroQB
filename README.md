@@ -143,6 +143,9 @@ RetroQB/
 
 ### Build notes
 
+- Run regression tests with `dotnet test tests/RetroQB.Tests/RetroQB.Tests.csproj`.
+- Leaderboards are stored in `%LOCALAPPDATA%\RetroQB\player-records.json`, with the previous save in `.bak`. If saving fails, the name-entry screen keeps your season score so you can fix disk access and press Enter to retry. Unreadable saves are preserved; restore a valid save or backup before retrying.
+
 - Build from the repository root.
 - Open the `Football2DQB` folder in VS Code.
 - The workspace includes VS Code settings to avoid showing nested Git repos unnecessarily.

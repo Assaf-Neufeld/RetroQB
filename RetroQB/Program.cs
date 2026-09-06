@@ -6,6 +6,8 @@ using RetroQB.Gameplay;
 
 Raylib.SetConfigFlags(ConfigFlags.ResizableWindow);
 Raylib.InitWindow(Constants.ScreenWidth, Constants.ScreenHeight, "RetroQB");
+// Escape belongs to pause/menu handling; the window close button still exits.
+Raylib.SetExitKey(KeyboardKey.Null);
 SetWindowIconFromResource();
 Raylib.SetTargetFPS(Constants.TargetFps);
 

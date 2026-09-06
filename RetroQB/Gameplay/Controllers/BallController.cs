@@ -98,7 +98,7 @@ public sealed class BallController
                 return BallUpdateResult.Continue;
             }
 
-            // Check for catches
+            // Resolve defensive contact even when no receiver can catch the pass.
             return TryCompleteCatch(ball, receivers, defenders, offensiveTeam, defensiveTeam, selectedReceiverIndex);
         }
 
@@ -134,9 +134,8 @@ public sealed class BallController
             float distToLanding = Vector2.Distance(defender.Position, landing);
             float pathDistance = DistanceToSegment(defender.Position, ball.ThrowStart, landing);
 
-            bool canPlayBall = distToBall <= Constants.PassDefendBallRadius;
-            bool canCutOffLanding = distToLanding <= landingRadius && pathDistance <= Constants.PassDefendPathRadius;
-            if (!canPlayBall && !canCutOffLanding)
+            // Being near the predicted landing point is not contact with the ball.
+            if (distToBall > Constants.PassDefendBallRadius)
             {
                 continue;
             }
@@ -217,67 +216,56 @@ public sealed class BallController
         DefensiveTeamAttributes defensiveTeam,
         int selectedReceiverIndex)
     {
-        foreach (var receiver in GetCatchCandidateOrder(receivers, selectedReceiverIndex))
+        Receiver? receiver = GetCatchCandidateOrder(receivers, selectedReceiverIndex)
+            .FirstOrDefault(candidate => candidate.Eligible &&
+                Vector2.Distance(candidate.Position, ball.Position) <=
+                Constants.CatchRadius * offensiveTeam.GetReceiverCatchRadiusMultiplier(candidate.Slot));
+        float receiverDist = receiver == null
+            ? float.MaxValue
+            : Vector2.Distance(receiver.Position, ball.Position);
+        float closestDefenderDist = float.MaxValue;
+
+        foreach (var defender in defenders)
         {
-            if (!receiver.Eligible) continue;
+            float distance = Vector2.Distance(defender.Position, ball.Position);
+            closestDefenderDist = MathF.Min(closestDefenderDist, distance);
+            float interceptRadius = defensiveTeam.GetEffectiveInterceptRadius(defender.PositionRole)
+                * defender.InterceptionMultiplier;
 
-            float catchRadius = Constants.CatchRadius * offensiveTeam.GetReceiverCatchRadiusMultiplier(receiver.Slot);
-            float receiverDist = Vector2.Distance(receiver.Position, ball.Position);
-
-            if (receiverDist <= catchRadius)
+            if (distance <= interceptRadius && distance < receiverDist)
             {
-                // Find closest defender to the ball
-                Defender? closestDefender = null;
-                float closestDefenderDist = float.MaxValue;
-                foreach (var d in defenders)
-                {
-                    float dist = Vector2.Distance(d.Position, ball.Position);
-                    if (dist < closestDefenderDist)
-                    {
-                        closestDefenderDist = dist;
-                        closestDefender = d;
-                    }
-                }
-
-                // Check for interception
-                float interceptRadius = closestDefender != null
-                    ? defensiveTeam.GetEffectiveInterceptRadius(closestDefender.PositionRole) * closestDefender.InterceptionMultiplier
-                    : 0f;
-
-                if (closestDefender != null && closestDefenderDist <= interceptRadius && closestDefenderDist < receiverDist)
-                {
-                    return BallUpdateResult.Intercepted;
-                }
-
-                BallUpdateResult defendedResult = TryDefendPass(ball, defenders, defensiveTeam);
-                if (defendedResult != BallUpdateResult.Continue)
-                {
-                    return defendedResult;
-                }
-
-                // Check for contested catch drop
-                if (closestDefenderDist <= Constants.ContestedCatchRadius)
-                {
-                    float dropRate = 1.0f - offensiveTeam.GetReceiverCatchingAbility(receiver.Slot);
-                    if (_rng.NextDouble() < dropRate)
-                    {
-                        return BallUpdateResult.Incomplete;
-                    }
-                }
-
-                // Catch successful
-                receiver.HasBall = true;
-                ball.SetHeld(receiver, BallState.HeldByReceiver);
-                if (_passAttemptedThisPlay && !_passCompletedThisPlay)
-                {
-                    _passCompletedThisPlay = true;
-                    _passCatcher = receiver;
-                    _statsTracker.RecordCompletion(receiver.Slot);
-                }
-                return BallUpdateResult.Continue;
+                return BallUpdateResult.Intercepted;
             }
         }
 
+        BallUpdateResult defendedResult = TryDefendPass(ball, defenders, defensiveTeam);
+        if (defendedResult != BallUpdateResult.Continue)
+        {
+            return defendedResult;
+        }
+
+        if (receiver == null)
+        {
+            return BallUpdateResult.Continue;
+        }
+
+        if (closestDefenderDist <= Constants.ContestedCatchRadius)
+        {
+            float dropRate = 1.0f - offensiveTeam.GetReceiverCatchingAbility(receiver.Slot);
+            if (_rng.NextDouble() < dropRate)
+            {
+                return BallUpdateResult.Incomplete;
+            }
+        }
+
+        receiver.HasBall = true;
+        ball.SetHeld(receiver, BallState.HeldByReceiver);
+        if (_passAttemptedThisPlay && !_passCompletedThisPlay)
+        {
+            _passCompletedThisPlay = true;
+            _passCatcher = receiver;
+            _statsTracker.RecordCompletion(receiver.Slot);
+        }
         return BallUpdateResult.Continue;
     }
 

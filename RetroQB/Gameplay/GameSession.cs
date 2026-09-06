@@ -439,8 +439,13 @@ public sealed class GameSession : IDisposable
             _nameInput = normalizedName;
             _pendingPlayerName = string.Empty;
             _nameEntryMessage = string.Empty;
+            if (!TrySaveSeasonLeaderboard())
+            {
+                _nameEntryMessage = _playerRecordStore.StatusMessage;
+                return;
+            }
+
             _isPostSeasonNameEntry = false;
-            _leaderboardSummary = SaveSeasonLeaderboard();
             if (_leaderboardSummary.IsOnPodium)
             {
                 _drawingController.Fireworks.Trigger(_leaderboardSummary.IsFirstPlace ? 4.2f : 3.2f);
@@ -1361,17 +1366,17 @@ public sealed class GameSession : IDisposable
         StartFreshGame();
     }
 
-    private LeaderboardSummary SaveSeasonLeaderboard()
+    private bool TrySaveSeasonLeaderboard()
     {
         if (string.IsNullOrWhiteSpace(_playerName))
         {
-            return LeaderboardSummary.Empty;
+            return false;
         }
 
         float dominanceScore = _seasonSummary.ComputeDominanceScore();
         string scoreHistory = _seasonSummary.BuildThreeStageScoreHistory();
         string scoreDetails = _seasonSummary.BuildDominanceScoreDetails();
-        return _playerRecordStore.SaveSeasonResult(_playerName, _offensiveTeam.Name, scoreHistory, scoreDetails, dominanceScore);
+        return _playerRecordStore.TrySaveSeasonResult(_playerName, _offensiveTeam.Name, scoreHistory, scoreDetails, dominanceScore, out _leaderboardSummary);
     }
 
     private void ResetSeasonProgress()

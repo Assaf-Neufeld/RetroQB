@@ -53,6 +53,7 @@ public sealed class LeaderboardSummary
     public bool IsLatestSeason { get; }
     public int? PlayerRank { get; }
     public IReadOnlyList<LeaderboardEntry> Entries { get; }
+    public string StorageMessage { get; init; } = string.Empty;
 
     public LeaderboardEntry CurrentPlayerEntry => Entries.FirstOrDefault(entry => entry.IsCurrentPlayer);
     public int? CurrentPlayerRank => CurrentPlayerEntry.Rank > 0 ? CurrentPlayerEntry.Rank : PlayerRank;

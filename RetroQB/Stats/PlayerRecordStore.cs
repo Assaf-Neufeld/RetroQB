@@ -13,13 +13,20 @@ public sealed class PlayerRecordStore
 
     private readonly string _savePath;
     private readonly List<PlayerRecord> _records = new();
+    private bool _loadFailed;
+    private bool _recoveredFromBackup;
 
-    public PlayerRecordStore()
+    public string StatusMessage { get; private set; } = string.Empty;
+
+    public PlayerRecordStore() : this(Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "RetroQB", "player-records.json"))
     {
-        string root = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "RetroQB");
-        _savePath = Path.Combine(root, "player-records.json");
+    }
+
+    public PlayerRecordStore(string savePath)
+    {
+        _savePath = Path.GetFullPath(savePath);
         Load();
     }
 
@@ -52,11 +59,22 @@ public sealed class PlayerRecordStore
             savedScore,
             isLatestSeason,
             rank,
-            entries);
+            entries) { StorageMessage = StatusMessage };
     }
 
-    public LeaderboardSummary SaveSeasonResult(string playerName, string teamName, string scoreHistory, string scoreDetails, float seasonScore)
+    public bool TrySaveSeasonResult(string playerName, string teamName, string scoreHistory, string scoreDetails, float seasonScore, out LeaderboardSummary summary)
     {
+        // Allow retry after the user restores an unreadable save or fixes access.
+        if (_loadFailed)
+        {
+            Load();
+            if (_loadFailed)
+            {
+                summary = BuildSummary(playerName, seasonScore);
+                return false;
+            }
+        }
+
         string normalizedName = NormalizeName(playerName);
         string normalizedTeamName = NormalizeStoredTeamName(teamName);
         string normalizedScoreHistory = NormalizeScoreHistory(scoreHistory);
@@ -65,16 +83,22 @@ public sealed class PlayerRecordStore
 
         _records.Add(new PlayerRecord(normalizedName, normalizedTeamName, normalizedScoreHistory, normalizedScoreDetails, seasonScore, savedAtUtc));
 
-        Save();
+        try
+        {
+            Save();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            // A failed attempt must not appear saved or duplicate the score on retry.
+            _records.RemoveAt(_records.Count - 1);
+            StatusMessage = "Could not save. Check disk access, then press ENTER.";
+            summary = BuildSummary(normalizedName, seasonScore);
+            return false;
+        }
 
-        var summary = BuildSummary(normalizedName, seasonScore, isLatestSeason: true);
-        return new LeaderboardSummary(
-            summary.PlayerName,
-            summary.SeasonScore,
-            seasonScore,
-            true,
-            summary.PlayerRank,
-            summary.Entries);
+        StatusMessage = string.Empty;
+        summary = BuildSummary(normalizedName, seasonScore, isLatestSeason: true);
+        return true;
     }
 
     public IReadOnlyList<PlayerRecord> GetLeaderboard()
@@ -97,23 +121,52 @@ public sealed class PlayerRecordStore
     private void Load()
     {
         _records.Clear();
+        _loadFailed = false;
+        _recoveredFromBackup = false;
+        StatusMessage = string.Empty;
 
-        if (!File.Exists(_savePath))
+        if (TryReadRecords(_savePath, out var records, out bool primaryMissing))
         {
+            _records.AddRange(records);
             return;
         }
 
+        if (TryReadRecords(_savePath + ".bak", out records, out bool backupMissing))
+        {
+            _records.AddRange(records);
+            _recoveredFromBackup = true;
+            StatusMessage = "Recovered leaderboard backup; latest scores may be missing.";
+            return;
+        }
+
+        // Only two missing files mean a new leaderboard. Never overwrite unreadable data.
+        _loadFailed = !primaryMissing || !backupMissing;
+        if (_loadFailed)
+        {
+            StatusMessage = "Cannot load leaderboard. Restore save files, then retry.";
+        }
+    }
+
+    private static bool TryReadRecords(string path, out List<PlayerRecord> records, out bool missing)
+    {
+        records = new();
+        missing = false;
         try
         {
-            string json = File.ReadAllText(_savePath);
+            string json = File.ReadAllText(path);
             StorageModel? model = JsonSerializer.Deserialize<StorageModel>(json, JsonOptions);
             if (model?.Records is null)
             {
-                return;
+                return false;
             }
 
             foreach (StorageRecord record in model.Records)
             {
+                if (record is null)
+                {
+                    return false;
+                }
+
                 string normalizedName = NormalizeName(record.Name);
                 if (string.IsNullOrWhiteSpace(normalizedName))
                 {
@@ -128,12 +181,18 @@ public sealed class PlayerRecordStore
                 string teamName = NormalizeStoredTeamName(record.TeamName);
                 string scoreHistory = NormalizeScoreHistory(record.ScoreHistory);
                 string scoreDetails = NormalizeScoreDetails(record.ScoreDetails);
-                _records.Add(new PlayerRecord(normalizedName, teamName, scoreHistory, scoreDetails, score, record.LastUpdatedUtc));
+                records.Add(new PlayerRecord(normalizedName, teamName, scoreHistory, scoreDetails, score, record.LastUpdatedUtc));
             }
+            return true;
         }
-        catch
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
         {
-            _records.Clear();
+            missing = true;
+            return false;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            return false;
         }
     }
 
@@ -160,8 +219,38 @@ public sealed class PlayerRecordStore
                 .ToList()
         };
 
-        string json = JsonSerializer.Serialize(model, JsonOptions);
-        File.WriteAllText(_savePath, json);
+        // Write and flush in the same directory before atomically replacing the save.
+        string temporaryPath = _savePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                JsonSerializer.Serialize(stream, model, JsonOptions);
+                stream.Flush(flushToDisk: true);
+            }
+
+            if (File.Exists(_savePath))
+            {
+                // Keep the good backup when the primary was corrupt or unreadable.
+                string backupPath = _recoveredFromBackup
+                    ? _savePath + ".corrupt-" + Guid.NewGuid().ToString("N")
+                    : _savePath + ".bak";
+                File.Replace(temporaryPath, _savePath, backupPath);
+            }
+            else
+            {
+                File.Move(temporaryPath, _savePath);
+            }
+
+            _recoveredFromBackup = false;
+        }
+        finally
+        {
+            // Cleanup must not turn a committed save into a reported failure.
+            try { File.Delete(temporaryPath); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
     }
 
     private int FindRecordIndex(string normalizedName)
@@ -288,7 +377,7 @@ public sealed class PlayerRecordStore
 
     private sealed class StorageModel
     {
-        public List<StorageRecord> Records { get; set; } = new();
+        public List<StorageRecord>? Records { get; set; }
     }
 
     private sealed class StorageRecord

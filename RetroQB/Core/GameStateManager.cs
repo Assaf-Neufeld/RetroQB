@@ -12,6 +12,12 @@ public sealed class GameStateManager
 
     public void TogglePause()
     {
+        // Menus handle Escape themselves (for example, closing the leaderboard).
+        if (State is GameState.MainMenu or GameState.PlayerNameEntry or GameState.NameConflict)
+        {
+            return;
+        }
+
         IsPaused = !IsPaused;
     }
 

@@ -18,7 +18,7 @@ public sealed class MenuRenderer
         string secretPasswordInput,
         string secretPasswordMessage)
     {
-        DrawBaseMenu(selectedTeamIndex, teams);
+        DrawBaseMenu(selectedTeamIndex, teams, leaderboardSummary.StorageMessage);
 
         if (showLeaderboard)
         {
@@ -120,7 +120,7 @@ public sealed class MenuRenderer
         DrawCenteredText("Press 1 or 2", panelX, panelWidth, contentY, 16, new Color(170, 190, 210, 255));
     }
 
-    private void DrawBaseMenu(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams)
+    private void DrawBaseMenu(int selectedTeamIndex, IReadOnlyList<OffensiveTeamAttributes> teams, string storageMessage = "")
     {
         int screenH = Raylib.GetScreenHeight();
         bool denseTeamLayout = teams.Count > 5;
@@ -291,14 +291,15 @@ public sealed class MenuRenderer
         string controls1 = $"Press 1-{Math.Min(teams.Count, OffensiveTeamPresets.StandardTeamCount)} to select team";
         string controls2 = "Press ENTER to start";
         string controls3 = "Press 0 for secret team";
-        string controls4 = "Press L for leaderboard";
+        string controls4 = string.IsNullOrEmpty(storageMessage)
+            ? "Press L for leaderboard"
+            : storageMessage + " [L]";
         int ctrlSize = denseTeamLayout ? 13 : compactLayout ? 14 : 16;
         int ctrlGap = denseTeamLayout ? 4 : compactLayout ? 6 : 8;
 
         int ctrl1Width = Raylib.MeasureText(controls1, ctrlSize);
         int ctrl2Width = Raylib.MeasureText(controls2, ctrlSize);
         int ctrl3Width = Raylib.MeasureText(controls3, ctrlSize);
-        int ctrl4Width = Raylib.MeasureText(controls4, ctrlSize);
 
         Raylib.DrawText(controls1, panelX + (panelWidth - ctrl1Width) / 2, contentY, ctrlSize, new Color(160, 180, 200, 255));
         contentY += ctrlSize + ctrlGap;
@@ -306,7 +307,8 @@ public sealed class MenuRenderer
         contentY += ctrlSize + ctrlGap;
         Raylib.DrawText(controls3, panelX + (panelWidth - ctrl3Width) / 2, contentY, ctrlSize, Palette.Gold);
         contentY += ctrlSize + ctrlGap;
-        Raylib.DrawText(controls4, panelX + (panelWidth - ctrl4Width) / 2, contentY, ctrlSize, Palette.Cyan);
+        DrawCenteredText(controls4, panelX, panelWidth, contentY, ctrlSize,
+            string.IsNullOrEmpty(storageMessage) ? Palette.Cyan : Palette.Orange);
     }
 
     private void DrawSecretTeamPrompt(string passwordInput, string message)
@@ -356,7 +358,9 @@ public sealed class MenuRenderer
         DrawCenteredText("DOMINANCE LEADERBOARD", panelX, panelWidth, contentY, 30, Palette.Gold);
         contentY += 42;
 
-        string subtitle = leaderboardSummary.Entries.Count == 0
+        string subtitle = !string.IsNullOrEmpty(leaderboardSummary.StorageMessage)
+            ? leaderboardSummary.StorageMessage
+            : leaderboardSummary.Entries.Count == 0
             ? "No saved seasons yet"
             : "Saved dominance scores";
         DrawCenteredText(subtitle, panelX, panelWidth, contentY, 16, new Color(180, 200, 220, 255));
