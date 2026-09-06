@@ -12,6 +12,7 @@ public abstract class Entity
     public float Radius;
     public string Glyph;
     public Color Color;
+    public PlayerAnimation Animation { get; } = new();
 
     protected Entity(Vector2 position, float radius, string glyph, Color color)
     {
@@ -30,6 +31,6 @@ public abstract class Entity
     public virtual void Draw()
     {
         Vector2 screen = Constants.WorldToScreen(Position);
-        PixelPlayerRenderer.Draw(screen, Velocity, Glyph, Color);
+        PixelPlayerRenderer.Draw(screen, Velocity, Glyph, Color, Animation.Frame);
     }
 }

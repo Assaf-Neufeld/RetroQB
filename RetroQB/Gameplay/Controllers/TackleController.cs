@@ -84,6 +84,8 @@ public sealed class TackleController
                     }
                 }
 
+                carrier.Animation.Trigger(PlayerPose.Tackled, defender.Position - carrier.Position);
+                defender.Animation.Trigger(PlayerPose.Tackled, carrier.Position - defender.Position);
                 return TackleCheckResult.Tackle;
             }
         }

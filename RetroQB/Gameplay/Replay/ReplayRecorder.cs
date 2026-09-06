@@ -43,7 +43,7 @@ public sealed class ReplayRecorder
         IReadOnlyList<Defender> defenders,
         float lineOfScrimmage,
         float firstDownLine,
-        float dt)
+        float dt, int down = 1)
     {
         if (!_isRecording)
         {
@@ -63,6 +63,7 @@ public sealed class ReplayRecorder
             ElapsedSeconds = _elapsedSeconds,
             LineOfScrimmage = lineOfScrimmage,
             FirstDownLine = firstDownLine,
+            Down = down,
             Quarterback = new ReplayActorFrame(
                 0,
                 ReplayActorKind.Quarterback,
@@ -73,7 +74,7 @@ public sealed class ReplayRecorder
                 qb.Color,
                 ball.Holder == qb,
                 true,
-                false),
+                false, qb.Animation.Frame),
             Receivers = receivers
                 .Select(receiver => new ReplayActorFrame(
                     100 + receiver.Index,
@@ -85,7 +86,7 @@ public sealed class ReplayRecorder
                     receiver.Color,
                     ball.Holder == receiver,
                     receiver.Eligible,
-                    receiver.IsBlocking))
+                    receiver.IsBlocking, receiver.Animation.Frame))
                 .ToList(),
             Blockers = blockers
                 .Select((blocker, index) => new ReplayActorFrame(
@@ -98,7 +99,7 @@ public sealed class ReplayRecorder
                     blocker.Color,
                     ball.Holder == blocker,
                     false,
-                    false))
+                    false, blocker.Animation.Frame))
                 .ToList(),
             Defenders = defenders
                 .Select((defender, index) => new ReplayActorFrame(
@@ -111,7 +112,7 @@ public sealed class ReplayRecorder
                     defender.Color,
                     ball.Holder == defender,
                     false,
-                    false))
+                    false, defender.Animation.Frame))
                 .ToList(),
             Ball = new ReplayBallFrame(
                 ball.Position,
@@ -140,6 +141,7 @@ public sealed class ReplayRecorder
             return null;
         }
 
+        AppendContactAnimation();
         float duration = _frames[^1].ElapsedSeconds;
         float captureFps = duration > 0f ? _frames.Count / duration : Constants.TargetFps;
         var frames = _frames.ToList();
@@ -158,6 +160,36 @@ public sealed class ReplayRecorder
         _elapsedSeconds = 0f;
         _isRecording = false;
         _playNumber = 0;
+    }
+
+    private void AppendContactAnimation()
+    {
+        ReplayFrame last = _frames[^1];
+        if (last.Quarterback.Visual.Pose != PlayerPose.Tackled
+            && !last.Receivers.Any(actor => actor.Visual.Pose == PlayerPose.Tackled)) return;
+
+        // A short visual-only finish: the recorded spot, possession and stats stay fixed.
+        for (int i = 1; i <= 21; i++)
+        {
+            float elapsed = i / 60f;
+            ReplayActorFrame Settle(ReplayActorFrame actor) => actor with
+            {
+                Velocity = Vector2.Zero,
+                Visual = PlayerAnimation.Advance(actor.Visual, elapsed, Vector2.Zero)
+            };
+            _frames.Add(new ReplayFrame
+            {
+                ElapsedSeconds = last.ElapsedSeconds + elapsed,
+                LineOfScrimmage = last.LineOfScrimmage,
+                FirstDownLine = last.FirstDownLine,
+                Down = last.Down,
+                Quarterback = Settle(last.Quarterback),
+                Receivers = last.Receivers.Select(Settle).ToList(),
+                Blockers = last.Blockers.Select(Settle).ToList(),
+                Defenders = last.Defenders.Select(Settle).ToList(),
+                Ball = last.Ball
+            });
+        }
     }
 
     private static int GetEntityReplayId(Entity? entity, IReadOnlyList<Receiver> receivers, IReadOnlyList<Blocker> blockers, IReadOnlyList<Defender> defenders)
@@ -428,6 +460,7 @@ public sealed class ReplayRecorder
                 ElapsedSeconds = elapsed,
                 LineOfScrimmage = frame.LineOfScrimmage,
                 FirstDownLine = frame.FirstDownLine,
+                Down = frame.Down,
                 Quarterback = frame.Quarterback,
                 Receivers = frame.Receivers,
                 Blockers = frame.Blockers,

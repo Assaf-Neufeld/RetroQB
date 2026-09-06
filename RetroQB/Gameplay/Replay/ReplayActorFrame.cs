@@ -1,5 +1,6 @@
 using System.Numerics;
 using Raylib_cs;
+using RetroQB.Entities;
 
 namespace RetroQB.Gameplay.Replay;
 
@@ -21,4 +22,5 @@ public readonly record struct ReplayActorFrame(
     Color Color,
     bool HasBall,
     bool Eligible,
-    bool IsBlocking);
+    bool IsBlocking,
+    PlayerVisualFrame Visual = default);

@@ -8,7 +8,7 @@ internal sealed class FieldSurfaceRenderer
     private static readonly Color StripeDark = new(10, 70, 30, 255);
     private static readonly Color StripeLight = Palette.Field;
 
-    public void Draw(string homeTeamName, Color homeTeamColor, string awayTeamName, Color awayTeamColor)
+    public void Draw(string homeTeamName, Color homeTeamColor, string awayTeamName, Color awayTeamColor, float lineOfScrimmage)
     {
         Rectangle rect = Constants.FieldRect;
 
@@ -38,9 +38,29 @@ internal sealed class FieldSurfaceRenderer
         }
 
         DrawTurfGrain(rect);
+        DrawTurfWear(rect, lineOfScrimmage);
         DrawMidfieldTurfEmblem(rect);
 
         DrawEndZones(rect, homeTeamName, homeTeamColor, awayTeamName, awayTeamColor);
+    }
+
+    private static void DrawTurfWear(Rectangle field, float lineOfScrimmage)
+    {
+        // Fixed world-space cleat marks: changing the LOS never moves the texture.
+        // A small contrast boost near the current pocket suggests concentrated wear.
+        for (int i = 0; i < 180; i++)
+        {
+            float worldX = 8f + (i * 37 % 370) / 10f;
+            float worldY = Constants.EndZoneDepth + 3f + (i * 53 % 940) / 10f;
+            float distance = MathF.Abs(worldY - lineOfScrimmage);
+            int alpha = distance < 4f ? 38 : 14;
+            int x = (int)Constants.WorldToScreenX(worldX);
+            int y = (int)Constants.WorldToScreenY(worldY);
+            int length = Math.Clamp((int)(field.Width / 100f), 1, 4);
+            Raylib.DrawRectangle(x, y, length, 1, new Color(153, 144, 83, alpha));
+            if (i % 3 == 0)
+                Raylib.DrawPixel(x + 1, y + 2, new Color(6, 44, 22, alpha + 8));
+        }
     }
 
     private static void DrawMidfieldTurfEmblem(Rectangle field)
@@ -178,9 +198,18 @@ internal sealed class FieldSurfaceRenderer
         int drawX = x + (width - textWidth) / 2;
         int drawY = y + (height - fontSize) / 2;
 
-        Color shadow = new(8, 8, 8, 150);
-        Raylib.DrawText(label, drawX + 2, drawY + 2, fontSize, shadow);
+        // Paint sits on the turf: a thin dark keyline replaces the raised drop shadow.
+        Color keyline = new(9, 21, 18, 160);
+        Raylib.DrawText(label, drawX - 1, drawY, fontSize, keyline);
+        Raylib.DrawText(label, drawX + 1, drawY, fontSize, keyline);
         Raylib.DrawText(label, drawX, drawY, fontSize, textColor);
+        // Sparse translucent grain runs through both lettering and end-zone paint.
+        for (int i = 0; i < 48; i++)
+        {
+            int px = drawX + (i * 47 % Math.Max(1, textWidth));
+            int py = drawY + 2 + (i * 13 % Math.Max(1, fontSize - 4));
+            Raylib.DrawPixel(px, py, new Color(20, 39, 28, 55));
+        }
     }
 
     private static Color ContrastTextColor(Color background)

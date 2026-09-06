@@ -22,6 +22,7 @@ public static class Constants
     // Dynamic field rect - call UpdateFieldRect each frame
     private static Rectangle _fieldRect = new(300, 40, 284, 640);
     public static Rectangle FieldRect => _fieldRect;
+    public static int SidelineApronWidth => Math.Max(12, (int)(FieldRect.Width * 0.06f));
 
     public static void UpdateFieldRect()
     {
@@ -30,23 +31,29 @@ public static class Constants
         
         // Field centered between left HUD and right scoreboard columns
         float availableWidth = screenW - SidePanelWidth - ScoreboardPanelWidth - (OuterMargin * 2) - (ColumnGap * 2);
-        float availableHeight = screenH - (OuterMargin * 2);
+        // Leave room for end-zone decks and the widest stadium stage. Use the
+        // same envelope in every stage so advancing never changes the camera scale.
+        float aspectRatio = FieldWidth / FieldLength;
+        // Each end needs a 16px deck, 4px gap, 6px outer margin and the
+        // apron (6% of field width, at least 12px). Solve before sizing the field.
+        float availableHeight = Math.Max(120f,
+            Math.Min(screenH - 76f, (screenH - 52f) / (1f + 0.12f * aspectRatio)));
+        float maxFieldWidth = Math.Max(80f, (availableWidth - 64f) / 1.58f);
         
         // Calculate field size maintaining proper aspect ratio (53.3:120)
-        float aspectRatio = FieldWidth / FieldLength;
         float fieldHeight = availableHeight;
         float fieldWidth = fieldHeight * aspectRatio;
         
         // If too wide, scale down
-        if (fieldWidth > availableWidth)
+        if (fieldWidth > maxFieldWidth)
         {
-            fieldWidth = availableWidth;
+            fieldWidth = maxFieldWidth;
             fieldHeight = fieldWidth / aspectRatio;
         }
         
         // Center the field in the available area (between side panel and scoreboard)
         float fieldX = OuterMargin + SidePanelWidth + ColumnGap + (availableWidth - fieldWidth) / 2;
-        float fieldY = OuterMargin + (availableHeight - fieldHeight) / 2;
+        float fieldY = (screenH - fieldHeight) / 2;
         
         _fieldRect = new Rectangle(fieldX, fieldY, fieldWidth, fieldHeight);
     }

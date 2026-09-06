@@ -71,6 +71,11 @@ public sealed class GameSession : IDisposable
     private List<string> _blitzers = new();
     private int _selectedTeamIndex;
     private float _crowdMomentum;
+    private float _crowdAnimationTime;
+    private float _crowdReactionAge = -1f;
+    private float _crowdReactionStrength;
+    private float _crowdReactionFieldY;
+    private bool _crowdReactionForHome;
     private float _crowdSurge;
     private float _crowdCarryoverBuzz;
     private float _crowdCarryoverMomentum;
@@ -262,6 +267,9 @@ public sealed class GameSession : IDisposable
         _manualPlaySelection = false;
         _autoPlaySelectionDone = false;
         _crowdMomentum = 0f;
+        _crowdAnimationTime = 0f;
+        _crowdReactionAge = -1f;
+        _crowdReactionStrength = 0f;
         _crowdSurge = 0f;
         _crowdCarryoverBuzz = 0f;
         _crowdCarryoverMomentum = 0f;
@@ -328,6 +336,15 @@ public sealed class GameSession : IDisposable
         }
 
         _drawingController.UpdateFireworks(dt);
+        if (_stateManager.State != GameState.Replay)
+        {
+            bool moving = _stateManager.State == GameState.PlayActive;
+            void Animate(Entity? actor) => actor?.Animation.Update(dt, moving ? actor.Velocity : Vector2.Zero);
+            Animate(_entities.Qb);
+            foreach (var actor in _entities.Receivers) Animate(actor);
+            foreach (var actor in _entities.Blockers) Animate(actor);
+            foreach (var actor in _entities.Defenders) Animate(actor);
+        }
         UpdateCrowdEnergy(dt);
         UpdateDriveSummaryScroll();
 
@@ -572,7 +589,7 @@ public sealed class GameSession : IDisposable
             _entities.Defenders,
             _playManager.LineOfScrimmage,
             _playManager.FirstDownLine,
-            dt);
+            dt, _playManager.Down);
 
         // Handle ball state
         HandleBall(dt);
@@ -776,6 +793,11 @@ public sealed class GameSession : IDisposable
             spot = Constants.EndZoneDepth + 100f;
         }
 
+        // Preserve the terminal catch/contact pose and the original down before
+        // resolving the drive advances its markers to the next play.
+        _replayRecorder.Capture(_entities.Qb, _entities.Ball, _entities.Receivers,
+            _entities.Blockers, _entities.Defenders, _playManager.LineOfScrimmage,
+            _playManager.FirstDownLine, 0f, _playManager.Down);
         PlayResult result = _playManager.ResolvePlay(spot, incomplete, passDefended, intercepted, touchdown, tackleMessageOverride: isSack ? $"SACK! -{sackYardsLost} yds" : null);
 
         ReplayClip? clip = _replayRecorder.FinalizeClip(result.Outcome);
@@ -1015,6 +1037,8 @@ public sealed class GameSession : IDisposable
 
     private void UpdateCrowdEnergy(float dt)
     {
+        _crowdAnimationTime += dt;
+        if (_crowdReactionAge >= 0f) _crowdReactionAge += dt;
         UpdateLiveCrowdState();
 
         float situationalBuzzFloor = GetSituationalCrowdFloor();
@@ -1069,6 +1093,10 @@ public sealed class GameSession : IDisposable
         _crowdCarryoverBuzz = Math.Clamp(MathF.Max(_crowdCarryoverBuzz, carryoverStrength), 0f, 1f);
         _crowdSurge = Math.Clamp(MathF.Max(_crowdSurge, highlightLevel + (endZoneBoost * 0.18f)), 0f, 1f);
         TriggerHomeCrowdChant(result, gain, isSack, highlightLevel, offenseSwing, playEndPosition);
+        _crowdReactionAge = 0f;
+        _crowdReactionStrength = highlightLevel;
+        _crowdReactionFieldY = Math.Clamp((playEndPosition.Y - Constants.EndZoneDepth) / 100f, 0f, 1f);
+        _crowdReactionForHome = offenseSwing >= 0f;
     }
 
     private CrowdBackdropState BuildCrowdBackdropState()
@@ -1106,7 +1134,8 @@ public sealed class GameSession : IDisposable
         float chantFieldX = Math.Clamp(_homeCrowdChantWorldPosition.X / Constants.FieldWidth, 0f, 1f);
         float chantFieldY = Math.Clamp((_homeCrowdChantWorldPosition.Y - Constants.EndZoneDepth) / 100f, 0f, 1f);
 
-        return new CrowdBackdropState(homeEnergy, awayEnergy, overall, _homeCrowdChant, chantStrength, chantFieldX, chantFieldY);
+        return new CrowdBackdropState(homeEnergy, awayEnergy, overall, _homeCrowdChant, chantStrength, chantFieldX, chantFieldY,
+            _crowdReactionAge, _crowdReactionStrength, _crowdReactionFieldY, _crowdReactionForHome, _crowdAnimationTime);
     }
 
     private void TriggerHomeCrowdChant(PlayResult result, float gain, bool isSack, float highlightLevel, float offenseSwing, Vector2 playEndPosition)

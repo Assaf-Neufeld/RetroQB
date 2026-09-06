@@ -259,6 +259,7 @@ public sealed class BallController
         }
 
         receiver.HasBall = true;
+        receiver.Animation.Trigger(PlayerPose.Catching, ball.Position - receiver.Position);
         ball.SetHeld(receiver, BallState.HeldByReceiver);
         if (_passAttemptedThisPlay && !_passCompletedThisPlay)
         {
@@ -383,6 +384,7 @@ public sealed class BallController
 
         _passDefenseAttemptedThisThrow = false;
         ball.SetInAir(qb.Position, throwVelocity, intendedDistance, maxTravelDistance, arcApexHeight);
+        qb.Animation.Trigger(PlayerPose.Throwing, throwVelocity);
     }
 
     private static Vector2 GetTargetVelocityForThrow(Quarterback qb, Receiver receiver)
