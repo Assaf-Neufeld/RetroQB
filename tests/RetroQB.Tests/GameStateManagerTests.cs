@@ -6,6 +6,7 @@ public sealed class GameStateManagerTests
 {
     [Theory]
     [InlineData(GameState.PreSnap)]
+    [InlineData(GameState.Pregame)]
     [InlineData(GameState.PlayActive)]
     [InlineData(GameState.Replay)]
     [InlineData(GameState.PlayOver)]

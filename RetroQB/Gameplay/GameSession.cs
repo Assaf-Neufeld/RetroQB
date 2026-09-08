@@ -199,6 +199,7 @@ public sealed class GameSession : IDisposable
         ResetPlayState();
         _replayRecorder.Reset();
         _drawingController.Fireworks.Clear();
+        _stateManager.SetState(GameState.Pregame);
     }
 
     /// <summary>
@@ -253,7 +254,6 @@ public sealed class GameSession : IDisposable
         {
             _currentStage = nextStage.Value;
             InitializeGame();
-            _stateManager.SetState(GameState.PreSnap);
         }
     }
 
@@ -363,6 +363,12 @@ public sealed class GameSession : IDisposable
                 break;
             case GameState.NameConflict:
                 HandleNameConflict();
+                break;
+            case GameState.Pregame:
+                if (_menuController.IsConfirmPressed())
+                {
+                    _stateManager.SetState(GameState.PreSnap);
+                }
                 break;
             case GameState.PreSnap:
                 HandlePreSnap();
@@ -1438,7 +1444,6 @@ public sealed class GameSession : IDisposable
     private void StartFreshGame()
     {
         InitializeGame();
-        _stateManager.SetState(GameState.PreSnap);
         _manualPlaySelection = false;
         _autoPlaySelectionDone = false;
     }

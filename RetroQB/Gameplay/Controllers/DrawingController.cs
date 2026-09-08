@@ -100,6 +100,15 @@ public sealed class DrawingController
             currentStage,
             crowdState, playManager.Down);
 
+        if (gameState == GameState.Pregame)
+        {
+            PregameRenderer.Draw(offensiveTeam, defensiveTeam, currentStage);
+            if (isPaused) _hudRenderer.DrawPause();
+            if (shake != Vector2.Zero) Rlgl.PopMatrix();
+            RetroScreenOverlay.Draw();
+            return;
+        }
+
         _fireworks.Draw();
         FootballRenderer.DrawGroundShadow(ball.Position, ball.State, ball.GetArcHeight());
 

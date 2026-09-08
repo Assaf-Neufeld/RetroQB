@@ -53,7 +53,7 @@ You are trying to survive a full three-stage run:
 
 ## 🏈 Game flow
 
-1. **Choose a team** with its own offensive personality.
+1. **Choose a team** with its own offensive personality. Before each game, a matchup screen announces both teams, the season stage, and the opponent's top defensive strength. Press **Enter** to take the field.
 2. **Pick a play** before the snap — pass or run, safe or bold.
 3. **Read the defense** and identify your best option.
 4. **Snap the ball** and react fast.

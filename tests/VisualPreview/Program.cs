@@ -11,7 +11,10 @@ using RetroQB.Rendering;
 using RetroQB.Stats;
 
 bool readmeScreenshot = args.Length > 0 && args[0] == "--readme";
-string output = Path.GetFullPath(readmeScreenshot
+bool pregameScreenshots = args.Length > 0 && args[0] == "--pregame";
+string output = Path.GetFullPath(pregameScreenshots
+    ? (args.Length > 1 ? args[1] : "artifacts/pregame")
+    : readmeScreenshot
     ? (args.Length > 1 ? args[1] : "screenshots/gameplay.png")
     : (args.Length > 0 ? args[0] : "artifacts/visual-phase3"));
 Directory.CreateDirectory(readmeScreenshot ? Path.GetDirectoryName(output)! : output);
@@ -19,6 +22,34 @@ Raylib.SetConfigFlags(ConfigFlags.HiddenWindow);
 Raylib.InitWindow(1280, 720, "RetroQB visual preview");
 try
 {
+    if (pregameScreenshots)
+    {
+        foreach (var (width, height) in new[] { (1000, 700), (1280, 720), (1920, 1080) })
+        foreach (var stage in Enum.GetValues<SeasonStage>())
+        {
+            Raylib.SetWindowSize(width, height);
+            Constants.UpdateFieldRect();
+            var offense = OffensiveTeamPresets.Ballers;
+            var defense = DefensiveTeamPresets.All[stage.GetStageNumber() - 1];
+            var target = Raylib.LoadRenderTexture(width, height);
+            Raylib.BeginTextureMode(target);
+            Raylib.ClearBackground(Palette.Background);
+            new FieldRenderer().DrawField(40, 50, offense.Name, offense.PrimaryColor,
+                defense.Name, defense.PrimaryColor, stage, default);
+            PregameRenderer.Draw(offense, defense, stage);
+            RetroScreenOverlay.Draw();
+            Raylib.EndTextureMode();
+            var capture = Raylib.LoadImageFromTexture(target.Texture);
+            Raylib.ImageFlipVertical(ref capture);
+            string path = Path.Combine(output, $"pregame-{width}-{stage}.png");
+            if (!Raylib.ExportImage(capture, path)) throw new IOException($"Could not export {path}");
+            Raylib.UnloadImage(capture);
+            Raylib.UnloadRenderTexture(target);
+            Console.WriteLine(path);
+        }
+        return;
+    }
+
     if (readmeScreenshot)
     {
         RenderReadmeScreenshot(output);
