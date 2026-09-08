@@ -1,15 +1,30 @@
 using System.Numerics;
 using Raylib_cs;
 using RetroQB.Core;
+using RetroQB.Data;
 using RetroQB.Entities;
+using RetroQB.Gameplay;
+using RetroQB.Gameplay.Controllers;
+using RetroQB.Gameplay.Replay;
+using RetroQB.Input;
 using RetroQB.Rendering;
+using RetroQB.Stats;
 
-string output = Path.GetFullPath(args.Length > 0 ? args[0] : "artifacts/visual-phase3");
-Directory.CreateDirectory(output);
+bool readmeScreenshot = args.Length > 0 && args[0] == "--readme";
+string output = Path.GetFullPath(readmeScreenshot
+    ? (args.Length > 1 ? args[1] : "screenshots/gameplay.png")
+    : (args.Length > 0 ? args[0] : "artifacts/visual-phase3"));
+Directory.CreateDirectory(readmeScreenshot ? Path.GetDirectoryName(output)! : output);
 Raylib.SetConfigFlags(ConfigFlags.HiddenWindow);
 Raylib.InitWindow(1280, 720, "RetroQB visual preview");
 try
 {
+    if (readmeScreenshot)
+    {
+        RenderReadmeScreenshot(output);
+        return;
+    }
+
     foreach (var (width, height) in new[] {
         (1280, 720), (1920, 1080),
         (1000, 700) })
@@ -57,6 +72,38 @@ try
     RenderGoalLinePreview(output);
 }
 finally { Raylib.CloseWindow(); }
+
+static void RenderReadmeScreenshot(string path)
+{
+    const int width = 1440;
+    const int height = 900;
+    Raylib.SetWindowSize(width, height);
+    Constants.UpdateFieldRect();
+    var state = new GameStateManager();
+    using var session = new GameSession(state, new PlayManager(), new InputManager(),
+        new FieldRenderer(), new HudRenderer(), new FireworksEffect(), new Random(42),
+        new FormationFactory(), new DefenseFactory(), new StatisticsTracker(),
+        new ThrowingMechanics(), new ReplayRecorder(), new ReplayClipStore(),
+        new ReplayPlayer(), new ReplayStateHandler());
+    session.SetOffensiveTeam(OffensiveTeamPresets.Ballers);
+    session.SetDefensiveTeam(DefensiveTeamPresets.ScarletGuard);
+    state.SetState(GameState.PreSnap);
+    // Let the normal pre-snap logic select a play and build both teams.
+    session.Update(1f / 60f);
+
+    var target = Raylib.LoadRenderTexture(width, height);
+    Raylib.BeginTextureMode(target);
+    Raylib.ClearBackground(Palette.Background);
+    session.Draw();
+    Raylib.EndTextureMode();
+    var capture = Raylib.LoadImageFromTexture(target.Texture);
+    Raylib.ImageFlipVertical(ref capture);
+    if (!Raylib.ExportImage(capture, path))
+        throw new IOException($"Could not export screenshot to {path}");
+    Raylib.UnloadImage(capture);
+    Raylib.UnloadRenderTexture(target);
+    Console.WriteLine(path);
+}
 
 static void RenderActionSheet(string output)
 {

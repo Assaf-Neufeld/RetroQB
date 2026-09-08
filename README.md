@@ -2,7 +2,7 @@
 
 **Call the play. Read the coverage. Survive the rush. Be the hero.**
 
-RetroQB is a fast, retro-style 2D football game built around the best part of the sport: being the quarterback when everything is on the line. Pick your team, choose your play, scan the field, and try to stay cool while the defense starts doing very rude things.
+RetroQB is a fast, top-down American football game with animated pixel players, a detailed stadium, and a crowd that reacts to the action. Take control of the quarterback: choose a play, read the coverage, and throw on time or scramble out of trouble. Lead your team from the Regular Season through the Playoff to the Super Bowl against defenses that adapt to your decisions.
 
 It is part arcade football fantasy, part drive-management challenge, and part "please let my slot receiver win this route." 
 
@@ -11,11 +11,11 @@ It is part arcade football fantasy, part drive-management challenge, and part "p
 ## 📸 Screenshots
 
 <p align="center">
-  <img src="screenshots/gameplay.png" alt="Gameplay" width="600"/>
+  <img src="screenshots/gameplay.png" alt="RetroQB pre-snap gameplay with pixel players, route overlays, stadium seating, detailed sidelines, and the full scoreboard" width="1000"/>
 </p>
 
 <p align="center">
-  <em>Lead your receivers downfield and find the open man!</em>
+  <em>Ballers vs. Scarlet Guard: read the routes, pick your target, and get ready for the snap.</em>
 </p>
 
 <!-- Add more screenshots as needed:
@@ -32,7 +32,10 @@ It is part arcade football fantasy, part drive-management challenge, and part "p
 Every snap starts with a decision. Do you dial up a quick pass, attack deep, or call a run and trust the blocking? RetroQB keeps play selection simple and readable, so the fun is in the choice: take the safe yards, hunt the big one, or try to outsmart the defense before the ball is even snapped.
 
 ### Feel the game-day atmosphere
-This is not just Xs and Os on a blank field. The stadium has lights, crowd detail, sideline flavor, replay moments, a subtle retro background score, and a scoreboard that keeps the whole drive feeling alive. When you hit a big play, it should feel like the building noticed.
+A complete stadium bowl surrounds the field, with corner seating, tunnels, stairways, and fans wearing team colors, hats, and scarves. Benches, coaches, reserve players, and camera crews fill the sidelines. Crowd reactions ripple through the stands after big plays, while the lighting changes from warm regular-season evenings to the white-and-gold Super Bowl. A subtle retro background score and a full scoreboard round out game day.
+
+### Follow every throw and tackle
+Pixel players turn, run, release passes, reach for catches, and fall on contact. The football has a pointed silhouette, spinning laces, and a ground shadow that helps you follow its flight. Replays preserve those player poses and the final catch or tackle, so you can watch how the play unfolded.
 
 ### Watch the defense adjust
 The defense is not there just to be decorative. Coverages change, blitz looks vary, and tougher stages bring smarter, nastier opponents. As you move from the Regular Season to the Playoff and then the Super Bowl, the defense starts feeling more prepared for what you want to do.
@@ -144,6 +147,7 @@ RetroQB/
 ### Build notes
 
 - Run regression tests with `dotnet test tests/RetroQB.Tests/RetroQB.Tests.csproj`.
+- Refresh the README screenshot from the current game renderer with `dotnet run --project tests/VisualPreview/VisualPreview.csproj -- --readme`. This captures a fresh pre-snap scene with the production HUD at 1440 × 900.
 - Leaderboards are stored in `%LOCALAPPDATA%\RetroQB\player-records.json`, with the previous save in `.bak`. If saving fails, the name-entry screen keeps your season score so you can fix disk access and press Enter to retry. Unreadable saves are preserved; restore a valid save or backup before retrying.
 
 - Build from the repository root.
