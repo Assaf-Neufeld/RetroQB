@@ -157,7 +157,7 @@ RetroQB/
 ### Created with
 
 - Visual Studio Code
-- GitHub Copilot
+- OpenAI Codex
 
 ---
 
