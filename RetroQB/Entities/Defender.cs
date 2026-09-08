@@ -77,7 +77,7 @@ public sealed class Defender : Entity
     public int ActiveBlockersCount { get; set; }
 
     public Defender(Vector2 position, DefensivePosition role, DefenderSlot slot, DefensiveTeamAttributes? teamAttributes = null)
-        : base(position, Constants.DefenderRadius, role.ToString(), Palette.Red)
+        : base(position, Constants.DefenderRadius, role.ToString(), teamAttributes?.PrimaryColor ?? Palette.Red)
     {
         AlignmentPosition = position;
         TeamAttributes = teamAttributes ?? DefensiveTeamAttributes.Default;

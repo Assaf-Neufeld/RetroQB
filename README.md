@@ -71,7 +71,7 @@ If you like football games where the tension comes from decisions more than butt
 - **Readable receiver targeting** — eligible receivers are clearly labeled
 - **Run and pass variety** — not every drive has to look the same
 - **Replay support** — rewatch your best throw or your worst mistake
-- **Team variety** — different rosters support different styles
+- **Team variety** — 10 teams with distinct strengths in throwing power, accuracy, receiver speed and hands, running power and speed, and blocking
 - **Stage-based challenge** — the season arc gives every game a purpose
 
 ---
@@ -89,6 +89,8 @@ If you like football games where the tension comes from decisions more than butt
 | Pause | `Esc` |
 
 ### Pre-snap play selection
+
+At the team menu, use **Up/Down** to browse or **1–9 / 0** to select any of the ten teams, then press **Enter**. Press **G** to enter the secret-team password. The list scrolls to keep your selection visible.
 
 | Action | Key |
 |--------|-----|

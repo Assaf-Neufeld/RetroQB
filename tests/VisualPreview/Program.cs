@@ -12,7 +12,10 @@ using RetroQB.Stats;
 
 bool readmeScreenshot = args.Length > 0 && args[0] == "--readme";
 bool pregameScreenshots = args.Length > 0 && args[0] == "--pregame";
-string output = Path.GetFullPath(pregameScreenshots
+bool teamScreenshots = args.Length > 0 && args[0] == "--teams";
+string output = Path.GetFullPath(teamScreenshots
+    ? (args.Length > 1 ? args[1] : "artifacts/teams")
+    : pregameScreenshots
     ? (args.Length > 1 ? args[1] : "artifacts/pregame")
     : readmeScreenshot
     ? (args.Length > 1 ? args[1] : "screenshots/gameplay.png")
@@ -22,6 +25,29 @@ Raylib.SetConfigFlags(ConfigFlags.HiddenWindow);
 Raylib.InitWindow(1280, 720, "RetroQB visual preview");
 try
 {
+    if (teamScreenshots)
+    {
+        foreach (var (width, height) in new[] { (1000, 700), (1280, 720), (1920, 1080) })
+        foreach (int selected in new[] { 0, 5, 9, 10 })
+        {
+            Raylib.SetWindowSize(width, height);
+            var target = Raylib.LoadRenderTexture(width, height);
+            Raylib.BeginTextureMode(target);
+            Raylib.ClearBackground(Palette.Background);
+            new MenuRenderer().Draw(selected, OffensiveTeamPresets.GetMenuTeams(selected == 10),
+                LeaderboardSummary.Empty, false, false, "", "");
+            Raylib.EndTextureMode();
+            var capture = Raylib.LoadImageFromTexture(target.Texture);
+            Raylib.ImageFlipVertical(ref capture);
+            string path = Path.Combine(output, $"teams-{width}-{selected}.png");
+            if (!Raylib.ExportImage(capture, path)) throw new IOException($"Could not export {path}");
+            Raylib.UnloadImage(capture);
+            Raylib.UnloadRenderTexture(target);
+        }
+        RenderTeamUniforms(output);
+        return;
+    }
+
     if (pregameScreenshots)
     {
         foreach (var (width, height) in new[] { (1000, 700), (1280, 720), (1920, 1080) })
@@ -103,6 +129,43 @@ try
     RenderGoalLinePreview(output);
 }
 finally { Raylib.CloseWindow(); }
+
+static void RenderTeamUniforms(string output)
+{
+    Raylib.SetWindowSize(1280, 900);
+    Constants.UpdateFieldRect();
+    var target = Raylib.LoadRenderTexture(1280, 900);
+    Raylib.BeginTextureMode(target);
+    Raylib.ClearBackground(Palette.Background);
+    Raylib.DrawText("TEAM UNIFORMS / ALL MATCHUPS", 30, 24, 26, Palette.White);
+    string[] labels = ["QB", "WR / OL", "SCARLET GUARD", "CRIMSON RUSH", "BLOODLINE BASTION"];
+    int[] columns = [330, 480, 670, 900, 1140];
+    for (int i = 0; i < labels.Length; i++)
+        Raylib.DrawText(labels[i], columns[i] - Raylib.MeasureText(labels[i], 14) / 2, 83, 14, Palette.White);
+    int row = 0;
+    foreach (var team in OffensiveTeamPresets.GetMenuTeams(true))
+    {
+        int y = 136 + row++ * 65;
+        Raylib.DrawRectangle(24, y - 22, 1232, 60, Palette.Field);
+        Raylib.DrawText(team.Name, 40, y - 5, 18, Palette.White);
+        Color[] colors = [team.PrimaryColor, team.GetUniformColor(),
+            DefensiveTeamPresets.ScarletGuard.PrimaryColor, DefensiveTeamPresets.CrimsonRush.PrimaryColor,
+            DefensiveTeamPresets.BloodlineBastion.PrimaryColor];
+        for (int col = 0; col < colors.Length; col++)
+        {
+            Raylib.BeginMode2D(new Camera2D { Target = Vector2.Zero, Offset = new Vector2(columns[col], y), Zoom = 1.7f });
+            PixelPlayerRenderer.Draw(Vector2.Zero, Vector2.Zero, col == 0 ? "QB" : col == 1 ? "WR" : "DB", colors[col]);
+            Raylib.EndMode2D();
+        }
+    }
+    Raylib.EndTextureMode();
+    var capture = Raylib.LoadImageFromTexture(target.Texture);
+    Raylib.ImageFlipVertical(ref capture);
+    string path = Path.Combine(output, "uniforms.png");
+    if (!Raylib.ExportImage(capture, path)) throw new IOException($"Could not export {path}");
+    Raylib.UnloadImage(capture);
+    Raylib.UnloadRenderTexture(target);
+}
 
 static void RenderReadmeScreenshot(string path)
 {

@@ -41,7 +41,13 @@ public sealed class InputManager
     public bool IsReplaySkipPressed() => Raylib.IsKeyPressed(KeyboardKey.Space);
     public bool IsRestartPressed() => Raylib.IsKeyPressed(KeyboardKey.Z);
     public bool IsLeaderboardPressed() => Raylib.IsKeyPressed(KeyboardKey.L);
-    public bool IsZeroPressed() => Raylib.IsKeyPressed(KeyboardKey.Zero);
+    public bool IsSecretTeamPressed() => Raylib.IsKeyPressed(KeyboardKey.G);
+    public int GetTeamNavigation()
+    {
+        if (Raylib.IsKeyPressed(KeyboardKey.Up)) return -1;
+        if (Raylib.IsKeyPressed(KeyboardKey.Down)) return 1;
+        return 0;
+    }
     public bool IsDriveSummaryScrollOlderPressed() => Raylib.IsKeyPressed(KeyboardKey.PageUp);
     public bool IsDriveSummaryScrollNewerPressed() => Raylib.IsKeyPressed(KeyboardKey.PageDown);
     public float GetMouseWheelMove() => Raylib.GetMouseWheelMove();
@@ -76,7 +82,7 @@ public sealed class InputManager
     }
 
     /// <summary>
-    /// Returns team selection index (0-6) from number keys 1-7, or null if no team key pressed.
+    /// Returns team selection index (0-9) from keys 1-9 and 0, or null if none pressed.
     /// </summary>
     public int? GetTeamSelection()
     {
@@ -87,6 +93,9 @@ public sealed class InputManager
         if (Raylib.IsKeyPressed(KeyboardKey.Five)) return 4;
         if (Raylib.IsKeyPressed(KeyboardKey.Six)) return 5;
         if (Raylib.IsKeyPressed(KeyboardKey.Seven)) return 6;
+        if (Raylib.IsKeyPressed(KeyboardKey.Eight)) return 7;
+        if (Raylib.IsKeyPressed(KeyboardKey.Nine)) return 8;
+        if (Raylib.IsKeyPressed(KeyboardKey.Zero)) return 9;
         return null;
     }
 

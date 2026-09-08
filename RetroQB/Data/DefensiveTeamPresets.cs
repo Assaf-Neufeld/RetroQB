@@ -13,14 +13,14 @@ namespace RetroQB.Data;
 public static class DefensiveTeamPresets
 {
     /// <summary>
-    /// Regular season opponent: balanced defense with a lighter red palette.
+    /// Regular season opponent: balanced defense in bright rose uniforms.
     /// </summary>
     public static DefensiveTeamAttributes ScarletGuard => new()
     {
         Name = "Scarlet Guard",
         Description = "Regular season",
-        PrimaryColor = new Color(176, 62, 62, 255),
-        SecondaryColor = new Color(226, 170, 170, 255),
+        PrimaryColor = new Color(255, 156, 220, 255),
+        SecondaryColor = new Color(112, 28, 78, 255),
         Roster = new DefensiveRoster
         {
             Defenders = new Dictionary<DefenderSlot, DefenderProfile>
@@ -61,14 +61,14 @@ public static class DefensiveTeamPresets
     };
 
     /// <summary>
-    /// Playoff opponent: aggressive blitz-heavy defense with a darker red palette.
+    /// Playoff opponent: aggressive blitz-heavy defense in ice-white uniforms.
     /// </summary>
     public static DefensiveTeamAttributes CrimsonRush => new()
     {
         Name = "Crimson Rush",
         Description = "Playoff",
-        PrimaryColor = new Color(136, 38, 38, 255),
-        SecondaryColor = new Color(191, 122, 122, 255),
+        PrimaryColor = new Color(228, 242, 255, 255),
+        SecondaryColor = new Color(60, 78, 104, 255),
         Roster = new DefensiveRoster
         {
             Defenders = new Dictionary<DefenderSlot, DefenderProfile>
@@ -177,14 +177,14 @@ public static class DefensiveTeamPresets
     };
 
     /// <summary>
-    /// Super Bowl opponent: run-stuffing defense with dominant front seven and darkest red palette.
+    /// Super Bowl opponent: run-stuffing defense with a dominant front seven in electric lime.
     /// </summary>
     public static DefensiveTeamAttributes BloodlineBastion => new()
     {
         Name = "Bloodline Bastion",
         Description = "Super Bowl",
-        PrimaryColor = new Color(88, 18, 18, 255),
-        SecondaryColor = new Color(150, 82, 82, 255),
+        PrimaryColor = new Color(148, 255, 35, 255),
+        SecondaryColor = new Color(42, 78, 20, 255),
         Roster = new DefensiveRoster
         {
             Defenders = new Dictionary<DefenderSlot, DefenderProfile>

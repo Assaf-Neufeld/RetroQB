@@ -56,16 +56,24 @@ public sealed class MenuController
             return false;
         }
 
-        if (_input.IsZeroPressed())
+        if (_input.IsSecretTeamPressed())
         {
             OpenSecretTeamPrompt();
             return false;
         }
 
         int? teamChoice = _input.GetTeamSelection();
-        if (teamChoice.HasValue)
+        if (teamChoice.HasValue && teamChoice.Value < baseTeamCount)
         {
             _selectedTeamIndex = teamChoice.Value;
+        }
+        else
+        {
+            int direction = _input.GetTeamNavigation();
+            if (direction != 0)
+            {
+                _selectedTeamIndex = (_selectedTeamIndex + direction + baseTeamCount) % baseTeamCount;
+            }
         }
 
         return _input.IsEnterPressed();

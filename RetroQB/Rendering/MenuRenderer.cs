@@ -194,7 +194,7 @@ public sealed class MenuRenderer
         Raylib.DrawText(selectHeader, panelX + (panelWidth - headerWidth) / 2, contentY, headerSize, Palette.Yellow);
         contentY += headerSize + (denseTeamLayout ? 8 : compactLayout ? 10 : 14);
 
-        string sortHint = "Ordered by score, strongest to weakest";
+        string sortHint = "Ordered by score  /  UP-DOWN to browse all teams";
         int sortHintSize = denseTeamLayout ? 11 : 12;
         int sortHintWidth = Raylib.MeasureText(sortHint, sortHintSize);
         Raylib.DrawText(sortHint, panelX + (panelWidth - sortHintWidth) / 2, contentY, sortHintSize, new Color(150, 172, 194, 255));
@@ -203,14 +203,17 @@ public sealed class MenuRenderer
         // Team selection area background
         int teamAreaWidth = panelWidth - (denseTeamLayout ? 42 : 50);
         int teamLineHeight = denseTeamLayout ? 52 : compactLayout ? 60 : 68;
-        int teamAreaHeight = teamLineHeight * teams.Count + 12;
+        // Keep the selected team visible while reserving space for the footer.
+        int visibleRows = Math.Clamp((panelY + panelHeight - contentY - 116) / teamLineHeight, 1, teams.Count);
+        int firstVisible = Math.Clamp(selectedTeamIndex - visibleRows / 2, 0, teams.Count - visibleRows);
+        int teamAreaHeight = teamLineHeight * visibleRows + 12;
         int teamAreaX = panelX + (denseTeamLayout ? 21 : 25);
         Raylib.DrawRectangle(teamAreaX, contentY, teamAreaWidth, teamAreaHeight, new Color(8, 12, 18, 220));
         Raylib.DrawRectangleLines(teamAreaX, contentY, teamAreaWidth, teamAreaHeight, new Color(50, 70, 100, 180));
 
         int teamY = contentY + 8;
 
-        for (int i = 0; i < teams.Count; i++)
+        for (int i = firstVisible; i < firstVisible + visibleRows; i++)
         {
             OffensiveTeamAttributes team = teams[i];
             bool isSelected = i == selectedTeamIndex;
@@ -253,8 +256,8 @@ public sealed class MenuRenderer
 
             // Team info
             string keyHint = string.Equals(team.Name, OffensiveTeamPresets.GoldenLegion.Name, StringComparison.OrdinalIgnoreCase)
-                ? "[0]"
-                : $"[{i + 1}]";
+                ? "[G]"
+                : $"[{(i + 1) % 10}]";
             int keyX = swatchX + (denseTeamLayout ? 44 : compactLayout ? 50 : 56);
             int teamInfoY = teamY + (denseTeamLayout ? 2 : compactLayout ? 5 : 6);
             int titleFontSize = denseTeamLayout ? 15 : compactLayout ? 16 : 18;
@@ -288,9 +291,9 @@ public sealed class MenuRenderer
         Raylib.DrawLine(panelX + dividerPadding, contentY, panelX + panelWidth - dividerPadding, contentY, new Color(60, 80, 100, 180));
         contentY += denseTeamLayout ? 8 : compactLayout ? 10 : 16;
 
-        string controls1 = $"Press 1-{Math.Min(teams.Count, OffensiveTeamPresets.StandardTeamCount)} to select team";
+        string controls1 = $"Teams {firstVisible + 1}-{firstVisible + visibleRows} of {teams.Count}  |  UP/DOWN or 1-9, 0 to select";
         string controls2 = "Press ENTER to start";
-        string controls3 = "Press 0 for secret team";
+        string controls3 = "Press G for secret team";
         string controls4 = string.IsNullOrEmpty(storageMessage)
             ? "Press L for leaderboard"
             : storageMessage + " [L]";
@@ -533,7 +536,7 @@ public sealed class MenuRenderer
     }
 
     /// <summary>
-    /// Draws a compact stat grid showing four grouped offensive team categories.
+    /// Shows individual skills so power, accuracy, speed, and technique stay distinct.
     /// </summary>
     private static void DrawTeamStatBars(OffensiveTeamAttributes team, int x, int y, int availableWidth, bool highlighted, bool denseLayout)
     {
@@ -552,12 +555,13 @@ public sealed class MenuRenderer
         for (int j = 0; j < labels.Length; j++)
         {
             int cellX = x + j * (cellWidth + groupSpacing);
-            int labelWidth = Raylib.MeasureText(labels[j], labelFontSize);
+            int fittedLabelSize = GetFittedFontSize(labels[j], labelFontSize, cellWidth - 4, 7);
+            int labelWidth = Raylib.MeasureText(labels[j], fittedLabelSize);
             int labelX = cellX + (cellWidth - labelWidth) / 2;
             int barWidth = Math.Max(20, cellWidth - 4);
             int barX = cellX + (cellWidth - barWidth) / 2;
 
-            Raylib.DrawText(labels[j], labelX, y, labelFontSize, labelColor);
+            Raylib.DrawText(labels[j], labelX, y, fittedLabelSize, labelColor);
             Raylib.DrawRectangle(barX, barY, barWidth, barHeight, barBg);
 
             int fillWidth = (int)(barWidth * Math.Clamp(values[j], 0f, 1f));
@@ -595,18 +599,17 @@ public sealed class MenuRenderer
     private static (string[] Labels, float[] Values) GetTeamSkillMetrics(OffensiveTeamAttributes team)
     {
         OffensiveTeamSkills skills = team.Skills;
-        float qb = (Math.Clamp(skills.QbThrowPower, 0f, 1f) + Math.Clamp(skills.QbThrowAccuracy, 0f, 1f)) / 2f;
-        float wr = (Math.Clamp(skills.WrSpeed, 0f, 1f) + Math.Clamp(skills.WrSkill, 0f, 1f)) / 2f;
-        float rb = (Math.Clamp(skills.RbPower, 0f, 1f) + Math.Clamp(skills.RbSpeed, 0f, 1f)) / 2f;
-        float ol = Math.Clamp(skills.OlStrength, 0f, 1f);
         return
         (
-            ["QB", "WR", "RB", "OL"],
+            ["ARM", "AIM", "WR SPD", "HANDS", "RB PWR", "RB SPD", "OL"],
             [
-                qb,
-                wr,
-                rb,
-                ol
+                skills.QbThrowPower,
+                skills.QbThrowAccuracy,
+                skills.WrSpeed,
+                skills.WrSkill,
+                skills.RbPower,
+                skills.RbSpeed,
+                skills.OlStrength
             ]
         );
     }

@@ -64,13 +64,13 @@ public static class OffensiveTeamPresets
         secondaryColor: new Color(34, 96, 44, 255),
         skills: new OffensiveTeamSkills
         {
-            RbPower = 0.80f,
-            RbSpeed = 0.52f,
+            RbPower = 0.98f,
+            RbSpeed = 0.38f,
             QbThrowPower = 0.34f,
             QbThrowAccuracy = 0.30f,
             WrSpeed = 0.32f,
             WrSkill = 0.36f,
-            OlStrength = 0.78f
+            OlStrength = 0.96f
         },
         qbName: "Hammer",
         wideReceiverNames: new[] { "Brick", "Stone", "Grind", "Forge" },
@@ -80,15 +80,15 @@ public static class OffensiveTeamPresets
     public static OffensiveTeamAttributes Phantoms => CreateTeam(
         name: "Phantoms",
         teamScore: 71,
-        description: "Timing offense built on sharp throws",
+        description: "Pinpoint short passes, limited deep arm",
         primaryColor: new Color(92, 188, 208, 255),
         secondaryColor: new Color(24, 90, 118, 255),
         skills: new OffensiveTeamSkills
         {
             RbPower = 0.34f,
             RbSpeed = 0.48f,
-            QbThrowPower = 0.68f,
-            QbThrowAccuracy = 0.84f,
+            QbThrowPower = 0.38f,
+            QbThrowAccuracy = 0.98f,
             WrSpeed = 0.70f,
             WrSkill = 0.82f,
             OlStrength = 0.32f
@@ -151,15 +151,78 @@ public static class OffensiveTeamPresets
             RbPower = 0.34f,
             RbSpeed = 0.46f,
             QbThrowPower = 0.72f,
-            QbThrowAccuracy = 0.84f,
+            QbThrowAccuracy = 0.62f,
             WrSpeed = 0.56f,
-            WrSkill = 0.88f,
+            WrSkill = 0.98f,
             OlStrength = 0.34f
         },
         qbName: "Ember",
         wideReceiverNames: new[] { "Flare", "Cinder", "Sparks", "Glow" },
         tightEndName: "Torch",
         runningBackName: "Kindle");
+
+    public static OffensiveTeamAttributes Mustangs => CreateTeam(
+        name: "Mustangs",
+        teamScore: 81,
+        description: "Elite rushing duo, modest passing game",
+        primaryColor: new Color(42, 164, 148, 255),
+        secondaryColor: new Color(16, 82, 78, 255),
+        skills: new OffensiveTeamSkills
+        {
+            RbPower = 0.86f,
+            RbSpeed = 0.98f,
+            QbThrowPower = 0.42f,
+            QbThrowAccuracy = 0.52f,
+            WrSpeed = 0.58f,
+            WrSkill = 0.40f,
+            OlStrength = 0.76f
+        },
+        qbName: "Ranger",
+        wideReceiverNames: new[] { "Mesa", "Trail", "Spur", "Ridge" },
+        tightEndName: "Saddle",
+        runningBackName: "Gallop");
+
+    public static OffensiveTeamAttributes Bombers => CreateTeam(
+        name: "Bombers",
+        teamScore: 73,
+        description: "Huge arm and deep speed, erratic accuracy",
+        primaryColor: new Color(78, 94, 184, 255),
+        secondaryColor: new Color(30, 38, 92, 255),
+        skills: new OffensiveTeamSkills
+        {
+            RbPower = 0.42f,
+            RbSpeed = 0.34f,
+            QbThrowPower = 1.00f,
+            QbThrowAccuracy = 0.28f,
+            WrSpeed = 0.90f,
+            WrSkill = 0.52f,
+            OlStrength = 0.68f
+        },
+        qbName: "Cannon",
+        wideReceiverNames: new[] { "Rocket", "Comet", "Streak", "Orbit" },
+        tightEndName: "Hangar",
+        runningBackName: "Fuse");
+
+    public static OffensiveTeamAttributes Sentinels => CreateTeam(
+        name: "Sentinels",
+        teamScore: 77,
+        description: "Elite protection and hands, little speed",
+        primaryColor: new Color(174, 118, 68, 255),
+        secondaryColor: new Color(88, 54, 30, 255),
+        skills: new OffensiveTeamSkills
+        {
+            RbPower = 0.62f,
+            RbSpeed = 0.24f,
+            QbThrowPower = 0.50f,
+            QbThrowAccuracy = 0.88f,
+            WrSpeed = 0.24f,
+            WrSkill = 0.92f,
+            OlStrength = 1.00f
+        },
+        qbName: "Keeper",
+        wideReceiverNames: new[] { "Shield", "Sentry", "Watch", "Ward" },
+        tightEndName: "Rampart",
+        runningBackName: "Bunker");
 
     public static OffensiveTeamAttributes GoldenLegion => CreateTeam(
         name: "Golden Legion",
@@ -205,7 +268,10 @@ public static class OffensiveTeamPresets
             Phantoms,
             Cyclones,
             Ironclad,
-            Firebirds
+            Firebirds,
+            Mustangs,
+            Bombers,
+            Sentinels
         }
         .OrderByDescending(team => team.TeamScore)
         .ThenBy(team => team.Name)
