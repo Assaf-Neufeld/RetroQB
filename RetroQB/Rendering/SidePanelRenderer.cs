@@ -137,7 +137,7 @@ public sealed class SidePanelRenderer
         y += 10;
         Raylib.DrawText("CONTROLS", x, y, 14, Palette.Yellow);
         y += 18;
-        string[] controls = ["Move: Arrows | Sprint: Shift", "Snap: Space | Flip play: X", "Pass: 1-9,0 | Run: Q-P", "Throw: 1-5", "Replay: F | Restart season: Z", "Pause: Esc"];
+        string[] controls = ["Move: Arrows | Sprint: Shift", "Snap: Space | Flip play: X", "Pass: 1-9,0 | Run: Q-P", "Throw: 1-5", "Replay: F | Restart game: Z", "Pause: Esc"];
         foreach (string control in controls)
         {
             Raylib.DrawText(control, x, y, 12, Palette.White);

@@ -26,6 +26,29 @@ public sealed class SeasonSummary
     private int _runPlays;
     private int _successfulRuns;
     private int _explosiveRuns;
+    private GameStatsSnapshot? _gameStartStats;
+    private int _gameStartResultCount;
+    private (int Plays, int Successful, int Explosive, int Runs, int SuccessfulRuns, int ExplosiveRuns) _gameStartCounts;
+
+    /// <summary>Saves season progress before the current matchup begins.</summary>
+    public void SaveGameStart(GameStatsSnapshot stats)
+    {
+        _gameStartStats = stats;
+        _gameStartResultCount = _games.Count;
+        _gameStartCounts = (_offensivePlays, _successfulPlays, _explosivePlays,
+            _runPlays, _successfulRuns, _explosiveRuns);
+    }
+
+    /// <summary>Discards only the current matchup's result and statistics.</summary>
+    public GameStatsSnapshot RestoreGameStart()
+    {
+        var stats = _gameStartStats ?? throw new InvalidOperationException("No game has started.");
+        _games.RemoveRange(_gameStartResultCount, _games.Count - _gameStartResultCount);
+        (_offensivePlays, _successfulPlays, _explosivePlays,
+            _runPlays, _successfulRuns, _explosiveRuns) = _gameStartCounts;
+        ApplySeasonSnapshot(stats);
+        return stats;
+    }
 
     public IReadOnlyList<GameResult> Games => _games;
 
@@ -282,6 +305,9 @@ public sealed class SeasonSummary
     /// <summary>Resets the summary for a new season.</summary>
     public void Reset()
     {
+        _gameStartStats = null;
+        _gameStartResultCount = 0;
+        _gameStartCounts = default;
         _games.Clear();
         _cumulativeQb.Reset();
         _cumulativeRb.Reset();

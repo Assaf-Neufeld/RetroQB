@@ -24,7 +24,7 @@ public sealed class PregameTests
         Invoke("AdvanceToNextStage");
         AssertMatchup(SeasonStage.SuperBowl, "Bloodline Bastion");
         Invoke("HandleRestart");
-        AssertMatchup(SeasonStage.RegularSeason, "Scarlet Guard");
+        AssertMatchup(SeasonStage.SuperBowl, "Bloodline Bastion");
 
         // A new drive within this game must not show another matchup introduction.
         state.SetState(GameState.PreSnap);

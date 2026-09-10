@@ -144,7 +144,7 @@ public sealed class BannerRenderer
             DrawPerformanceDashboard(innerX, bodyY, innerWidth, bodyHeight, seasonSummary, accentColor, stats, null, false);
         }
 
-        DrawActionButtons(x, y + bannerHeight - 62, bannerWidth, prompt, "Z TO RESTART");
+        DrawActionButtons(x, y + bannerHeight - 62, bannerWidth, prompt, "Z TO RESTART GAME");
     }
 
     private void DrawOutcomeHero(

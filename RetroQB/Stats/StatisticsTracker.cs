@@ -5,6 +5,7 @@ namespace RetroQB.Stats;
 public interface IStatisticsTracker
 {
     void Reset();
+    void RestoreSnapshot(GameStatsSnapshot snapshot);
     void RecordPassAttempt();
     void RecordTarget(ReceiverSlot receiverSlot);
     void RecordSack(int yardsLost);
@@ -28,6 +29,36 @@ public sealed class StatisticsTracker : IStatisticsTracker
         _qbStats.Reset();
         _rbStats.Reset();
         _receiverStats.Clear();
+    }
+
+    public void RestoreSnapshot(GameStatsSnapshot snapshot)
+    {
+        Reset();
+        var qb = snapshot.Qb;
+        _qbStats.Completions = qb.Completions;
+        _qbStats.Attempts = qb.Attempts;
+        _qbStats.PassYards = qb.PassYards;
+        _qbStats.PassTds = qb.PassTds;
+        _qbStats.Interceptions = qb.Interceptions;
+        _qbStats.Sacks = qb.Sacks;
+        _qbStats.SackYardsLost = qb.SackYardsLost;
+        _qbStats.RushAttempts = qb.RushAttempts;
+        _qbStats.RushYards = qb.RushYards;
+        _qbStats.RushTds = qb.RushTds;
+        _rbStats.Attempts = snapshot.Rb.Attempts;
+        _rbStats.Yards = snapshot.Rb.Yards;
+        _rbStats.Tds = snapshot.Rb.Tds;
+        foreach (var receiver in snapshot.Receivers)
+        {
+            var slot = Enum.Parse<ReceiverSlot>(receiver.Label);
+            _receiverStats[slot] = new SkillStatLine
+            {
+                Targets = receiver.Targets,
+                Receptions = receiver.Receptions,
+                Yards = receiver.Yards,
+                Tds = receiver.Tds
+            };
+        }
     }
 
     public void RecordPassAttempt()

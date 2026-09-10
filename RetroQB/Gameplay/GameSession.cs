@@ -192,6 +192,7 @@ public sealed class GameSession : IDisposable
 
     private void InitializeGame()
     {
+        _seasonSummary.SaveGameStart(_statsTracker.BuildSnapshot());
         _playManager.StartNewGame();
         _defensiveMemory.Reset();
         SetDefensiveTeamForStage(_currentStage);
@@ -397,7 +398,7 @@ public sealed class GameSession : IDisposable
 
     private void HandleRestart()
     {
-        ResetSeasonProgress();
+        _statsTracker.RestoreSnapshot(_seasonSummary.RestoreGameStart());
         ClearNameEntryState();
         _leaderboardSummary = LeaderboardSummary.Empty;
         ResetReplayPresentationState();

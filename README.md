@@ -85,6 +85,7 @@ If you like football games where the tension comes from decisions more than butt
 | Snap Ball | `Space` |
 | Throw Pass | `1` `2` `3` `4` `5` |
 | Replay Last Play (dead-ball) | `F` |
+| Restart Current Game (keep season progress) | `Z` |
 | Confirm / Next Drive / Continue | `Enter` |
 | Pause | `Esc` |
 
