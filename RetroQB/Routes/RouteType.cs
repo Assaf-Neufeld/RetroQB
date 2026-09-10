@@ -11,5 +11,6 @@ public enum RouteType
     PostShallow,
     PostDeep,
     DoubleMove,
-    Flat
+    Flat,
+    Hitch, Curl, Comeback, Corner, Wheel, Angle, Drag, Seam
 }

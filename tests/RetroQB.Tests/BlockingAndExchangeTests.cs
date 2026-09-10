@@ -243,12 +243,16 @@ public sealed class BlockingAndExchangeTests
         foreach (bool flipped in new[] { false, true })
         {
             var manager = new PlayManager();
+            manager.SetCallSheet(new PlayCallSheet(manager.Catalog,
+                manager.Catalog.Plays.Where(p => p.Family == PlayType.Pass).OrderByDescending(p => p.Id == definition.Id).Take(10).Select(p => p.Id),
+                manager.Catalog.Plays.Where(p => p.Family == PlayType.Run).OrderByDescending(p => p.Id == definition.Id).Take(10).Select(p => p.Id)));
             if (definition.Family == PlayType.Pass)
                 manager.SelectPassPlay(manager.PassPlays.ToList().FindIndex(p => p.Id == definition.Id), new Random(14));
             else
                 manager.SelectRunPlay(manager.RunPlays.ToList().FindIndex(p => p.Id == definition.Id), new Random(14));
             if (flipped) manager.FlipSelectedPlay();
             var play = manager.SelectedPlay;
+            Assert.Equal(definition.Id, play.Id);
             var field = Instantiate(play);
             var backfield = new BackfieldController();
             var receivers = new ReceiverUpdateController(new BlockingController());

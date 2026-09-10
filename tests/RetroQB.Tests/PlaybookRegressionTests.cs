@@ -18,7 +18,7 @@ public sealed class PlaybookRegressionTests
         { 5, "Flood", "WR1:Flat,WR2:OutShallow,WR3:OutDeep,WR4:Go,TE1:InShallow" },
         { 6, "Smash", "WR1:InShallow,WR2:OutDeep,WR3:Go,TE1:InShallow,RB1:Block" },
         { 7, "Slant Flat", "WR1:Slant,WR2:Slant,WR3:Flat,TE1:Go,RB1:Flat" },
-        { 8, "PA Deep", "WR1:Go,WR2:PostDeep,WR3:InDeep,WR4:Go,TE1:DoubleMove" },
+        { 8, "PA Deep", "WR1:Go,WR2:PostDeep,WR3:InDeep,TE1:DoubleMove,RB1:Flat" },
         { 9, "Combo", "WR1:InShallow,WR2:Go,WR3:InDeep,TE1:InShallow,RB1:Flat" }
     };
 

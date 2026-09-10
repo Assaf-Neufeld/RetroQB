@@ -56,7 +56,8 @@ public enum FormationType
     RunPistolStrongRight,
     RunPistolStrongLeft,
     RunSinglebackTripsRight,
-    RunSinglebackTripsLeft
+    RunSinglebackTripsLeft,
+    GunDoubles, GunTrips, PistolTwins, SinglebackAce, WingTight, IPro, StrongI, SplitBacks
 }
 
 /// <summary>An immutable authored call. IDs are independent of names and keyboard slots.</summary>
@@ -64,6 +65,7 @@ public sealed class PlayDefinition
 {
     public string Id { get; }
     public string Name { get; }
+    public PlaybookInfo Info { get; }
     public PlayType Family { get; }
     public FormationDefinition Formation { get; }
     public PersonnelPackage Personnel => Formation.Personnel;
@@ -80,7 +82,7 @@ public sealed class PlayDefinition
         IReadOnlyDictionary<ReceiverSlot, PlayerAssignment> assignments,
         RunConcept runConcept = RunConcept.None, int runningBackSide = 0, bool isWildcard = false,
         IReadOnlyList<BlockingAssignment>? lineBlocking = null, IReadOnlyList<BlockingAssignment>? openingLineBlocking = null,
-        BackfieldSequence? backfield = null)
+        BackfieldSequence? backfield = null, PlaybookInfo? info = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -111,6 +113,7 @@ public sealed class PlayDefinition
 
         Id = id;
         Name = name;
+        Info = info ?? PlaybookInfo.Legacy(name, family, formation, runConcept, isWildcard);
         Family = family;
         Formation = formation;
         Assignments = new ReadOnlyDictionary<ReceiverSlot, PlayerAssignment>(assignments.ToDictionary());

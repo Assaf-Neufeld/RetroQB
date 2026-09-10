@@ -1,5 +1,8 @@
 # Playbook execution — phase 2
 
+Phase 2 was committed as `4312a3b`. This document records that phase's boundary;
+see [phase 3 expansion](playbook-expansion.md) for the current catalog and interface.
+
 Phase 1 is committed as `50325f8`. Phase 2 adds route stages, explicit blocking jobs, and
 coordinated backfield actions. The catalog still contains the original 18 named calls and
 two wildcards. New personnel (including a named FB), formation families, route names,

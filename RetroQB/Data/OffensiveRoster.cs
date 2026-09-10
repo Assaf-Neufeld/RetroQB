@@ -240,6 +240,7 @@ public sealed class OffensiveRoster
 
     private static float GetDefaultReceiverSpeed(ReceiverSlot slot)
     {
+        if (slot == ReceiverSlot.FB) return Constants.RbSpeed * 0.88f;
         if (slot.IsRunningBackSlot()) return Constants.RbSpeed;
         if (slot.IsTightEndSlot()) return Constants.TeSpeed;
         return Constants.WrSpeed;
@@ -252,4 +253,3 @@ public sealed class OffensiveRoster
         return 0.7f;
     }
 }
-

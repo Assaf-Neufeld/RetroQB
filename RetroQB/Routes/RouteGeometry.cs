@@ -53,6 +53,14 @@ public static class RouteGeometry
             RouteType.PostDeep => Break(s.Deep, GetPostBreakDirection(1, PostXFactorDeep, s.PostAngleDeep) * PostBreakLength),
             RouteType.DoubleMove => new([new(new(0, s.Shallow)), new(new(-3, s.Shallow), 0.1f), new(new(-3, s.Deep + 8))]),
             RouteType.Flat => new([new(new(width, width * 0.25f))]),
+            RouteType.Hitch => new([new(new(0, 5))], RouteFinish.Settle),
+            RouteType.Curl => new([new(new(0, 12)), new(new(-1, 10))], RouteFinish.Settle),
+            RouteType.Comeback => new([new(new(0, 15)), new(new(3, 11))], RouteFinish.Settle),
+            RouteType.Corner => new([new(new(0, 9)), new(new(7, 17))]),
+            RouteType.Wheel => new([new(new(6, 2)), new(new(7, 8)), new(new(7, 22))]),
+            RouteType.Angle => new([new(new(4, 2)), new(new(-3, 8))]),
+            RouteType.Drag => new([new(new(0, 3)), new(new(-14, 4))]),
+            RouteType.Seam => new([new(new(-1, 8)), new(new(-1, 24))]),
             _ => throw new ArgumentOutOfRangeException(nameof(receiver.Route))
         };
     }

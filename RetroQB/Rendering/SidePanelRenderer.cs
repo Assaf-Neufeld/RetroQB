@@ -45,53 +45,45 @@ public sealed class SidePanelRenderer
         // Play selection (pre-snap)
         if (state == GameState.PreSnap)
         {
-            Raylib.DrawText("SELECT PLAY:", x, y, 18, Palette.Yellow);
-            y += 24;
-            
-            Raylib.DrawText($"Suggested: {play.GetSuggestedPlayLabel()}", x, y, 16, Palette.Lime);
-            y += 22;
-
-            // Pass plays header
-            Raylib.DrawText("PASS (1-9, 0):", x, y, 14, Palette.Cyan);
+            FitText($"CALL SHEET - {play.Catalog.Plays.Count} PLAYS", x, y, 16, Palette.Yellow);
+            y += 20;
+            FitText(play.SituationLabel, x, y, 12, Palette.Lime);
             y += 18;
-
-            var passPlays = play.PassPlays;
-            string[] passKeys = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0" };
-            for (int i = 0; i < passPlays.Count && i < 10; i++)
+            DrawBank(play.PassPlays, PlayType.Pass, "PASS: 1-9, 0", ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"], Palette.Cyan);
+            y += 4;
+            DrawBank(play.RunPlays, PlayType.Run, "RUN: Q-P", ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"], Palette.Orange);
+            y += 7;
+            var info = play.SelectedPlay.Definition.Info;
+            FitText($"{info.CategoryLabel} | {play.SelectedPlay.Personnel.DisplayLabel}{(play.SelectedPlay.IsFlipped ? " | Flipped" : "")}", x, y, 12, Palette.Gold);
+            y += 15;
+            // Two short lines of coaching guidance for the selected call.
+            string[] words = info.Description.Split(' ');
+            string line = "";
+            foreach (string word in words)
             {
-                bool isSelected = play.SelectedPlayType == PlayType.Pass && play.SelectedPlayIndex == i;
-                if (isSelected)
+                if (Raylib.MeasureText(line + word, 11) > PanelWidth - 32)
                 {
-                    Raylib.DrawRectangle(x - 4, y - 1, PanelWidth - 28, 16, new Color(52, 46, 18, 210));
-                    Raylib.DrawRectangle(x - 4, y - 1, 3, 16, Palette.Gold);
+                    Raylib.DrawText(line, x, y, 11, Palette.Muted);
+                    y += 13;
+                    line = "";
                 }
-                Raylib.DrawText($"{passKeys[i]}) {passPlays[i].Name}", x, y, 14, isSelected ? Palette.Gold : Palette.White);
-                y += 16;
+                line += word + " ";
             }
+            Raylib.DrawText(line, x, y, 11, Palette.Muted);
 
-            y += 8;
-
-            // Run plays header
-            Raylib.DrawText("RUN (Q-P):", x, y, 14, Palette.Orange);
-            y += 18;
-
-            var runPlays = play.RunPlays;
-            string[] runKeys = { "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P" };
-            for (int i = 0; i < runPlays.Count && i < 10; i++)
+            void DrawBank(IReadOnlyList<ResolvedPlay> calls, PlayType family, string title, string[] keys, Color color)
             {
-                bool isSelected = play.SelectedPlayType == PlayType.Run && play.SelectedPlayIndex == i;
-                if (isSelected)
+                Raylib.DrawText(title, x, y, 13, color);
+                y += 17;
+                for (int i = 0; i < calls.Count; i++)
                 {
-                    Raylib.DrawRectangle(x - 4, y - 1, PanelWidth - 28, 16, new Color(52, 35, 18, 210));
-                    Raylib.DrawRectangle(x - 4, y - 1, 3, 16, Palette.Orange);
+                    bool selected = play.SelectedPlayType == family && play.SelectedPlayIndex == i;
+                    if (selected) Raylib.DrawRectangle(x - 4, y - 1, PanelWidth - 28, 14, new Color(52, 46, 18, 230));
+                    var entry = calls[i].Definition.Info;
+                    FitText($"{keys[i]}  {entry.Formation} / {entry.Concept}", x, y, 12, selected ? Palette.Gold : Palette.White);
+                    y += 14;
                 }
-                Raylib.DrawText($"{runKeys[i]}) {runPlays[i].Name}", x, y, 14, isSelected ? Palette.Gold : Palette.White);
-                y += 16;
             }
-
-            y += 10;
-            Raylib.DrawText("SPACE to snap", x, y, 16, Palette.Lime);
-            y += 24;
         }
         else
         {
@@ -102,7 +94,7 @@ public sealed class SidePanelRenderer
 
         // Bottom-anchored controls layout to avoid overflow at smaller heights
         int controlsLineSpacing = 14;
-        int controlsLines = 9;
+        int controlsLines = 6;
         int controlsBlockHeight = 28 + (controlsLines * controlsLineSpacing);
         int controlsStartY = screenH - (int)Constants.OuterMargin - controlsBlockHeight;
 
@@ -145,22 +137,18 @@ public sealed class SidePanelRenderer
         y += 10;
         Raylib.DrawText("CONTROLS", x, y, 14, Palette.Yellow);
         y += 18;
-        Raylib.DrawText("Move: Arrow Keys", x, y, 12, Palette.White);
-        y += controlsLineSpacing;
-        Raylib.DrawText("Sprint: Hold Shift", x, y, 12, Palette.White);
-        y += controlsLineSpacing;
-        Raylib.DrawText("Pass Plays: 1-9, 0", x, y, 12, Palette.White);
-        y += controlsLineSpacing;
-        Raylib.DrawText("Run Plays: Q-P", x, y, 12, Palette.White);
-        y += controlsLineSpacing;
-        Raylib.DrawText("Snap Ball: Space", x, y, 12, Palette.White);
-        y += controlsLineSpacing;
-        Raylib.DrawText("Throw: 1-5", x, y, 12, Palette.White);
-        y += controlsLineSpacing;
-        Raylib.DrawText("Replay (dead-ball): F", x, y, 12, Palette.White);
-        y += controlsLineSpacing;
-        Raylib.DrawText("Restart Season: Z", x, y, 12, Palette.White);
-        y += controlsLineSpacing;
-        Raylib.DrawText("Pause: Esc", x, y, 12, Palette.White);
+        string[] controls = ["Move: Arrows | Sprint: Shift", "Snap: Space | Flip play: X", "Pass: 1-9,0 | Run: Q-P", "Throw: 1-5", "Replay: F | Restart season: Z", "Pause: Esc"];
+        foreach (string control in controls)
+        {
+            Raylib.DrawText(control, x, y, 12, Palette.White);
+            y += controlsLineSpacing;
+        }
+    }
+
+    private static void FitText(string text, int x, int y, int size, Color color)
+    {
+        while (size > 9 && Raylib.MeasureText(text, size) > PanelWidth - 32) size--;
+        while (Raylib.MeasureText(text, size) > PanelWidth - 32 && text.Length > 4) text = text[..^4] + "...";
+        Raylib.DrawText(text, x, y, size, color);
     }
 }

@@ -9,7 +9,8 @@ public enum ReceiverSlot
     TE1,
     TE2,
     RB1,
-    RB2
+    RB2,
+    FB
 }
 
 public static class ReceiverSlotExtensions
@@ -37,10 +38,11 @@ public static class ReceiverSlotExtensions
         ReceiverSlot.TE2 => 6,
         ReceiverSlot.RB1 => 7,
         ReceiverSlot.RB2 => 8,
+        ReceiverSlot.FB => 9,
         _ => int.MaxValue
     };
 
-    public static bool IsRunningBackSlot(this ReceiverSlot slot) => slot is ReceiverSlot.RB1 or ReceiverSlot.RB2;
+    public static bool IsRunningBackSlot(this ReceiverSlot slot) => slot is ReceiverSlot.RB1 or ReceiverSlot.RB2 or ReceiverSlot.FB;
 
     public static bool IsTightEndSlot(this ReceiverSlot slot) => slot is ReceiverSlot.TE1 or ReceiverSlot.TE2;
 

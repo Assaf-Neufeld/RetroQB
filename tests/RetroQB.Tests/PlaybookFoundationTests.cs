@@ -51,7 +51,7 @@ public sealed class PlaybookFoundationTests
         Assert.Equal(1, manager.GetCallCount(id));
         var record = Assert.Single(manager.PlayRecords);
         Assert.Equal(id, record.OffensivePlayId);
-        Assert.Equal("Mesh", record.OffensivePlayName);
+        Assert.Equal("Spread / Mesh", record.OffensivePlayName);
         Assert.True(record.IsFlipped);
         manager.SelectPassPlay(0, new Random(1));
         Assert.Equal(0, manager.GetCallCount(manager.SelectedPlay.Id));
@@ -345,7 +345,7 @@ public sealed class PlaybookFoundationTests
 
     private static PlayCatalog LargeCatalog()
     {
-        var original = PlaybookBuilder.BuildCatalog();
+        var original = new PlayCatalog(PlaybookBuilder.BuildPassPlays().Concat(PlaybookBuilder.BuildRunPlays()));
         var pass = original["pass.mesh"];
         var run = original["run.hb-dive"];
         return new PlayCatalog(original.Plays.Concat(Enumerable.Range(0, 40).SelectMany(i => new[]

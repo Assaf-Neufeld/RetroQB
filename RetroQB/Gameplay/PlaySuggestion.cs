@@ -441,10 +441,15 @@ public static class PlaySuggestion
                 case RouteType.OutShallow:
                 case RouteType.InShallow:
                 case RouteType.Flat:
+                case RouteType.Hitch:
+                case RouteType.Drag:
                     profile.QuickRoutes++;
                     profile.TotalRoutes++;
                     break;
 
+                case RouteType.Curl:
+                case RouteType.Comeback:
+                case RouteType.Angle:
                 case RouteType.OutDeep:
                 case RouteType.InDeep:
                 case RouteType.PostShallow:
@@ -452,6 +457,9 @@ public static class PlaySuggestion
                     profile.TotalRoutes++;
                     break;
 
+                case RouteType.Corner:
+                case RouteType.Wheel:
+                case RouteType.Seam:
                 case RouteType.Go:
                 case RouteType.PostDeep:
                 case RouteType.DoubleMove:

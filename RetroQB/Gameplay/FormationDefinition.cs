@@ -15,6 +15,11 @@ public sealed class PersonnelPackage
     public string Id { get; }
     public IReadOnlyList<ReceiverSlot> Slots { get; }
     public int LinemanCount { get; }
+    public string DisplayLabel => string.Join(", ", new[]
+    {
+        (Slots.Count(s => s.IsWideReceiverSlot()), "WR"), (Slots.Count(s => s.IsTightEndSlot()), "TE"),
+        (Slots.Count(s => s.IsRunningBackSlot() && s != ReceiverSlot.FB), "RB"), (Slots.Count(s => s == ReceiverSlot.FB), "FB")
+    }.Where(p => p.Item1 > 0).Select(p => $"{p.Item1} {p.Item2}")) + (LinemanCount > 5 ? $", {LinemanCount} OL" : "");
 
     public PersonnelPackage(string id, IEnumerable<ReceiverSlot> slots, int linemanCount = 5)
     {

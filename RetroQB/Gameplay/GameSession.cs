@@ -515,7 +515,7 @@ public sealed class GameSession : IDisposable
             return;
         }
 
-        bool playChanged = false;
+        bool playChanged = _playManager.EnsureSituationCallSheet();
         
         // Check for pass play selection (1-9, 0)
         int? passSelection = _input.GetPassPlaySelection();
@@ -537,6 +537,13 @@ public sealed class GameSession : IDisposable
         {
             playChanged = _playManager.AutoSelectPlayBySituation(new Random()) || playChanged;
             _autoPlaySelectionDone = true;
+        }
+
+        if (_input.IsFlipPlayPressed())
+        {
+            _playManager.FlipSelectedPlay();
+            _manualPlaySelection = true;
+            playChanged = true;
         }
 
         if (playChanged)

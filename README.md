@@ -90,12 +90,19 @@ If you like football games where the tension comes from decisions more than butt
 
 ### Pre-snap play selection
 
+The playbook contains **100 calls**, with **10 pass and 10 run choices** selected for each
+situation. Calls are organized by concept category and formation, with personnel and
+coaching guidance for the selected play. New shotgun, pistol, two-TE and two-back sets
+include fullback lead blocks, staged routes and real play-action fakes.
+See the [playbook guide](docs/playbook-expansion.md) for formations and selection details.
+
 At the team menu, use **Up/Down** or **1–9 / 0** to select any of the ten teams, then press **Enter**. Press **G** to enter the secret-team password. All ten teams and their skills are visible together in two columns.
 
 | Action | Key |
 |--------|-----|
 | Select pass play | `1`-`0` |
 | Select run play | `Q`-`P` |
+| Flip selected play | `X` |
 
 ---
 

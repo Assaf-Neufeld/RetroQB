@@ -34,6 +34,17 @@ public sealed class PlayManager
     private string _selectedPassId = string.Empty;
     private string _selectedRunId = string.Empty;
 
+    private (PlaySituation Situation, int Play, int Score, int Away)? _sheetSituation;
+    public string SituationLabel => SituationalCallSheet.Label(GetPlaySituation());
+    public bool EnsureSituationCallSheet()
+    {
+        var key = (GetPlaySituation(), PlayNumber, Score, AwayScore);
+        if (_sheetSituation == key) return false;
+        SetCallSheet(SituationalCallSheet.Build(Catalog, key.Item1, PlayNumber * 7919 + Score * 31 + AwayScore, GetCallCount));
+        _sheetSituation = key;
+        return true;
+    }
+
     public PlayCatalog Catalog { get; }
     public PlayCallSheet CallSheet { get; private set; } = null!;
     public PlayType SelectedPlayType { get; private set; } = PlayType.Pass;
@@ -72,6 +83,7 @@ public sealed class PlayManager
     public void StartNewDrive()
     {
         _driveState.Reset();
+        _sheetSituation = null;
         SelectedPlayType = PlayType.Pass;
         ClearCallRecency();
     }
@@ -79,6 +91,7 @@ public sealed class PlayManager
     public void StartNewGame()
     {
         _driveState.ResetForNewGame();
+        _sheetSituation = null;
         SelectedPlayType = PlayType.Pass;
         _callCounts.Clear();
         ClearCallRecency();
@@ -198,7 +211,7 @@ public sealed class PlayManager
 
     private PlaySituation GetPlaySituation() => new(Down, Distance, LineOfScrimmage, FirstDownLine);
 
-    public string GetPlayLabel() => $"{SelectedPlayType}: {SelectedPlay.Name}";
+    public string GetPlayLabel() => $"{SelectedPlayType}: {SelectedPlay.Definition.Info.Formation} / {SelectedPlay.Name}{(SelectedPlay.IsFlipped ? " (flipped)" : "")}";
 
     // Drive state delegation
     public int Down => _driveState.Down;
@@ -217,7 +230,7 @@ public sealed class PlayManager
     /// </summary>
     public void StartPlayRecord(bool isUnderneathManCoverage, CoverageScheme coverageScheme, List<string> blitzers)
     {
-        _driveState.StartPlayRecord(SelectedPlay.Name, SelectedPlayType, isUnderneathManCoverage, coverageScheme, blitzers, SelectedPlay.Id, SelectedPlay.IsFlipped);
+        _driveState.StartPlayRecord($"{SelectedPlay.Definition.Info.Formation} / {SelectedPlay.Name}", SelectedPlayType, isUnderneathManCoverage, coverageScheme, blitzers, SelectedPlay.Id, SelectedPlay.IsFlipped);
     }
 
     /// <summary>

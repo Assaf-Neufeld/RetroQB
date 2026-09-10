@@ -78,7 +78,7 @@ try
 
     if (readmeScreenshot)
     {
-        RenderReadmeScreenshot(output);
+        RenderReadmeScreenshot(output, args.Length > 2 ? int.Parse(args[2]) : 1440, args.Length > 3 ? int.Parse(args[3]) : 900);
         return;
     }
 
@@ -167,10 +167,10 @@ static void RenderTeamUniforms(string output)
     Raylib.UnloadRenderTexture(target);
 }
 
-static void RenderReadmeScreenshot(string path)
+static void RenderReadmeScreenshot(string path, int width, int height)
 {
-    const int width = 1440;
-    const int height = 900;
+
+
     Raylib.SetWindowSize(width, height);
     Constants.UpdateFieldRect();
     var state = new GameStateManager();

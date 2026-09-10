@@ -13,6 +13,6 @@ public static class RouteVisualizer
         RouteType.OutShallow => "Out S", RouteType.OutDeep => "Out D",
         RouteType.InShallow => "In S", RouteType.InDeep => "In D",
         RouteType.PostShallow => "Post S", RouteType.PostDeep => "Post D",
-        RouteType.DoubleMove => "Dbl Move", RouteType.Flat => "Flat", _ => "Route"
+        RouteType.DoubleMove => "Dbl Move", RouteType.Flat => "Flat", _ => route.ToString()
     };
 }

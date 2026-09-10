@@ -101,7 +101,8 @@ public sealed class StatisticsTracker : IStatisticsTracker
     public GameStatsSnapshot BuildSnapshot()
     {
         var receivers = new List<ReceiverStatsSnapshot>(ReceiverSlotExtensions.DefaultReceivingStatOrder.Count);
-        foreach (var slot in ReceiverSlotExtensions.DefaultReceivingStatOrder)
+        foreach (var slot in ReceiverSlotExtensions.DefaultReceivingStatOrder.Concat(
+            _receiverStats.Keys.Except(ReceiverSlotExtensions.DefaultReceivingStatOrder).OrderBy(s => s.GetPriorityOrder())))
         {
             if (_receiverStats.TryGetValue(slot, out var stats))
             {

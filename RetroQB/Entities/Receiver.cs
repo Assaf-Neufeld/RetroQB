@@ -55,6 +55,7 @@ public sealed class Receiver : Entity
 
     private static string ResolveGlyph(ReceiverSlot slot)
     {
+        if (slot == ReceiverSlot.FB) return "FB";
         if (slot.IsRunningBackSlot()) return "RB";
         if (slot.IsTightEndSlot()) return "TE";
         return "WR";

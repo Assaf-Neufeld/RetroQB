@@ -12,7 +12,7 @@ public static class PixelPlayerRenderer
         float baseRadius = glyph switch
         {
             "OL" or "DL" => 11.5f,
-            "DE" or "LB" or "TE" => 10.5f,
+            "DE" or "LB" or "TE" or "FB" => 10.5f,
             "QB" => 10f,
             "WR" or "RB" or "DB" => 9.5f,
             _ => 10f
