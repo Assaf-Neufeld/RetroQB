@@ -124,8 +124,10 @@ public sealed class MenuRenderer
     {
         int screenH = Raylib.GetScreenHeight();
         bool denseTeamLayout = teams.Count > 5;
-        int panelWidth = denseTeamLayout ? 860 : 560;
-        int panelHeight = Math.Min(denseTeamLayout ? 690 : 600, screenH - 24);
+        int teamColumns = denseTeamLayout ? 2 : 1;
+        int teamRows = (teams.Count + teamColumns - 1) / teamColumns;
+        int panelWidth = denseTeamLayout ? 1180 : 560;
+        int panelHeight = Math.Min(denseTeamLayout ? teamRows * 76 + 296 : 600, screenH - 24);
 
         OverlayFrame frame = OverlayChromeRenderer.DrawWindowCentered(
             panelWidth,
@@ -194,7 +196,7 @@ public sealed class MenuRenderer
         Raylib.DrawText(selectHeader, panelX + (panelWidth - headerWidth) / 2, contentY, headerSize, Palette.Yellow);
         contentY += headerSize + (denseTeamLayout ? 8 : compactLayout ? 10 : 14);
 
-        string sortHint = "Ordered by score  /  UP-DOWN to browse all teams";
+        string sortHint = "Ordered by score, down each column  /  UP-DOWN to select";
         int sortHintSize = denseTeamLayout ? 11 : 12;
         int sortHintWidth = Raylib.MeasureText(sortHint, sortHintSize);
         Raylib.DrawText(sortHint, panelX + (panelWidth - sortHintWidth) / 2, contentY, sortHintSize, new Color(150, 172, 194, 255));
@@ -202,37 +204,32 @@ public sealed class MenuRenderer
 
         // Team selection area background
         int teamAreaWidth = panelWidth - (denseTeamLayout ? 42 : 50);
-        int teamLineHeight = denseTeamLayout ? 52 : compactLayout ? 60 : 68;
-        // Keep the selected team visible while reserving space for the footer.
-        int visibleRows = Math.Clamp((panelY + panelHeight - contentY - 116) / teamLineHeight, 1, teams.Count);
-        int firstVisible = Math.Clamp(selectedTeamIndex - visibleRows / 2, 0, teams.Count - visibleRows);
-        int teamAreaHeight = teamLineHeight * visibleRows + 12;
+        // Two columns keep the full roster visible, including the unlocked secret team.
+        int teamLineHeight = denseTeamLayout
+            ? Math.Min(76, (panelY + panelHeight - contentY - 116) / teamRows)
+            : compactLayout ? 60 : 68;
+        int teamAreaHeight = teamLineHeight * teamRows + 12;
+        int columnWidth = teamAreaWidth / teamColumns;
         int teamAreaX = panelX + (denseTeamLayout ? 21 : 25);
         Raylib.DrawRectangle(teamAreaX, contentY, teamAreaWidth, teamAreaHeight, new Color(8, 12, 18, 220));
         Raylib.DrawRectangleLines(teamAreaX, contentY, teamAreaWidth, teamAreaHeight, new Color(50, 70, 100, 180));
 
-        int teamY = contentY + 8;
-
-        for (int i = firstVisible; i < firstVisible + visibleRows; i++)
+        for (int i = 0; i < teams.Count; i++)
         {
+            int teamY = contentY + 8 + (i % teamRows) * teamLineHeight;
             OffensiveTeamAttributes team = teams[i];
             bool isSelected = i == selectedTeamIndex;
             Color textColor = isSelected ? Palette.Gold : Palette.White;
 
-            int rowX = teamAreaX + (denseTeamLayout ? 10 : 12);
-            int rowWidth = teamAreaWidth - 24;
+            int rowX = teamAreaX + (i / teamRows) * columnWidth + 12;
+            int rowWidth = columnWidth - 24;
             int infoWidth = rowWidth;
             int chartX = rowX + 18;
             int chartWidth = rowWidth - 30;
-            int scoreWidth = denseTeamLayout ? 68 : compactLayout ? 74 : 82;
+            int scoreWidth = denseTeamLayout ? 52 : compactLayout ? 74 : 82;
             if (denseTeamLayout)
             {
-                const int denseChartMinWidth = 260;
-                int preferredInfoWidth = (int)(rowWidth * 0.52f);
-                int maxInfoWidth = rowWidth - denseChartMinWidth - 12;
-                infoWidth = Math.Clamp(preferredInfoWidth, 280, Math.Max(280, maxInfoWidth));
-                chartX = rowX + infoWidth;
-                chartWidth = rowWidth - infoWidth - 12;
+                infoWidth = rowWidth - scoreWidth - 12;
             }
 
             if (isSelected)
@@ -279,10 +276,8 @@ public sealed class MenuRenderer
             int statWidth = Math.Max(116, chartWidth - scoreWidth - 8);
             int scoreX = chartX + statWidth + 8;
 
-            DrawTeamStatBars(team, chartX, teamY + (denseTeamLayout ? 8 : compactLayout ? 26 : 32), statWidth, isSelected, denseTeamLayout);
-            DrawTeamScore(team, scoreX, teamY + (denseTeamLayout ? 2 : compactLayout ? 6 : 8), scoreWidth, teamLineHeight - (denseTeamLayout ? 6 : 10), isSelected, denseTeamLayout);
-
-            teamY += teamLineHeight;
+            DrawTeamStatBars(team, chartX, teamY + (denseTeamLayout ? 36 : compactLayout ? 26 : 32), statWidth, isSelected, denseTeamLayout);
+            DrawTeamScore(team, scoreX, teamY + (denseTeamLayout ? 2 : compactLayout ? 6 : 8), scoreWidth, teamLineHeight - 10, isSelected, denseTeamLayout);
         }
 
         contentY += teamAreaHeight + (denseTeamLayout ? 10 : compactLayout ? 16 : 24);
@@ -291,7 +286,7 @@ public sealed class MenuRenderer
         Raylib.DrawLine(panelX + dividerPadding, contentY, panelX + panelWidth - dividerPadding, contentY, new Color(60, 80, 100, 180));
         contentY += denseTeamLayout ? 8 : compactLayout ? 10 : 16;
 
-        string controls1 = $"Teams {firstVisible + 1}-{firstVisible + visibleRows} of {teams.Count}  |  UP/DOWN or 1-9, 0 to select";
+        string controls1 = $"{teams.Count} teams  |  UP/DOWN or 1-9, 0 to select";
         string controls2 = "Press ENTER to start";
         string controls3 = "Press G for secret team";
         string controls4 = string.IsNullOrEmpty(storageMessage)

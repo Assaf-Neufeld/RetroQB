@@ -90,7 +90,7 @@ If you like football games where the tension comes from decisions more than butt
 
 ### Pre-snap play selection
 
-At the team menu, use **Up/Down** to browse or **1–9 / 0** to select any of the ten teams, then press **Enter**. Press **G** to enter the secret-team password. The list scrolls to keep your selection visible.
+At the team menu, use **Up/Down** or **1–9 / 0** to select any of the ten teams, then press **Enter**. Press **G** to enter the secret-team password. All ten teams and their skills are visible together in two columns.
 
 | Action | Key |
 |--------|-----|
