@@ -1,463 +1,168 @@
-using RetroQB.AI;
+using RetroQB.Entities;
+using static RetroQB.Entities.ReceiverSlot;
+using static RetroQB.Routes.RouteType;
 
 namespace RetroQB.Gameplay;
 
-/// <summary>
-/// Builds the game's playbook with all available plays.
-/// Pass plays: 10 plays (1 as wildcard, 2-9 plus 0 as regular plays)
-/// Run plays: 10 plays (Q as wildcard, W-P as regular plays)
-/// </summary>
+/// <summary>The existing catalog, authored by stable player slot with no setup-time substitutions.</summary>
 public static class PlaybookBuilder
 {
     private static readonly FormationType[] PassWildcardFormations =
-    {
-        FormationType.BaseTripsRight,
-        FormationType.BaseTripsLeft,
-        FormationType.BaseSplit,
-        FormationType.BaseBunchRight,
-        FormationType.BaseBunchLeft,
-        FormationType.PassSpread,
-        FormationType.PassBunchRight,
-        FormationType.PassBunchLeft,
-        FormationType.PassEmpty
-    };
-
+    [
+        FormationType.BaseTripsRight, FormationType.BaseTripsLeft, FormationType.BaseSplit,
+        FormationType.BaseBunchRight, FormationType.BaseBunchLeft, FormationType.PassSpread,
+        FormationType.PassBunchRight, FormationType.PassBunchLeft, FormationType.PassEmpty
+    ];
     private static readonly FormationType[] RunWildcardFormations =
-    {
-        FormationType.RunIForm,
-        FormationType.RunPowerRight,
-        FormationType.RunPowerLeft,
-        FormationType.RunPistolStrongRight,
-        FormationType.RunPistolStrongLeft,
-        FormationType.RunSweepRight,
-        FormationType.RunSweepLeft,
-        FormationType.RunStretchRight,
-        FormationType.RunStretchLeft,
-        FormationType.RunSinglebackTripsRight,
-        FormationType.RunSinglebackTripsLeft
-    };
+    [
+        FormationType.RunIForm, FormationType.RunPowerRight, FormationType.RunPowerLeft,
+        FormationType.RunPistolStrongRight, FormationType.RunPistolStrongLeft,
+        FormationType.RunSweepRight, FormationType.RunSweepLeft,
+        FormationType.RunStretchRight, FormationType.RunStretchLeft,
+        FormationType.RunSinglebackTripsRight, FormationType.RunSinglebackTripsLeft
+    ];
 
-    public static List<PlayDefinition> BuildPassPlays()
-    {
-        var plays = new List<PlayDefinition>
+    public static List<PlayDefinition> BuildPassPlays() =>
+    [
+        CreatePassWildcardPlay(new Random(0)),
+        Pass("pass.mesh", "Mesh", FormationType.PassSpread, new()
         {
-            // 1 - Wildcard (regenerated at selection time)
-            new(
-                "Wildcard",
-                PlayType.Pass,
-                FormationType.BaseTripsRight,
-                RunningBackRole.Route,
-                TightEndRole.Route,
-                new Dictionary<int, RouteType>()),
-
-            // 2 - Mesh (quick crossing routes)
-            new(
-                "Mesh",
-                PlayType.Pass,
-                FormationType.PassSpread,
-                RunningBackRole.Route,
-                TightEndRole.Route,
-                new Dictionary<int, RouteType>
-                {
-                    [0] = RouteType.InShallow,
-                    [1] = RouteType.Slant,
-                    [2] = RouteType.InShallow,
-                    [3] = RouteType.Go,
-                    [4] = RouteType.Flat
-                }),
-
-            // 3 - Bunch Quick (tight formation, quick release)
-            new(
-                "Bunch Quick",
-                PlayType.Pass,
-                FormationType.PassBunchRight,
-                RunningBackRole.Route,
-                TightEndRole.Route,
-                new Dictionary<int, RouteType>
-                {
-                    [0] = RouteType.OutShallow,
-                    [1] = RouteType.Slant,
-                    [2] = RouteType.Flat,
-                    [3] = RouteType.DoubleMove,
-                    [4] = RouteType.InShallow
-                },
-                slantDirections: new Dictionary<int, bool> { [1] = true }),
-
-            // 4 - Four Verts (deep stretch)
-            new(
-                "Four Verts",
-                PlayType.Pass,
-                FormationType.PassSpread,
-                RunningBackRole.Route,
-                TightEndRole.Route,
-                new Dictionary<int, RouteType>
-                {
-                    [0] = RouteType.Go,
-                    [1] = RouteType.Go,
-                    [2] = RouteType.Go,
-                    [3] = RouteType.Go,
-                    [4] = RouteType.Go
-                }),
-
-            // 5 - Deep Ins (crossing patterns)
-            new(
-                "Deep Ins",
-                PlayType.Pass,
-                FormationType.BaseBunchLeft,
-                RunningBackRole.Block,
-                TightEndRole.Route,
-                new Dictionary<int, RouteType>
-                {
-                    [0] = RouteType.Go,
-                    [1] = RouteType.InDeep,
-                    [2] = RouteType.PostDeep,
-                    [3] = RouteType.OutShallow
-                }),
-
-            // 6 - Flood (sideline attack)
-            new(
-                "Flood",
-                PlayType.Pass,
-                FormationType.PassBunchLeft,
-                RunningBackRole.Route,
-                TightEndRole.Route,
-                new Dictionary<int, RouteType>
-                {
-                    [0] = RouteType.Flat,
-                    [1] = RouteType.OutShallow,
-                    [2] = RouteType.OutDeep,
-                    [3] = RouteType.Go,
-                    [4] = RouteType.InShallow
-                }),
-
-            // 7 - Smash (smash-style high-low combo)
-            new(
-                "Smash",
-                PlayType.Pass,
-                FormationType.BaseSplit,
-                RunningBackRole.Block,
-                TightEndRole.Route,
-                new Dictionary<int, RouteType>
-                {
-                    [0] = RouteType.InShallow,
-                    [1] = RouteType.OutDeep,
-                    [2] = RouteType.Go,
-                    [3] = RouteType.InShallow
-                }),
-
-            // 8 - Slant Flat (quick slants with flat option)
-            new(
-                "Slant Flat",
-                PlayType.Pass,
-                FormationType.BaseBunchRight,
-                RunningBackRole.Route,
-                TightEndRole.Route,
-                new Dictionary<int, RouteType>
-                {
-                    [0] = RouteType.Slant,
-                    [1] = RouteType.Slant,
-                    [2] = RouteType.Flat,
-                    [3] = RouteType.Go,
-                    [4] = RouteType.Flat
-                },
-                slantDirections: new Dictionary<int, bool> { [0] = true, [1] = true }),
-
-            // 9 - PA Deep (play action deep routes)
-            new(
-                "PA Deep",
-                PlayType.Pass,
-                FormationType.PassSpread,
-                RunningBackRole.Route,
-                TightEndRole.Route,
-                new Dictionary<int, RouteType>
-                {
-                    [0] = RouteType.Go,
-                    [1] = RouteType.PostDeep,
-                    [2] = RouteType.InDeep,
-                    [3] = RouteType.Go,
-                    [4] = RouteType.DoubleMove
-                }),
-
-            // 0 - Combo (layered in-breaking concept)
-            new(
-                "Combo",
-                PlayType.Pass,
-                FormationType.BaseSplit,
-                RunningBackRole.Route,
-                TightEndRole.Route,
-                new Dictionary<int, RouteType>
-                {
-                    [0] = RouteType.InShallow,
-                    [1] = RouteType.Go,
-                    [2] = RouteType.InDeep,
-                    [3] = RouteType.InShallow,
-                    [4] = RouteType.Flat
-                })
-        };
-        return plays;
-    }
-
-    public static List<PlayDefinition> BuildRunPlays()
-    {
-        var plays = new List<PlayDefinition>
+            [WR1] = R(InShallow), [WR2] = R(Slant), [WR3] = R(InShallow), [WR4] = R(Go), [TE1] = R(Flat)
+        }),
+        // Preserve the original effective inside route, previously rewritten at setup time.
+        Pass("pass.bunch-quick", "Bunch Quick", FormationType.PassBunchRight, new()
         {
-            // Q - Wildcard (regenerated at selection time)
-            CreateRunPlay(
-                "Wildcard",
-                FormationType.RunPowerRight,
-                RunConcept.Power,
-                runningBackSide: 1,
-                new Dictionary<int, RouteType>()),
+            [WR1] = R(InShallow), [WR2] = R(Slant), [WR3] = R(Flat), [WR4] = R(DoubleMove), [TE1] = R(InShallow)
+        }),
+        Pass("pass.four-verts", "Four Verts", FormationType.PassSpread, new()
+        {
+            [WR1] = R(Go), [WR2] = R(Go), [WR3] = R(Go), [WR4] = R(Go), [TE1] = R(Go)
+        }),
+        Pass("pass.deep-ins", "Deep Ins", FormationType.BaseBunchLeft, new()
+        {
+            [WR1] = R(Go), [WR2] = R(InDeep), [WR3] = R(PostDeep), [TE1] = R(OutShallow), [RB1] = B()
+        }),
+        Pass("pass.flood", "Flood", FormationType.PassBunchLeft, new()
+        {
+            [WR1] = R(Flat), [WR2] = R(OutShallow), [WR3] = R(OutDeep), [WR4] = R(Go), [TE1] = R(InShallow)
+        }),
+        Pass("pass.smash", "Smash", FormationType.BaseSplit, new()
+        {
+            [WR1] = R(InShallow), [WR2] = R(OutDeep), [WR3] = R(Go), [TE1] = R(InShallow), [RB1] = B()
+        }),
+        Pass("pass.slant-flat", "Slant Flat", FormationType.BaseBunchRight, new()
+        {
+            [WR1] = R(Slant), [WR2] = R(Slant), [WR3] = R(Flat), [TE1] = R(Go), [RB1] = R(Flat, 1)
+        }),
+        Pass("pass.pa-deep", "PA Deep", FormationType.PassSpread, new()
+        {
+            [WR1] = R(Go), [WR2] = R(PostDeep), [WR3] = R(InDeep), [WR4] = R(Go), [TE1] = R(DoubleMove)
+        }),
+        Pass("pass.combo", "Combo", FormationType.BaseSplit, new()
+        {
+            [WR1] = R(InShallow), [WR2] = R(Go), [WR3] = R(InDeep), [TE1] = R(InShallow), [RB1] = R(Flat, 1)
+        })
+    ];
 
-            // W - HB Dive (downhill inside run)
-            CreateRunPlay(
-                "HB Dive",
-                FormationType.RunIForm,
-                RunConcept.Dive,
-                runningBackSide: 0,
-                new Dictionary<int, RouteType>
-                {
-                    [0] = RouteType.Slant,
-                    [1] = RouteType.Flat
-                },
-                new Dictionary<int, bool> { [0] = true }),
+    public static List<PlayDefinition> BuildRunPlays() =>
+    [
+        CreateRunWildcardPlay(new Random(0)),
+        Run("run.hb-dive", "HB Dive", FormationType.RunIForm, RunConcept.Dive, 0, new()
+        {
+            [WR1] = R(Slant), [RB1] = C(Flat), [TE1] = B(), [TE2] = B()
+        }),
+        Run("run.power-right", "Power Right", FormationType.RunPowerRight, RunConcept.Power, 1, Heavy(Go, OutShallow)),
+        Run("run.power-left", "Power Left", FormationType.RunPowerLeft, RunConcept.Power, -1, Heavy(Go, OutShallow)),
+        Run("run.counter-right", "Counter Right", FormationType.RunPistolStrongRight, RunConcept.Counter, 1, Heavy(InShallow, Flat)),
+        Run("run.counter-left", "Counter Left", FormationType.RunPistolStrongLeft, RunConcept.Counter, -1, Heavy(InShallow, Flat)),
+        Run("run.sweep-right", "Sweep Right", FormationType.RunSinglebackTripsRight, RunConcept.Sweep, 1, Spread(Flat)),
+        Run("run.sweep-left", "Sweep Left", FormationType.RunSinglebackTripsLeft, RunConcept.Sweep, -1, Spread(Flat)),
+        Run("run.stretch-right", "Stretch Right", FormationType.RunSinglebackTripsRight, RunConcept.Stretch, 1, Spread(OutShallow)),
+        Run("run.draw", "Draw", FormationType.RunPistolStrongRight, RunConcept.Draw, 0, Heavy(Go, Flat))
+    ];
 
-            // E - Power Right (heavy strong-side run)
-            CreateRunPlay(
-                "Power Right",
-                FormationType.RunPowerRight,
-                RunConcept.Power,
-                runningBackSide: 1,
-                new Dictionary<int, RouteType>
-                {
-                    [0] = RouteType.Go,
-                    [1] = RouteType.OutShallow
-                }),
-
-            // R - Power Left (heavy weak-side run)
-            CreateRunPlay(
-                "Power Left",
-                FormationType.RunPowerLeft,
-                RunConcept.Power,
-                runningBackSide: -1,
-                new Dictionary<int, RouteType>
-                {
-                    [0] = RouteType.Go,
-                    [1] = RouteType.OutShallow
-                }),
-
-            // T - Counter Right (pistol misdirection)
-            CreateRunPlay(
-                "Counter Right",
-                FormationType.RunPistolStrongRight,
-                RunConcept.Counter,
-                runningBackSide: 1,
-                new Dictionary<int, RouteType>
-                {
-                    [0] = RouteType.InShallow,
-                    [1] = RouteType.Flat
-                }),
-
-            // Y - Counter Left (pistol misdirection)
-            CreateRunPlay(
-                "Counter Left",
-                FormationType.RunPistolStrongLeft,
-                RunConcept.Counter,
-                runningBackSide: -1,
-                new Dictionary<int, RouteType>
-                {
-                    [0] = RouteType.InShallow,
-                    [1] = RouteType.Flat
-                }),
-
-            // U - Sweep Right (spread edge run)
-            CreateRunPlay(
-                "Sweep Right",
-                FormationType.RunSinglebackTripsRight,
-                RunConcept.Sweep,
-                runningBackSide: 1,
-                new Dictionary<int, RouteType>
-                {
-                    [0] = RouteType.Go,
-                    [1] = RouteType.Flat,
-                    [2] = RouteType.OutShallow,
-                    [3] = RouteType.Go
-                }),
-
-            // I - Sweep Left (spread edge run)
-            CreateRunPlay(
-                "Sweep Left",
-                FormationType.RunSinglebackTripsLeft,
-                RunConcept.Sweep,
-                runningBackSide: -1,
-                new Dictionary<int, RouteType>
-                {
-                    [0] = RouteType.Go,
-                    [1] = RouteType.Flat,
-                    [2] = RouteType.OutShallow,
-                    [3] = RouteType.Go
-                }),
-
-            // O - Stretch Right (spread outside zone)
-            CreateRunPlay(
-                "Stretch Right",
-                FormationType.RunSinglebackTripsRight,
-                RunConcept.Stretch,
-                runningBackSide: 1,
-                new Dictionary<int, RouteType>
-                {
-                    [0] = RouteType.Go,
-                    [1] = RouteType.OutShallow,
-                    [2] = RouteType.OutShallow,
-                    [3] = RouteType.Go
-                }),
-
-            // P - Draw (pistol delayed handoff)
-            CreateRunPlay(
-                "Draw",
-                FormationType.RunPistolStrongRight,
-                RunConcept.Draw,
-                runningBackSide: 0,
-                new Dictionary<int, RouteType>
-                {
-                    [0] = RouteType.Go,
-                    [1] = RouteType.Flat
-                })
-        };
-
-        return plays;
-    }
+    public static PlayCatalog BuildCatalog() => new(BuildPassPlays().Concat(BuildRunPlays()));
 
     public static PlayDefinition CreatePassWildcardPlay(Random rng)
     {
-        var formation = PassWildcardFormations[rng.Next(PassWildcardFormations.Length)];
-        var rbRole = rng.Next(2) == 0 ? RunningBackRole.Block : RunningBackRole.Route;
-        var teRole = rng.Next(2) == 0 ? TightEndRole.Block : TightEndRole.Route;
-
-        return new PlayDefinition(
-            "Wildcard",
-            PlayType.Pass,
-            formation,
-            rbRole,
-            teRole,
-            new Dictionary<int, RouteType>());
+        var formation = FormationCatalog.Get(PassWildcardFormations[rng.Next(PassWildcardFormations.Length)]);
+        bool blockRb = rng.Next(2) == 0;
+        bool blockTe = rng.Next(2) == 0;
+        var slots = formation.AlignmentSlots;
+        var wide = slots.Select((slot, i) => (slot, x: formation.Alignment.SkillPositions[i].XFraction))
+            .Where(p => p.slot.IsWideReceiverSlot()).OrderBy(p => p.x).ToArray();
+        var assignments = new Dictionary<ReceiverSlot, PlayerAssignment>();
+        foreach (var slot in slots)
+        {
+            int? side = slot.IsRunningBackSlot() ? (rng.Next(2) == 0 ? -1 : 1) : null;
+            if ((slot.IsRunningBackSlot() && blockRb) || (slot.IsTightEndSlot() && blockTe))
+            {
+                assignments[slot] = B() with { RouteSide = side };
+                continue;
+            }
+            RouteType route = PickWildcardPassRoute(rng.Next(100));
+            if (slot.IsRunningBackSlot())
+                route = route switch
+                {
+                    DoubleMove or Go or PostDeep or PostShallow => Flat,
+                    InDeep or OutDeep => OutShallow,
+                    _ => route
+                };
+            if (slot == wide[0].slot || slot == wide[^1].slot)
+                route = route switch { OutShallow => InShallow, OutDeep => InDeep, _ => route };
+            assignments[slot] = R(route, side);
+        }
+        return new PlayDefinition("pass.wildcard", "Wildcard", PlayType.Pass, formation, assignments, isWildcard: true);
     }
 
     public static PlayDefinition CreateRunWildcardPlay(Random rng)
     {
         var formation = RunWildcardFormations[rng.Next(RunWildcardFormations.Length)];
-        RunConcept runConcept = GetWildcardRunConcept(formation, rng);
-        int runningBackSide = formation switch
-        {
-            FormationType.RunPowerRight => 1,
-            FormationType.RunPowerLeft => -1,
-            FormationType.RunPistolStrongRight => 1,
-            FormationType.RunPistolStrongLeft => -1,
-            FormationType.RunSweepRight => 1,
-            FormationType.RunSweepLeft => -1,
-            FormationType.RunStretchRight => 1,
-            FormationType.RunStretchLeft => -1,
-            FormationType.RunSinglebackTripsRight => rng.Next(2) == 0 ? 1 : 0,
-            FormationType.RunSinglebackTripsLeft => rng.Next(2) == 0 ? -1 : 0,
-            _ => 0
-        };
-
-        Dictionary<int, RouteType> routes = GetRunRoutesForConcept(runConcept, formation);
-        Dictionary<int, bool>? slantDirections = GetRunSlantDirections(runConcept);
-
-        return CreateRunPlay(
-            "Wildcard",
-            formation,
-            runConcept,
-            runningBackSide,
-            routes,
-            slantDirections);
-    }
-
-    private static RunConcept GetWildcardRunConcept(FormationType formation, Random rng)
-    {
-        return formation switch
+        var concept = formation switch
         {
             FormationType.RunIForm => RunConcept.Dive,
             FormationType.RunPowerRight or FormationType.RunPowerLeft => RunConcept.Power,
             FormationType.RunPistolStrongRight or FormationType.RunPistolStrongLeft => rng.Next(3) switch
             {
-                0 => RunConcept.Power,
-                1 => RunConcept.Counter,
-                _ => RunConcept.Stretch
+                0 => RunConcept.Power, 1 => RunConcept.Counter, _ => RunConcept.Stretch
             },
             FormationType.RunSweepRight or FormationType.RunSweepLeft => RunConcept.Sweep,
             FormationType.RunStretchRight or FormationType.RunStretchLeft => RunConcept.Stretch,
-            FormationType.RunSinglebackTripsRight or FormationType.RunSinglebackTripsLeft => rng.Next(2) == 0 ? RunConcept.Sweep : RunConcept.Draw,
-            _ => RunConcept.Power
+            _ => rng.Next(2) == 0 ? RunConcept.Sweep : RunConcept.Draw
         };
-    }
-
-    private static PlayDefinition CreateRunPlay(
-        string name,
-        FormationType formation,
-        RunConcept runConcept,
-        int runningBackSide,
-        IReadOnlyDictionary<int, RouteType> routes,
-        IReadOnlyDictionary<int, bool>? slantDirections = null)
-    {
-        return new PlayDefinition(
-            name,
-            PlayType.Run,
-            formation,
-            RunningBackRole.Route,
-            TightEndRole.Block,
-            routes,
-            runConcept,
-            runningBackSide,
-            slantDirections);
-    }
-
-    private static Dictionary<int, RouteType> GetRunRoutesForConcept(RunConcept runConcept, FormationType formation)
-    {
-        return runConcept switch
+        int side = formation switch
         {
-            RunConcept.Dive => new Dictionary<int, RouteType>
-            {
-                [0] = RouteType.Slant,
-                [1] = RouteType.Flat
-            },
-            RunConcept.Counter => new Dictionary<int, RouteType>
-            {
-                [0] = RouteType.InShallow,
-                [1] = RouteType.Flat
-            },
-            RunConcept.Sweep => new Dictionary<int, RouteType>
-            {
-                [0] = RouteType.Go,
-                [1] = RouteType.Flat,
-                [2] = RouteType.OutShallow,
-                [3] = RouteType.Go
-            },
-            RunConcept.Draw when formation is FormationType.RunSinglebackTripsRight or FormationType.RunSinglebackTripsLeft => new Dictionary<int, RouteType>
-            {
-                [0] = RouteType.Go,
-                [1] = RouteType.Flat,
-                [2] = RouteType.InShallow,
-                [3] = RouteType.Go
-            },
-            RunConcept.Stretch => new Dictionary<int, RouteType>
-            {
-                [0] = RouteType.Go,
-                [1] = RouteType.OutShallow
-            },
-            _ => new Dictionary<int, RouteType>
-            {
-                [0] = RouteType.Go,
-                [1] = RouteType.OutShallow
-            }
+            FormationType.RunIForm => 0,
+            FormationType.RunSinglebackTripsRight => rng.Next(2) == 0 ? 1 : 0,
+            FormationType.RunSinglebackTripsLeft => rng.Next(2) == 0 ? -1 : 0,
+            FormationType.RunPowerLeft or FormationType.RunPistolStrongLeft or FormationType.RunSweepLeft or FormationType.RunStretchLeft => -1,
+            _ => 1
         };
+        RouteType wrRoute = concept switch { RunConcept.Dive => Slant, RunConcept.Counter => InShallow, _ => Go };
+        RouteType rbRoute = concept is RunConcept.Dive or RunConcept.Counter or RunConcept.Sweep or RunConcept.Draw ? Flat : OutShallow;
+        var assignments = formation is FormationType.RunSinglebackTripsRight or FormationType.RunSinglebackTripsLeft
+            ? Spread(rbRoute) : Heavy(wrRoute, rbRoute);
+        return new PlayDefinition("run.wildcard", "Wildcard", PlayType.Run, FormationCatalog.Get(formation),
+            assignments, concept, side, isWildcard: true);
     }
 
-    private static Dictionary<int, bool>? GetRunSlantDirections(RunConcept runConcept)
+    private static PlayDefinition Pass(string id, string name, FormationType formation, Dictionary<ReceiverSlot, PlayerAssignment> assignments) =>
+        new(id, name, PlayType.Pass, FormationCatalog.Get(formation), assignments);
+    private static PlayDefinition Run(string id, string name, FormationType formation, RunConcept concept, int side,
+        Dictionary<ReceiverSlot, PlayerAssignment> assignments) =>
+        new(id, name, PlayType.Run, FormationCatalog.Get(formation), assignments, concept, side);
+    private static PlayerAssignment R(RouteType route, int? side = null) => new(AssignmentRole.Route, route, side);
+    private static PlayerAssignment B() => new(AssignmentRole.Block);
+    private static PlayerAssignment C(RouteType route) => new(AssignmentRole.BallCarrier, route);
+    private static Dictionary<ReceiverSlot, PlayerAssignment> Heavy(RouteType wrRoute, RouteType rbRoute) => new()
     {
-        return runConcept == RunConcept.Dive
-            ? new Dictionary<int, bool> { [0] = true }
-            : null;
-    }
+        [WR1] = R(wrRoute), [RB1] = C(rbRoute), [TE1] = B(), [TE2] = B()
+    };
+    private static Dictionary<ReceiverSlot, PlayerAssignment> Spread(RouteType rbRoute) => new()
+    {
+        [WR1] = R(Go), [RB1] = C(rbRoute), [WR2] = R(OutShallow), [WR3] = R(Go), [TE1] = B()
+    };
+    private static RouteType PickWildcardPassRoute(int roll) =>
+        roll < 20 ? Slant : roll < 35 ? OutShallow : roll < 50 ? InShallow : roll < 62 ? DoubleMove :
+        roll < 74 ? Go : roll < 84 ? PostShallow : roll < 90 ? PostDeep : roll < 95 ? OutDeep : InDeep;
 }

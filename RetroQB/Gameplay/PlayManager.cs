@@ -20,42 +20,185 @@ public enum PlayOutcome
     Safety
 }
 
-/// <summary>
-/// Manages play selection and coordinates game state.
-/// Pass plays: 10 plays (1 as wildcard, 2-9 plus 0 as regular plays)
-/// Run plays: 10 plays (Q as wildcard, W-P as regular plays)
-/// </summary>
+/// <summary>Coordinates the drive and selects resolved catalog calls through a separate call sheet.</summary>
 public sealed class PlayManager
 {
-    private const int WildcardIndex = 0;
-    private const int RecentAutoSelectionLimit = 4;
-    public const int PassPlayCount = 10;
-    public const int RunPlayCount = 10;
+    private const int RecentCallLimit = 4;
+    public const int PassPlayCount = PlayCallSheet.PlaysPerFamily;
+    public const int RunPlayCount = PlayCallSheet.PlaysPerFamily;
+    private readonly DriveState _driveState = new();
+    private readonly Dictionary<string, ResolvedPlay> _resolvedCalls;
+    private readonly Dictionary<string, int> _callCounts = new(StringComparer.Ordinal);
+    private readonly Queue<string> _recentPassCalls = new();
+    private readonly Queue<string> _recentRunCalls = new();
+    private string _selectedPassId = string.Empty;
+    private string _selectedRunId = string.Empty;
 
-    private readonly List<PlayDefinition> _passPlays;
-    private readonly List<PlayDefinition> _runPlays;
-    private readonly DriveState _driveState;
-    private readonly int[] _autoPassSelectionCounts;
-    private readonly int[] _autoRunSelectionCounts;
-    private readonly Queue<int> _recentAutoPassSelections;
-    private readonly Queue<int> _recentAutoRunSelections;
-
-    private int _selectedPassIndex = 0;
-    private int _selectedRunIndex = 0;
-
+    public PlayCatalog Catalog { get; }
+    public PlayCallSheet CallSheet { get; private set; } = null!;
     public PlayType SelectedPlayType { get; private set; } = PlayType.Pass;
     public int SelectedReceiver { get; set; }
-    
-    public PlayDefinition SelectedPlay => SelectedPlayType == PlayType.Pass 
-        ? _passPlays[_selectedPassIndex] 
-        : _runPlays[_selectedRunIndex];
-    
-    public int SelectedPlayIndex => SelectedPlayType == PlayType.Pass 
-        ? _selectedPassIndex 
-        : _selectedRunIndex;
+    public ResolvedPlay SelectedPlay => _resolvedCalls[SelectedPlayType == PlayType.Pass ? _selectedPassId : _selectedRunId];
+    public int SelectedPlayIndex => (SelectedPlayType == PlayType.Pass ? CallSheet.PassIds : CallSheet.RunIds)
+        .ToList().IndexOf(SelectedPlay.Id);
+    public IReadOnlyList<ResolvedPlay> PassPlays { get; private set; } = Array.Empty<ResolvedPlay>();
+    public IReadOnlyList<ResolvedPlay> RunPlays { get; private set; } = Array.Empty<ResolvedPlay>();
 
-    public IReadOnlyList<PlayDefinition> PassPlays => _passPlays;
-    public IReadOnlyList<PlayDefinition> RunPlays => _runPlays;
+    public PlayManager(PlayCatalog? catalog = null)
+    {
+        Catalog = catalog ?? PlaybookBuilder.BuildCatalog();
+        _resolvedCalls = Catalog.Plays.ToDictionary(p => p.Id, p => PlayResolver.Resolve(p), StringComparer.Ordinal);
+        SetCallSheet(PlayCallSheet.Default(Catalog));
+    }
+
+    /// <summary>Replace only between snaps. Selection and usage follow IDs when hotkeys move.</summary>
+    public void SetCallSheet(PlayCallSheet callSheet)
+    {
+        ArgumentNullException.ThrowIfNull(callSheet);
+        if (!ReferenceEquals(Catalog, callSheet.Catalog))
+            throw new ArgumentException("Call sheet must reference this manager's catalog.");
+        CallSheet = callSheet;
+        if (!callSheet.PassIds.Contains(_selectedPassId)) _selectedPassId = callSheet.PassIds[0];
+        if (!callSheet.RunIds.Contains(_selectedRunId)) _selectedRunId = callSheet.RunIds[0];
+        RefreshAvailableCalls();
+    }
+
+    private void RefreshAvailableCalls()
+    {
+        PassPlays = Array.AsReadOnly(CallSheet.PassIds.Select(id => _resolvedCalls[id]).ToArray());
+        RunPlays = Array.AsReadOnly(CallSheet.RunIds.Select(id => _resolvedCalls[id]).ToArray());
+    }
+
+    public void StartNewDrive()
+    {
+        _driveState.Reset();
+        SelectedPlayType = PlayType.Pass;
+        ClearCallRecency();
+    }
+
+    public void StartNewGame()
+    {
+        _driveState.ResetForNewGame();
+        SelectedPlayType = PlayType.Pass;
+        _callCounts.Clear();
+        ClearCallRecency();
+    }
+
+    public void StartPlay()
+    {
+        SelectedReceiver = 0;
+        // Count actual snaps, including manual calls, rather than pre-snap browsing.
+        string id = SelectedPlay.Id;
+        _callCounts[id] = GetCallCount(id) + 1;
+        var recent = SelectedPlayType == PlayType.Pass ? _recentPassCalls : _recentRunCalls;
+        recent.Enqueue(id);
+        while (recent.Count > RecentCallLimit) recent.Dequeue();
+    }
+
+    public int GetCallCount(string playId) => _callCounts.GetValueOrDefault(playId);
+
+    private void ClearCallRecency()
+    {
+        _recentPassCalls.Clear();
+        _recentRunCalls.Clear();
+    }
+
+    public bool SelectPassPlay(int index, Random rng) => SelectPlay(PlayType.Pass, index, rng);
+    public bool SelectRunPlay(int index, Random rng) => SelectPlay(PlayType.Run, index, rng);
+
+    private bool SelectPlay(PlayType family, int index, Random rng)
+    {
+        var ids = family == PlayType.Pass ? CallSheet.PassIds : CallSheet.RunIds;
+        if (index < 0 || index >= ids.Count) return false;
+        string id = ids[index];
+        return ActivatePlay(Catalog[id].IsWildcard ? GenerateWildcard(_resolvedCalls[id], rng) : _resolvedCalls[id]);
+    }
+
+    private static ResolvedPlay GenerateWildcard(ResolvedPlay play, Random rng)
+    {
+        var generated = play.Family == PlayType.Pass
+            ? PlaybookBuilder.CreatePassWildcardPlay(rng) : PlaybookBuilder.CreateRunWildcardPlay(rng);
+        if (generated.Id != play.Id)
+            throw new InvalidOperationException("No generator is registered for this wildcard ID.");
+        return PlayResolver.Resolve(generated);
+    }
+
+    private bool ActivatePlay(ResolvedPlay play)
+    {
+        if (!ReferenceEquals(_resolvedCalls[play.Id], play))
+        {
+            _resolvedCalls[play.Id] = play;
+            RefreshAvailableCalls();
+        }
+        SelectedPlayType = play.Family;
+        if (play.Family == PlayType.Pass) _selectedPassId = play.Id;
+        else _selectedRunId = play.Id;
+        return true;
+    }
+
+    public void FlipSelectedPlay()
+    {
+        _resolvedCalls[SelectedPlay.Id] = SelectedPlay.Flip();
+        RefreshAvailableCalls();
+    }
+
+    public bool AutoSelectPlayBySituation(Random rng)
+    {
+        var situation = GetPlaySituation();
+        var candidates = new List<(ResolvedPlay Play, float Weight)>();
+        AddCandidates(PassPlays, PlayType.Pass);
+        AddCandidates(RunPlays, PlayType.Run);
+        float total = candidates.Sum(c => c.Weight);
+        if (total <= 0f) return false;
+        float pick = (float)rng.NextDouble() * total;
+        foreach (var candidate in candidates)
+        {
+            pick -= candidate.Weight;
+            if (pick <= 0f) return ActivatePlay(candidate.Play);
+        }
+        var last = candidates[^1];
+        return ActivatePlay(last.Play);
+
+        void AddCandidates(IReadOnlyList<ResolvedPlay> plays, PlayType family)
+        {
+            float familyWeight = PlaySuggestion.GetFamilyWeight(family, situation);
+            for (int i = 0; i < plays.Count; i++)
+            {
+                // Score the exact generated assignments that will execute if selected.
+                var play = plays[i].IsWildcard ? GenerateWildcard(plays[i], rng) : plays[i];
+                float weight = familyWeight * PlaySuggestion.GetPlayWeight(play, situation)
+                    * GetDiversityWeight(play) * (play.IsWildcard ? 0.85f : 1f);
+                if (weight > 0f) candidates.Add((play, weight));
+            }
+        }
+    }
+
+    private float GetDiversityWeight(ResolvedPlay play)
+    {
+        var familyIds = Catalog.Plays.Where(p => p.Family == play.Family).Select(p => p.Id).ToArray();
+        float average = familyIds.Average(id => (float)GetCallCount(id));
+        float weight = Math.Clamp(1f + ((average - GetCallCount(play.Id)) * 0.22f), 0.65f, 1.7f);
+        var recent = (play.Family == PlayType.Pass ? _recentPassCalls : _recentRunCalls).Reverse().ToArray();
+        int offset = Array.IndexOf(recent, play.Id);
+        weight *= offset switch { 0 => 0.18f, 1 => 0.35f, >= 2 => 0.6f, _ => 1f };
+        return MathF.Max(weight, 0.05f);
+    }
+
+    public PlayType GetSuggestedPlayType() => GetSuggestedPlaySelection().Type;
+
+    public string GetSuggestedPlayLabel()
+    {
+        var suggested = GetSuggestedPlaySelection();
+        var play = suggested.Type == PlayType.Pass ? PassPlays[suggested.Index] : RunPlays[suggested.Index];
+        return $"{suggested.Type}: {play.Name}";
+    }
+
+    private (PlayType Type, int Index) GetSuggestedPlaySelection() =>
+        PlaySuggestion.GetSuggestedPlay(GetPlaySituation(), PassPlays, RunPlays);
+
+    private PlaySituation GetPlaySituation() => new(Down, Distance, LineOfScrimmage, FirstDownLine);
+
+    public string GetPlayLabel() => $"{SelectedPlayType}: {SelectedPlay.Name}";
 
     // Drive state delegation
     public int Down => _driveState.Down;
@@ -74,7 +217,7 @@ public sealed class PlayManager
     /// </summary>
     public void StartPlayRecord(bool isUnderneathManCoverage, CoverageScheme coverageScheme, List<string> blitzers)
     {
-        _driveState.StartPlayRecord(SelectedPlay.Name, SelectedPlayType, isUnderneathManCoverage, coverageScheme, blitzers);
+        _driveState.StartPlayRecord(SelectedPlay.Name, SelectedPlayType, isUnderneathManCoverage, coverageScheme, blitzers, SelectedPlay.Id, SelectedPlay.IsFlipped);
     }
 
     /// <summary>
@@ -91,276 +234,6 @@ public sealed class PlayManager
         int sackYardsLost = 0)
     {
         _driveState.FinalizePlayRecord(outcome, gain, catcherLabel, catcherRoute, wasRun, ballCarrierLabel, isSack, sackYardsLost);
-    }
-
-    public PlayManager()
-    {
-        _passPlays = PlaybookBuilder.BuildPassPlays();
-        _runPlays = PlaybookBuilder.BuildRunPlays();
-        _driveState = new DriveState();
-        _autoPassSelectionCounts = new int[PassPlayCount];
-        _autoRunSelectionCounts = new int[RunPlayCount];
-        _recentAutoPassSelections = new Queue<int>(RecentAutoSelectionLimit);
-        _recentAutoRunSelections = new Queue<int>(RecentAutoSelectionLimit);
-    }
-
-    public void StartNewDrive()
-    {
-        _driveState.Reset();
-        SelectedPlayType = PlayType.Pass;
-        ClearAutoSelectionRecency();
-    }
-
-    public void StartNewGame()
-    {
-        _driveState.ResetForNewGame();
-        SelectedPlayType = PlayType.Pass;
-        ResetAutoSelectionTracking();
-    }
-
-    public void StartPlay()
-    {
-        SelectedReceiver = 0;
-    }
-
-    /// <summary>
-    /// Select a pass play by index (0-9, where 0 is wildcard).
-    /// </summary>
-    public bool SelectPassPlay(int index, Random rng)
-    {
-        if (index < 0 || index >= PassPlayCount)
-        {
-            return false;
-        }
-
-        _selectedPassIndex = index;
-        SelectedPlayType = PlayType.Pass;
-        
-        if (index == WildcardIndex)
-        {
-            _passPlays[WildcardIndex] = PlaybookBuilder.CreatePassWildcardPlay(rng);
-        }
-        
-        return true;
-    }
-
-    /// <summary>
-    /// Select a run play by index (0-9, where 0 is wildcard).
-    /// </summary>
-    public bool SelectRunPlay(int index, Random rng)
-    {
-        if (index < 0 || index >= RunPlayCount)
-        {
-            return false;
-        }
-
-        _selectedRunIndex = index;
-        SelectedPlayType = PlayType.Run;
-        
-        if (index == WildcardIndex)
-        {
-            _runPlays[WildcardIndex] = PlaybookBuilder.CreateRunWildcardPlay(rng);
-        }
-        
-        return true;
-    }
-
-    public bool AutoSelectPlayBySituation(Random rng)
-    {
-        PlaySituation situation = GetPlaySituation();
-        float passFamilyWeight = PlaySuggestion.GetFamilyWeight(PlayType.Pass, situation);
-        float runFamilyWeight = PlaySuggestion.GetFamilyWeight(PlayType.Run, situation);
-
-        var candidates = new List<(PlayType Type, int Index, float Weight)>(PassPlayCount + RunPlayCount);
-        AddAutoPlayCandidates(candidates, PlayType.Pass, _passPlays, _autoPassSelectionCounts, _recentAutoPassSelections, passFamilyWeight, situation);
-        AddAutoPlayCandidates(candidates, PlayType.Run, _runPlays, _autoRunSelectionCounts, _recentAutoRunSelections, runFamilyWeight, situation);
-
-        if (candidates.Count == 0)
-        {
-            return false;
-        }
-
-        float totalWeight = 0f;
-        for (int i = 0; i < candidates.Count; i++)
-        {
-            totalWeight += candidates[i].Weight;
-        }
-
-        if (totalWeight <= 0f)
-        {
-            return false;
-        }
-
-        float pick = (float)rng.NextDouble() * totalWeight;
-        for (int i = 0; i < candidates.Count; i++)
-        {
-            pick -= candidates[i].Weight;
-            if (pick > 0f)
-            {
-                continue;
-            }
-
-            ApplyAutoSelection(candidates[i].Type, candidates[i].Index, rng);
-            return true;
-        }
-
-        var fallback = candidates[^1];
-        ApplyAutoSelection(fallback.Type, fallback.Index, rng);
-        return true;
-    }
-
-    private void AddAutoPlayCandidates(
-        List<(PlayType Type, int Index, float Weight)> candidates,
-        PlayType family,
-        IReadOnlyList<PlayDefinition> plays,
-        int[] selectionCounts,
-        Queue<int> recentSelections,
-        float familyWeight,
-        PlaySituation situation)
-    {
-        for (int index = 0; index < plays.Count; index++)
-        {
-            float situationalWeight = PlaySuggestion.GetPlayWeight(plays[index], situation);
-            float diversityWeight = GetAutoSelectionDiversityWeight(index, selectionCounts, recentSelections);
-            float wildcardWeight = index == WildcardIndex ? 0.85f : 1f;
-            float totalWeight = familyWeight * situationalWeight * diversityWeight * wildcardWeight;
-
-            if (totalWeight > 0f)
-            {
-                candidates.Add((family, index, totalWeight));
-            }
-        }
-    }
-
-    private float GetAutoSelectionDiversityWeight(int index, int[] selectionCounts, Queue<int> recentSelections)
-    {
-        int totalSelections = 0;
-        for (int i = 0; i < selectionCounts.Length; i++)
-        {
-            totalSelections += selectionCounts[i];
-        }
-
-        float weight = 1f;
-        if (totalSelections > 0)
-        {
-            float averageSelections = (float)totalSelections / selectionCounts.Length;
-            float usageGap = averageSelections - selectionCounts[index];
-            weight *= Math.Clamp(1f + (usageGap * 0.22f), 0.65f, 1.7f);
-        }
-
-        int recentOffset = GetRecentSelectionOffset(index, recentSelections);
-        if (recentOffset == 0)
-        {
-            weight *= 0.18f;
-        }
-        else if (recentOffset == 1)
-        {
-            weight *= 0.35f;
-        }
-        else if (recentOffset >= 2)
-        {
-            weight *= 0.6f;
-        }
-
-        return MathF.Max(weight, 0.05f);
-    }
-
-    private static int GetRecentSelectionOffset(int index, Queue<int> recentSelections)
-    {
-        int[] recent = recentSelections.ToArray();
-        int offset = 0;
-        for (int i = recent.Length - 1; i >= 0; i--)
-        {
-            if (recent[i] == index)
-            {
-                return offset;
-            }
-
-            offset++;
-        }
-
-        return -1;
-    }
-
-    private void ApplyAutoSelection(PlayType family, int index, Random rng)
-    {
-        SelectedPlayType = family;
-
-        if (family == PlayType.Pass)
-        {
-            _selectedPassIndex = index;
-            if (index == WildcardIndex)
-            {
-                _passPlays[WildcardIndex] = PlaybookBuilder.CreatePassWildcardPlay(rng);
-            }
-
-            _autoPassSelectionCounts[index]++;
-            RecordRecentAutoSelection(_recentAutoPassSelections, index);
-            return;
-        }
-
-        _selectedRunIndex = index;
-        if (index == WildcardIndex)
-        {
-            _runPlays[WildcardIndex] = PlaybookBuilder.CreateRunWildcardPlay(rng);
-        }
-
-        _autoRunSelectionCounts[index]++;
-        RecordRecentAutoSelection(_recentAutoRunSelections, index);
-    }
-
-    private static void RecordRecentAutoSelection(Queue<int> recentSelections, int index)
-    {
-        recentSelections.Enqueue(index);
-        while (recentSelections.Count > RecentAutoSelectionLimit)
-        {
-            recentSelections.Dequeue();
-        }
-    }
-
-    private void ResetAutoSelectionTracking()
-    {
-        Array.Clear(_autoPassSelectionCounts);
-        Array.Clear(_autoRunSelectionCounts);
-        ClearAutoSelectionRecency();
-    }
-
-    private void ClearAutoSelectionRecency()
-    {
-        _recentAutoPassSelections.Clear();
-        _recentAutoRunSelections.Clear();
-    }
-
-    public PlayType GetSuggestedPlayType()
-    {
-        return GetSuggestedPlaySelection().Type;
-    }
-
-    public string GetSuggestedPlayLabel()
-    {
-        var suggested = GetSuggestedPlaySelection();
-        PlayDefinition play = suggested.Type == PlayType.Pass
-            ? _passPlays[suggested.Index]
-            : _runPlays[suggested.Index];
-
-        string typeName = suggested.Type == PlayType.Pass ? "Pass" : "Run";
-        return $"{typeName}: {play.Name}";
-    }
-
-    private (PlayType Type, int Index) GetSuggestedPlaySelection()
-    {
-        return PlaySuggestion.GetSuggestedPlay(GetPlaySituation(), _passPlays, _runPlays);
-    }
-
-    private PlaySituation GetPlaySituation()
-    {
-        return new PlaySituation(Down, Distance, LineOfScrimmage, FirstDownLine);
-    }
-
-    public string GetPlayLabel()
-    {
-        string typeName = SelectedPlayType == PlayType.Pass ? "Pass" : "Run";
-        return $"{typeName}: {SelectedPlay.Name}";
     }
 
     public PlayResult ResolvePlay(float newBallY, bool incomplete, bool passDefended, bool intercepted, bool touchdown, string? tackleMessageOverride = null)

@@ -1,3 +1,5 @@
+using RetroQB.Entities;
+
 namespace RetroQB.Gameplay;
 
 /// <summary>
@@ -64,16 +66,16 @@ public static class PlaySuggestion
     public static (PlayType Type, int Index) GetSuggestedPlay(
         int down,
         float distance,
-        IReadOnlyList<PlayDefinition> passPlays,
-        IReadOnlyList<PlayDefinition> runPlays)
+        IReadOnlyList<ResolvedPlay> passPlays,
+        IReadOnlyList<ResolvedPlay> runPlays)
     {
         return GetSuggestedPlay(new PlaySituation(down, distance), passPlays, runPlays);
     }
 
     public static (PlayType Type, int Index) GetSuggestedPlay(
         PlaySituation situation,
-        IReadOnlyList<PlayDefinition> passPlays,
-        IReadOnlyList<PlayDefinition> runPlays)
+        IReadOnlyList<ResolvedPlay> passPlays,
+        IReadOnlyList<ResolvedPlay> runPlays)
     {
         var bestPass = GetBestPlayCandidate(passPlays, situation);
         var bestRun = GetBestPlayCandidate(runPlays, situation);
@@ -188,19 +190,19 @@ public static class PlaySuggestion
         return type == PlayType.Pass ? 1.35f : 1.2f;
     }
 
-    public static float GetPlayWeight(PlayDefinition play, int down, float distance)
+    public static float GetPlayWeight(ResolvedPlay play, int down, float distance)
     {
         return GetPlayWeight(play, new PlaySituation(down, distance));
     }
 
-    public static float GetPlayWeight(PlayDefinition play, PlaySituation situation)
+    public static float GetPlayWeight(ResolvedPlay play, PlaySituation situation)
     {
         return play.Family == PlayType.Pass
             ? GetPassPlayWeight(play, situation)
             : GetRunPlayWeight(play, situation);
     }
 
-    private static float GetPassPlayWeight(PlayDefinition play, PlaySituation situation)
+    private static float GetPassPlayWeight(ResolvedPlay play, PlaySituation situation)
     {
         RouteProfile profile = AnalyzeRoutes(play.Routes.Values);
         if (IsVerticalShot(profile) && situation.HasFieldPosition && situation.IsTightRedZone)
@@ -222,7 +224,7 @@ public static class PlaySuggestion
         return Math.Clamp(weight, 0.05f, 4f);
     }
 
-    private static float GetRunPlayWeight(PlayDefinition play, PlaySituation situation)
+    private static float GetRunPlayWeight(ResolvedPlay play, PlaySituation situation)
     {
         float weight = GetRunDistanceFit(play.RunConcept, situation)
             * GetRedZoneRunFit(play, situation)
@@ -318,15 +320,15 @@ public static class PlaySuggestion
         return Math.Clamp(weight, 0.2f, 1.7f);
     }
 
-    private static float GetPassProtectionFit(PlayDefinition play, PlaySituation situation)
+    private static float GetPassProtectionFit(ResolvedPlay play, PlaySituation situation)
     {
         float weight = 1f;
-        if (play.RunningBackRole == RunningBackRole.Block)
+        if (play.Assignments.Any(a => a.Key.IsRunningBackSlot() && a.Value.Role == AssignmentRole.Block))
         {
             weight += situation.IsLongYardage ? 0.18f : 0.1f;
         }
 
-        if (play.TightEndRole == TightEndRole.Block)
+        if (play.Assignments.Any(a => a.Key.IsTightEndSlot() && a.Value.Role == AssignmentRole.Block))
         {
             weight += situation.IsLongYardage ? 0.14f : 0.08f;
         }
@@ -378,7 +380,7 @@ public static class PlaySuggestion
         };
     }
 
-    private static float GetRedZoneRunFit(PlayDefinition play, PlaySituation situation)
+    private static float GetRedZoneRunFit(ResolvedPlay play, PlaySituation situation)
     {
         if (!situation.IsRedZone)
         {
@@ -453,7 +455,7 @@ public static class PlaySuggestion
     }
 
     private static (int Index, float Weight) GetBestPlayCandidate(
-        IReadOnlyList<PlayDefinition> plays,
+        IReadOnlyList<ResolvedPlay> plays,
         PlaySituation situation)
     {
         int bestIndex = 0;
@@ -463,8 +465,8 @@ public static class PlaySuggestion
         {
             float weight = GetPlayWeight(plays[index], situation);
 
-            // Wildcard has no fixed route tree, so named plays should usually win the suggestion slot.
-            if (index == 0 && plays[index].Routes.Count == 0)
+            // Prefer named calls over the explicitly generated wildcard.
+            if (plays[index].IsWildcard)
             {
                 weight *= 0.45f;
             }

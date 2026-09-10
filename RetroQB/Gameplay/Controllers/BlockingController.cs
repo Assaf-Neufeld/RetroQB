@@ -25,7 +25,7 @@ public sealed class BlockingController
         Quarterback qb,
         Ball ball,
         IReadOnlyList<Defender> defenders,
-        PlayDefinition selectedPlay,
+        ResolvedPlay selectedPlay,
         PlayType selectedPlayType,
         float lineOfScrimmage,
         float dt,
@@ -90,7 +90,7 @@ public sealed class BlockingController
 
     private void UpdateTightEndRunBlocking(
         Receiver receiver,
-        PlayDefinition selectedPlay,
+        ResolvedPlay selectedPlay,
         int runSide,
         float lineOfScrimmage,
         float dt,
@@ -140,7 +140,7 @@ public sealed class BlockingController
 
     private void UpdateGenericBlocking(
         Receiver receiver,
-        PlayDefinition selectedPlay,
+        ResolvedPlay selectedPlay,
         bool isDesignedRun,
         float dt,
         Func<Vector2, float, bool, Defender?> getClosestDefender,

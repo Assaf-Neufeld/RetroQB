@@ -14,6 +14,8 @@ public sealed class PlayRecord
     public float YardLine { get; init; }
     
     // Offensive play info
+    public string? OffensivePlayId { get; init; }
+    public bool IsFlipped { get; init; }
     public string OffensivePlayName { get; init; } = string.Empty;
     public PlayType PlayFamily { get; init; }
     

@@ -32,7 +32,7 @@ public sealed class PlaySetupController
     /// Creates and returns all entities needed for a play.
     /// </summary>
     public PlaySetupResult SetupPlay(
-        PlayDefinition selectedPlay,
+        ResolvedPlay selectedPlay,
         DefensiveContext context,
         DefensiveCallDecision call,
         OffensiveTeamAttributes offensiveTeam,
@@ -43,7 +43,7 @@ public sealed class PlaySetupController
 
         // Assign routes before building the defense so coverage logic sees the actual
         // eligible receivers instead of the raw pre-snap formation shell.
-        RouteAssigner.AssignRoutes(formationResult.Receivers, selectedPlay, _rng);
+        RouteAssigner.AssignRoutes(formationResult.Receivers, selectedPlay);
 
         DefensivePersonnel personnel = DefensivePersonnelPolicy.Create(formationResult.Receivers, context);
         BlitzDecision blitz = _defensiveCoordinator.DecideBlitz(call.Scheme, context, defensiveTeam, personnel, _rng);

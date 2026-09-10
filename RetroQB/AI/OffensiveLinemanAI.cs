@@ -17,7 +17,7 @@ public static class OffensiveLinemanAI
     public static void UpdateBlockers(
         IReadOnlyList<Blocker> blockers,
         IReadOnlyList<Defender> defenders,
-        PlayDefinition play,
+        ResolvedPlay play,
         float lineOfScrimmage,
         float dt,
         bool runBlockingBoost,
@@ -93,7 +93,7 @@ public static class OffensiveLinemanAI
 
     public static void DrawRoutes(
         IReadOnlyList<Blocker> blockers,
-        PlayDefinition play,
+        ResolvedPlay play,
         float lineOfScrimmage)
     {
         if (blockers.Count == 0) return;
@@ -115,7 +115,7 @@ public static class OffensiveLinemanAI
     }
 
     private static RunContext BuildRunContext(
-        PlayDefinition play,
+        ResolvedPlay play,
         float lineOfScrimmage,
         bool runBlockingBoost,
         float passTargetOffset)

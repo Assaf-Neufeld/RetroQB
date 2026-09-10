@@ -66,7 +66,7 @@ public sealed class ReceiverUpdateController
                 continue;
             }
 
-            if (isRunPlayPreHandoff && receiver.IsRunningBack)
+            if (isRunPlayPreHandoff && receiver.Slot == playManager.SelectedPlay.BallCarrierSlot)
             {
                 UpdateRunningBackPreHandoff(receiver, qb, playManager.SelectedPlay, dt, clampToField);
                 continue;
@@ -97,7 +97,7 @@ public sealed class ReceiverUpdateController
         return isRunPlayWithRb || isBallHeldByReceiver;
     }
 
-    private void UpdateRunningBackPreHandoff(Receiver receiver, Quarterback qb, PlayDefinition selectedPlay, float dt, Action<Entity> clampToField)
+    private void UpdateRunningBackPreHandoff(Receiver receiver, Quarterback qb, ResolvedPlay selectedPlay, float dt, Action<Entity> clampToField)
     {
         Vector2 meshTarget = GetRunningBackMeshTarget(qb, selectedPlay);
         Vector2 toMesh = meshTarget - receiver.Position;
@@ -120,7 +120,7 @@ public sealed class ReceiverUpdateController
         clampToField(receiver);
     }
 
-    private static Vector2 GetRunningBackMeshTarget(Quarterback qb, PlayDefinition selectedPlay)
+    private static Vector2 GetRunningBackMeshTarget(Quarterback qb, ResolvedPlay selectedPlay)
     {
         int runSide = Math.Sign(selectedPlay.RunningBackSide);
         Vector2 offset = selectedPlay.RunConcept switch

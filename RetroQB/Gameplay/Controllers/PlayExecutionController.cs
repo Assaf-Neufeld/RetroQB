@@ -216,7 +216,7 @@ public sealed class PlayExecutionController
             return;
         }
 
-        Receiver? runningBack = receivers.FirstOrDefault(r => r.IsRunningBack);
+        Receiver? runningBack = receivers.SingleOrDefault(r => r.Slot == playManager.SelectedPlay.BallCarrierSlot);
         if (runningBack == null)
         {
             return;

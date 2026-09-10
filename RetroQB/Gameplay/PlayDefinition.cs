@@ -1,18 +1,16 @@
-using RetroQB.AI;
+using System.Collections.ObjectModel;
+using RetroQB.Entities;
 
 namespace RetroQB.Gameplay;
 
-public enum RunningBackRole
-{
-    Block,
-    Route
-}
+public enum AssignmentRole { Route, Block, BallCarrier }
 
-public enum TightEndRole
-{
-    Block,
-    Route
-}
+/// <summary>Direction is relative to the unflipped field. Null follows the player's alignment.</summary>
+public sealed record PlayerAssignment(
+    AssignmentRole Role,
+    RouteType Route = RouteType.Flat,
+    int? RouteSide = null,
+    bool SlantInside = true);
 
 public enum RunConcept
 {
@@ -26,9 +24,8 @@ public enum RunConcept
 }
 
 /// <summary>
-/// Base: 3 WR, 1 RB, 1 TE (5 skill + 5 OL)
-/// Pass: 4 WR, 1 TE (5 skill + 5 OL)  
-/// Run: 1 WR, 2 TE, 1 RB (4 skill + 6 OL)
+/// Legacy formation identifiers used for situational scoring.
+/// These names do not restrict play family or personnel; FormationDefinition supplies both bindings and geometry.
 /// </summary>
 public enum FormationType
 {
@@ -59,47 +56,55 @@ public enum FormationType
     RunSinglebackTripsLeft
 }
 
+/// <summary>An immutable authored call. IDs are independent of names and keyboard slots.</summary>
 public sealed class PlayDefinition
 {
+    public string Id { get; }
     public string Name { get; }
     public PlayType Family { get; }
-    public FormationType Formation { get; }
-    public RunningBackRole RunningBackRole { get; }
-    public TightEndRole TightEndRole { get; }
+    public FormationDefinition Formation { get; }
+    public PersonnelPackage Personnel => Formation.Personnel;
+    public IReadOnlyDictionary<ReceiverSlot, PlayerAssignment> Assignments { get; }
     public RunConcept RunConcept { get; }
     public int RunningBackSide { get; }
-    public IReadOnlyDictionary<int, RouteType> Routes { get; }
-    public IReadOnlyDictionary<int, bool> SlantDirections { get; }
+    public bool IsWildcard { get; }
+    public ReceiverSlot? BallCarrierSlot { get; }
 
-    public PlayDefinition(
-        string name,
-        PlayType family,
-        FormationType formation,
-        RunningBackRole runningBackRole,
-        TightEndRole tightEndRole,
-        IReadOnlyDictionary<int, RouteType> routes,
-        RunConcept runConcept = RunConcept.None,
-        int runningBackSide = 0,
-        IReadOnlyDictionary<int, bool>? slantDirections = null)
+    public PlayDefinition(string id, string name, PlayType family, FormationDefinition formation,
+        IReadOnlyDictionary<ReceiverSlot, PlayerAssignment> assignments,
+        RunConcept runConcept = RunConcept.None, int runningBackSide = 0, bool isWildcard = false)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(formation);
+        ArgumentNullException.ThrowIfNull(assignments);
+        if (!Enum.IsDefined(family) || !Enum.IsDefined(runConcept) || runningBackSide is < -1 or > 1)
+            throw new ArgumentException("Invalid play family, run concept, or direction.");
+        if (!formation.Personnel.Slots.ToHashSet().SetEquals(assignments.Keys))
+            throw new ArgumentException($"{id}: every active player must have exactly one assignment.");
+        foreach (var assignment in assignments.Values)
+        {
+            if (assignment is null || !Enum.IsDefined(assignment.Role) || !Enum.IsDefined(assignment.Route)
+                || assignment.RouteSide is < -1 or > 1)
+                throw new ArgumentException($"{id}: invalid player assignment.");
+        }
+        var carriers = assignments.Where(a => a.Value.Role == AssignmentRole.BallCarrier).Select(a => a.Key).ToArray();
+        if (family == PlayType.Run && (carriers.Length != 1 || runConcept == RunConcept.None))
+            throw new ArgumentException($"{id}: a run needs one designated carrier and a run concept.");
+        if (family == PlayType.Pass && (carriers.Length != 0 || runConcept != RunConcept.None))
+            throw new ArgumentException($"{id}: a pass cannot have a designed carrier or run concept.");
+        // Phase 1 retains RB handoffs; other exchange mechanics belong to phase 2.
+        if (carriers.Any(slot => !slot.IsRunningBackSlot()))
+            throw new ArgumentException($"{id}: only running-back handoffs are supported.");
+
+        Id = id;
         Name = name;
         Family = family;
         Formation = formation;
-        RunningBackRole = runningBackRole;
-        TightEndRole = tightEndRole;
-        RunConcept = family == PlayType.Run ? runConcept : RunConcept.None;
-        Routes = routes;
+        Assignments = new ReadOnlyDictionary<ReceiverSlot, PlayerAssignment>(assignments.ToDictionary());
+        RunConcept = runConcept;
         RunningBackSide = runningBackSide;
-        SlantDirections = slantDirections ?? new Dictionary<int, bool>();
-    }
-
-    public bool TryGetRoute(int receiverIndex, out RouteType route)
-    {
-        return Routes.TryGetValue(receiverIndex, out route);
-    }
-
-    public bool TryGetSlantDirection(int receiverIndex, out bool slantInside)
-    {
-        return SlantDirections.TryGetValue(receiverIndex, out slantInside);
+        IsWildcard = isWildcard;
+        BallCarrierSlot = carriers.Length == 1 ? carriers[0] : null;
     }
 }
