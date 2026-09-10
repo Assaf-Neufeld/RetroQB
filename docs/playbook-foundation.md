@@ -1,5 +1,8 @@
 # Playbook foundation — phase 1
 
+Phase 1 was committed as `50325f8`. See [phase 2 execution notes](playbook-execution.md)
+for the subsequent route, blocking, and backfield work. This document records the phase 1 boundary.
+
 Phase 1 preserves the current 18 named calls and two wildcard slots. New route mechanics,
 lead blocking, new formations/personnel, the situational 100-play catalog, and the new
 playbook interface remain for phases 2 and 3.

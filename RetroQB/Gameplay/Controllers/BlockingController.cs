@@ -32,112 +32,28 @@ public sealed class BlockingController
         Func<Vector2, float, bool, Defender?> getClosestDefender,
         Action<Entity> clampToField)
     {
-        bool isDesignedRun = selectedPlayType == PlayType.Run || selectedPlay.Family == PlayType.Run;
-        Vector2? ballCarrierPosition = BlockingUtils.GetBallCarrierPosition(ball, qb);
-
-        if (receiver.IsRunningBack && receiver.IsBlocking)
+        var job = selectedPlay.Assignments[receiver.Slot].Blocking;
+        Vector2? carrier = BlockingUtils.GetBallCarrierPosition(ball, qb);
+        if (job != null)
         {
-            UpdateRbBlocking(receiver, qb, defenders, selectedPlayType, dt, getClosestDefender, clampToField, ballCarrierPosition);
+            var decision = BlockingSteering.Decide(job, receiver.BlockingState, receiver.Position,
+                receiver.RouteStart.X, lineOfScrimmage, qb.Position, defenders,
+                Constants.BlockEngageRadius + (job.IsRunBlock ? 2.2f : 8f));
+            if (decision.Target is Defender target)
+            {
+                var profile = job.IsRunBlock
+                    ? new BlockContactProfile(0.9f, 0.08f, 1.5f, 8f, job.DriveDirection, 0.9f)
+                    : new BlockContactProfile(0.8f, 0.12f, 1.1f, 6f);
+                ApproachAndBlock(receiver, target, 1f, profile, dt, clampToField, carrier);
+            }
+            else
+                receiver.Velocity = BlockingSteering.MoveTo(receiver.Position, decision.Landmark, receiver.Speed * 0.85f, dt);
             return;
         }
-
-        if (receiver.IsTightEnd && isDesignedRun)
-        {
-            int runSide = Math.Sign(selectedPlay.RunningBackSide);
-            if (runSide != 0)
-            {
-                UpdateTightEndRunBlocking(receiver, selectedPlay, runSide, lineOfScrimmage, dt, getClosestDefender, clampToField, ballCarrierPosition);
-                return;
-            }
-        }
-
-        UpdateGenericBlocking(receiver, selectedPlay, isDesignedRun, dt, getClosestDefender, clampToField, ballCarrierPosition);
+        // Post-catch and scramble support has no pre-snap blocking assignment.
+        UpdateGenericBlocking(receiver, selectedPlay, selectedPlayType == PlayType.Run, dt,
+            getClosestDefender, clampToField, carrier);
     }
-
-    private void UpdateRbBlocking(
-        Receiver receiver,
-        Quarterback qb,
-        IReadOnlyList<Defender> defenders,
-        PlayType selectedPlayType,
-        float dt,
-        Func<Vector2, float, bool, Defender?> getClosestDefender,
-        Action<Entity> clampToField,
-        Vector2? ballCarrierPosition)
-    {
-        int side = receiver.RouteSide == 0 ? (receiver.Position.X <= qb.Position.X ? -1 : 1) : receiver.RouteSide;
-        Vector2 pocketSpot = qb.Position + new Vector2(1.7f * side, -0.4f);
-
-        Defender? rbTarget;
-        if (selectedPlayType == PlayType.Pass)
-        {
-            rbTarget = GetPassProtectionTarget(defenders, receiver.Position, qb.Position, Constants.BlockEngageRadius + 8.0f);
-        }
-        else
-        {
-            rbTarget = getClosestDefender(qb.Position, Constants.BlockEngageRadius + 6.0f, true);
-        }
-
-        if (rbTarget != null)
-        {
-            var profile = new BlockContactProfile(0.8f, 0.12f, 1.1f, 6f);
-            ApproachAndBlock(receiver, rbTarget, 0.9f, profile, dt, clampToField, ballCarrierPosition);
-        }
-        else
-        {
-            MoveTowardSpot(receiver, pocketSpot, 0.6f, 0.8f);
-        }
-    }
-
-    private void UpdateTightEndRunBlocking(
-        Receiver receiver,
-        ResolvedPlay selectedPlay,
-        int runSide,
-        float lineOfScrimmage,
-        float dt,
-        Func<Vector2, float, bool, Defender?> getClosestDefender,
-        Action<Entity> clampToField,
-        Vector2? ballCarrierPosition)
-    {
-        bool isPerimeterRun = BlockingUtils.IsPerimeterRun(selectedPlay.RunConcept);
-        float edgeWidth = selectedPlay.RunConcept switch
-        {
-            RunConcept.Sweep => 2.0f,
-            RunConcept.Stretch => 1.6f,
-            RunConcept.Counter => 0.9f,
-            _ => 1.2f
-        };
-
-        float edgeDepth = selectedPlay.RunConcept switch
-        {
-            RunConcept.Sweep => 3.2f,
-            RunConcept.Stretch => 2.9f,
-            RunConcept.Counter => 2.4f,
-            _ => 2.6f
-        };
-
-        // Base edge spot on the TE's own position so they block in the correct direction
-        float edgeX = Math.Clamp(receiver.RouteStart.X + (runSide * edgeWidth), 1.1f, Constants.FieldWidth - 1.1f);
-        float edgeY = lineOfScrimmage + edgeDepth;
-        Vector2 edgeSpot = new Vector2(edgeX, edgeY);
-
-        // Search for any defender near the edge — don't limit to rushers so DBs get picked up
-        Defender? edgeTarget = getClosestDefender(edgeSpot, Constants.BlockEngageRadius + 2.2f, false);
-        float closeToEdgeRadius = 1.2f;
-        bool closeToEdge = Vector2.DistanceSquared(receiver.Position, edgeSpot) <= closeToEdgeRadius * closeToEdgeRadius;
-        bool targetNearEdge = edgeTarget != null && Vector2.DistanceSquared(edgeTarget.Position, edgeSpot) <= (Constants.BlockEngageRadius * 0.9f) * (Constants.BlockEngageRadius * 0.9f);
-
-        if (edgeTarget != null && (closeToEdge || targetNearEdge))
-        {
-            Vector2 driveDir = BlockingUtils.GetDriveDirection(runSide, 0.85f);
-            var profile = new BlockContactProfile(0.9f, 0.08f, 1.5f, 8f, driveDir, 0.9f);
-            ApproachAndBlock(receiver, edgeTarget, 1f, profile, dt, clampToField, ballCarrierPosition);
-        }
-        else
-        {
-            MoveTowardSpot(receiver, edgeSpot, isPerimeterRun ? 0.85f : 0.7f, 0.9f);
-        }
-    }
-
     private void UpdateGenericBlocking(
         Receiver receiver,
         ResolvedPlay selectedPlay,
@@ -252,62 +168,6 @@ public sealed class BlockingController
         target.Velocity *= BlockingUtils.GetDefenderSlowdown(blockMultiplier, baseSlow);
         receiver.Velocity *= 0.25f;
         clampToField(target);
-    }
-
-    private static Defender? GetPassProtectionTarget(
-        IReadOnlyList<Defender> defenders,
-        Vector2 receiverPosition,
-        Vector2 qbPosition,
-        float maxDistance)
-    {
-        Defender? best = null;
-        float bestDistSq = maxDistance * maxDistance;
-        float bestScore = float.MaxValue;
-
-        foreach (var defender in defenders)
-        {
-            float receiverDistSq = Vector2.DistanceSquared(receiverPosition, defender.Position);
-            float qbDistSq = Vector2.DistanceSquared(qbPosition, defender.Position);
-            if (receiverDistSq > bestDistSq && qbDistSq > bestDistSq)
-            {
-                continue;
-            }
-
-            float score = MathF.Sqrt(MathF.Min(receiverDistSq, qbDistSq));
-            if (defender.IsRusher)
-            {
-                score -= 6f;
-            }
-
-            score += defender.PositionRole switch
-            {
-                DefensivePosition.DE => -1.5f,
-                DefensivePosition.LB => -1.0f,
-                DefensivePosition.DL => -0.6f,
-                _ => 0f
-            };
-
-            if (score >= bestScore)
-            {
-                continue;
-            }
-
-            bestScore = score;
-            best = defender;
-        }
-
-        return best;
-    }
-
-    private void MoveTowardSpot(Receiver receiver, Vector2 spot, float speedMult, float arrivalRadius)
-    {
-        Vector2 toSpot = BlockingUtils.SafeNormalize(spot - receiver.Position);
-        receiver.Velocity = toSpot * (receiver.Speed * speedMult);
-
-        if (Vector2.DistanceSquared(receiver.Position, spot) <= arrivalRadius * arrivalRadius)
-        {
-            receiver.Velocity = Vector2.Zero;
-        }
     }
 
     private static float GetReceiverBlockStrength(Receiver receiver)

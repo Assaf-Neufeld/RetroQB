@@ -3,72 +3,62 @@ using RetroQB.Entities;
 
 namespace RetroQB.Routes;
 
-/// <summary>
-/// Shared route geometry values used by both movement and visualization.
-/// </summary>
+/// <summary>The single source of route geometry for movement, diagrams, and coverage read points.</summary>
 public static class RouteGeometry
 {
     public const float OutBreakLength = 6f;
     public const float PostBreakLength = 6f;
     public const float InBreakLength = 6f;
     public const float SlantLength = 9f;
-    public const float OutBreakY = 0.18f; // 80° break (slight upfield drift)
+    public const float OutBreakY = 0.18f;
     public const float PostXFactorShallow = 0.6f;
     public const float PostXFactorDeep = 0.9f;
 
-    public static (float Shallow, float Deep, float PostAngleShallow, float PostAngleDeep) GetStemDistances(Receiver receiver)
+    public static (float Shallow, float Deep, float PostAngleShallow, float PostAngleDeep) GetStemDistances(Receiver receiver) =>
+        (receiver.IsRunningBack ? 5f : receiver.IsTightEnd ? 7f : 9f,
+         receiver.IsRunningBack ? 12f : receiver.IsTightEnd ? 16f : 20f, 1.2f, 1f);
+
+    public static RoutePath GetPath(Receiver receiver)
     {
-        float stemShallow = receiver.IsRunningBack ? 5f : receiver.IsTightEnd ? 7f : 9f;
-        float stemDeep = receiver.IsRunningBack ? 12f : receiver.IsTightEnd ? 16f : 20f;
-        return (stemShallow, stemDeep, 1.2f, 1.0f);
+        var key = (receiver.Route, receiver.RouteSide, receiver.SlantInside, receiver.RouteStart, receiver.RouteDefinition);
+        var state = receiver.RouteState;
+        if (state.Path is null || state.Key != key)
+        {
+            state.Reset();
+            state.Key = key;
+            state.Path = new RoutePath(receiver.RouteDefinition ?? CreateDefault(receiver), receiver.RouteStart, receiver.RouteSide);
+        }
+        return state.Path;
     }
 
     public static bool HasCompletedBreak(Receiver receiver)
     {
-        float yProgress = receiver.Position.Y - receiver.RouteStart.Y;
-        var stems = GetStemDistances(receiver);
+        var path = GetPath(receiver);
+        return receiver.RouteState.StepIndex >= path.Definition.ReadAfterStep;
+    }
 
+    private static RouteDefinition CreateDefault(Receiver receiver)
+    {
+        var s = GetStemDistances(receiver);
+        float width = receiver.IsRunningBack ? 9f : receiver.IsTightEnd ? 6f : 7f;
         return receiver.Route switch
         {
-            RouteType.Go => yProgress >= stems.Deep,
-            RouteType.Slant => Vector2.Distance(receiver.Position, receiver.RouteStart) >= SlantLength * 0.9f,
-            RouteType.OutShallow => HasCompletedHorizontalBreak(receiver, stems.Shallow, receiver.RouteSide, OutBreakLength),
-            RouteType.OutDeep => HasCompletedHorizontalBreak(receiver, stems.Deep, receiver.RouteSide, OutBreakLength),
-            RouteType.InShallow => HasCompletedHorizontalBreak(receiver, stems.Shallow, -receiver.RouteSide, InBreakLength),
-            RouteType.InDeep => HasCompletedHorizontalBreak(receiver, stems.Deep, -receiver.RouteSide, InBreakLength),
-            RouteType.DoubleMove => HasCompletedHorizontalBreak(receiver, stems.Deep, -receiver.RouteSide, InBreakLength),
-            RouteType.PostShallow => yProgress >= stems.Shallow + PostBreakLength * 0.75f,
-            RouteType.PostDeep => yProgress >= stems.Deep + PostBreakLength * 0.75f,
-            RouteType.Flat => yProgress >= 2.5f,
-            _ => false
+            RouteType.Go => new([new(new(0, s.Deep)), new(new(0, s.Deep + 8))], readAfterStep: 1),
+            RouteType.Slant => new([new(GetSlantDirection(1, receiver.SlantInside) * SlantLength)]),
+            RouteType.OutShallow => Break(s.Shallow, GetOutBreakDirection(1) * OutBreakLength),
+            RouteType.OutDeep => Break(s.Deep, GetOutBreakDirection(1) * OutBreakLength),
+            RouteType.InShallow => Break(s.Shallow, new(-InBreakLength, 0)),
+            RouteType.InDeep => Break(s.Deep, new(-InBreakLength, 0)),
+            RouteType.PostShallow => Break(s.Shallow, GetPostBreakDirection(1, PostXFactorShallow, s.PostAngleShallow) * PostBreakLength),
+            RouteType.PostDeep => Break(s.Deep, GetPostBreakDirection(1, PostXFactorDeep, s.PostAngleDeep) * PostBreakLength),
+            RouteType.DoubleMove => new([new(new(0, s.Shallow)), new(new(-3, s.Shallow), 0.1f), new(new(-3, s.Deep + 8))]),
+            RouteType.Flat => new([new(new(width, width * 0.25f))]),
+            _ => throw new ArgumentOutOfRangeException(nameof(receiver.Route))
         };
     }
 
-    private static bool HasCompletedHorizontalBreak(Receiver receiver, float stemDistance, int breakSide, float breakLength)
-    {
-        if (breakSide == 0 || receiver.Position.Y - receiver.RouteStart.Y < stemDistance)
-        {
-            return false;
-        }
-
-        const float tolerance = 1.0f;
-        float breakProgress = (receiver.Position.X - receiver.RouteStart.X) * breakSide;
-        return breakProgress >= breakLength - tolerance;
-    }
-
-    public static Vector2 GetOutBreakDirection(int routeSide)
-    {
-        return Vector2.Normalize(new Vector2(routeSide, OutBreakY));
-    }
-
-    public static Vector2 GetPostBreakDirection(int routeSide, float xFactor, float postAngle)
-    {
-        return Vector2.Normalize(new Vector2(-xFactor * routeSide, postAngle));
-    }
-
-    public static Vector2 GetSlantDirection(int routeSide, bool slantInside)
-    {
-        float slantSide = slantInside ? -routeSide : routeSide;
-        return Vector2.Normalize(new Vector2(0.7f * slantSide, 1f));
-    }
+    private static RouteDefinition Break(float stem, Vector2 turn) => new([new(new(0, stem)), new(new Vector2(0, stem) + turn)]);
+    public static Vector2 GetOutBreakDirection(int side) => Vector2.Normalize(new Vector2(side, OutBreakY));
+    public static Vector2 GetPostBreakDirection(int side, float xFactor, float angle) => Vector2.Normalize(new Vector2(-xFactor * side, angle));
+    public static Vector2 GetSlantDirection(int side, bool inside) => Vector2.Normalize(new Vector2(0.7f * (inside ? -side : side), 1));
 }

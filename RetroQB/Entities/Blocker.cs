@@ -1,6 +1,8 @@
 using System.Numerics;
 using Raylib_cs;
 using RetroQB.Core;
+using RetroQB.Gameplay;
+using RetroQB.Gameplay.Controllers;
 
 namespace RetroQB.Entities;
 
@@ -9,6 +11,9 @@ public sealed class Blocker : Entity
     public float Speed { get; }
     public float HomeX { get; }
     public float HomeY { get; }
+    public BlockingAssignment? BlockingAssignment { get; init; }
+    public BlockingAssignment? OpeningAssignment { get; init; }
+    public BlockingState BlockingState { get; } = new();
     
     /// <summary>
     /// Reference to the team attributes for this blocker.

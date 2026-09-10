@@ -264,6 +264,25 @@ public sealed class DrawingController
     {
         foreach (var receiver in receivers)
         {
+            var job = playManager.SelectedPlay.Assignments[receiver.Slot].Blocking;
+            if (job != null)
+            {
+                Vector2 start = receiver.Position;
+                foreach (var target in BlockingSteering.GetLandmarks(job, receiver.RouteStart.X,
+                    playManager.LineOfScrimmage, playManager.SelectedPlay.Quarterback.AtLineOfScrimmage(playManager.LineOfScrimmage)))
+                {
+                    Vector2 a = Constants.WorldToScreen(start);
+                    Vector2 b = Constants.WorldToScreen(target);
+                    Raylib.DrawLineEx(a, b, 2, new Color(255, 214, 74, 100));
+                    Vector2 delta = b - a;
+                    if (delta.LengthSquared() > 0.01f)
+                    {
+                        Vector2 across = Vector2.Normalize(new Vector2(-delta.Y, delta.X)) * 4;
+                        Raylib.DrawLineEx(b - across, b + across, 2, Palette.Yellow);
+                    }
+                    start = target;
+                }
+            }
             if (!receiver.Eligible) continue;
 
             var points = RouteVisualizer.GetRouteWaypoints(receiver);

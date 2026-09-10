@@ -17,9 +17,13 @@ public static class RouteAssigner
             var assignment = play.Assignments[receiver.Slot];
             receiver.RouteStart = receiver.Position;
             receiver.RouteProgress = 0f;
+            receiver.RouteDefinition = assignment.RouteDefinition;
+            receiver.RouteState.Reset();
+            receiver.AssignmentElapsed = 0f;
+            receiver.BlockingState.Reset();
             receiver.HasBall = false;
-            receiver.IsBlocking = assignment.Role == AssignmentRole.Block;
-            receiver.Eligible = !receiver.IsBlocking;
+            receiver.IsBlocking = assignment.Role == AssignmentRole.Block || assignment.ReleaseAfterSeconds > 0;
+            receiver.Eligible = assignment.Role != AssignmentRole.Block;
             receiver.Route = assignment.Route;
             receiver.RouteSide = assignment.RouteSide!.Value;
             receiver.SlantInside = assignment.SlantInside;

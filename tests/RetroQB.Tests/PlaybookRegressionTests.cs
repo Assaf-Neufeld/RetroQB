@@ -54,6 +54,7 @@ public sealed class PlaybookRegressionTests
             Assert.All(formation.Receivers.Where(r => r.IsTightEnd), r => Assert.True(r.IsBlocking));
             var rb = Assert.Single(formation.Receivers, r => r.IsRunningBack);
             rb.Position = formation.Qb.Position;
+            execution.Backfield.Update(play, formation.Ball, formation.Qb, formation.Receivers, play.Backfield.MinimumDelay + 0.01f);
             execution.TryHandoffToRunningBack(manager, formation.Ball, formation.Qb, formation.Receivers);
             Assert.Same(rb, formation.Ball.Holder);
             Assert.Equal(BallState.HeldByReceiver, formation.Ball.State);

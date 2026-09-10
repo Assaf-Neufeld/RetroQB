@@ -204,7 +204,7 @@ public static class PlaySuggestion
 
     private static float GetPassPlayWeight(ResolvedPlay play, PlaySituation situation)
     {
-        RouteProfile profile = AnalyzeRoutes(play.Routes.Values);
+        RouteProfile profile = AnalyzeRoutes(play);
         if (IsVerticalShot(profile) && situation.HasFieldPosition && situation.IsTightRedZone)
         {
             return 0f;
@@ -420,11 +420,21 @@ public static class PlaySuggestion
         };
     }
 
-    private static RouteProfile AnalyzeRoutes(IEnumerable<RouteType> routes)
+    private static RouteProfile AnalyzeRoutes(ResolvedPlay play)
     {
         RouteProfile profile = default;
-        foreach (RouteType route in routes)
+        foreach (var assignment in play.Assignments.Values.Where(a => a.Role != AssignmentRole.Block))
         {
+            if (assignment.RouteDefinition is RouteDefinition custom)
+            {
+                float depth = custom.Steps.Max(step => step.Offset.Y);
+                if (depth <= 5) profile.QuickRoutes++;
+                else if (depth <= 12) profile.IntermediateRoutes++;
+                else profile.DeepRoutes++;
+                profile.TotalRoutes++;
+                continue;
+            }
+            RouteType route = assignment.Route;
             switch (route)
             {
                 case RouteType.Slant:

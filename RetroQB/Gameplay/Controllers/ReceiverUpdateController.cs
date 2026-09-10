@@ -13,6 +13,7 @@ namespace RetroQB.Gameplay.Controllers;
 public sealed class ReceiverUpdateController
 {
     private readonly BlockingController _blockingController;
+    private readonly BackfieldController _backfield = new();
 
     public ReceiverUpdateController(BlockingController blockingController)
     {
@@ -34,9 +35,10 @@ public sealed class ReceiverUpdateController
         bool isUnderneathManCoverage,
         PlayManager playManager,
         float dt,
-        Action<Entity> clampToField)
+        Action<Entity> clampToField, BackfieldController? backfield = null)
     {
-        bool isRunPlayPreHandoff = IsRunPlayActivePreHandoff(playManager.SelectedPlayType, ball);
+        var exchange = backfield ?? _backfield;
+        if (backfield == null) exchange.Update(playManager.SelectedPlay, ball, qb, receivers, dt);
         bool isRunPlayWithRb = BlockingUtils.IsRunPlayActiveWithRunningBack(playManager.SelectedPlayType, ball);
         bool isBallHeldByReceiver = ball.State == BallState.HeldByReceiver;
         bool isPassCompletion = isBallHeldByReceiver && !isRunPlayWithRb;
@@ -44,7 +46,19 @@ public sealed class ReceiverUpdateController
 
         foreach (var receiver in receivers)
         {
+            receiver.AssignmentElapsed += MathF.Max(0, dt);
+            var assignment = playManager.SelectedPlay.Assignments[receiver.Slot];
+            if (assignment.Role == AssignmentRole.Route && assignment.ReleaseAfterSeconds > 0
+                && receiver.AssignmentElapsed >= assignment.ReleaseAfterSeconds)
+                receiver.IsBlocking = false;
             bool isBallCarrier = isBallHeldByReceiver && ball.Holder == receiver;
+            if (exchange.ControlsParticipant(receiver.Slot))
+            {
+                exchange.MoveParticipant(receiver, qb, dt);
+                receiver.Update(dt);
+                clampToField(receiver);
+                continue;
+            }
 
             if (ShouldBlockReceiver(receiver, isRunPlayWithRb, isBallHeldByReceiver, isBallCarrier, controlledReceiver))
             {
@@ -66,12 +80,6 @@ public sealed class ReceiverUpdateController
                 continue;
             }
 
-            if (isRunPlayPreHandoff && receiver.Slot == playManager.SelectedPlay.BallCarrierSlot)
-            {
-                UpdateRunningBackPreHandoff(receiver, qb, playManager.SelectedPlay, dt, clampToField);
-                continue;
-            }
-
             if (receiver == controlledReceiver)
             {
                 UpdateControlledReceiver(receiver, inputDir, sprint, isRunPlayWithRb, dt, clampToField);
@@ -84,6 +92,7 @@ public sealed class ReceiverUpdateController
 
     private static bool ShouldBlockReceiver(Receiver receiver, bool isRunPlayWithRb, bool isBallHeldByReceiver, bool isBallCarrier, Receiver? controlledReceiver)
     {
+        if (isBallCarrier || receiver == controlledReceiver) return false;
         if (receiver.IsBlocking)
         {
             return true;
@@ -95,66 +104,6 @@ public sealed class ReceiverUpdateController
         }
 
         return isRunPlayWithRb || isBallHeldByReceiver;
-    }
-
-    private void UpdateRunningBackPreHandoff(Receiver receiver, Quarterback qb, ResolvedPlay selectedPlay, float dt, Action<Entity> clampToField)
-    {
-        Vector2 meshTarget = GetRunningBackMeshTarget(qb, selectedPlay);
-        Vector2 toMesh = meshTarget - receiver.Position;
-        float dist = toMesh.Length();
-        Vector2 meshDir = dist > 0.01f ? toMesh / dist : Vector2.Zero;
-        float approachSpeed = receiver.Speed * GetRunningBackMeshSpeedMultiplier(selectedPlay.RunConcept);
-        receiver.Velocity = meshDir * approachSpeed;
-
-        if (selectedPlay.RunConcept == RunConcept.Counter && selectedPlay.RunningBackSide != 0)
-        {
-            receiver.Velocity += new Vector2(-selectedPlay.RunningBackSide * receiver.Speed * 0.08f, receiver.Speed * 0.05f);
-        }
-
-        if (selectedPlay.RunConcept == RunConcept.Draw && dist < 1.2f)
-        {
-            receiver.Velocity *= 0.7f;
-        }
-
-        receiver.Update(dt);
-        clampToField(receiver);
-    }
-
-    private static Vector2 GetRunningBackMeshTarget(Quarterback qb, ResolvedPlay selectedPlay)
-    {
-        int runSide = Math.Sign(selectedPlay.RunningBackSide);
-        Vector2 offset = selectedPlay.RunConcept switch
-        {
-            RunConcept.Dive => new Vector2(0f, -0.65f),
-            RunConcept.Power => new Vector2(runSide * 0.85f, -0.25f),
-            RunConcept.Counter => new Vector2(-runSide * 0.95f, -0.2f),
-            RunConcept.Sweep => new Vector2(runSide * 1.45f, -0.1f),
-            RunConcept.Stretch => new Vector2(runSide * 1.1f, -0.2f),
-            RunConcept.Draw => new Vector2(0f, -1.05f),
-            _ => new Vector2(runSide * 0.6f, -0.3f)
-        };
-
-        Vector2 target = qb.Position + offset;
-        if (selectedPlay.RunConcept == RunConcept.Counter && runSide != 0)
-        {
-            target.X += runSide * 0.35f;
-        }
-
-        return target;
-    }
-
-    private static float GetRunningBackMeshSpeedMultiplier(RunConcept runConcept)
-    {
-        return runConcept switch
-        {
-            RunConcept.Dive => 0.62f,
-            RunConcept.Power => 0.57f,
-            RunConcept.Counter => 0.52f,
-            RunConcept.Sweep => 0.66f,
-            RunConcept.Stretch => 0.6f,
-            RunConcept.Draw => 0.46f,
-            _ => 0.55f
-        };
     }
 
     private static void UpdateControlledReceiver(Receiver receiver, Vector2 inputDir, bool sprint, bool isRunPlayWithRb, float dt, Action<Entity> clampToField)
@@ -186,6 +135,7 @@ public sealed class ReceiverUpdateController
 
     private void UpdateRouteReceiver(Receiver receiver, Quarterback qb, Ball ball, IReadOnlyList<Defender> defenders, bool qbPastLos, bool isUnderneathManCoverage, int selectedReceiver, float dt, Action<Entity> clampToField)
     {
+        if (qbPastLos) RouteRunner.RequestScramble(receiver);
         RouteRunner.UpdateRoute(receiver, dt);
 
         if (receiver.IsRunningBack && ball.State == BallState.HeldByQB && !qbPastLos)
@@ -207,7 +157,7 @@ public sealed class ReceiverUpdateController
         {
             AdjustReceiverToBall(receiver, ball);
         }
-        else if (isUnderneathManCoverage && receiver.Eligible)
+        else if (isUnderneathManCoverage && receiver.Eligible && receiver.Velocity.LengthSquared() > 0.001f)
         {
             Defender? manDefender = defenders.FirstOrDefault(d => d.CoverageReceiverIndex == receiver.Index);
             if (manDefender != null && manDefender.PositionRole == DefensivePosition.DB)
@@ -409,9 +359,4 @@ public sealed class ReceiverUpdateController
         return Vector2.Normalize(delta);
     }
 
-    private static bool IsRunPlayActivePreHandoff(PlayType selectedPlayType, Ball ball)
-    {
-        if (selectedPlayType != PlayType.Run) return false;
-        return ball.State == BallState.HeldByQB;
-    }
 }

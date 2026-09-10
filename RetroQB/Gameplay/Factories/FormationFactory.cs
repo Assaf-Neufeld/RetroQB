@@ -30,7 +30,10 @@ public sealed class FormationFactory : IFormationFactory
             Ball = ball,
             Receivers = play.Players.Select((p, index) =>
                 new Receiver(index, p.Slot, p.Position.AtLineOfScrimmage(lineOfScrimmage), team)).ToList(),
-            Blockers = play.Linemen.Select(p => new Blocker(p.AtLineOfScrimmage(lineOfScrimmage), team)).ToList()
+            Blockers = play.Linemen.Select((p, i) => new Blocker(p.AtLineOfScrimmage(lineOfScrimmage), team)
+            {
+                BlockingAssignment = play.LineBlocking[i], OpeningAssignment = play.OpeningLineBlocking[i]
+            }).ToList()
         };
     }
 }

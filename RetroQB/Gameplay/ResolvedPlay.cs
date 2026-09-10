@@ -21,6 +21,9 @@ public sealed class ResolvedPlay
     public int RunningBackSide { get; }
     public FormationPoint Quarterback { get; }
     public IReadOnlyList<FormationPoint> Linemen { get; }
+    public IReadOnlyList<BlockingAssignment> LineBlocking { get; }
+    public IReadOnlyList<BlockingAssignment> OpeningLineBlocking { get; }
+    public BackfieldSequence Backfield { get; }
     public IReadOnlyList<ResolvedPlayer> Players { get; }
     public IReadOnlyDictionary<ReceiverSlot, PlayerAssignment> Assignments { get; }
     public IReadOnlyDictionary<ReceiverSlot, RouteType> Routes { get; }
@@ -29,18 +32,32 @@ public sealed class ResolvedPlay
     {
         Definition = definition;
         IsFlipped = flipped;
+        Backfield = flipped ? definition.Backfield.Flip() : definition.Backfield;
         int direction = flipped ? -1 : 1;
         RunningBackSide = definition.RunningBackSide * direction;
         var alignment = definition.Formation.Alignment;
         Quarterback = Mirror(alignment.Quarterback, flipped);
         Linemen = Array.AsReadOnly(alignment.Linemen.Select(p => Mirror(p, flipped)).ToArray());
+        BlockingAssignment Orient(BlockingAssignment job) => flipped ? job.Flip() : job;
+        LineBlocking = Array.AsReadOnly(alignment.Linemen.Select((point, index) => Orient(
+            definition.LineBlocking?[index] ?? BlockingPlanner.Line(definition, point.XFraction * Constants.FieldWidth))).ToArray());
+        OpeningLineBlocking = definition.OpeningLineBlocking != null
+            ? Array.AsReadOnly(definition.OpeningLineBlocking.Select(Orient).ToArray())
+            : definition.RunConcept == RunConcept.Draw
+                ? Array.AsReadOnly(alignment.Linemen.Select(point => Orient(BlockingPlanner.PassProtection(point.XFraction * Constants.FieldWidth))).ToArray())
+                : LineBlocking;
         Players = Array.AsReadOnly(definition.Formation.AlignmentSlots.Select((slot, index) =>
         {
             var point = alignment.SkillPositions[index];
             var assignment = definition.Assignments[slot];
             int side = assignment.RouteSide ?? (assignment.Role == AssignmentRole.BallCarrier
                 ? definition.RunningBackSide : point.XFraction < 0.5f ? -1 : 1);
-            return new ResolvedPlayer(slot, Mirror(point, flipped), assignment with { RouteSide = side * direction });
+            var block = assignment.Blocking ?? (assignment.Role == AssignmentRole.Block ? BlockingPlanner.Skill(definition, slot, side) : null);
+            return new ResolvedPlayer(slot, Mirror(point, flipped), assignment with
+            {
+                RouteSide = side * direction,
+                Blocking = block == null ? null : Orient(block)
+            });
         }).ToArray());
         Assignments = new ReadOnlyDictionary<ReceiverSlot, PlayerAssignment>(Players.ToDictionary(p => p.Slot, p => p.Assignment));
         Routes = new ReadOnlyDictionary<ReceiverSlot, RouteType>(Players

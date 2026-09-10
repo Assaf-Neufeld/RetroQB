@@ -15,6 +15,7 @@ public sealed class PlayExecutionController
 {
     private readonly InputManager _input;
     private readonly ReceiverUpdateController _receiverController;
+    public BackfieldController Backfield { get; } = new();
 
     public PlayExecutionController(InputManager input, BlockingController blockingController)
     {
@@ -40,16 +41,20 @@ public sealed class PlayExecutionController
     {
         Vector2 inputDir = _input.GetMovementDirection();
         bool sprint = _input.IsSprintHeld();
+        Backfield.Update(playManager.SelectedPlay, ball, qb, receivers, dt);
         Receiver? controlledReceiver = ball.State == BallState.HeldByReceiver ? ball.Holder as Receiver : null;
 
         // Reset per-frame blocking contact state before any blocker logic runs
         BlockingUtils.ResetDefenderBlockingState(defenders);
 
         // Update QB
-        UpdateQuarterback(qb, ball, defenders, inputDir, sprint, dt, clampToField);
+        if (Backfield.HoldsQuarterback) qb.Velocity = Vector2.Zero;
+        UpdateQuarterback(qb, ball, defenders, Backfield.HoldsQuarterback ? Vector2.Zero : inputDir,
+            !Backfield.HoldsQuarterback && sprint, dt, clampToField);
 
         // Update receivers
-        _receiverController.UpdateAll(receivers, qb, ball, defenders, controlledReceiver, inputDir, sprint, qbPastLos, isUnderneathManCoverage, playManager, dt, clampToField);
+        _receiverController.UpdateAll(receivers, qb, ball, defenders, controlledReceiver, inputDir, sprint, qbPastLos, isUnderneathManCoverage, playManager, dt, clampToField, Backfield);
+        Backfield.TryHandoff(playManager.SelectedPlay, ball, qb, receivers);
 
         // Update defenders
         UpdateDefenders(defenders, qb, receivers, ball, playManager, qbPastLos, usesZoneResponsibilities, clampToField, dt);
@@ -194,7 +199,7 @@ public sealed class PlayExecutionController
             dt,
             runBlockingBoost,
             clampToField,
-            ballCarrierPosition);
+            ballCarrierPosition, qb.Position, Backfield.OpeningComplete);
     }
 
     /// <summary>
@@ -206,31 +211,7 @@ public sealed class PlayExecutionController
         Quarterback qb,
         IReadOnlyList<Receiver> receivers)
     {
-        if (playManager.SelectedPlayType != PlayType.Run)
-        {
-            return;
-        }
-
-        if (ball.State != BallState.HeldByQB)
-        {
-            return;
-        }
-
-        Receiver? runningBack = receivers.SingleOrDefault(r => r.Slot == playManager.SelectedPlay.BallCarrierSlot);
-        if (runningBack == null)
-        {
-            return;
-        }
-
-        float handoffRange = 3.2f;
-        float distance = Vector2.Distance(qb.Position, runningBack.Position);
-        if (distance > handoffRange)
-        {
-            return;
-        }
-
-        runningBack.HasBall = true;
-        ball.SetHeld(runningBack, BallState.HeldByReceiver);
+        Backfield.TryHandoff(playManager.SelectedPlay, ball, qb, receivers);
     }
 
     private static Defender? GetClosestThreatToBallCarrier(

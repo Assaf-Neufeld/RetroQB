@@ -311,6 +311,7 @@ public sealed class GameSession : IDisposable
         // Reset controllers for new play
         _ballController.Reset(_playManager.LineOfScrimmage);
         _tackleController.Reset();
+        _playExecutionController.Backfield.Reset();
         _receiverPriorityManager.AssignPriorities(_entities.Receivers);
         _playManager.SelectedReceiver = _receiverPriorityManager.GetFirstReceiverIndex();
     }
@@ -556,10 +557,6 @@ public sealed class GameSession : IDisposable
 
     private void HandlePlayActive(float dt)
     {
-        // Try handoff on run plays
-        _playExecutionController.TryHandoffToRunningBack(
-            _playManager, _entities.Ball, _entities.Qb, _entities.Receivers);
-
         _qbPastLos = _entities.Qb.Position.Y > _playManager.LineOfScrimmage + 0.1f &&
                      _entities.Ball.State == BallState.HeldByQB;
 
@@ -630,15 +627,18 @@ public sealed class GameSession : IDisposable
         }
 
         // Handle throw input
-        _ballController.HandleThrowInput(
-            _entities.Ball,
-            _entities.Qb,
-            _entities.Receivers,
-            _entities.Defenders,
-            _playManager,
-            _offensiveTeam,
-            _qbPastLos,
-            _input.GetThrowTarget());
+        if (_playExecutionController.Backfield.AllowsThrow)
+        {
+            _ballController.HandleThrowInput(
+                _entities.Ball,
+                _entities.Qb,
+                _entities.Receivers,
+                _entities.Defenders,
+                _playManager,
+                _offensiveTeam,
+                _qbPastLos,
+                _input.GetThrowTarget());
+        }
     }
 
     private void CheckTackleOrScore()

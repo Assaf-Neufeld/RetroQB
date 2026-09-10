@@ -10,7 +10,10 @@ public sealed record PlayerAssignment(
     AssignmentRole Role,
     RouteType Route = RouteType.Flat,
     int? RouteSide = null,
-    bool SlantInside = true);
+    bool SlantInside = true,
+    RouteDefinition? RouteDefinition = null,
+    BlockingAssignment? Blocking = null,
+    float ReleaseAfterSeconds = 0);
 
 public enum RunConcept
 {
@@ -69,10 +72,15 @@ public sealed class PlayDefinition
     public int RunningBackSide { get; }
     public bool IsWildcard { get; }
     public ReceiverSlot? BallCarrierSlot { get; }
+    public IReadOnlyList<BlockingAssignment>? LineBlocking { get; }
+    public IReadOnlyList<BlockingAssignment>? OpeningLineBlocking { get; }
+    public BackfieldSequence Backfield { get; }
 
     public PlayDefinition(string id, string name, PlayType family, FormationDefinition formation,
         IReadOnlyDictionary<ReceiverSlot, PlayerAssignment> assignments,
-        RunConcept runConcept = RunConcept.None, int runningBackSide = 0, bool isWildcard = false)
+        RunConcept runConcept = RunConcept.None, int runningBackSide = 0, bool isWildcard = false,
+        IReadOnlyList<BlockingAssignment>? lineBlocking = null, IReadOnlyList<BlockingAssignment>? openingLineBlocking = null,
+        BackfieldSequence? backfield = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -87,13 +95,17 @@ public sealed class PlayDefinition
             if (assignment is null || !Enum.IsDefined(assignment.Role) || !Enum.IsDefined(assignment.Route)
                 || assignment.RouteSide is < -1 or > 1)
                 throw new ArgumentException($"{id}: invalid player assignment.");
+            if (!float.IsFinite(assignment.ReleaseAfterSeconds) || assignment.ReleaseAfterSeconds < 0
+                || (assignment.ReleaseAfterSeconds > 0 && (assignment.Role != AssignmentRole.Route || assignment.Blocking == null))
+                || (assignment.Role == AssignmentRole.BallCarrier && assignment.Blocking != null)
+                || (assignment.Role == AssignmentRole.Route && assignment.Blocking != null && assignment.ReleaseAfterSeconds == 0))
+                throw new ArgumentException($"{id}: block-and-release needs a route, a blocking job, and a positive release delay.");
         }
         var carriers = assignments.Where(a => a.Value.Role == AssignmentRole.BallCarrier).Select(a => a.Key).ToArray();
         if (family == PlayType.Run && (carriers.Length != 1 || runConcept == RunConcept.None))
             throw new ArgumentException($"{id}: a run needs one designated carrier and a run concept.");
         if (family == PlayType.Pass && (carriers.Length != 0 || runConcept != RunConcept.None))
             throw new ArgumentException($"{id}: a pass cannot have a designed carrier or run concept.");
-        // Phase 1 retains RB handoffs; other exchange mechanics belong to phase 2.
         if (carriers.Any(slot => !slot.IsRunningBackSlot()))
             throw new ArgumentException($"{id}: only running-back handoffs are supported.");
 
@@ -106,5 +118,22 @@ public sealed class PlayDefinition
         RunningBackSide = runningBackSide;
         IsWildcard = isWildcard;
         BallCarrierSlot = carriers.Length == 1 ? carriers[0] : null;
+        Backfield = backfield ?? (BallCarrierSlot is ReceiverSlot carrier
+            ? BackfieldSequence.ForRun(runConcept, carrier, runningBackSide) : new BackfieldSequence());
+        if ((family == PlayType.Run && (Backfield.Action != BackfieldAction.Handoff || Backfield.Participant != BallCarrierSlot))
+            || (family == PlayType.Pass && Backfield.Action == BackfieldAction.Handoff)
+            || (openingLineBlocking != null && Backfield.Action == BackfieldAction.None)
+            || (Backfield.Participant.HasValue && !Assignments.ContainsKey(Backfield.Participant.Value)))
+            throw new ArgumentException($"{id}: exchange participant must match the play's personnel and carrier.");
+        LineBlocking = CopyLinePlan(lineBlocking);
+        OpeningLineBlocking = CopyLinePlan(openingLineBlocking);
+
+        IReadOnlyList<BlockingAssignment>? CopyLinePlan(IReadOnlyList<BlockingAssignment>? plan)
+        {
+            if (plan == null) return null;
+            if (plan.Count != formation.Personnel.LinemanCount || plan.Any(p => p == null))
+                throw new ArgumentException($"{id}: blocking plan must assign every lineman.");
+            return Array.AsReadOnly(plan.ToArray());
+        }
     }
 }

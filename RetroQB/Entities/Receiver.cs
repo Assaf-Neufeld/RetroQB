@@ -2,6 +2,7 @@ using System.Numerics;
 using Raylib_cs;
 using RetroQB.Core;
 using RetroQB.AI;
+using RetroQB.Gameplay.Controllers;
 
 namespace RetroQB.Entities;
 
@@ -26,6 +27,10 @@ public sealed class Receiver : Entity
     public Vector2 RouteStart { get; set; }
     public RouteType Route { get; set; }
     public float RouteProgress { get; set; }
+    public RouteDefinition? RouteDefinition { get; set; }
+    public RouteExecutionState RouteState { get; } = new();
+    public float AssignmentElapsed { get; set; }
+    public BlockingState BlockingState { get; } = new();
     public Color HighlightColor { get; set; } = Palette.Yellow;
     public int RouteSide { get; set; }
     public bool SlantInside { get; set; }
