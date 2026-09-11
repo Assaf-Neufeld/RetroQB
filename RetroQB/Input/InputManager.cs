@@ -3,10 +3,16 @@ using Raylib_cs;
 
 namespace RetroQB.Input;
 
+public interface IPlayerMovementInput
+{
+    Vector2 GetMovementDirection();
+    bool IsSprintHeld();
+}
+
 /// <summary>
 /// Centralizes all input handling. All key checks should go through this class.
 /// </summary>
-public sealed class InputManager
+public sealed class InputManager : IPlayerMovementInput
 {
     public const int MaxPlayerNameLength = 18;
 

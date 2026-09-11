@@ -41,7 +41,6 @@ public sealed class BlockingAndExchangeTests
         controller.Update(play, field.Ball, field.Qb, field.Receivers, 0.01f);
         Assert.Equal(BackfieldPhase.Faking, controller.Phase);
         Assert.False(controller.AllowsThrow);
-        Assert.True(controller.HoldsQuarterback);
         Assert.False(controller.TryHandoff(play, field.Ball, field.Qb, field.Receivers));
         controller.MoveParticipant(rb, field.Qb, 0.1f);
         Assert.Equal(Vector2.Zero, rb.Velocity);

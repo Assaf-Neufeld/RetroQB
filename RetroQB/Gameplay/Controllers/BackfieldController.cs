@@ -15,7 +15,6 @@ public sealed class BackfieldController
     public BackfieldPhase Phase { get; private set; }
     public bool AllowsThrow => _play?.Backfield.Action != BackfieldAction.PlayAction
         || Phase is BackfieldPhase.Released or BackfieldPhase.Completed or BackfieldPhase.Aborted;
-    public bool HoldsQuarterback => !AllowsThrow;
     public bool OpeningComplete => Phase is BackfieldPhase.None or BackfieldPhase.Released or BackfieldPhase.Completed or BackfieldPhase.Aborted;
 
     public void Reset()
@@ -35,7 +34,8 @@ public sealed class BackfieldController
         Phase = play.Backfield.Action == BackfieldAction.None ? BackfieldPhase.None : BackfieldPhase.Approaching;
     }
 
-    public void Update(ResolvedPlay play, Ball ball, Quarterback qb, IReadOnlyList<Receiver> receivers, float dt)
+    public void Update(ResolvedPlay play, Ball ball, Quarterback qb, IReadOnlyList<Receiver> receivers, float dt,
+        bool cancelPlayAction = false)
     {
         Ensure(play, ball);
         if (!float.IsFinite(dt) || dt <= 0 || Phase is BackfieldPhase.None or BackfieldPhase.Completed or BackfieldPhase.Aborted) return;
@@ -46,6 +46,12 @@ public sealed class BackfieldController
         var participant = receivers.SingleOrDefault(r => r.Slot == plan.Participant);
         if (participant == null) { Phase = BackfieldPhase.Aborted; return; }
         if (Phase == BackfieldPhase.Released) return;
+        if (cancelPlayAction)
+        {
+            Phase = BackfieldPhase.Aborted;
+            StartReleaseRoute(participant, participant.Position);
+            return;
+        }
         if (Phase == BackfieldPhase.Faking)
         {
             _fakeElapsed += dt;

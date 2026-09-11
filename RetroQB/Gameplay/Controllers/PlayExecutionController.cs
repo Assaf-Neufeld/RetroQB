@@ -13,11 +13,11 @@ namespace RetroQB.Gameplay.Controllers;
 /// </summary>
 public sealed class PlayExecutionController
 {
-    private readonly InputManager _input;
+    private readonly IPlayerMovementInput _input;
     private readonly ReceiverUpdateController _receiverController;
     public BackfieldController Backfield { get; } = new();
 
-    public PlayExecutionController(InputManager input, BlockingController blockingController)
+    public PlayExecutionController(IPlayerMovementInput input, BlockingController blockingController)
     {
         _input = input;
         _receiverController = new ReceiverUpdateController(blockingController);
@@ -41,16 +41,15 @@ public sealed class PlayExecutionController
     {
         Vector2 inputDir = _input.GetMovementDirection();
         bool sprint = _input.IsSprintHeld();
-        Backfield.Update(playManager.SelectedPlay, ball, qb, receivers, dt);
+        Backfield.Update(playManager.SelectedPlay, ball, qb, receivers, dt,
+            cancelPlayAction: inputDir.LengthSquared() > 0.001f);
         Receiver? controlledReceiver = ball.State == BallState.HeldByReceiver ? ball.Holder as Receiver : null;
 
         // Reset per-frame blocking contact state before any blocker logic runs
         BlockingUtils.ResetDefenderBlockingState(defenders);
 
         // Update QB
-        if (Backfield.HoldsQuarterback) qb.Velocity = Vector2.Zero;
-        UpdateQuarterback(qb, ball, defenders, Backfield.HoldsQuarterback ? Vector2.Zero : inputDir,
-            !Backfield.HoldsQuarterback && sprint, dt, clampToField);
+        UpdateQuarterback(qb, ball, defenders, inputDir, sprint, dt, clampToField);
 
         // Update receivers
         _receiverController.UpdateAll(receivers, qb, ball, defenders, controlledReceiver, inputDir, sprint, qbPastLos, isUnderneathManCoverage, playManager, dt, clampToField, Backfield, blockers);

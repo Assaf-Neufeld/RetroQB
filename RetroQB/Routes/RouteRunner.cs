@@ -9,8 +9,16 @@ public static class RouteRunner
     public static void UpdateRoute(Receiver receiver, float dt)
     {
         if (!float.IsFinite(dt) || dt <= 0) return;
+        UpdateRouteVelocity(receiver, dt);
+        receiver.RouteState.ExpectedPosition = receiver.Position + receiver.Velocity * dt;
+    }
+
+    private static void UpdateRouteVelocity(Receiver receiver, float dt)
+    {
         var path = RouteGeometry.GetPath(receiver);
         var state = receiver.RouteState;
+        bool displaced = state.ExpectedPosition is Vector2 expected
+            && Vector2.DistanceSquared(expected, receiver.Position) > 0.0001f;
         if (state.LastPosition is Vector2 previous)
             receiver.RouteProgress += Vector2.Distance(previous, receiver.Position);
         state.LastPosition = receiver.Position;
@@ -40,7 +48,12 @@ public static class RouteRunner
             Vector2 target = path.Points[state.StepIndex + 1];
             Vector2 delta = target - receiver.Position;
             float distance = delta.Length();
-            if (distance > 0.001f)
+            // Avoidance/contact may keep a runner just off a turn's exact point.
+            // Accept a half-yard turn radius, while holds and endpoints stay exact.
+            bool intermediateTurn = state.StepIndex < path.Definition.Steps.Count - 1
+                && path.Definition.Steps[state.StepIndex].HoldSeconds == 0;
+            float arrivalRadius = displaced && intermediateTurn ? 0.5f : 0.001f;
+            if (distance > arrivalRadius)
             {
                 state.Phase = RoutePhase.Running;
                 receiver.Velocity = delta / distance * MathF.Min(receiver.Speed * remaining, distance) / dt;

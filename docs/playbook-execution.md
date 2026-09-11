@@ -20,6 +20,8 @@ Y means upfield. Existing `RouteType` values resolve to default definitions.
 turns, and advances from actual position. A blocked or displaced receiver cannot advance
 just because time passed or because its Y coordinate crossed a stem depth. Coverage read
 completion also uses route-stage progress.
+Intermediate turns without a hold accept a half-yard arrival radius so contact and
+avoidance do not trap runners beside a waypoint. Holds and final endpoints remain exact.
 
 `RouteExecutionState` belongs to each receiver. Waiting, running, holding, continuing,
 settled, completed, and scrambling are distinct states. Deliberate stops do not trigger
@@ -59,6 +61,9 @@ and shedding formulas. Target selection is now separate from those calculations.
 
 Pre-snap blocking lines use the same landmarks, including pulling paths and skill-player
 jobs. Catch/scramble support remains dynamic rather than a pre-snap job.
+Default pass-protecting backs hold their formation position in the pocket when idle,
+instead of following the live QB. Defender selection and engagement still react to
+threats; explicit blocking assignments can specify other landmarks.
 
 For a block-and-release assignment, use role `Route`, provide a blocking job, and set
 `ReleaseAfterSeconds` to a positive duration. The player remains eligible and keeps the same
@@ -79,10 +84,13 @@ Possession changing away from the QB cancels a pending exchange.
 
 - A handoff requires the designated back to reach the mesh and any minimum delay to expire.
   The QB loses possession exactly once. Draws now wait 0.55 seconds before exchange.
-- During a play-action approach/fake the QB is held, throwing is disabled, and the RB never
+- During a play-action approach/fake, throwing is disabled and the RB never
   actually receives the ball. The actors show the fake using existing animation poses.
   Throwing and the RB's normal assignment resume after the fake. A blocked approach times
   out so the QB cannot remain locked indefinitely.
+  Movement input immediately cancels the fake and gives the QB normal movement and
+  throwing control while the RB releases into his route. The QB and exchange participant
+  can touch during the fake without collision separation moving the exchange point.
 - The RB's pre-snap diagram includes the approach to the exchange point. Run diagrams
   then show the called lane (movement becomes player-controlled after possession).
   Play-action route offsets begin at the exchange point, shared by the diagram and

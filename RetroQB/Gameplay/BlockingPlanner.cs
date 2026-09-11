@@ -58,6 +58,14 @@ public static class BlockingPlanner
 
     public static BlockingAssignment Skill(PlayDefinition play, ReceiverSlot slot, int side)
     {
+        if (play.Family == PlayType.Pass && slot.IsRunningBackSlot())
+        {
+            // Protect from the back's assigned pocket position. Using the live QB as
+            // the landmark makes an idle protector shadow every dropback and scramble.
+            int index = play.Formation.AlignmentSlots.ToList().IndexOf(slot);
+            float depth = play.Formation.Alignment.SkillPositions[index].Depth;
+            return new(BlockingJob.PassProtection, new(0, -depth));
+        }
         if (play.Family == PlayType.Pass)
             return new(BlockingJob.PassProtection, new(side * 1.7f, -0.4f), BlockingAnchor.Quarterback);
         if (slot.IsTightEndSlot() && play.RunningBackSide != 0)

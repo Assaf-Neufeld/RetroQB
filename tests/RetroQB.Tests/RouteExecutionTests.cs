@@ -7,6 +7,20 @@ namespace RetroQB.Tests;
 
 public sealed class RouteExecutionTests
 {
+    [Fact]
+    public void DisplacedRunnerCanRoundAnIntermediateTurnButMustReachAHoldExactly()
+    {
+        foreach (float hold in new[] { 0f, .5f })
+        {
+            var receiver = Receiver(new([new(new(0, 6), hold), new(new(6, 6))], RouteFinish.Settle));
+            RouteRunner.UpdateRoute(receiver, 1f / 60);
+            receiver.Position = receiver.RouteStart + new Vector2(.3f, 6);
+            RouteRunner.UpdateRoute(receiver, 1f / 60);
+            Assert.Equal(hold == 0 ? 1 : 0, receiver.RouteState.StepIndex);
+            Assert.True(hold == 0 ? receiver.Velocity.X > 0 : receiver.Velocity.X < 0);
+        }
+    }
+
     [Theory]
     [InlineData(0.01666667f)]
     [InlineData(0.03333333f)]

@@ -58,6 +58,7 @@ public sealed class RouteExecutionState
     internal float DelayElapsed;
     internal float HoldElapsed;
     internal Vector2? LastPosition;
+    internal Vector2? ExpectedPosition;
     internal RoutePath? Path;
     internal (RouteType Type, int Side, bool Inside, Vector2 Start, RouteDefinition? Custom) Key;
 
@@ -67,6 +68,7 @@ public sealed class RouteExecutionState
         Phase = RoutePhase.Waiting;
         DelayElapsed = HoldElapsed = 0;
         LastPosition = null;
+        ExpectedPosition = null;
         Path = null;
     }
 }

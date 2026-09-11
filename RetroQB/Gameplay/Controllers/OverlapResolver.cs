@@ -76,7 +76,8 @@ public sealed class OverlapResolver
         IReadOnlyList<Blocker> blockers,
         IReadOnlyList<Defender> defenders,
         float lineOfScrimmage,
-        Action<Entity> clampToField)
+        Action<Entity> clampToField,
+        BackfieldController? backfield = null)
     {
         // Determine who is carrying the ball
         Entity? ballCarrier = ball.State switch
@@ -100,6 +101,12 @@ public sealed class OverlapResolver
             {
                 Entity a = entities[i];
                 Entity b = entities[j];
+
+                // An exchange deliberately brings the back inside the QB's collision radius.
+                // Separating this pair would move the mesh each frame and make the RB chase it.
+                if (ball.State == BallState.HeldByQB && ball.Holder == qb && a == qb
+                    && b is Receiver participant && backfield?.ControlsParticipant(participant.Slot) == true)
+                    continue;
 
                 // Skip overlap resolution between ball carrier and defenders (allows tackles)
                 bool aIsDefender = a is Defender;
@@ -142,6 +149,15 @@ public sealed class OverlapResolver
                 {
                     Vector2 pushDir = delta / dist;
                     float push = (minDist - dist) * 0.5f;
+
+                    // A route runner yields to the player-controlled QB, including on release
+                    // from a fake when the two can still be touching.
+                    if (a == qb && ballCarrier == qb && b is Receiver routeRunner && !routeRunner.IsBlocking)
+                    {
+                        b.Position += pushDir * (minDist - dist);
+                        clampToField(b);
+                        continue;
+                    }
 
                     // Enforce 5-yard press zone rule: beyond the zone,
                     // only the defender yields — the receiver runs free.

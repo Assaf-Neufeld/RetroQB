@@ -590,7 +590,8 @@ public sealed class GameSession : IDisposable
             _entities.Blockers,
             _entities.Defenders,
             _playManager.LineOfScrimmage,
-            ClampToField);
+            ClampToField,
+            _playExecutionController.Backfield);
 
         _replayRecorder.Capture(
             _entities.Qb,
