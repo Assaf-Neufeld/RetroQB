@@ -42,6 +42,10 @@ public sealed record BackfieldSequence
     public BackfieldSequence Flip() => new(Action, Participant, new(-MeshOffset.X, MeshOffset.Y),
         MinimumDelay, FakeDuration, ApproachTimeout, MeshRadius, SpeedMultiplier);
 
+    public Vector2 GetMeshPoint(Vector2 quarterbackPosition) => new(
+        Math.Clamp(quarterbackPosition.X + MeshOffset.X, Constants.ReceiverRadius, Constants.FieldWidth - Constants.ReceiverRadius),
+        Math.Clamp(quarterbackPosition.Y + MeshOffset.Y, Constants.ReceiverRadius, Constants.FieldLength - Constants.ReceiverRadius));
+
     public static BackfieldSequence ForRun(RunConcept concept, ReceiverSlot carrier, int side)
     {
         Vector2 offset = concept switch

@@ -49,7 +49,11 @@ public sealed class BackfieldController
         if (Phase == BackfieldPhase.Faking)
         {
             _fakeElapsed += dt;
-            if (_fakeElapsed >= plan.FakeDuration) Phase = BackfieldPhase.Released;
+            if (_fakeElapsed >= plan.FakeDuration)
+            {
+                Phase = BackfieldPhase.Released;
+                StartReleaseRoute(participant, plan.GetMeshPoint(qb.Position));
+            }
         }
         else if (_elapsed >= plan.MinimumDelay && AtMesh(plan, qb, participant))
         {
@@ -58,7 +62,19 @@ public sealed class BackfieldController
             participant.Animation.Trigger(PlayerPose.Catching, qb.Position - participant.Position);
         }
         else if (_elapsed >= plan.ApproachTimeout)
+        {
             Phase = BackfieldPhase.Aborted; // A blocked fake must not lock the QB indefinitely.
+            StartReleaseRoute(participant, participant.Position);
+        }
+    }
+
+    private void StartReleaseRoute(Receiver participant, Vector2 origin)
+    {
+        if (_play!.Assignments[participant.Slot].Role != AssignmentRole.Route) return;
+        // Route offsets begin at the exchange, not at the pre-snap backfield alignment.
+        participant.RouteStart = origin;
+        participant.RouteProgress = 0;
+        participant.RouteState.Reset();
     }
 
     public bool ControlsParticipant(ReceiverSlot slot) => _play?.Backfield.Participant == slot
@@ -68,7 +84,7 @@ public sealed class BackfieldController
     {
         if (_play == null || !ControlsParticipant(participant.Slot)) return;
         participant.Velocity = Phase == BackfieldPhase.Faking ? Vector2.Zero : BlockingSteering.MoveTo(
-            participant.Position, MeshPoint(_play.Backfield, qb), participant.Speed * _play.Backfield.SpeedMultiplier, dt);
+            participant.Position, _play.Backfield.GetMeshPoint(qb.Position), participant.Speed * _play.Backfield.SpeedMultiplier, dt);
     }
 
     public bool TryHandoff(ResolvedPlay play, Ball ball, Quarterback qb, IReadOnlyList<Receiver> receivers)
@@ -85,11 +101,7 @@ public sealed class BackfieldController
         return true;
     }
 
-    private static Vector2 MeshPoint(BackfieldSequence plan, Quarterback qb) => new(
-        Math.Clamp(qb.Position.X + plan.MeshOffset.X, Constants.ReceiverRadius, Constants.FieldWidth - Constants.ReceiverRadius),
-        Math.Clamp(qb.Position.Y + plan.MeshOffset.Y, Constants.ReceiverRadius, Constants.FieldLength - Constants.ReceiverRadius));
-
     private static bool AtMesh(BackfieldSequence plan, Quarterback qb, Receiver participant) =>
         Vector2.Distance(qb.Position, participant.Position) <= 3.2f
-        && Vector2.Distance(MeshPoint(plan, qb), participant.Position) <= plan.MeshRadius;
+        && Vector2.Distance(plan.GetMeshPoint(qb.Position), participant.Position) <= plan.MeshRadius;
 }

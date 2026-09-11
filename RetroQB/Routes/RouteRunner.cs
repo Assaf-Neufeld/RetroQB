@@ -17,7 +17,7 @@ public static class RouteRunner
         if (receiver.IsBlocking) { receiver.Velocity = Vector2.Zero; return; }
         if (receiver.HasBall)
         {
-            receiver.Velocity = Vector2.Normalize(new Vector2(receiver.IsRunningBack ? receiver.RouteSide * 0.55f : 0, 1)) * receiver.Speed;
+            receiver.Velocity = GetBallCarrierDirection(receiver) * receiver.Speed;
             return;
         }
         if (state.Phase == RoutePhase.Scrambling)
@@ -76,6 +76,9 @@ public static class RouteRunner
         _ = RouteGeometry.GetPath(receiver);
         receiver.RouteState.Phase = RoutePhase.Scrambling;
     }
+
+    internal static Vector2 GetBallCarrierDirection(Receiver receiver) =>
+        Vector2.Normalize(new Vector2(receiver.IsRunningBack ? receiver.RouteSide * 0.55f : 0, 1));
 
     private static void MoveWithinField(Receiver receiver, Vector2 direction, float dt, float? remaining = null)
     {

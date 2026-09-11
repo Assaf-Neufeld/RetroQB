@@ -83,6 +83,11 @@ Possession changing away from the QB cancels a pending exchange.
   actually receives the ball. The actors show the fake using existing animation poses.
   Throwing and the RB's normal assignment resume after the fake. A blocked approach times
   out so the QB cannot remain locked indefinitely.
+- The RB's pre-snap diagram includes the approach to the exchange point. Run diagrams
+  then show the called lane (movement becomes player-controlled after possession).
+  Play-action route offsets begin at the exchange point, shared by the diagram and
+  execution, so a released back does not retrace waypoints from his original alignment.
+  An aborted fake starts its release route from the back's current position instead.
 - Optional opening line jobs transition to the main jobs when the exchange/fake completes.
   Draws use pass-protection opening jobs and then their run jobs. Existing plays without
   distinct opening jobs simply use the same jobs throughout.
