@@ -268,7 +268,7 @@ public sealed class BlockingAndExchangeTests
                 backfield.Update(play, field.Ball, field.Qb, field.Receivers, dt);
                 var carrier = field.Ball.Holder as Receiver;
                 receivers.UpdateAll(field.Receivers, field.Qb, field.Ball, defenders, carrier,
-                    Vector2.UnitY, false, false, false, manager, dt, Clamp, backfield);
+                    Vector2.UnitY, false, false, false, manager, dt, Clamp, backfield, field.Blockers);
                 backfield.TryHandoff(play, field.Ball, field.Qb, field.Receivers);
                 OffensiveLinemanAI.UpdateBlockers(field.Blockers, defenders, play, 40, dt,
                     field.Ball.State == BallState.HeldByReceiver, Clamp, field.Ball.Holder?.Position,

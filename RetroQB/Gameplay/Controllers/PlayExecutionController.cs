@@ -53,7 +53,7 @@ public sealed class PlayExecutionController
             !Backfield.HoldsQuarterback && sprint, dt, clampToField);
 
         // Update receivers
-        _receiverController.UpdateAll(receivers, qb, ball, defenders, controlledReceiver, inputDir, sprint, qbPastLos, isUnderneathManCoverage, playManager, dt, clampToField, Backfield);
+        _receiverController.UpdateAll(receivers, qb, ball, defenders, controlledReceiver, inputDir, sprint, qbPastLos, isUnderneathManCoverage, playManager, dt, clampToField, Backfield, blockers);
         Backfield.TryHandoff(playManager.SelectedPlay, ball, qb, receivers);
 
         // Update defenders
