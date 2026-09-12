@@ -30,7 +30,8 @@ public static class BlockingSteering
     }
 
     public static BlockingDecision Decide(BlockingAssignment assignment, BlockingState state, Vector2 position,
-        float homeX, float los, Vector2 qb, IReadOnlyList<Defender> defenders, float radius)
+        float homeX, float los, Vector2 qb, IReadOnlyList<Defender> defenders, float radius,
+        Defender? protectionTarget = null, bool coordinatedProtection = false)
     {
         if (!ReferenceEquals(state.Assignment, assignment)) { state.Reset(); state.Assignment = assignment; }
         var landmarks = GetLandmarks(assignment, homeX, los, qb);
@@ -41,6 +42,13 @@ public static class BlockingSteering
         }
         Vector2 anchor = landmarks[^1];
         bool protect = !assignment.IsRunBlock;
+        if (protect && coordinatedProtection)
+        {
+            // The line planner owns target coverage and pursuit range. Independent
+            // fallback here would double an inside rusher and abandon another lane.
+            state.Target = protectionTarget;
+            return new(anchor, state.Target, false);
+        }
         // Recover into the pocket after losing a block, while keeping pursuit local.
         if (state.Target != null && (!defenders.Contains(state.Target)
             || (Vector2.Distance(state.Target.Position, anchor) > radius * 1.5f

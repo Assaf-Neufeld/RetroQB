@@ -15,17 +15,20 @@ public static class OffensiveLinemanAI
     {
         if (dt <= 0) return;
         Vector2 qb = quarterbackPosition ?? play.Quarterback.AtLineOfScrimmage(lineOfScrimmage);
+        var protection = PassProtectionPlanner.Assign(blockers, defenders, openingComplete ?? runBlockingBoost);
         foreach (var blocker in blockers)
         {
             var assignment = ((openingComplete ?? runBlockingBoost) ? blocker.BlockingAssignment : blocker.OpeningAssignment)
                 ?? throw new InvalidOperationException("Lineman has no resolved blocking assignment.");
             float radius = Constants.BlockEngageRadius * blocker.TeamAttributes.BlockingStrength;
             if (IsTacklePosition(blocker.HomeX)) radius *= 1.15f;
+            protection.TryGetValue(blocker, out var assignedRusher);
             var decision = BlockingSteering.Decide(assignment, blocker.BlockingState, blocker.Position,
-                blocker.HomeX, lineOfScrimmage, qb, defenders, radius);
+                blocker.HomeX, lineOfScrimmage, qb, defenders, radius, assignedRusher,
+                coordinatedProtection: !assignment.IsRunBlock);
             if (decision.Target is Defender target)
             {
-                blocker.Velocity = ComputeApproachVelocity(blocker, target, runBlockingBoost, assignment);
+                blocker.Velocity = ComputeApproachVelocity(blocker, target, runBlockingBoost, assignment, qb, dt);
                 ApplyBlockContact(blocker, target, runBlockingBoost, assignment, dt, ballCarrierPosition);
                 clampToField(blocker);
             }
@@ -59,8 +62,20 @@ public static class OffensiveLinemanAI
         Blocker blocker,
         Defender target,
         bool runBlockingBoost,
-        BlockingAssignment assignment)
+        BlockingAssignment assignment,
+        Vector2 qb,
+        float dt)
     {
+        if (!assignment.IsRunBlock)
+        {
+            // Set on the QB side of the rush instead of charging upfield at it.
+            // Once beaten, close directly so the offset cannot hold us off contact.
+            bool beaten = target.Position.Y < blocker.Position.Y;
+            Vector2 intercept = beaten ? target.Position : target.Position
+                + BlockingUtils.SafeNormalize(qb - target.Position) * (blocker.Radius + target.Radius);
+            if (!beaten) intercept.Y = MathF.Min(intercept.Y, blocker.HomeY - 1.5f);
+            return BlockingSteering.MoveTo(blocker.Position, intercept, blocker.Speed, dt);
+        }
         Vector2 baseVelocity = BlockingUtils.SafeNormalize(target.Position - blocker.Position) * blocker.Speed;
         float blockStrength = blocker.TeamAttributes.BlockingStrength;
         
@@ -74,20 +89,6 @@ public static class OffensiveLinemanAI
         {
             Vector2 driveDir = assignment.DriveDirection;
             baseVelocity += BlockingUtils.SafeNormalize(driveDir) * (blocker.Speed * 0.35f * blockStrength);
-        }
-        else
-        {
-            // Pass blocking: stay between defender and QB
-            // Tackles mirror laterally toward edge rushers to cut off the corner
-            if (IsTacklePosition(blocker.HomeX) && target.PositionRole == DefensivePosition.DE)
-            {
-                float sideDir = MathF.Sign(target.Position.X - blocker.Position.X);
-                baseVelocity += new Vector2(sideDir * blocker.Speed * 0.40f, -blocker.Speed * 0.05f);
-            }
-            else
-            {
-                baseVelocity += new Vector2(0f, -blocker.Speed * 0.15f);
-            }
         }
 
         return baseVelocity;
