@@ -92,11 +92,16 @@ public static class ZoneCoverage
             float nickelDropBoost = GetNickelAnchorDepthBoost(defender.ZoneRole);
             if (nickelDropBoost > 0f)
             {
-                float maxFieldY = Constants.EndZoneDepth + 100f - 0.5f;
-                anchor.Y = MathF.Min(anchor.Y + nickelDropBoost, maxFieldY);
+                anchor.Y += nickelDropBoost * FieldGeometry.CoverageDepthScale(lineOfScrimmage);
             }
         }
 
+        anchor.Y = MathF.Min(anchor.Y, FieldGeometry.PlayableBackLine);
+        if (!defender.ZoneRole.IsDeepZone())
+        {
+            var bounds = GetZoneBounds(defender, lineOfScrimmage, anchor.X);
+            anchor.Y = MathF.Min(anchor.Y, GetZoneCarryCeiling(defender.ZoneRole, bounds, lineOfScrimmage));
+        }
         return anchor;
     }
 
@@ -128,6 +133,11 @@ public static class ZoneCoverage
     {
         float yMin = lineOfScrimmage + 1.0f;
         var (width, yMax) = GetZoneDimensions(defender, lineOfScrimmage, ref yMin);
+        float scale = FieldGeometry.CoverageDepthScale(lineOfScrimmage);
+        yMin = MathF.Min(lineOfScrimmage + (yMin - lineOfScrimmage) * scale, FieldGeometry.PlayableBackLine);
+        yMax = defender.ZoneRole.IsDeepZone()
+            ? FieldGeometry.PlayableBackLine
+            : MathF.Min(lineOfScrimmage + (yMax - lineOfScrimmage) * scale, FieldGeometry.PlayableBackLine);
 
         float halfWidth = width * 0.5f;
         float xMin = Math.Clamp(xCenter - halfWidth, 0.5f, Constants.FieldWidth - 0.5f);
@@ -206,10 +216,10 @@ public static class ZoneCoverage
                 CoverageRole.DeepQuarterLeft or CoverageRole.DeepQuarterRight => 0.35f,
                 _ => 0f
             };
-            targetDepth = MathF.Max(baseDepth, deepest + Constants.ZoneDeepCushion + stagger);
+            targetDepth = MathF.Max(baseDepth, deepest + (Constants.ZoneDeepCushion + stagger) * GetBackLineCushionScale(deepest));
         }
 
-        float maxFieldY = Constants.EndZoneDepth + 100f - 0.5f;
+        float maxFieldY = FieldGeometry.PlayableBackLine;
         return MathF.Min(targetDepth, maxFieldY);
     }
 
@@ -415,9 +425,9 @@ public static class ZoneCoverage
         float deepCushion = isolatedVerticalCarry
             ? Constants.ZoneDeepCushion + 0.65f
             : Constants.ZoneDeepCushion;
-        float targetY = MathF.Max(baseTarget.Y, routeThreatY + deepCushion + angleBonus);
+        float targetY = MathF.Max(baseTarget.Y, routeThreatY + (deepCushion + angleBonus) * GetBackLineCushionScale(routeThreatY));
 
-        float maxFieldY = Constants.EndZoneDepth + 100f - 0.5f;
+        float maxFieldY = FieldGeometry.PlayableBackLine;
         return new Vector2(targetX, MathF.Min(targetY, maxFieldY));
     }
 
@@ -472,7 +482,7 @@ public static class ZoneCoverage
                 continue;
             }
 
-            if (receiver.Position.Y < lineOfScrimmage + Constants.ZoneCoverageDepth - 2f)
+            if (receiver.Position.Y < bounds.YMin - 2f)
             {
                 continue;
             }
@@ -544,7 +554,8 @@ public static class ZoneCoverage
             minDrop += GetNickelMinDropBoost(defender.ZoneRole);
         }
 
-        desiredY = MathF.Max(desiredY, minDrop);
+        minDrop = lineOfScrimmage + (minDrop - lineOfScrimmage) * FieldGeometry.CoverageDepthScale(lineOfScrimmage);
+        desiredY = Math.Clamp(MathF.Max(desiredY, minDrop), bounds.YMin, carryCeiling);
 
         float yTrackBlend = defender.ZoneRole switch
         {
@@ -556,7 +567,7 @@ public static class ZoneCoverage
         };
         float targetY = Lerp(baseTarget.Y, desiredY, yTrackBlend);
 
-        return new Vector2(targetX, targetY);
+        return new Vector2(targetX, MathF.Min(targetY, FieldGeometry.PlayableBackLine));
     }
 
     private static Vector2 GetProjectedReceiverPosition(Receiver receiver, CoverageRole role)
@@ -571,6 +582,10 @@ public static class ZoneCoverage
             lookAhead += 0.5f;
         }
 
+        if (role.IsDeepZone() && travelDir.Y > 0f)
+        {
+            lookAhead = MathF.Min(lookAhead, MathF.Max(0f, FieldGeometry.PlayableBackLine - receiver.Position.Y) * 0.5f / travelDir.Y);
+        }
         return receiver.Position + travelDir * lookAhead;
     }
 
@@ -604,14 +619,22 @@ public static class ZoneCoverage
 
     private static float GetZoneCarryCeiling(CoverageRole role, ZoneBounds bounds, float lineOfScrimmage)
     {
-        return role switch
+        float ceiling = role switch
         {
             CoverageRole.FlatLeft or CoverageRole.FlatRight => lineOfScrimmage + Constants.ZoneCoverageDepth + Constants.ZoneMatchDepthBuffer,
             CoverageRole.Robber => lineOfScrimmage + Constants.ZoneCoverageDepth + Constants.ZoneMatchDepthBuffer * 0.75f,
             CoverageRole.HookLeft or CoverageRole.HookMiddle or CoverageRole.HookRight => lineOfScrimmage + Constants.ZoneCoverageDepthDb + Constants.ZoneMatchDepthBuffer,
-            _ => MathF.Max(bounds.YMax, lineOfScrimmage + Constants.ZoneCarryDepth)
+            _ => FieldGeometry.PlayableBackLine
         };
+        if (!role.IsDeepZone())
+        {
+            ceiling = lineOfScrimmage + (ceiling - lineOfScrimmage) * FieldGeometry.CoverageDepthScale(lineOfScrimmage);
+        }
+        return Math.Clamp(ceiling, bounds.YMin, FieldGeometry.PlayableBackLine);
     }
+
+    private static float GetBackLineCushionScale(float receiverY) =>
+        Math.Clamp((FieldGeometry.PlayableBackLine - receiverY) / 6f, 0f, 1f);
 
     private static float Lerp(float from, float to, float amount)
     {
@@ -678,7 +701,7 @@ public static class ZoneCoverage
         yMin = lineOfScrimmage + Constants.ZoneCoverageDepth;
         return (
             width,
-            lineOfScrimmage + Constants.FieldLength
+            FieldGeometry.PlayableBackLine
         );
     }
 }

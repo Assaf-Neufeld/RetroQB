@@ -74,10 +74,7 @@ public sealed class DefenseFactory : IDefenseFactory
         bool isUnderneathManCoverage = CoverageSchemePolicies.IsUnderneathManCoverage(scheme);
 
         float maxY = Constants.FieldLength - 1f;
-        bool isGoalLineSituation = context.YardsToGoal <= 2.5f;
-        float minY = isGoalLineSituation
-            ? MathF.Min(FieldGeometry.OpponentGoalLine + 0.2f, maxY)
-            : MathF.Min(context.LineOfScrimmage + 0.35f, maxY);
+        float minY = MathF.Min(context.LineOfScrimmage + 0.35f, maxY);
         float availableDepth = maxY - context.LineOfScrimmage;
         float depthScale = MathF.Max(availableDepth < 18f ? availableDepth / 18f : 1f, 0.3f);
         float frontCenterX = GetFrontCenterX(surface);
@@ -88,7 +85,10 @@ public sealed class DefenseFactory : IDefenseFactory
 
         // Defensive line - DEs on the outside (circular rush), DTs inside (straight rush)
         DefensiveLineFront lineFront = GetDefensiveLineFront(context, rng);
-        float dlDepth = ClampDefenderY(context.LineOfScrimmage + GetSituationalDepthOffset(1.8f, 1.2f, depthScale), minY, maxY);
+        float frontDepth = context.YardsToGoal <= 3f
+            ? 0.6f
+            : GetSituationalDepthOffset(1.8f, 1.2f, depthScale);
+        float dlDepth = ClampDefenderY(context.LineOfScrimmage + frontDepth, minY, maxY);
         defenders.Add(new Defender(new Vector2(ClampDbX(frontCenterX - lineFront.EndOffset), dlDepth), DefensivePosition.DE, DefenderSlot.DE1, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -lineFront.EdgeRushLaneOffset });
         defenders.Add(new Defender(new Vector2(ClampDbX(frontCenterX - lineFront.TackleOffset), dlDepth), DefensivePosition.DL, DefenderSlot.DT1, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = -lineFront.InteriorRushLaneOffset });
         defenders.Add(new Defender(new Vector2(ClampDbX(frontCenterX + lineFront.TackleOffset), dlDepth), DefensivePosition.DL, DefenderSlot.DT2, attrs) { IsRusher = true, ZoneRole = CoverageRole.None, RushLaneOffsetX = lineFront.InteriorRushLaneOffset });

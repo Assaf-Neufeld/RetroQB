@@ -11,6 +11,11 @@ public static class FieldGeometry
     public static float EndZoneDepth => Constants.EndZoneDepth;
     public static float FieldLength => 100f;
     public static float OpponentGoalLine => EndZoneDepth + FieldLength;
+    public static float PlayableBackLine => OpponentGoalLine + EndZoneDepth - 0.5f;
+
+    // Compress coverage depths smoothly as the remaining field falls below 30 yards.
+    public static float CoverageDepthScale(float lineOfScrimmage) =>
+        Math.Clamp((OpponentGoalLine + EndZoneDepth - lineOfScrimmage) / 30f, 1f / 3f, 1f);
 
     /// <summary>
     /// Converts a world Y position to a display yard line (0-100).

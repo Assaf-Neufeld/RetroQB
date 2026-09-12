@@ -30,13 +30,9 @@ internal static class DefensivePersonnelPolicy
 
     internal static DefensivePersonnel Create(OffensiveSurface surface, DefensiveContext context)
     {
-        bool usesNickel = surface.IsSpread && !surface.IsHeavy;
-        if (context.IsRedZone)
-        {
-            usesNickel = usesNickel && context.IsPassingDown && !context.IsTightRedZone;
-        }
-
-        return new DefensivePersonnel(usesNickel, BuildActiveSlots(usesNickel));
+        // Formation still determines the matchups near the goal line. Situational
+        // run support comes from the front and coverage depths, not removing a DB.
+        return Create(surface);
     }
 
     private static IReadOnlySet<DefenderSlot> BuildActiveSlots(bool usesNickel)
