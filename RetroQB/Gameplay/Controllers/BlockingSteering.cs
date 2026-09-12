@@ -41,9 +41,11 @@ public static class BlockingSteering
         }
         Vector2 anchor = landmarks[^1];
         bool protect = !assignment.IsRunBlock;
-        // Commit to a local threat, but release stale targets rather than chasing across the field.
+        // Recover into the pocket after losing a block, while keeping pursuit local.
         if (state.Target != null && (!defenders.Contains(state.Target)
-            || Vector2.Distance(state.Target.Position, anchor) > radius * 1.5f
+            || (Vector2.Distance(state.Target.Position, anchor) > radius * 1.5f
+                && !(protect && state.Target.IsRusher
+                    && Vector2.Distance(state.Target.Position, qb) <= radius * 1.5f))
             || Vector2.Distance(state.Target.Position, position) > radius * 1.5f)) state.Target = null;
         if (state.Target == null)
         {
@@ -63,6 +65,7 @@ public static class BlockingSteering
         var target = state.Target;
         bool canEngage = target != null && (Vector2.Distance(position, anchor) <= 1.2f
             || Vector2.Distance(position, target.Position) <= 2.6f
+            || (protect && target.IsRusher)
             || (!protect && Vector2.Distance(target.Position, anchor) <= radius * 0.6f));
         return new(anchor, canEngage ? target : null, false);
     }
