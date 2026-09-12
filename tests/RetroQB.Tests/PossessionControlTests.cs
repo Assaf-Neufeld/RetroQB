@@ -13,14 +13,35 @@ public sealed class PossessionControlTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void InheritedRetreatDoesNotReverseNewCarrierAndExpires(bool run)
+    public void InheritedRetreatExpiresOnlyForRunHandoffs(bool run)
     {
         var (assist, _, _) = Transfer(run, Vector2.UnitY * 8, -Vector2.UnitY);
         Assert.True(assist.Resolve(-Vector2.UnitY).Y > 0);
         Assert.True(assist.SuppressTurnBoost);
         assist.Tick(.31f);
-        Assert.Equal(-Vector2.UnitY, assist.Resolve(-Vector2.UnitY));
+        Assert.Equal(run ? -Vector2.UnitY : Vector2.UnitY, assist.Resolve(-Vector2.UnitY));
+        Assert.Equal(!run, assist.SuppressTurnBoost);
+    }
+
+    [Theory]
+    [InlineData(1, 0, 0, -1)]
+    [InlineData(0, 1, 1, 1)]
+    [InlineData(0, -1, 0, 0)]
+    public void CatchKeepsApproachDirectionUntilInputChanges(float x, float y, float inputX, float inputY)
+    {
+        var direction = new Vector2(x, y);
+        var inheritedInput = new Vector2(inputX, inputY);
+        if (inheritedInput != Vector2.Zero) inheritedInput = Vector2.Normalize(inheritedInput);
+        var (assist, _, _) = Transfer(false, direction * 8, inheritedInput);
+        Assert.Equal(direction, assist.Resolve(inheritedInput));
+        assist.Tick(2f);
+        Assert.Equal(direction, assist.Resolve(inheritedInput));
+        Assert.Equal(0, assist.CueRemaining);
+
+        var freshInput = -Vector2.UnitX;
+        Assert.Equal(freshInput, assist.Resolve(freshInput));
         Assert.False(assist.SuppressTurnBoost);
+        Assert.Equal(inheritedInput, assist.Resolve(inheritedInput));
     }
 
     [Theory]
@@ -109,6 +130,9 @@ public sealed class PossessionControlTests
         if (freshCut) Assert.True(receiver.Velocity.X < 0);
         else Assert.True(receiver.Velocity.Y > 0);
         Assert.InRange(execution.Possession.CueRemaining, .5f, .6f);
+        for (int frame = 0; frame < 60; frame++) Step();
+        if (freshCut) Assert.True(receiver.Velocity.X < 0);
+        else Assert.True(receiver.Velocity.Y > 0);
     }
 
     private static (PossessionControl, Ball, ResolvedPlay) Transfer(bool run, Vector2 velocity, Vector2 input)
