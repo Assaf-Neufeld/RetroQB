@@ -224,6 +224,7 @@ public sealed class BallController
             ? float.MaxValue
             : Vector2.Distance(receiver.Position, ball.Position);
         float closestDefenderDist = float.MaxValue;
+        float bestInterceptionChance = 0f;
 
         foreach (var defender in defenders)
         {
@@ -234,8 +235,22 @@ public sealed class BallController
 
             if (distance <= interceptRadius && distance < receiverDist)
             {
-                return BallUpdateResult.Intercepted;
+                float proximity = 1f - Math.Clamp(distance / MathF.Max(interceptRadius, 0.001f), 0f, 1f);
+                float skill = defensiveTeam.InterceptionAbility
+                    * defensiveTeam.GetPositionInterceptionMultiplier(defender.PositionRole)
+                    * defender.InterceptionMultiplier;
+                float chance = Math.Clamp((0.20f + 0.50f * proximity) * Math.Clamp(skill, 0.5f, 1.3f), 0.10f, 0.85f);
+                bestInterceptionChance = MathF.Max(bestInterceptionChance, chance);
             }
+        }
+
+        if (bestInterceptionChance > 0f)
+        {
+            // Resolve possession once for this contact. An unsecured ball is a
+            // breakup and ends the play, preventing repeated interception rolls.
+            return _rng.NextDouble() < bestInterceptionChance
+                ? BallUpdateResult.Intercepted
+                : BallUpdateResult.PassDefended;
         }
 
         BallUpdateResult defendedResult = TryDefendPass(ball, defenders, defensiveTeam);

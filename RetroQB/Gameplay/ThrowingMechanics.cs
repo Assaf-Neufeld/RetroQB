@@ -84,28 +84,17 @@ public sealed class ThrowingMechanics : IThrowingMechanics
         if (speed < 0.2f) return 0f;
 
         Vector2 moveDir = qbVelocity / speed;
-        
-        // Penalty for throwing across the body (opposite horizontal direction)
-        // Running right (+X) and throwing left (-X) = penalty
-        // Running sideways and throwing forward = OK
-        // Running forward and throwing forward = OK
-        float moveX = moveDir.X;
-        float throwX = throwDir.X;
-        
-        float horizontalMovement = MathF.Abs(moveX);
-        
-        // If not moving much horizontally, no cross-body penalty
-        if (horizontalMovement < 0.3f) return 0f;
-        
-        // If throw is in opposite X direction from movement, apply penalty
-        if (moveX * throwX < 0)
-        {
-            // Penalty scales with how much you're moving sideways and how far across you're throwing
-            float crossBodyFactor = horizontalMovement * MathF.Abs(throwX);
-            return Math.Clamp(crossBodyFactor * 1.5f, 0f, 1f);
-        }
-        
-        return 0f;
+        float alignment = Math.Clamp(Vector2.Dot(moveDir, throwDir), -1f, 1f);
+        // The offense advances toward +Y. Forward movement helps footwork,
+        // but cannot cancel throwing against momentum or retreating.
+        float forward = MathF.Max(0f, moveDir.Y);
+        float backward = MathF.Max(0f, -moveDir.Y);
+        float across = 1f - MathF.Max(0f, alignment);
+        float opposed = MathF.Max(0f, -alignment);
+        float speedFactor = Math.Clamp((speed - 0.2f) / (Constants.QbMaxSpeed - 0.2f), 0f, 1.4f);
+        float penalty = 0.04f + 0.28f * across * (1f - 0.65f * forward)
+            + 0.65f * backward + 0.55f * opposed;
+        return Math.Clamp(speedFactor * penalty, 0f, 1f);
     }
 
     private static Vector2 Rotate(Vector2 v, float radians)

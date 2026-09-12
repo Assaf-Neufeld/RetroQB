@@ -19,7 +19,7 @@ public sealed class BallControllerTests
     {
         Receiver[] receivers = includeDistantReceiver ? [ReceiverAt(Contact + new Vector2(10, 0))] : [];
         Assert.Equal(BallUpdateResult.Intercepted,
-            Update(Controller(), LowBall(), receivers, [DefenderAt(Contact)]));
+            Update(Controller(new FixedRandom(0)), LowBall(), receivers, [DefenderAt(Contact)]));
     }
 
     [Fact]
@@ -28,7 +28,7 @@ public sealed class BallControllerTests
         var receiver = ReceiverAt(Contact);
         receiver.Eligible = false;
         Assert.Equal(BallUpdateResult.Intercepted,
-            Update(Controller(), LowBall(), [receiver], [DefenderAt(Contact + new Vector2(0.5f, 0))]));
+            Update(Controller(new FixedRandom(0)), LowBall(), [receiver], [DefenderAt(Contact + new Vector2(0.5f, 0))]));
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public sealed class BallControllerTests
     public void CloserDefenderWinsContestedPass()
     {
         Assert.Equal(BallUpdateResult.Intercepted,
-            Update(Controller(), LowBall(), [ReceiverAt(Contact + new Vector2(0.5f, 0))], [DefenderAt(Contact)]));
+            Update(Controller(new FixedRandom(0)), LowBall(), [ReceiverAt(Contact + new Vector2(0.5f, 0))], [DefenderAt(Contact)]));
     }
 
     [Fact]
@@ -110,7 +110,50 @@ public sealed class BallControllerTests
         var nearer = DefenderAt(Contact + new Vector2(0.8f, 0));
         nearer.ApplyStarBoost(1, 1, 0.1f, 1);
         var farther = DefenderAt(Contact + new Vector2(1, 0));
-        Assert.Equal(BallUpdateResult.Intercepted, Update(Controller(), LowBall(), [], [nearer, farther]));
+        Assert.Equal(BallUpdateResult.Intercepted, Update(Controller(new FixedRandom(0)), LowBall(), [], [nearer, farther]));
+    }
+
+    [Fact]
+    public void UnsecuredInterceptionBecomesPassDefendedWithOneRoll()
+    {
+        var random = new FixedRandom(0.99);
+        var ball = LowBall();
+        var controller = Controller(random);
+        Assert.Equal(BallUpdateResult.PassDefended,
+            Update(controller, ball, [ReceiverAt(Contact + new Vector2(0.5f, 0))],
+                [DefenderAt(Contact), DefenderAt(Contact + new Vector2(0.1f, 0))]));
+        Assert.Equal(1, random.Calls);
+        Assert.False(controller.PassCompletedThisPlay);
+        Assert.NotEqual(BallState.HeldByReceiver, ball.State);
+    }
+
+    [Fact]
+    public void CenteredDefenderSecuresBallMoreOftenThanReachingDefender()
+    {
+        Assert.Equal(BallUpdateResult.Intercepted,
+            Update(Controller(new FixedRandom(0.5)), LowBall(), [], [DefenderAt(Contact)]));
+        float radius = DefensiveTeamAttributes.Default.GetEffectiveInterceptRadius(DefensivePosition.DB);
+        Assert.Equal(BallUpdateResult.PassDefended,
+            Update(Controller(new FixedRandom(0.5)), LowBall(), [],
+                [DefenderAt(Contact + new Vector2(radius * 0.95f, 0))]));
+    }
+
+    [Fact]
+    public void PassDefendedAdvancesDownAndDisplaysDistinctResult()
+    {
+        var drive = new DriveState();
+        float line = drive.LineOfScrimmage;
+        float distance = drive.Distance;
+        var result = drive.ResolvePassDefended();
+        Assert.Equal(PlayOutcome.PassDefended, result.Outcome);
+        Assert.Equal(2, drive.Down);
+        Assert.Equal(line, drive.LineOfScrimmage);
+        Assert.Equal(distance, drive.Distance);
+        Assert.Equal(0, drive.AwayScore);
+        Assert.Equal("Pass defended", new PlayRecord { Outcome = result.Outcome }.GetResultText());
+        drive.ResolvePassDefended();
+        drive.ResolvePassDefended();
+        Assert.Equal(PlayOutcome.Turnover, drive.ResolvePassDefended().Outcome);
     }
 
     private static Ball LowBall()
