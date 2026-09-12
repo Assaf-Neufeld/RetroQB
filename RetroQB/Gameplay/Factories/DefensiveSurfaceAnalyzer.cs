@@ -13,21 +13,21 @@ internal static class DefensiveSurfaceAnalyzer
     {
         // Read the visible formation, including skill players assigned to block.
         // Route eligibility must not pull the pre-snap shell toward the ball carrier.
-        List<Receiver> eligible = receivers
+        List<Receiver> skillPlayers = receivers
             .OrderBy(receiver => receiver.Position.X)
             .ToList();
 
-        if (eligible.Count == 0)
+        if (skillPlayers.Count == 0)
         {
             return new OffensiveSurface(0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, Constants.FieldWidth * 0.50f, FormationStrength.Balanced);
         }
 
         float fieldMidX = Constants.FieldWidth * 0.50f;
-        List<Receiver> attachedTightEnds = eligible
+        List<Receiver> attachedTightEnds = skillPlayers
             .Where(receiver => IsAttachedTightEnd(receiver, lineOfScrimmage, fieldMidX))
             .ToList();
 
-        List<Receiver> detached = eligible
+        List<Receiver> detached = skillPlayers
             .Where(receiver => !attachedTightEnds.Contains(receiver))
             .Where(receiver => lineOfScrimmage - receiver.Position.Y <= DetachedReceiverMaxDepth)
             .OrderBy(receiver => receiver.Position.X)
@@ -35,25 +35,25 @@ internal static class DefensiveSurfaceAnalyzer
 
         if (detached.Count == 0)
         {
-            detached = eligible
+            detached = skillPlayers
                 .Where(receiver => !attachedTightEnds.Contains(receiver))
                 .OrderBy(receiver => receiver.Position.X)
                 .ToList();
 
             if (detached.Count == 0)
             {
-                detached = eligible;
+                detached = skillPlayers;
             }
         }
 
-        List<Receiver> lineStructure = eligible
+        List<Receiver> lineStructure = skillPlayers
             .Where(receiver => lineOfScrimmage - receiver.Position.Y <= DetachedReceiverMaxDepth || attachedTightEnds.Contains(receiver))
             .OrderBy(receiver => receiver.Position.X)
             .ToList();
 
         if (lineStructure.Count == 0)
         {
-            lineStructure = eligible;
+            lineStructure = skillPlayers;
         }
 
         const float middleBandWidth = 0.85f;
@@ -94,7 +94,7 @@ internal static class DefensiveSurfaceAnalyzer
             attachedTightEnds.Count,
             leftAttachedTightEnds,
             rightAttachedTightEnds,
-            Math.Max(0, eligible.Count - detached.Count),
+            Math.Max(0, skillPlayers.Count - detached.Count),
             leftWide,
             leftInside,
             middleReceiver,
