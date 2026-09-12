@@ -12,7 +12,7 @@ public sealed class SidePanelRenderer
     private static int PanelX => (int)Constants.OuterMargin;
     private static int PanelWidth => (int)Constants.SidePanelWidth;
 
-    public void Draw(PlayManager play, string resultText, string selectedReceiverLabel, GameState state, SeasonStage stage, bool replayAvailable)
+    public void Draw(PlayManager play, string resultText, string selectedReceiverLabel, GameState state, SeasonStage stage, bool replayAvailable, string exchangeStatus = "")
     {
         int screenH = Raylib.GetScreenHeight();
         int panelHeight = screenH - (int)(Constants.OuterMargin * 2);
@@ -45,9 +45,12 @@ public sealed class SidePanelRenderer
         // Play selection (pre-snap)
         if (state == GameState.PreSnap)
         {
-            FitText($"CALL SHEET - {play.Catalog.Plays.Count} PLAYS", x, y, 16, Palette.Yellow);
+            FitText($"{PlayDiagramStyle.Label(play.SelectedPlay)} | {play.SelectedPlay.Name}", x, y, 14, PlayDiagramStyle.Color(play.SelectedPlay));
             y += 20;
-            FitText(play.SituationLabel, x, y, 12, Palette.Lime);
+            FitText("RUN -->", x, y, 10, PlayDiagramStyle.Run);
+            Raylib.DrawText("PASS ->", x + 66, y, 10, PlayDiagramStyle.Pass);
+            Raylib.DrawText("BLOCK -|", x + 135, y, 10, Palette.Yellow);
+            Raylib.DrawText("... EXCHANGE", x + 207, y, 10, PlayDiagramStyle.Exchange);
             y += 18;
             DrawBank(play.PassPlays, PlayType.Pass, "PASS: 1-9, 0", ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"], Palette.Cyan);
             y += 4;
@@ -80,14 +83,19 @@ public sealed class SidePanelRenderer
                     bool selected = play.SelectedPlayType == family && play.SelectedPlayIndex == i;
                     if (selected) Raylib.DrawRectangle(x - 4, y - 1, PanelWidth - 28, 14, new Color(52, 46, 18, 230));
                     var entry = calls[i].Definition.Info;
-                    FitText($"{keys[i]}  {entry.Formation} / {entry.Concept}", x, y, 12, selected ? Palette.Gold : Palette.White);
+                    FitText($"{keys[i]} {PlayDiagramStyle.Label(calls[i])} | {entry.Formation} / {entry.Concept}", x, y, 12, selected ? Palette.Gold : PlayDiagramStyle.Color(calls[i]));
                     y += 14;
                 }
             }
         }
         else
         {
-            y += 24;
+            if (state == GameState.PlayActive)
+            {
+                FitText($"{PlayDiagramStyle.Label(play.SelectedPlay)} | {play.SelectedPlay.Name}", x, y, 14, PlayDiagramStyle.Color(play.SelectedPlay));
+                FitText(exchangeStatus, x, y + 22, 14, Palette.White);
+            }
+            y += 44;
         }
 
         bool showReplayHint = replayAvailable && state is GameState.PreSnap or GameState.PlayOver or GameState.DriveOver or GameState.StageComplete or GameState.GameOver;

@@ -16,6 +16,18 @@ public sealed class PlayExecutionController
     private readonly IPlayerMovementInput _input;
     private readonly ReceiverUpdateController _receiverController;
     public BackfieldController Backfield { get; } = new();
+    public PossessionControl Possession { get; } = new();
+    private Vector2 _lastInput;
+    private float _passReadyRemaining;
+    public string ExchangeStatus => !Backfield.AllowsThrow ? "FAKE" : _passReadyRemaining > 0 ? "PASS READY" : "";
+    public void Reset()
+    {
+        Backfield.Reset();
+        Possession.Reset();
+        _lastInput = Vector2.Zero;
+        _passReadyRemaining = 0;
+    }
+    public void ObservePossession(Ball ball, PlayManager play) => Possession.Observe(ball, play.SelectedPlay, _lastInput);
 
     public PlayExecutionController(IPlayerMovementInput input, BlockingController blockingController)
     {
@@ -40,9 +52,15 @@ public sealed class PlayExecutionController
         float dt)
     {
         Vector2 inputDir = _input.GetMovementDirection();
+        Possession.Tick(dt);
+        Possession.Observe(ball, playManager.SelectedPlay, _lastInput);
+        _lastInput = inputDir;
+        _passReadyRemaining = MathF.Max(0, _passReadyRemaining - dt);
+        bool wasLocked = !Backfield.AllowsThrow;
         bool sprint = _input.IsSprintHeld();
         Backfield.Update(playManager.SelectedPlay, ball, qb, receivers, dt,
             cancelPlayAction: inputDir.LengthSquared() > 0.001f);
+        if (wasLocked && Backfield.AllowsThrow) _passReadyRemaining = .6f;
         Receiver? controlledReceiver = ball.State == BallState.HeldByReceiver ? ball.Holder as Receiver : null;
 
         // Reset per-frame blocking contact state before any blocker logic runs
@@ -52,8 +70,9 @@ public sealed class PlayExecutionController
         UpdateQuarterback(qb, ball, defenders, inputDir, sprint, dt, clampToField);
 
         // Update receivers
-        _receiverController.UpdateAll(receivers, qb, ball, defenders, controlledReceiver, inputDir, sprint, qbPastLos, isUnderneathManCoverage, playManager, dt, clampToField, Backfield, blockers);
+        _receiverController.UpdateAll(receivers, qb, ball, defenders, controlledReceiver, controlledReceiver == null ? inputDir : Possession.Resolve(inputDir), sprint, qbPastLos, isUnderneathManCoverage, playManager, dt, clampToField, Backfield, blockers, Possession.SuppressTurnBoost);
         Backfield.TryHandoff(playManager.SelectedPlay, ball, qb, receivers);
+        ObservePossession(ball, playManager);
 
         // Update defenders
         UpdateDefenders(defenders, qb, receivers, ball, playManager, qbPastLos, usesZoneResponsibilities, clampToField, dt);
@@ -211,6 +230,7 @@ public sealed class PlayExecutionController
         IReadOnlyList<Receiver> receivers)
     {
         Backfield.TryHandoff(playManager.SelectedPlay, ball, qb, receivers);
+        ObservePossession(ball, playManager);
     }
 
     private static Defender? GetClosestThreatToBallCarrier(

@@ -80,7 +80,7 @@ public sealed class DrawingController
         SeasonStage currentStage,
         SeasonSummary seasonSummary,
         bool replayAvailable,
-        CrowdBackdropState crowdState)
+        CrowdBackdropState crowdState, PlayExecutionController? execution = null)
     {
         // Apply camera shake offset
         Vector2 shake = _screenEffects.ShakeOffset;
@@ -122,7 +122,8 @@ public sealed class DrawingController
             receiver.Draw();
         }
 
-        DrawReceiverPriorityLabels(receivers);
+        if ((gameState is GameState.PreSnap or GameState.PlayActive) && playManager.SelectedPlay.Family == PlayType.Pass && ball.State != BallState.HeldByReceiver)
+            DrawReceiverPriorityLabels(receivers);
 
         foreach (var blocker in blockers)
         {
@@ -134,13 +135,36 @@ public sealed class DrawingController
             defender.Draw();
         }
 
+        if (gameState is GameState.PreSnap or GameState.PlayActive)
+        {
+            Entity? controlled = ball.State == BallState.HeldByQB ? qb
+                : ball.State == BallState.HeldByReceiver ? ball.Holder : null;
+            if (controlled != null)
+            {
+                Vector2 center = Constants.WorldToScreen(controlled.Position);
+                float cue = execution?.Possession.CueRemaining ?? 0;
+                float pulse = cue > 0 ? 3 * MathF.Abs(MathF.Sin(cue * 18)) : 0;
+                Raylib.DrawEllipseLines((int)center.X, (int)center.Y + 9, 13 + pulse, 6 + pulse / 2, Palette.White);
+            }
+        }
         qb.Draw();
         ball.Draw();
+        if (gameState == GameState.PlayActive && execution?.Possession.CueRemaining > 0
+            && ball.Holder is Receiver carrier && execution.Possession.Carrier == carrier)
+        {
+            Vector2 center = Constants.WorldToScreen(carrier.Position);
+            string label = $"{carrier.Glyph} CONTROL";
+            int width = Raylib.MeasureText(label, 12);
+            int x = Math.Clamp((int)center.X - width / 2, 4, Raylib.GetScreenWidth() - width - 8);
+            int y = Math.Max(4, (int)center.Y - 33);
+            Raylib.DrawRectangle(x - 4, y - 3, width + 8, 18, new Color(18, 24, 34, 240));
+            Raylib.DrawText(label, x, y, 12, Palette.White);
+        }
 
         // Draw scoreboard and side panel HUD
         string targetLabel = GetSelectedReceiverPriorityLabel(playManager.SelectedReceiver, receivers);
         _hudRenderer.DrawScoreboard(playManager, lastPlayText, gameState, offensiveTeam, defensiveTeam, currentStage, driveSummaryScrollOffsetFromLatest);
-        _hudRenderer.DrawSidePanel(playManager, lastPlayText, targetLabel, gameState, currentStage, replayAvailable);
+        _hudRenderer.DrawSidePanel(playManager, lastPlayText, targetLabel, gameState, currentStage, replayAvailable, execution?.ExchangeStatus ?? "");
 
         if (gameState == GameState.DriveOver)
         {
@@ -283,8 +307,9 @@ public sealed class DrawingController
                     start = target;
                 }
             }
-            if (!receiver.Eligible) continue;
+            if (!receiver.Eligible || receiver.HasBall) continue;
 
+            if (playManager.SelectedPlay.Assignments[receiver.Slot].Role == AssignmentRole.Block) continue;
             var points = RouteVisualizer.GetRouteWaypoints(receiver, playManager.SelectedPlay, playManager.LineOfScrimmage);
             if (points.Count < 2) continue;
 
@@ -292,7 +317,13 @@ public sealed class DrawingController
             {
                 Vector2 a = Constants.WorldToScreen(points[i]);
                 Vector2 b = Constants.WorldToScreen(points[i + 1]);
-                DrawRetroRouteSegment(a, b, i == points.Count - 2);
+                var play = playManager.SelectedPlay;
+                bool exchange = i == 0 && play.Backfield.Action != BackfieldAction.None && play.Backfield.Participant == receiver.Slot;
+                bool run = play.BallCarrierSlot == receiver.Slot && play.Family == PlayType.Run;
+                Color color = exchange ? PlayDiagramStyle.Exchange : run ? PlayDiagramStyle.Run : PlayDiagramStyle.Pass;
+                DrawRetroRouteSegment(a, b, !exchange && i == points.Count - 2, color, run ? 4 : 2,
+                    exchange);
+                if (exchange) Raylib.DrawCircleLines((int)b.X, (int)b.Y, 5, PlayDiagramStyle.Exchange);
             }
         }
 
@@ -302,39 +333,31 @@ public sealed class DrawingController
             playManager.LineOfScrimmage);
     }
 
-    private static void DrawRetroRouteSegment(Vector2 a, Vector2 b, bool drawArrow)
+    private static void DrawRetroRouteSegment(Vector2 a, Vector2 b, bool drawArrow, Color color, float thickness, bool dotted)
     {
         Vector2 delta = b - a;
         float length = delta.Length();
-        if (length < 0.5f) return;
-
+        if (length < .5f) return;
         Vector2 dir = delta / length;
-        Raylib.DrawLineEx(a + new Vector2(1, 2), b + new Vector2(1, 2), 4f, new Color(2, 20, 10, 130));
-
-        const float dash = 7f;
-        const float gap = 3f;
-        for (float start = 0; start < length; start += dash + gap)
+        Raylib.DrawLineEx(a, b, thickness + 3, new Color(2, 20, 10, 130));
+        if (dotted)
         {
-            Vector2 p1 = a + dir * start;
-            Vector2 p2 = a + dir * MathF.Min(start + dash, length);
-            Raylib.DrawLineEx(p1, p2, 2f, Palette.Yellow);
+            for (float d = 0; d < length; d += 7)
+                Raylib.DrawCircleV(a + dir * d, 1.5f, color);
         }
-
+        else Raylib.DrawLineEx(a, b, thickness, color);
         if (!drawArrow) return;
         Vector2 side = new(-dir.Y, dir.X);
-        Vector2 tip = b;
-        Vector2 back = b - dir * 9f;
-        Raylib.DrawTriangle(tip, back + side * 5f, back - side * 5f, Palette.Yellow);
-        Raylib.DrawTriangle(tip - dir * 2f, back - side * 3f, back + side * 3f, new Color(255, 236, 145, 255));
+        Raylib.DrawLineEx(b, b - dir * 9 + side * 5, thickness, color);
+        Raylib.DrawLineEx(b, b - dir * 9 - side * 5, thickness, color);
     }
-
     private void DrawReceiverPriorityLabels(IReadOnlyList<Receiver> receivers)
     {
         if (receivers.Count == 0) return;
 
         foreach (var receiver in receivers)
         {
-            if (!receiver.Eligible) continue;
+            if (!receiver.Eligible || receiver.HasBall) continue;
 
             string priorityLabel = _priorityManager.GetPriorityLabel(receiver.Index);
             if (priorityLabel == "-") continue;

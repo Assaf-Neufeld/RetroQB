@@ -11,17 +11,11 @@ internal static class DefensiveSurfaceAnalyzer
 
     public static OffensiveSurface Analyze(IReadOnlyList<Receiver> receivers, float lineOfScrimmage)
     {
+        // Read the visible formation, including skill players assigned to block.
+        // Route eligibility must not pull the pre-snap shell toward the ball carrier.
         List<Receiver> eligible = receivers
-            .Where(receiver => receiver.Eligible)
             .OrderBy(receiver => receiver.Position.X)
             .ToList();
-
-        if (eligible.Count == 0)
-        {
-            eligible = receivers
-                .OrderBy(receiver => receiver.Position.X)
-                .ToList();
-        }
 
         if (eligible.Count == 0)
         {

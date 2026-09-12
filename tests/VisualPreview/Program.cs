@@ -10,10 +10,11 @@ using RetroQB.Input;
 using RetroQB.Rendering;
 using RetroQB.Stats;
 
+bool playFeedback = args.Length > 0 && args[0] == "--play-feedback";
 bool readmeScreenshot = args.Length > 0 && args[0] == "--readme";
 bool pregameScreenshots = args.Length > 0 && args[0] == "--pregame";
 bool teamScreenshots = args.Length > 0 && args[0] == "--teams";
-string output = Path.GetFullPath(teamScreenshots
+string output = Path.GetFullPath(playFeedback ? (args.Length > 1 ? args[1] : "artifacts/play-feedback") : teamScreenshots
     ? (args.Length > 1 ? args[1] : "artifacts/teams")
     : pregameScreenshots
     ? (args.Length > 1 ? args[1] : "artifacts/pregame")
@@ -25,6 +26,13 @@ Raylib.SetConfigFlags(ConfigFlags.HiddenWindow);
 Raylib.InitWindow(1280, 720, "RetroQB visual preview");
 try
 {
+    if (playFeedback)
+    {
+        foreach (var (width, height) in new[] { (1000, 700), (1440, 900) })
+        foreach (string scenario in new[] { "pass", "run", "play-action", "catch", "handoff", "fake", "ready" })
+            RenderPlayFeedback(Path.Combine(output, $"{scenario}-{width}.png"), width, height, scenario);
+        return;
+    }
     if (teamScreenshots)
     {
         foreach (var (width, height) in new[] { (1000, 700), (1280, 720), (1920, 1080) })
@@ -262,4 +270,63 @@ static void RenderGoalLinePreview(string output)
     Raylib.ExportImage(capture, Path.Combine(output, "phase3-goal-line.png"));
     Raylib.UnloadImage(capture);
     Raylib.UnloadRenderTexture(target);
+}
+
+static void RenderPlayFeedback(string path, int width, int height, string scenario)
+{
+    Raylib.SetWindowSize(width, height);
+    Constants.UpdateFieldRect();
+    var manager = new PlayManager();
+    bool run = scenario is "run" or "handoff";
+    if (run) manager.SelectRunPlay(1, new Random(1));
+    if (scenario is "play-action" or "fake" or "ready")
+    {
+        const string id = "pass.gun-doubles.pa-cross";
+        manager.SetCallSheet(new PlayCallSheet(manager.Catalog, manager.CallSheet.PassIds.Take(9).Append(id), manager.CallSheet.RunIds));
+        manager.SelectPassPlay(9, new Random(1));
+    }
+    var field = new FormationFactory().CreateFormation(manager.SelectedPlay, manager.LineOfScrimmage);
+    RetroQB.Routes.RouteAssigner.AssignRoutes(field.Receivers, manager.SelectedPlay);
+    var priority = new ReceiverPriorityManager();
+    priority.AssignPriorities(field.Receivers);
+    var drawing = new DrawingController(new FieldRenderer(), new HudRenderer(), new FireworksEffect(), priority);
+    var execution = new PlayExecutionController(new PreviewMovement(), new BlockingController());
+    bool active = scenario is "catch" or "handoff" or "fake" or "ready";
+    if (scenario is "fake" or "ready")
+    {
+        var rb = field.Receivers.Single(r => r.Slot == manager.SelectedPlay.Backfield.Participant);
+        rb.Position = manager.SelectedPlay.Backfield.GetMeshPoint(field.Qb.Position);
+        int frames = scenario == "fake" ? 2 : 26;
+        for (int i = 0; i < frames; i++)
+            execution.UpdatePlay(field.Qb, field.Ball, field.Receivers, [], [], manager, false, false, false, _ => { }, 1f / 60);
+    }
+    if (scenario is "catch" or "handoff")
+    {
+        var carrier = run ? field.Receivers.Single(r => r.Slot == manager.SelectedPlay.BallCarrierSlot) : field.Receivers[0];
+        carrier.HasBall = true;
+        field.Qb.HasBall = false;
+        if (!run) carrier.Position = new Vector2(8, manager.LineOfScrimmage + 12);
+        field.Ball.SetHeld(carrier, BallState.HeldByReceiver);
+        execution.ObservePossession(field.Ball, manager);
+    }
+    var target = Raylib.LoadRenderTexture(width, height);
+    Raylib.BeginTextureMode(target);
+    Raylib.ClearBackground(Palette.Background);
+    drawing.Draw(manager, field.Qb, field.Ball, field.Receivers, field.Blockers, [],
+        OffensiveTeamPresets.GetMenuTeams(false), active ? GameState.PlayActive : GameState.PreSnap,
+        "", "", "", "", 0, OffensiveTeamPresets.Ballers, DefensiveTeamPresets.ScarletGuard,
+        0, "", "", "", "", false, LeaderboardSummary.Empty, false, false, "", "", false,
+        SeasonStage.RegularSeason, new SeasonSummary(), false, default, execution);
+    Raylib.EndTextureMode();
+    var capture = Raylib.LoadImageFromTexture(target.Texture);
+    Raylib.ImageFlipVertical(ref capture);
+    if (!Raylib.ExportImage(capture, path)) throw new IOException(path);
+    Raylib.UnloadImage(capture);
+    Raylib.UnloadRenderTexture(target);
+}
+
+sealed class PreviewMovement : IPlayerMovementInput
+{
+    public Vector2 GetMovementDirection() => Vector2.Zero;
+    public bool IsSprintHeld() => false;
 }

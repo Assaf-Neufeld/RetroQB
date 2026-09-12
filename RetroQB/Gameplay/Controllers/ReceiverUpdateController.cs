@@ -36,7 +36,7 @@ public sealed class ReceiverUpdateController
         PlayManager playManager,
         float dt,
         Action<Entity> clampToField, BackfieldController? backfield = null,
-        IReadOnlyList<Blocker>? blockers = null)
+        IReadOnlyList<Blocker>? blockers = null, bool suppressTurnBoost = false)
     {
         var exchange = backfield ?? _backfield;
         if (backfield == null) exchange.Update(playManager.SelectedPlay, ball, qb, receivers, dt);
@@ -79,7 +79,7 @@ public sealed class ReceiverUpdateController
 
             if (receiver == controlledReceiver)
             {
-                UpdateControlledReceiver(receiver, inputDir, sprint, isRunPlayWithRb);
+                UpdateControlledReceiver(receiver, inputDir, sprint, isRunPlayWithRb, suppressTurnBoost);
                 continue;
             }
 
@@ -112,7 +112,7 @@ public sealed class ReceiverUpdateController
         return isRunPlayWithRb || isBallHeldByReceiver;
     }
 
-    private static void UpdateControlledReceiver(Receiver receiver, Vector2 inputDir, bool sprint, bool isRunPlayWithRb)
+    private static void UpdateControlledReceiver(Receiver receiver, Vector2 inputDir, bool sprint, bool isRunPlayWithRb, bool suppressTurnBoost)
     {
         float carrierSpeed = sprint ? receiver.Speed * 1.15f : receiver.Speed;
         if (isRunPlayWithRb && receiver.IsRunningBack)
@@ -123,7 +123,7 @@ public sealed class ReceiverUpdateController
         Vector2 previousVelocity = receiver.Velocity;
         receiver.Velocity = inputDir * carrierSpeed;
 
-        if (isRunPlayWithRb && receiver.IsRunningBack && inputDir.LengthSquared() > 0.001f)
+        if (!suppressTurnBoost && isRunPlayWithRb && receiver.IsRunningBack && inputDir.LengthSquared() > 0.001f)
         {
             Vector2 previousDir = previousVelocity.LengthSquared() > 0.001f
                 ? Vector2.Normalize(previousVelocity)

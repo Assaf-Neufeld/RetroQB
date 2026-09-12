@@ -93,6 +93,10 @@ public static class RouteRunner
     internal static Vector2 GetBallCarrierDirection(Receiver receiver) =>
         Vector2.Normalize(new Vector2(receiver.IsRunningBack ? receiver.RouteSide * 0.55f : 0, 1));
 
+    internal static Vector2 GetBallCarrierDirection(Receiver receiver, RetroQB.Gameplay.ResolvedPlay play) =>
+        play.RunConcept is RetroQB.Gameplay.RunConcept.Dive or RetroQB.Gameplay.RunConcept.Draw
+            ? Vector2.UnitY : GetBallCarrierDirection(receiver);
+
     private static void MoveWithinField(Receiver receiver, Vector2 direction, float dt, float? remaining = null)
     {
         Vector2 target = RoutePath.Clamp(receiver.Position + direction * receiver.Speed * (remaining ?? dt));

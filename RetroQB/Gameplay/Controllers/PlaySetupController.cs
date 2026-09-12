@@ -41,8 +41,8 @@ public sealed class PlaySetupController
         // Create offensive formation
         var formationResult = _formationFactory.CreateFormation(selectedPlay, context.LineOfScrimmage, offensiveTeam);
 
-        // Assign routes before building the defense so coverage logic sees the actual
-        // eligible receivers instead of the raw pre-snap formation shell.
+        // Assign routes before building coverage matchups. The pre-snap surface
+        // still includes blocking skill players when determining alignment/personnel.
         RouteAssigner.AssignRoutes(formationResult.Receivers, selectedPlay);
 
         DefensivePersonnel personnel = DefensivePersonnelPolicy.Create(formationResult.Receivers, context);

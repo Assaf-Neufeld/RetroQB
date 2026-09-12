@@ -312,7 +312,7 @@ public sealed class GameSession : IDisposable
         // Reset controllers for new play
         _ballController.Reset(_playManager.LineOfScrimmage);
         _tackleController.Reset();
-        _playExecutionController.Backfield.Reset();
+        _playExecutionController.Reset();
         _receiverPriorityManager.AssignPriorities(_entities.Receivers);
         _playManager.SelectedReceiver = _receiverPriorityManager.GetFirstReceiverIndex();
     }
@@ -605,6 +605,7 @@ public sealed class GameSession : IDisposable
 
         // Handle ball state
         HandleBall(dt);
+        _playExecutionController.ObservePossession(_entities.Ball, _playManager);
 
         // Check for tackle or score
         CheckTackleOrScore();
@@ -977,7 +978,7 @@ public sealed class GameSession : IDisposable
             _currentStage,
             _seasonSummary,
             replayAvailable,
-            BuildCrowdBackdropState());
+            BuildCrowdBackdropState(), _playExecutionController);
     }
 
     private IReadOnlyList<OffensiveTeamAttributes> GetMenuTeams()

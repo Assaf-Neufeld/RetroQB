@@ -30,9 +30,9 @@ public sealed class HudRenderer
         _scoreboard.Draw(play, resultText, state, offensiveTeam, defensiveTeam, _stats, stage, driveSummaryScrollOffsetFromLatest);
     }
 
-    public void DrawSidePanel(PlayManager play, string resultText, string selectedReceiverLabel, GameState state, SeasonStage stage, bool replayAvailable)
+    public void DrawSidePanel(PlayManager play, string resultText, string selectedReceiverLabel, GameState state, SeasonStage stage, bool replayAvailable, string exchangeStatus = "")
     {
-        _sidePanel.Draw(play, resultText, selectedReceiverLabel, state, stage, replayAvailable);
+        _sidePanel.Draw(play, resultText, selectedReceiverLabel, state, stage, replayAvailable, exchangeStatus);
     }
 
     public void DrawMainMenu(
