@@ -35,6 +35,33 @@ public static class BlockingSteering
     {
         if (!ReferenceEquals(state.Assignment, assignment)) { state.Reset(); state.Assignment = assignment; }
         var landmarks = GetLandmarks(assignment, homeX, los, qb);
+        if (assignment.IsRunBlock)
+        {
+            // A landmark is a destination, not permission to run past a defender.
+            // Keep local contact even while pulling, and resume the route if beaten.
+            const float pickupRadius = 2.6f;
+            var nearby = state.Target;
+            if (nearby == null || !defenders.Contains(nearby)
+                || Vector2.Distance(position, nearby.Position) > pickupRadius)
+            {
+                nearby = null;
+                float bestLocalScore = float.MaxValue;
+                foreach (var defender in defenders)
+                {
+                    float distance = Vector2.Distance(position, defender.Position);
+                    if (distance > pickupRadius) continue;
+                    float score = distance;
+                    if (assignment.Job == BlockingJob.KickOut && defender.PositionRole == DefensivePosition.DE)
+                        score -= 2f;
+                    if (score < bestLocalScore) { bestLocalScore = score; nearby = defender; }
+                }
+            }
+            if (nearby != null)
+            {
+                state.Target = nearby;
+                return new(landmarks[^1], nearby, false);
+            }
+        }
         if (landmarks.Count > 1 && !state.ReachedApproach)
         {
             if (Vector2.Distance(position, landmarks[0]) <= 0.35f) state.ReachedApproach = true;

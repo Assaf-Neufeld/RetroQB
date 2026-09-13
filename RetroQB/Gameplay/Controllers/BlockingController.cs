@@ -71,7 +71,6 @@ public sealed class BlockingController
         if (target != null)
         {
             Vector2? driveDir = hasRunDirection ? BlockingUtils.GetDriveDirection(runSide, 0.7f) : null;
-            Vector2? extraVelocity = driveDir * (receiver.Speed * 0.3f);
             var profile = new BlockContactProfile(
                 isDesignedRun ? 0.9f : 0.6f,
                 isDesignedRun ? 0.08f : 0.15f,
@@ -80,7 +79,7 @@ public sealed class BlockingController
                 driveDir,
                 hasRunDirection ? 0.8f : 0f);
 
-            ApproachAndBlock(receiver, target, 1f, profile, dt, clampToField, ballCarrierPosition, extraVelocity);
+            ApproachAndBlock(receiver, target, 1f, profile, dt, clampToField, ballCarrierPosition);
         }
         else
         {
@@ -102,15 +101,10 @@ public sealed class BlockingController
         BlockContactProfile profile,
         float dt,
         Action<Entity> clampToField,
-        Vector2? ballCarrierPosition,
-        Vector2? extraVelocity = null)
+        Vector2? ballCarrierPosition)
     {
-        Vector2 toTarget = BlockingUtils.SafeNormalize(target.Position - receiver.Position);
-        receiver.Velocity = toTarget * (receiver.Speed * speedMultiplier);
-        if (extraVelocity.HasValue)
-        {
-            receiver.Velocity += extraVelocity.Value;
-        }
+        receiver.Velocity = BlockingSteering.MoveTo(receiver.Position, target.Position,
+            receiver.Speed * speedMultiplier, dt);
 
         float contactRange = receiver.Radius + target.Radius + profile.ContactBuffer;
         float distance = Vector2.Distance(receiver.Position, target.Position);

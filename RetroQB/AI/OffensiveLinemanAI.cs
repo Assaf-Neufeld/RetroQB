@@ -28,7 +28,7 @@ public static class OffensiveLinemanAI
                 coordinatedProtection: !assignment.IsRunBlock);
             if (decision.Target is Defender target)
             {
-                blocker.Velocity = ComputeApproachVelocity(blocker, target, runBlockingBoost, assignment, qb, dt);
+                blocker.Velocity = ComputeApproachVelocity(blocker, target, assignment, qb, dt);
                 ApplyBlockContact(blocker, target, runBlockingBoost, assignment, dt, ballCarrierPosition);
                 clampToField(blocker);
             }
@@ -61,7 +61,6 @@ public static class OffensiveLinemanAI
     private static Vector2 ComputeApproachVelocity(
         Blocker blocker,
         Defender target,
-        bool runBlockingBoost,
         BlockingAssignment assignment,
         Vector2 qb,
         float dt)
@@ -76,22 +75,9 @@ public static class OffensiveLinemanAI
             if (!beaten) intercept.Y = MathF.Min(intercept.Y, blocker.HomeY - 1.5f);
             return BlockingSteering.MoveTo(blocker.Position, intercept, blocker.Speed, dt);
         }
-        Vector2 baseVelocity = BlockingUtils.SafeNormalize(target.Position - blocker.Position) * blocker.Speed;
-        float blockStrength = blocker.TeamAttributes.BlockingStrength;
-        
-        // Only add forward push on run plays, not pass plays
-        if (runBlockingBoost && assignment.IsRunBlock)
-        {
-            baseVelocity += new Vector2(0f, blocker.Speed * 0.45f * blockStrength);
-        }
-
-        if (assignment.IsRunBlock)
-        {
-            Vector2 driveDir = assignment.DriveDirection;
-            baseVelocity += BlockingUtils.SafeNormalize(driveDir) * (blocker.Speed * 0.35f * blockStrength);
-        }
-
-        return baseVelocity;
+        // Close on the defender first. Forward drive belongs to contact physics;
+        // adding it here carries blockers past lateral or backfield penetration.
+        return BlockingSteering.MoveTo(blocker.Position, target.Position, blocker.Speed, dt);
     }
 
     private static void ApplyBlockContact(

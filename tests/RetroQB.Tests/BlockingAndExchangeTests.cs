@@ -11,6 +11,63 @@ namespace RetroQB.Tests;
 
 public sealed class BlockingAndExchangeTests
 {
+    [Theory]
+    [InlineData(BlockingJob.Drive)]
+    [InlineData(BlockingJob.SealEdge)]
+    [InlineData(BlockingJob.Lead)]
+    [InlineData(BlockingJob.KickOut)]
+    [InlineData(BlockingJob.Pull)]
+    public void RunBlockersPickUpPenetrationInsteadOfContinuingToLandmarks(BlockingJob job)
+    {
+        var position = new Vector2(25, 40);
+        var assignment = new BlockingAssignment(job, new(6, 5), approachOffset: new(5, -1));
+        var state = new BlockingState();
+        var distant = DefenderAt(new(31, 45));
+        var nearby = DefenderAt(new(26, 39.5f));
+        var decision = BlockingSteering.Decide(assignment, state, position, 25, 40, position,
+            [distant, nearby], 5);
+        Assert.Same(nearby, decision.Target);
+        Assert.False(decision.FollowingApproach);
+        Assert.False(state.ReachedApproach);
+
+        // A defender who escapes local reach must not tether the blocker forever.
+        nearby.Position = new(10, 25);
+        decision = BlockingSteering.Decide(assignment, state, position, 25, 40, position,
+            [distant, nearby], 5);
+        Assert.Null(decision.Target);
+        Assert.True(decision.FollowingApproach);
+    }
+
+    [Fact]
+    public void LocalPenetrationOverridesAnExistingDownfieldTarget()
+    {
+        var position = new Vector2(25, 40);
+        var assignment = new BlockingAssignment(BlockingJob.Drive, new(0, 5));
+        var state = new BlockingState();
+        var downfield = DefenderAt(new(25, 45));
+        BlockingSteering.Decide(assignment, state, position, 25, 40, position, [downfield], 6);
+        Assert.Same(downfield, state.Target);
+        var penetration = DefenderAt(new(26, 39));
+        var decision = BlockingSteering.Decide(assignment, state, position, 25, 40, position,
+            [downfield, penetration], 6);
+        Assert.Same(penetration, decision.Target);
+    }
+
+    [Fact]
+    public void RunLinemanClosesLaterallyWithoutDriftingUpfield()
+    {
+        var play = PlayResolver.Resolve(PlaybookBuilder.BuildRunPlays()[0]);
+        var field = Instantiate(play);
+        var blocker = field.Blockers[0];
+        var before = blocker.Position;
+        var defender = DefenderAt(before + new Vector2(2, 0));
+        OffensiveLinemanAI.UpdateBlockers([blocker], [defender], play, 40, 1f / 60,
+            true, _ => { }, field.Qb.Position);
+        Assert.True(blocker.Position.X > before.X);
+        Assert.Equal(before.Y, blocker.Position.Y);
+        Assert.Same(defender, blocker.BlockingState.Target);
+    }
+
     [Fact]
     public void DrawWaitsForItsExchangeTimeAndHandsOffOnlyOnce()
     {
