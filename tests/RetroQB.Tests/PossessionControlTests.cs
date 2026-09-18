@@ -13,30 +13,34 @@ public sealed class PossessionControlTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void InheritedRetreatExpiresOnlyForRunHandoffs(bool run)
+    public void InheritedRetreatProtectionExpires(bool run)
     {
         var (assist, _, _) = Transfer(run, Vector2.UnitY * 8, -Vector2.UnitY);
         Assert.True(assist.Resolve(-Vector2.UnitY).Y > 0);
         Assert.True(assist.SuppressTurnBoost);
         assist.Tick(.31f);
-        Assert.Equal(run ? -Vector2.UnitY : Vector2.UnitY, assist.Resolve(-Vector2.UnitY));
-        Assert.Equal(!run, assist.SuppressTurnBoost);
+        Assert.Equal(-Vector2.UnitY, assist.Resolve(-Vector2.UnitY));
+        Assert.False(assist.SuppressTurnBoost);
     }
 
     [Theory]
     [InlineData(1, 0, 0, -1)]
     [InlineData(0, 1, 1, 1)]
     [InlineData(0, -1, 0, 0)]
-    public void CatchKeepsApproachDirectionUntilInputChanges(float x, float y, float inputX, float inputY)
+    [InlineData(0, -1, 0, 1)]
+    public void CatchBrieflyPreservesApproachThenHonorsHeldInput(float x, float y, float inputX, float inputY)
     {
         var direction = new Vector2(x, y);
         var inheritedInput = new Vector2(inputX, inputY);
         if (inheritedInput != Vector2.Zero) inheritedInput = Vector2.Normalize(inheritedInput);
         var (assist, _, _) = Transfer(false, direction * 8, inheritedInput);
         Assert.Equal(direction, assist.Resolve(inheritedInput));
-        assist.Tick(2f);
+        assist.Tick(.04f);
         Assert.Equal(direction, assist.Resolve(inheritedInput));
-        Assert.Equal(0, assist.CueRemaining);
+        assist.Tick(.05f);
+        Assert.Equal(inheritedInput, assist.Resolve(inheritedInput));
+        Assert.False(assist.SuppressTurnBoost);
+        Assert.True(assist.CueRemaining > 0);
 
         var freshInput = -Vector2.UnitX;
         Assert.Equal(freshInput, assist.Resolve(freshInput));
@@ -107,9 +111,11 @@ public sealed class PossessionControlTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void CatchBetweenUpdatesProtectsRetreatButAcceptsImmediateSidelineCut(bool freshCut)
+    [InlineData(false, 1f / 30)]
+    [InlineData(false, 1f / 60)]
+    [InlineData(false, 1f / 120)]
+    [InlineData(true, 1f / 60)]
+    public void CatchBetweenUpdatesBrieflyProtectsRetreatButAcceptsImmediateSidelineCut(bool freshCut, float dt)
     {
         var manager = new PlayManager();
         var field = new FormationFactory().CreateFormation(manager.SelectedPlay, manager.LineOfScrimmage);
@@ -117,7 +123,7 @@ public sealed class PossessionControlTests
         var input = new MovementInput { Direction = -Vector2.UnitY };
         var execution = new PlayExecutionController(input, new BlockingController());
         void Step() => execution.UpdatePlay(field.Qb, field.Ball, field.Receivers, [], [], manager,
-            false, false, false, _ => { }, 1f / 60);
+            false, false, false, _ => { }, dt);
         Step();
         var receiver = field.Receivers[0];
         receiver.Position = new Vector2(Constants.FieldWidth - 2, 40);
@@ -130,9 +136,9 @@ public sealed class PossessionControlTests
         if (freshCut) Assert.True(receiver.Velocity.X < 0);
         else Assert.True(receiver.Velocity.Y > 0);
         Assert.InRange(execution.Possession.CueRemaining, .5f, .6f);
-        for (int frame = 0; frame < 60; frame++) Step();
+        for (int frame = 1; frame < (int)MathF.Ceiling(.1f / dt); frame++) Step();
         if (freshCut) Assert.True(receiver.Velocity.X < 0);
-        else Assert.True(receiver.Velocity.Y > 0);
+        else Assert.True(receiver.Velocity.Y < 0);
     }
 
     private static (PossessionControl, Ball, ResolvedPlay) Transfer(bool run, Vector2 velocity, Vector2 input)

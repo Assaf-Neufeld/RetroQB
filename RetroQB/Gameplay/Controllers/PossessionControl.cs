@@ -41,13 +41,13 @@ public sealed class PossessionControl
         _preserveCatchDirection = !run;
         _direction = run ? RouteRunner.GetBallCarrierDirection(carrier, play)
             : carrier.Velocity.LengthSquared() > .01f ? Vector2.Normalize(carrier.Velocity) : Vector2.UnitY * .5f;
-        _assistRemaining = .3f;
+        _assistRemaining = run ? .3f : .08f;
         CueRemaining = .6f;
     }
 
     public Vector2 Resolve(Vector2 input)
     {
-        SuppressTurnBoost = _assistRemaining > 0 || _preserveCatchDirection;
+        SuppressTurnBoost = _assistRemaining > 0;
         if (!SuppressTurnBoost) return input;
         // A release, new key, or meaningful stick turn immediately hands over control.
         if (Vector2.DistanceSquared(input, _inheritedInput) > .04f)
@@ -57,8 +57,8 @@ public sealed class PossessionControl
             SuppressTurnBoost = false;
             return input;
         }
-        // A catch keeps the receiver's approach direction until fresh input.
-        // Expiring the cue must not restore a key still held from moving the QB.
+        // Briefly preserve the catch approach, then honor even a held direction.
+        // A receiver coming back to the ball must not stay locked in that motion.
         if (_preserveCatchDirection) return _direction;
         if (input.LengthSquared() > .001f && Vector2.Dot(Vector2.Normalize(input), Vector2.Normalize(_direction)) >= .45f)
             return input;
