@@ -115,6 +115,22 @@ public sealed class DriveState
         return result;
     }
 
+    public PlayResult ResolveFieldGoal(FieldGoalAttempt kick)
+    {
+        if (kick.Phase != KickPhase.Result) throw new InvalidOperationException("Kick has not finished.");
+        if (kick.ResultRecorded) throw new InvalidOperationException("Kick result was already recorded.");
+        kick.ResultRecorded = true;
+        var outcome = kick.IsGood ? PlayOutcome.FieldGoalGood : PlayOutcome.FieldGoalMissed;
+        StartPlayRecord($"{kick.Distance:F0}-yard field goal", PlayType.FieldGoal, false, default, new());
+        CurrentPlayRecord!.KickResult = kick.ScoringResult;
+        FinalizePlayRecord(outcome, 0, null, null, false);
+        if (kick.IsGood) Score += 3;
+        AwayScore += kick.OpponentPoints;
+        var result = new PlayResult(outcome, 0, $"{kick.Distance:F0} YD: {kick.ScoringResult}");
+        RecordPlay(result);
+        return result;
+    }
+
     public PlayResult ResolveInterception()
     {
         AwayScore += DefensiveScorePoints;

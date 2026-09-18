@@ -61,6 +61,7 @@ public sealed class GameSession : IDisposable
     private string _driveOverDetailText = string.Empty;
     private string _driveOverPlayText = string.Empty;
     private bool _qbPastLos;
+    private FieldGoalAttempt? _fieldGoal;
     private float _playOverTimer;
     private float _playOverDuration = 1.25f;
     private bool _manualPlaySelection;
@@ -260,6 +261,7 @@ public sealed class GameSession : IDisposable
 
     private void ResetPlayState()
     {
+        _fieldGoal = null;
         _lastPlayText = string.Empty;
         ClearDriveOverBanner();
         _driveSummaryScrollOffsetFromLatest = 0;
@@ -329,6 +331,12 @@ public sealed class GameSession : IDisposable
 
         if (_input.IsEscapePressed())
         {
+            if (!_stateManager.IsPaused && _stateManager.State == GameState.FieldGoal && _fieldGoal?.Phase == KickPhase.Setup)
+            {
+                _fieldGoal = null;
+                _stateManager.SetState(GameState.PreSnap);
+                return;
+            }
             _stateManager.TogglePause();
         }
 
@@ -374,6 +382,9 @@ public sealed class GameSession : IDisposable
                 break;
             case GameState.PreSnap:
                 HandlePreSnap();
+                break;
+            case GameState.FieldGoal:
+                HandleFieldGoal(dt);
                 break;
             case GameState.PlayActive:
                 HandlePlayActive(dt);
@@ -511,6 +522,12 @@ public sealed class GameSession : IDisposable
 
     private void HandlePreSnap()
     {
+        if (_input.IsFieldGoalPressed())
+        {
+            _fieldGoal = new FieldGoalAttempt(_playManager.LineOfScrimmage);
+            _stateManager.SetState(GameState.FieldGoal);
+            return;
+        }
         if (TryEnterReplayFromState(GameState.PreSnap))
         {
             return;
@@ -868,6 +885,42 @@ public sealed class GameSession : IDisposable
         _playOverTimer = 0f;
         ApplyCrowdReaction(result, gain, isSack, playEndPosition);
 
+        CompleteResolvedPlay(result, lastRecord);
+    }
+
+    private void HandleFieldGoal(float dt)
+    {
+        if (_fieldGoal is not { } kick) return;
+        if (kick.Phase == KickPhase.Setup)
+        {
+            if (_input.IsSpacePressed() && kick.InRange)
+            {
+                kick.PressSpace();
+                ResetReplayState();
+            }
+            return;
+        }
+        if (kick.Phase == KickPhase.Result)
+        {
+            if (_input.IsEnterPressed()) FinishFieldGoal();
+            return;
+        }
+        // Read the press before advancing the marker so it matches the displayed position.
+        if (_input.IsSpacePressed()) kick.PressSpace();
+        kick.Update(dt);
+    }
+
+    private void FinishFieldGoal()
+    {
+        if (_fieldGoal is not { Phase: KickPhase.Result } kick) return;
+        var result = _playManager.ResolveFieldGoal(kick);
+        _fieldGoal = null;
+        _lastPlayText = result.Message;
+        CompleteResolvedPlay(result, _playManager.PlayRecords.Last());
+    }
+
+    private void CompleteResolvedPlay(PlayResult result, PlayRecord? lastRecord)
+    {
         if (_playManager.Score >= WinningScore || _playManager.AwayScore >= WinningScore)
         {
             // Record the game result for the season summary
@@ -900,7 +953,7 @@ public sealed class GameSession : IDisposable
             return;
         }
 
-        if (result.Outcome is PlayOutcome.Touchdown or PlayOutcome.Interception or PlayOutcome.Turnover or PlayOutcome.Safety)
+        if (result.Outcome is PlayOutcome.Touchdown or PlayOutcome.Interception or PlayOutcome.Turnover or PlayOutcome.Safety or PlayOutcome.FieldGoalGood or PlayOutcome.FieldGoalMissed)
         {
             SetDriveOverBanner(result, lastRecord);
             _stateManager.SetState(GameState.DriveOver);
@@ -978,7 +1031,7 @@ public sealed class GameSession : IDisposable
             _currentStage,
             _seasonSummary,
             replayAvailable,
-            BuildCrowdBackdropState(), _playExecutionController);
+            BuildCrowdBackdropState(), _playExecutionController, _fieldGoal);
     }
 
     private IReadOnlyList<OffensiveTeamAttributes> GetMenuTeams()

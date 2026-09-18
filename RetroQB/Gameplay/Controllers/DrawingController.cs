@@ -80,7 +80,7 @@ public sealed class DrawingController
         SeasonStage currentStage,
         SeasonSummary seasonSummary,
         bool replayAvailable,
-        CrowdBackdropState crowdState, PlayExecutionController? execution = null)
+        CrowdBackdropState crowdState, PlayExecutionController? execution = null, FieldGoalAttempt? fieldGoal = null)
     {
         // Apply camera shake offset
         Vector2 shake = _screenEffects.ShakeOffset;
@@ -110,61 +110,71 @@ public sealed class DrawingController
         }
 
         _fireworks.Draw();
-        FootballRenderer.DrawGroundShadow(ball.Position, ball.State, ball.GetArcHeight());
-
-        if (gameState == GameState.PreSnap)
+        if (gameState == GameState.FieldGoal && fieldGoal is { } kick)
         {
-            DrawRouteOverlay(receivers, blockers, playManager);
+            FieldGoalRenderer.DrawOnField(kick, playManager.LineOfScrimmage, offensiveTeam.PrimaryColor, defensiveTeam.PrimaryColor);
         }
-
-        foreach (var receiver in receivers)
+        else
         {
-            receiver.Draw();
-        }
+            FootballRenderer.DrawGroundShadow(ball.Position, ball.State, ball.GetArcHeight());
 
-        if ((gameState is GameState.PreSnap or GameState.PlayActive) && playManager.SelectedPlay.Family == PlayType.Pass && ball.State != BallState.HeldByReceiver)
-            DrawReceiverPriorityLabels(receivers);
-
-        foreach (var blocker in blockers)
-        {
-            blocker.Draw();
-        }
-
-        foreach (var defender in defenders)
-        {
-            defender.Draw();
-        }
-
-        if (gameState is GameState.PreSnap or GameState.PlayActive)
-        {
-            Entity? controlled = ball.State == BallState.HeldByQB ? qb
-                : ball.State == BallState.HeldByReceiver ? ball.Holder : null;
-            if (controlled != null)
+            if (gameState == GameState.PreSnap)
             {
-                Vector2 center = Constants.WorldToScreen(controlled.Position);
-                float cue = execution?.Possession.CueRemaining ?? 0;
-                float pulse = cue > 0 ? 3 * MathF.Abs(MathF.Sin(cue * 18)) : 0;
-                Raylib.DrawEllipseLines((int)center.X, (int)center.Y + 9, 13 + pulse, 6 + pulse / 2, Palette.White);
+                DrawRouteOverlay(receivers, blockers, playManager);
             }
-        }
-        qb.Draw();
-        ball.Draw();
-        if (gameState == GameState.PlayActive && execution?.Possession.CueRemaining > 0
-            && ball.Holder is Receiver carrier && execution.Possession.Carrier == carrier)
-        {
-            Vector2 center = Constants.WorldToScreen(carrier.Position);
-            string label = $"{carrier.Glyph} CONTROL";
-            int width = Raylib.MeasureText(label, 12);
-            int x = Math.Clamp((int)center.X - width / 2, 4, Raylib.GetScreenWidth() - width - 8);
-            int y = Math.Max(4, (int)center.Y - 33);
-            Raylib.DrawRectangle(x - 4, y - 3, width + 8, 18, new Color(18, 24, 34, 240));
-            Raylib.DrawText(label, x, y, 12, Palette.White);
+
+            foreach (var receiver in receivers)
+            {
+                receiver.Draw();
+            }
+
+            if ((gameState is GameState.PreSnap or GameState.PlayActive) && playManager.SelectedPlay.Family == PlayType.Pass && ball.State != BallState.HeldByReceiver)
+                DrawReceiverPriorityLabels(receivers);
+
+            foreach (var blocker in blockers)
+            {
+                blocker.Draw();
+            }
+
+            foreach (var defender in defenders)
+            {
+                defender.Draw();
+            }
+
+            if (gameState is GameState.PreSnap or GameState.PlayActive)
+            {
+                Entity? controlled = ball.State == BallState.HeldByQB ? qb
+                    : ball.State == BallState.HeldByReceiver ? ball.Holder : null;
+                if (controlled != null)
+                {
+                    Vector2 center = Constants.WorldToScreen(controlled.Position);
+                    float cue = execution?.Possession.CueRemaining ?? 0;
+                    float pulse = cue > 0 ? 3 * MathF.Abs(MathF.Sin(cue * 18)) : 0;
+                    Raylib.DrawEllipseLines((int)center.X, (int)center.Y + 9, 13 + pulse, 6 + pulse / 2, Palette.White);
+                }
+            }
+            qb.Draw();
+            ball.Draw();
+            if (gameState == GameState.PlayActive && execution?.Possession.CueRemaining > 0
+                && ball.Holder is Receiver carrier && execution.Possession.Carrier == carrier)
+            {
+                Vector2 center = Constants.WorldToScreen(carrier.Position);
+                string label = $"{carrier.Glyph} CONTROL";
+                int width = Raylib.MeasureText(label, 12);
+                int x = Math.Clamp((int)center.X - width / 2, 4, Raylib.GetScreenWidth() - width - 8);
+                int y = Math.Max(4, (int)center.Y - 33);
+                Raylib.DrawRectangle(x - 4, y - 3, width + 8, 18, new Color(18, 24, 34, 240));
+                Raylib.DrawText(label, x, y, 12, Palette.White);
+            }
+
         }
 
         // Draw scoreboard and side panel HUD
         string targetLabel = GetSelectedReceiverPriorityLabel(playManager.SelectedReceiver, receivers);
         _hudRenderer.DrawScoreboard(playManager, lastPlayText, gameState, offensiveTeam, defensiveTeam, currentStage, driveSummaryScrollOffsetFromLatest);
         _hudRenderer.DrawSidePanel(playManager, lastPlayText, targetLabel, gameState, currentStage, replayAvailable, execution?.ExchangeStatus ?? "");
+        if (gameState == GameState.FieldGoal && fieldGoal is { } activeKick)
+            FieldGoalRenderer.DrawHud(activeKick);
 
         if (gameState == GameState.DriveOver)
         {

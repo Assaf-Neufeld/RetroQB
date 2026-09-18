@@ -14,7 +14,8 @@ bool playFeedback = args.Length > 0 && args[0] == "--play-feedback";
 bool readmeScreenshot = args.Length > 0 && args[0] == "--readme";
 bool pregameScreenshots = args.Length > 0 && args[0] == "--pregame";
 bool teamScreenshots = args.Length > 0 && args[0] == "--teams";
-string output = Path.GetFullPath(playFeedback ? (args.Length > 1 ? args[1] : "artifacts/play-feedback") : teamScreenshots
+bool fieldGoalScreenshots = args.Length > 0 && args[0] == "--field-goal";
+string output = Path.GetFullPath(fieldGoalScreenshots ? (args.Length > 1 ? args[1] : "artifacts/field-goal") : playFeedback ? (args.Length > 1 ? args[1] : "artifacts/play-feedback") : teamScreenshots
     ? (args.Length > 1 ? args[1] : "artifacts/teams")
     : pregameScreenshots
     ? (args.Length > 1 ? args[1] : "artifacts/pregame")
@@ -26,6 +27,61 @@ Raylib.SetConfigFlags(ConfigFlags.HiddenWindow);
 Raylib.InitWindow(1280, 720, "RetroQB visual preview");
 try
 {
+    if (fieldGoalScreenshots)
+    {
+        foreach (var (width, height) in new[] { (1000, 700), (1280, 720), (1920, 1080), (2560, 1440) })
+        foreach (string scenario in new[] { "setup", "snap", "ready", "range", "power", "power-close", "power-long", "accuracy", "long", "close", "flight", "good", "short", "left", "right", "paused", "presnap" })
+        {
+            Raylib.SetWindowSize(width, height);
+            Constants.UpdateFieldRect();
+            var kick = new FieldGoalAttempt(FieldGeometry.OpponentGoalLine - (scenario switch { "range" => 80, "long" or "power-long" => 43, "close" or "power-close" => 1, _ => 30 }));
+            if (scenario is not "setup" and not "range")
+            {
+                kick.PressSpace();
+                kick.Update(FieldGoalAttempt.SnapDuration * (scenario == "snap" ? 0.5f : 1));
+                if (scenario is not "snap" and not "ready")
+                {
+                    kick.PressSpace();
+                    kick.Update((scenario == "short" ? 0.1f : 0.5f) / 0.65f);
+                    if (!scenario.StartsWith("power", StringComparison.Ordinal))
+                    {
+                        kick.PressSpace();
+                        float accuracy = scenario == "right" ? 0.9f : scenario == "left" ? 0.1f : 0.5f;
+                        kick.Update((1 - accuracy) / (0.55f + kick.Power * 0.25f));
+                        if (scenario is "good" or "short" or "left" or "right" or "flight")
+                        {
+                            kick.PressSpace();
+                            kick.Update(FieldGoalAttempt.FlightDuration * (scenario == "flight" ? 0.55f : 1));
+                        }
+                    }
+                }
+            }
+            var target = Raylib.LoadRenderTexture(width, height);
+            Raylib.BeginTextureMode(target);
+            Raylib.ClearBackground(Palette.Background);
+            {
+                using var session = new GameSession();
+                var state = (GameStateManager)typeof(GameSession).GetField("_stateManager", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(session)!;
+                var plays = (PlayManager)typeof(GameSession).GetField("_playManager", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(session)!;
+                if (scenario != "presnap")
+                {
+                    plays.ResolvePlay(FieldGeometry.OpponentGoalLine - kick.Distance + 17, false, false, false, false);
+                    typeof(GameSession).GetField("_fieldGoal", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.SetValue(session, kick);
+                }
+                state.SetState(scenario == "presnap" ? GameState.PreSnap : GameState.FieldGoal);
+                if (scenario == "paused") state.TogglePause();
+                session.Draw();
+            }
+            Raylib.EndTextureMode();
+            var capture = Raylib.LoadImageFromTexture(target.Texture);
+            Raylib.ImageFlipVertical(ref capture);
+            string path = Path.Combine(output, $"{scenario}-{width}.png");
+            if (!Raylib.ExportImage(capture, path)) throw new IOException(path);
+            Raylib.UnloadImage(capture);
+            Raylib.UnloadRenderTexture(target);
+        }
+        return;
+    }
     if (playFeedback)
     {
         foreach (var (width, height) in new[] { (1000, 700), (1440, 900) })

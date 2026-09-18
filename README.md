@@ -83,6 +83,7 @@ If you like football games where the tension comes from decisions more than butt
 | Move | `WASD` or `Arrow Keys` |
 | Sprint | `Left Shift` |
 | Snap Ball | `Space` |
+| Select Field Goal (pre-snap) | `K` |
 | Throw Pass | `1` `2` `3` `4` `5` |
 | Replay Last Play (dead-ball) | `F` |
 | Restart Current Game (keep season progress) | `Z` |
@@ -90,6 +91,22 @@ If you like football games where the tension comes from decisions more than butt
 | Pause | `Esc` |
 
 ### Pre-snap play selection
+
+Press **K** before any snap to preview a 3-point field goal on the main game field,
+with the scoreboard visible and a compact timing meter.
+The kicking formation lines up at the current yard line. Distance includes the
+10-yard end zone and 7-yard snap; attempts beyond 60 yards are out of range.
+Press **Space** to snap, just like a normal play, or **Esc** to return to the playbook.
+The ball travels from center to holder, then the players freeze and a timing meter
+appears beside the kicker. Press **Space** to start the power meter, again to lock power, and a third time
+to kick as the returning marker reaches the green accuracy zone. Both meters have
+a green success zone in the center, orange near-miss bands, and red outer edges.
+Longer attempts have narrower green zones. Locking power outside green leaves the
+kick short; on accuracy, early timing goes right and late timing goes left.
+If you wait too long, the meter locks at the red edge and the attempt misses.
+A make gives **3 points to both teams**. A miss gives you **0** and the opponent **7 points**.
+Both end the drive. **Enter** accepts the result and continues to the drive summary.
+Kicks have fixed ability, no wind, and no random misses. Touchdowns still earn **7**.
 
 The playbook contains **100 calls**, with **10 pass and 10 run choices** selected for each
 situation. Calls are organized by concept category and formation, with personnel and

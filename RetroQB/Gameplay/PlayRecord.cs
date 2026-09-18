@@ -31,6 +31,7 @@ public sealed class PlayRecord
     public RouteType? CatcherRoute { get; set; }
     public string? BallCarrierLabel { get; set; }
     public bool WasRun { get; set; }
+    public string? KickResult { get; set; }
     public bool IsSack { get; set; }
     public int SackYardsLost { get; set; }
 
@@ -62,6 +63,7 @@ public sealed class PlayRecord
     /// </summary>
     public string GetPlayCallText()
     {
+        if (PlayFamily == PlayType.FieldGoal) return OffensivePlayName;
         string familyName = PlayFamily switch
         {
             PlayType.Pass => "Pass",
@@ -84,6 +86,7 @@ public sealed class PlayRecord
     /// </summary>
     public string GetResultText()
     {
+        if (PlayFamily == PlayType.FieldGoal) return KickResult ?? "Field goal";
         return Outcome switch
         {
             PlayOutcome.Touchdown when WasRun => $"TD! {Gain:F0} yd run",
@@ -115,6 +118,8 @@ public sealed class PlayRecord
         return Outcome switch
         {
             PlayOutcome.Touchdown => "TOUCHDOWN!",
+            PlayOutcome.FieldGoalGood => "FIELD GOAL GOOD! +3",
+            PlayOutcome.FieldGoalMissed => KickResult ?? "FIELD GOAL MISSED",
             PlayOutcome.Interception => "INTERCEPTION!",
             PlayOutcome.Turnover => "TURNOVER ON DOWNS",
             PlayOutcome.Safety => "SAFETY!",

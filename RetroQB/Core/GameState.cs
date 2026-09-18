@@ -12,5 +12,6 @@ public enum GameState
     DriveOver,
     StageComplete,
     GameOver,
-    Pregame
+    Pregame,
+    FieldGoal
 }

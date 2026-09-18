@@ -5,7 +5,8 @@ namespace RetroQB.Gameplay;
 public enum PlayType
 {
     Pass,
-    Run
+    Run,
+    FieldGoal
 }
 
 public enum PlayOutcome
@@ -17,7 +18,9 @@ public enum PlayOutcome
     Touchdown,
     Interception,
     Turnover,
-    Safety
+    Safety,
+    FieldGoalGood,
+    FieldGoalMissed
 }
 
 /// <summary>Coordinates the drive and selects resolved catalog calls through a separate call sheet.</summary>
@@ -214,6 +217,8 @@ public sealed class PlayManager
     public string GetPlayLabel() => $"{SelectedPlayType}: {SelectedPlay.Definition.Info.Formation} / {SelectedPlay.Name}{(SelectedPlay.IsFlipped ? " (flipped)" : "")}";
 
     // Drive state delegation
+    public PlayResult ResolveFieldGoal(FieldGoalAttempt kick) => _driveState.ResolveFieldGoal(kick);
+
     public int Down => _driveState.Down;
     public float Distance => _driveState.Distance;
     public float LineOfScrimmage => _driveState.LineOfScrimmage;

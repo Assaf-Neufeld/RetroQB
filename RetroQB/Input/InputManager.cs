@@ -43,6 +43,7 @@ public sealed class InputManager : IPlayerMovementInput
     public bool IsEnterPressed() => Raylib.IsKeyPressed(KeyboardKey.Enter);
     public bool IsFlipPlayPressed() => Raylib.IsKeyPressed(KeyboardKey.X);
     public bool IsSpacePressed() => Raylib.IsKeyPressed(KeyboardKey.Space);
+    public bool IsFieldGoalPressed() => Raylib.IsKeyPressed(KeyboardKey.K);
     public bool IsBackspacePressed() => Raylib.IsKeyPressed(KeyboardKey.Backspace);
     public bool IsReplayPressed() => Raylib.IsKeyPressed(KeyboardKey.F);
     public bool IsReplaySkipPressed() => Raylib.IsKeyPressed(KeyboardKey.Space);

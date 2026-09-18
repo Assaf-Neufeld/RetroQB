@@ -30,7 +30,8 @@ public sealed class ExpandedPlaybookTests
         Assert.Equal(50, catalog.Plays.Count(p => p.Family == PlayType.Run));
         Assert.Equal(100, catalog.Plays.Select(p => p.Id).Distinct().Count());
         foreach (string personnel in new[] { "11", "12", "21", "20" })
-        foreach (var family in Enum.GetValues<PlayType>())
+        // The offensive catalog contains pass/run formations; kicks use their own setup.
+        foreach (var family in new[] { PlayType.Pass, PlayType.Run })
             Assert.Contains(catalog.Plays, p => p.Personnel.Id == personnel && p.Family == family);
         Assert.Equal(8, ExpandedFormations.All.Select(f => f.Formation.Type).Distinct().Count());
         Assert.Contains(catalog.Plays, p => p.Personnel.Slots.Contains(ReceiverSlot.FB) &&

@@ -45,6 +45,9 @@ public sealed class SidePanelRenderer
         // Play selection (pre-snap)
         if (state == GameState.PreSnap)
         {
+            float kickDistance = FieldGoalAttempt.DistanceFrom(play.LineOfScrimmage);
+            FitText($"K FIELD GOAL | {kickDistance:F0} YD | {(kickDistance > FieldGoalAttempt.MaxDistance ? "OUT OF RANGE" : "3 POINTS")}", x, y, 13, Palette.Gold);
+            y += 20;
             FitText($"{PlayDiagramStyle.Label(play.SelectedPlay)} | {play.SelectedPlay.Name}", x, y, 14, PlayDiagramStyle.Color(play.SelectedPlay));
             y += 20;
             FitText("RUN -->", x, y, 10, PlayDiagramStyle.Run);
@@ -145,7 +148,9 @@ public sealed class SidePanelRenderer
         y += 10;
         Raylib.DrawText("CONTROLS", x, y, 14, Palette.Yellow);
         y += 18;
-        string[] controls = ["Move: Arrows | Sprint: Shift", "Snap: Space | Flip play: X", "Pass: 1-9,0 | Run: Q-P", "Throw: 1-5", "Replay: F | Restart game: Z", "Pause: Esc"];
+        string[] controls = ["Move: Arrows | Sprint: Shift", "Snap: Space | Flip play: X", "Pass: 1-9,0 | Run: Q-P", "Throw: 1-5 | Field goal: K", "Replay: F | Restart game: Z", "Pause: Esc"];
+        if (state == GameState.FieldGoal)
+            controls = ["Snap / Start meter: Space", "Lock power / Kick: Space", "Continue after kick: Enter", "Restart game: Z", "Esc: Back before snap", "Esc: Pause after snap"];
         foreach (string control in controls)
         {
             Raylib.DrawText(control, x, y, 12, Palette.White);
