@@ -1,8 +1,8 @@
 # Phase 0 — Baseline and reproducible verification
 
-M0 status: **Verified**, September 19, 2026. Later engineering milestones have not started.
+M0 status: **Verified**, September 19, 2026. Phase 1 results are recorded separately in [phase1-verification.md](phase1-verification.md).
 
-Baseline source revision: `0d877c90d5c5e7682f1acd09182a1629127f8698`. Phase 0 changes are in the working tree relative to that revision. The design/roadmap documents were already untracked when implementation began.
+Baseline source revision: `0d877c90d5c5e7682f1acd09182a1629127f8698`. Phase 0 was committed as `b2fe65a`. The design/roadmap documents were already untracked when implementation began.
 
 ## Results
 

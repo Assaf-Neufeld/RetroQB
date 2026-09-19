@@ -3,8 +3,8 @@ using RetroQB.AI;
 namespace RetroQB.Gameplay;
 
 /// <summary>
-/// Tracks the current state of an offensive drive (down, distance, field position).
-/// Separated from play selection logic for single responsibility.
+/// Legacy offense-only drive adapter, including its synthetic opponent scoring.
+/// New timed matches use MatchState/MatchRules; this adapter stays until normal-session migration.
 /// </summary>
 public sealed class DriveState
 {

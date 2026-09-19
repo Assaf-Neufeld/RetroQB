@@ -25,6 +25,7 @@ public sealed class BallController
     public bool PassCompletedThisPlay => _passCompletedThisPlay;
     public Receiver? PassCatcher => _passCatcher;
     public float PlayStartLos => _playStartLos;
+    public PlayContact? LastTerminal { get; private set; }
 
     public BallController(
         Random rng,
@@ -43,6 +44,7 @@ public sealed class BallController
     /// </summary>
     public void Reset(float lineOfScrimmage)
     {
+        LastTerminal = null;
         _passAttemptedThisPlay = false;
         _passCompletedThisPlay = false;
         _passDefenseAttemptedThisThrow = false;
@@ -54,6 +56,17 @@ public sealed class BallController
     /// Updates ball position and state. Returns a result indicating if play should end.
     /// </summary>
     public BallUpdateResult Update(
+        Ball ball, Quarterback qb, IReadOnlyList<Receiver> receivers, IReadOnlyList<Defender> defenders,
+        OffensiveTeamAttributes offensiveTeam, DefensiveTeamAttributes defensiveTeam, int selectedReceiverIndex, float dt)
+    {
+        LastTerminal = null;
+        var result = UpdateCore(ball, qb, receivers, defenders, offensiveTeam, defensiveTeam, selectedReceiverIndex, dt);
+        if (result == BallUpdateResult.Incomplete)
+            LastTerminal = new(PlayEndReason.Incomplete, ball.Position);
+        return result;
+    }
+
+    private BallUpdateResult UpdateCore(
         Ball ball,
         Quarterback qb,
         IReadOnlyList<Receiver> receivers,
@@ -158,7 +171,9 @@ public sealed class BallController
 
         _passDefenseAttemptedThisThrow = true;
         float chance = GetPassDefendedChance(ball, bestDefender, defensiveTeam, depthFactor, bestScore);
-        return _rng.NextDouble() < chance ? BallUpdateResult.PassDefended : BallUpdateResult.Continue;
+        if (_rng.NextDouble() >= chance) return BallUpdateResult.Continue;
+        LastTerminal = new(PlayEndReason.PassDefended, ball.Position, bestDefender.Slot);
+        return BallUpdateResult.PassDefended;
     }
 
     private static float GetPassDefendedChance(
@@ -225,6 +240,7 @@ public sealed class BallController
             : Vector2.Distance(receiver.Position, ball.Position);
         float closestDefenderDist = float.MaxValue;
         float bestInterceptionChance = 0f;
+        Defender? interceptingDefender = null;
 
         foreach (var defender in defenders)
         {
@@ -240,7 +256,11 @@ public sealed class BallController
                     * defensiveTeam.GetPositionInterceptionMultiplier(defender.PositionRole)
                     * defender.InterceptionMultiplier;
                 float chance = Math.Clamp((0.20f + 0.50f * proximity) * Math.Clamp(skill, 0.5f, 1.3f), 0.10f, 0.85f);
-                bestInterceptionChance = MathF.Max(bestInterceptionChance, chance);
+                if (chance > bestInterceptionChance)
+                {
+                    bestInterceptionChance = chance;
+                    interceptingDefender = defender;
+                }
             }
         }
 
@@ -248,9 +268,10 @@ public sealed class BallController
         {
             // Resolve possession once for this contact. An unsecured ball is a
             // breakup and ends the play, preventing repeated interception rolls.
-            return _rng.NextDouble() < bestInterceptionChance
-                ? BallUpdateResult.Intercepted
-                : BallUpdateResult.PassDefended;
+            bool secured = _rng.NextDouble() < bestInterceptionChance;
+            LastTerminal = new(secured ? PlayEndReason.Interception : PlayEndReason.PassDefended,
+                ball.Position, interceptingDefender!.Slot);
+            return secured ? BallUpdateResult.Intercepted : BallUpdateResult.PassDefended;
         }
 
         BallUpdateResult defendedResult = TryDefendPass(ball, defenders, defensiveTeam);

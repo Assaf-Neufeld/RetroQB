@@ -164,6 +164,25 @@ public sealed class BallControllerTests
         return ball;
     }
 
+    [Theory]
+    [InlineData(0, PlayEndReason.Interception)]
+    [InlineData(0.99, PlayEndReason.PassDefended)]
+    public void TerminalContactRetainsBallSpotAndDefender(double roll, PlayEndReason reason)
+    {
+        var controller = Controller(new FixedRandom(roll));
+        var ball = LowBall();
+        Update(controller, ball, [], [DefenderAt(Contact)]);
+        var terminal = Assert.IsType<PlayContact>(controller.LastTerminal);
+        Assert.Equal(reason, terminal.Reason);
+        Assert.Equal(ball.Position, terminal.Position);
+        Assert.Equal(DefenderSlot.CB1, terminal.Defender);
+        var ended = terminal.ToEvent(new(1, "ballers", "pass", new(20)));
+        Assert.Equal(ball.Position.Y - FieldGeometry.EndZoneDepth, ended.Spot);
+        Assert.NotEqual(20, ended.Spot);
+        controller.Reset(30);
+        Assert.Null(controller.LastTerminal);
+    }
+
     private static Receiver ReceiverAt(Vector2 position) => new(0, ReceiverSlot.WR1, position);
     private static Defender DefenderAt(Vector2 position) => new(position, DefensivePosition.DB, DefenderSlot.CB1);
     private static BallController Controller(Random? random = null) => new(

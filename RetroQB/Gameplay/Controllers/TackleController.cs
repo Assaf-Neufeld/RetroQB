@@ -11,6 +11,7 @@ public sealed class TackleController
 {
     private readonly Random _rng;
     private readonly OverlapResolver _overlapResolver;
+    public PlayContact? LastTerminal { get; private set; }
 
     public TackleController(Random rng, OverlapResolver overlapResolver)
     {
@@ -23,6 +24,7 @@ public sealed class TackleController
     /// </summary>
     public void Reset()
     {
+        LastTerminal = null;
         _overlapResolver.Reset();
     }
 
@@ -34,8 +36,10 @@ public sealed class TackleController
         Quarterback qb,
         IReadOnlyList<Defender> defenders,
         OffensiveTeamAttributes offensiveTeam,
-        Action<Entity> clampToField)
+        Action<Entity> clampToField,
+        float? lineOfScrimmage = null)
     {
+        LastTerminal = null;
         Entity? carrier = ball.State switch
         {
             BallState.HeldByQB => qb,
@@ -51,12 +55,15 @@ public sealed class TackleController
         // Check sideline out of bounds
         if (IsSidelineOutOfBounds(carrier.Position))
         {
+            LastTerminal = new(carrier.Position.Y <= FieldGeometry.EndZoneDepth
+                ? PlayEndReason.Safety : PlayEndReason.OutOfBounds, carrier.Position);
             return TackleCheckResult.Tackle;
         }
 
         // Check touchdown
         if (Rules.IsTouchdown(carrier.Position))
         {
+            LastTerminal = new(PlayEndReason.Touchdown, carrier.Position);
             return TackleCheckResult.Touchdown;
         }
 
@@ -86,6 +93,10 @@ public sealed class TackleController
 
                 carrier.Animation.Trigger(PlayerPose.Tackled, defender.Position - carrier.Position);
                 defender.Animation.Trigger(PlayerPose.Tackled, carrier.Position - defender.Position);
+                var reason = carrier.Position.Y <= FieldGeometry.EndZoneDepth ? PlayEndReason.Safety
+                    : carrier is Quarterback && lineOfScrimmage.HasValue && carrier.Position.Y < lineOfScrimmage
+                    ? PlayEndReason.Sack : PlayEndReason.Tackle;
+                LastTerminal = new(reason, carrier.Position, defender.Slot);
                 return TackleCheckResult.Tackle;
             }
         }

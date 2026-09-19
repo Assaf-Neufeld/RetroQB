@@ -1,6 +1,6 @@
 # Playable defense: engineering roadmap
 
-Status: Phase 0 / M0 verified. [Baseline results and reproduction instructions](phase0-verification.md). M1–M11 have not started.
+Status: Phases 0 and 1 / M0–M2 verified. [Baseline results](phase0-verification.md) and [match rules and clock verification](phase1-verification.md). M3–M11 have not started.
 
 Product specification: [playable-defense-plan.md](playable-defense-plan.md). This roadmap turns that design into ordered work packages and evidence-based completion gates. It is the implementation tracker; the design remains the source for intended gameplay.
 
@@ -15,7 +15,7 @@ Each milestone can span several small changes, but every change must build and l
 | Phase | Milestones | Verifiable outcome | Status |
 | --- | --- | --- | --- |
 | 0. Baseline and verification support | M0 | Reproducible tests and scenario setup | Verified |
-| 1. Match rules and time | M1–M2 | Correct team ownership, possession, scoring, and clocks without rendering | Not started |
+| 1. Match rules and time | M1–M2 | Correct team ownership, possession, scoring, and clocks without rendering | Verified |
 | 2. First playable defensive drive | M3–M5 | You control a linebacker against a functioning CPU offense | Not started |
 | 3. Defensive playcalling | M6–M7 | Ten real calls, readable assignments, and bounded CPU snap timing | Not started |
 | 4. Complete timed football | M8–M9 | Full regulation, special teams, clock strategy, halftime, and overtime | Not started |
@@ -90,13 +90,13 @@ The launcher is development-only, rejects unknown scenarios, and uses the produc
 
 **Acceptance gate**
 
-- [ ] `RULE-01`: touchdown adds seven only to the possessing team and queues the other team at its own 20.
-- [ ] `RULE-02`: failed fourth down at the old offense's own 35 awards no points and starts the new offense 65 yards from its own goal.
-- [ ] `RULE-03`: interception at the old offense's 70 gives the new offense its own 30, regardless of the old line of scrimmage. A catch in the intercepting team's end zone becomes its own 20.
-- [ ] `RULE-04`: a safety credits two to the defending team and gives that team the next possession at its own 20.
-- [ ] `RULE-05`: first down inside the opponent's 10 creates correct goal-to-go distance; a short fourth-down gain preserves its gain/spot in the record while ending possession.
-- [ ] `RULE-06`: submitting the same play-end event twice does not change score, statistics, history, or possession a second time.
-- [ ] Team colors and ratings stay attached to identity across two possession changes; CPU offensive events do not enter user offensive totals.
+- [x] `RULE-01`: touchdown adds seven only to the possessing team and queues the other team at its own 20.
+- [x] `RULE-02`: failed fourth down at the old offense's own 35 awards no points and starts the new offense 65 yards from its own goal.
+- [x] `RULE-03`: interception at the old offense's 70 gives the new offense its own 30, regardless of the old line of scrimmage. A catch in the intercepting team's end zone becomes its own 20.
+- [x] `RULE-04`: a safety credits two to the defending team and gives that team the next possession at its own 20.
+- [x] `RULE-05`: first down inside the opponent's 10 creates correct goal-to-go distance; a short fourth-down gain preserves its gain/spot in the record while ending possession.
+- [x] `RULE-06`: submitting the same play-end event twice does not change score, statistics, history, or possession a second time.
+- [x] Team colors and ratings stay attached to identity across two possession changes; CPU offensive events do not enter user offensive totals.
 
 **Evidence:** `MatchRulesTests`, `TeamDefinitionTests`, and stat-routing tests with the scenarios above. The synthetic field-goal/punt results can be tested now; live execution comes in M8.
 
@@ -113,16 +113,16 @@ The launcher is development-only, rejects unknown scenarios, and uses the produc
 
 **Acceptance gate**
 
-- [ ] `CLOCK-01`: advancing 0.5 seconds from 0:01 leaves 0:00.5; advancing past zero clamps to zero and emits one expiry event.
-- [ ] `CLOCK-02`: a live pass/run/kick at zero remains live; terminal resolution occurs before period transition. A snap on the tick that expires pre-snap time is rejected.
-- [ ] `CLOCK-03`: in-bounds tackles/first downs resume a running pre-snap game clock; incomplete, defended, out-of-bounds, scoring, and possession-change results wait until snap.
-- [ ] `CLOCK-04`: Q1/Q3 endings preserve the resulting series; halftime replaces any pending possession with the second-half receiver at its own 20 and resets timeout budgets.
-- [ ] `CLOCK-05`: 21–14 in Q2 does not end the match. A non-tied Q4 result does; a tied result starts overtime.
-- [ ] `CLOCK-06`: each timeout consumes exactly one allowance; exhausted allowances do nothing. Pause/replay suspend and restore all running clocks without changing their remaining time.
-- [ ] `CLOCK-07`: both overtime attempts complete before comparing scores; a tied pair repeats with reversed opening order. Turnovers end the attempt rather than starting a drive at the turnover spot.
-- [ ] Equivalent elapsed time split into 30/60/120 Hz steps produces equivalent clock state within one simulation tick and never duplicates transitions.
+- [x] `CLOCK-01`: advancing 0.5 seconds from 0:01 leaves 0:00.5; advancing past zero clamps to zero and emits one expiry event.
+- [x] `CLOCK-02`: a live pass/run/kick at zero remains live; terminal resolution occurs before period transition. A snap on the tick that expires pre-snap time is rejected.
+- [x] `CLOCK-03`: in-bounds tackles/first downs resume a running pre-snap game clock; incomplete, defended, out-of-bounds, scoring, and possession-change results wait until snap.
+- [x] `CLOCK-04`: Q1/Q3 endings preserve the resulting series; halftime replaces any pending possession with the second-half receiver at its own 20 and resets timeout budgets.
+- [x] `CLOCK-05`: 21–14 in Q2 does not end the match. A non-tied Q4 result does; a tied result starts overtime.
+- [x] `CLOCK-06`: each timeout consumes exactly one allowance; exhausted allowances do nothing. Pause/replay suspend and restore all running clocks without changing their remaining time.
+- [x] `CLOCK-07`: both overtime attempts complete before comparing scores; a tied pair repeats with reversed opening order. Turnovers end the attempt rather than starting a drive at the turnover spot.
+- [x] Equivalent elapsed time split into 30/60/120 Hz steps produces equivalent clock state within one simulation tick and never duplicates transitions.
 
-**Evidence:** `MatchClockTests`, `PeriodTransitionTests`, `OvertimeRulesTests`. Pure boundary tests are required before introducing clock-sensitive UI.
+**Evidence:** `MatchClockTests` and `PeriodTransitionTests` (including overtime). All gates passed; see [Phase 1 verification](phase1-verification.md). GameSession activation remains deferred to M7–M9.
 
 ## Phase 2 — First playable defensive drive
 
