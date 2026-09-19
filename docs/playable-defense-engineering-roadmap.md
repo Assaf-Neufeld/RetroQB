@@ -1,6 +1,6 @@
 # Playable defense: engineering roadmap
 
-Status: Phases 0 and 1 / M0–M2 verified. [Baseline results](phase0-verification.md) and [match rules and clock verification](phase1-verification.md). M3–M11 have not started.
+Status: Phases 0 and 1 / M0–M2 verified. [Baseline results](phase0-verification.md) and [match rules and clock verification](phase1-verification.md). Phase 2 / M3–M5 is verified with automated gates passing and user acceptance of the test runs; see [Phase 2 report](phase2-verification.md). M6–M11 have not started.
 
 Product specification: [playable-defense-plan.md](playable-defense-plan.md). This roadmap turns that design into ordered work packages and evidence-based completion gates. It is the implementation tracker; the design remains the source for intended gameplay.
 
@@ -16,7 +16,7 @@ Each milestone can span several small changes, but every change must build and l
 | --- | --- | --- | --- |
 | 0. Baseline and verification support | M0 | Reproducible tests and scenario setup | Verified |
 | 1. Match rules and time | M1–M2 | Correct team ownership, possession, scoring, and clocks without rendering | Verified |
-| 2. First playable defensive drive | M3–M5 | You control a linebacker against a functioning CPU offense | Not started |
+| 2. First playable defensive drive | M3–M5 | You control a linebacker against a functioning CPU offense | Verified |
 | 3. Defensive playcalling | M6–M7 | Ten real calls, readable assignments, and bounded CPU snap timing | Not started |
 | 4. Complete timed football | M8–M9 | Full regulation, special teams, clock strategy, halftime, and overtime | Not started |
 | 5. Season integration and presentation | M10 | Correct stats, replays, saves, feedback, and three-stage progression | Not started |
@@ -128,6 +128,8 @@ The launcher is development-only, rejects unknown scenarios, and uses the produc
 
 ### M3 — Human input controls exactly one linebacker
 
+Status: Verified. Automated gates pass; user accepted the test runs. See the Phase 2 report for remaining tuning observations.
+
 **Deliverables**
 
 - Extract `ControlContext` and human/CPU offensive intents; expose a throw command independent of keyboard handling.
@@ -139,15 +141,17 @@ The launcher is development-only, rejects unknown scenarios, and uses the produc
 
 **Acceptance gate**
 
-- [ ] `CONTROL-01`: movement reaches only MLB in base and only OLB1 in nickel; other defenders still follow AI assignments.
-- [ ] `CONTROL-02`: handoff, pass flight, catch, and tackle do not transfer human control to the opponent's carrier.
-- [ ] `CONTROL-03`: each actor integrates once per update. Movement input cannot erase block slowdown or overwrite a tackle-break displacement.
-- [ ] `CONTROL-04`: releasing movement stops manual movement; the linebacker does not automatically pursue. Human contact can produce the same tackle/pass contest as AI contact.
-- [ ] Existing QB movement, throws, receiver takeover, and backfield regression tests pass through the new intent path.
+- [x] `CONTROL-01`: movement reaches only MLB in base and only OLB1 in nickel; other defenders still follow AI assignments.
+- [x] `CONTROL-02`: handoff, pass flight, catch, and tackle do not transfer human control to the opponent's carrier.
+- [x] `CONTROL-03`: each actor integrates once per update. Movement input cannot erase block slowdown or overwrite a tackle-break displacement.
+- [x] `CONTROL-04`: releasing movement stops manual movement; the linebacker does not automatically pursue. Human contact can produce the same tackle/pass contest as AI contact.
+- [x] Existing QB movement, throws, receiver takeover, and backfield regression tests pass through the new intent path.
 
 **Demonstration:** in base and nickel scripted scenes, move away from the assignment, return to contact, and observe a block and tackle. Offensive keys must not make the CPU throw.
 
 ### M4 — CPU quarterback runs the passing game
+
+Status: Verified. Automated gates and seeded CPU demonstrations recorded in the Phase 2 report; user accepted the test runs.
 
 **Deliverables**
 
@@ -160,15 +164,17 @@ The launcher is development-only, rejects unknown scenarios, and uses the produc
 
 **Acceptance gate**
 
-- [ ] `CPU-01`: an open eligible primary target produces a physical throw after the configured reaction/readiness interval.
-- [ ] `CPU-02`: a defended primary lane plus open checkdown produces progression to the checkdown; a blocking/ineligible target is never selected.
-- [ ] `CPU-03`: play-action prevents an early throw; passing after crossing the line is rejected by shared legality checks.
-- [ ] `CPU-04`: with all reads covered, the QB reaches a legal scramble/throwaway/sack outcome; a timer alone never produces an incompletion.
-- [ ] Same observations/seed give the same intent regardless of hidden defensive call labels or unrelated human key inputs.
+- [x] `CPU-01`: an open eligible primary target produces a physical throw after the configured reaction/readiness interval.
+- [x] `CPU-02`: a defended primary lane plus open checkdown produces progression to the checkdown; a blocking/ineligible target is never selected.
+- [x] `CPU-03`: play-action prevents an early throw; passing after crossing the line is rejected by shared legality checks.
+- [x] `CPU-04`: with all reads covered, the QB reaches a legal scramble/throwaway/sack outcome; a timer alone never produces an incompletion.
+- [x] Same observations/seed give the same intent regardless of hidden defensive call labels or unrelated human key inputs.
 
 **Demonstration:** show a quick completion, a defended/incomplete attempt, a pressure response, and a play-action throw in seeded scenes. Record seeds and outcomes; these need not all occur in one drive.
 
 ### M5 — CPU carriers and one complete defensive drive
+
+Status: Verified. Automated gates pass; user accepted checkpoint A after reviewing the test runs.
 
 **Deliverables**
 
@@ -179,11 +185,11 @@ The launcher is development-only, rejects unknown scenarios, and uses the produc
 
 **Acceptance gate**
 
-- [ ] `CPU-05`: a run follows the exchange before entering the authored lane; catches transition from route running to carrying without human input.
-- [ ] `CPU-06`: controlled lane fixtures demonstrate avoiding a blocked lane and progressing toward the opponent's goal; carrier exits and touchdowns resolve correctly.
-- [ ] `DRIVE-01`: seeded multi-play scenarios exercise first downs and a drive-ending stop or score without resetting every play to the own 20.
-- [ ] Supported scenarios terminate within a 30-second simulated live-play test budget; reaching the budget fails with a trace. It does not force a production whistle.
-- [ ] Run representative fixtures at 30/60/120 Hz; require legal, finite, terminating behavior, not identical random outcomes between frame rates.
+- [x] `CPU-05`: a run follows the exchange before entering the authored lane; catches transition from route running to carrying without human input.
+- [x] `CPU-06`: controlled lane fixtures demonstrate avoiding a blocked lane and progressing toward the opponent's goal; carrier exits and touchdowns resolve correctly.
+- [x] `DRIVE-01`: seeded multi-play scenarios exercise first downs and a drive-ending stop or score without resetting every play to the own 20.
+- [x] Supported scenarios terminate within a 30-second simulated live-play test budget; reaching the budget fails with a trace. It does not force a production whistle.
+- [x] Run representative fixtures at 30/60/120 Hz; require legal, finite, terminating behavior, not identical random outcomes between frame rates.
 
 **Playable checkpoint A:** play one defensive drive against CPU-selected passes and runs. Verify that moving the linebacker affects coverage or tackling and that blocking feels credible. Record issues in control feel or AI competence before starting the menu expansion; passing unit tests alone does not close this checkpoint.
 

@@ -26,6 +26,7 @@ public sealed class BallController
     public Receiver? PassCatcher => _passCatcher;
     public float PlayStartLos => _playStartLos;
     public PlayContact? LastTerminal { get; private set; }
+    public ReceiverSlot? ThrowTargetSlot { get; private set; }
 
     public BallController(
         Random rng,
@@ -45,6 +46,7 @@ public sealed class BallController
     public void Reset(float lineOfScrimmage)
     {
         LastTerminal = null;
+        ThrowTargetSlot = null;
         _passAttemptedThisPlay = false;
         _passCompletedThisPlay = false;
         _passDefenseAttemptedThisThrow = false;
@@ -359,7 +361,7 @@ public sealed class BallController
     {
         if (!_priorityManager.TryGetReceiverIndexForPriority(priority, out int receiverIndex)) return;
         playManager.SelectedReceiver = receiverIndex;
-        ExecuteThrow(ball, qb, receivers, defenders, playManager, offensiveTeam, receiverIndex);
+        TryThrow(receiverIndex, ball, qb, receivers, defenders, playManager, offensiveTeam, true);
     }
 
     private void ExecuteThrow(
@@ -391,6 +393,7 @@ public sealed class BallController
             _passAttemptedThisPlay = true;
             _statsTracker.RecordPassAttempt();
             _statsTracker.RecordTarget(receiver.Slot);
+            ThrowTargetSlot = receiver.Slot;
         }
 
         float pressure = GetQbPressureFactor(qb, defenders);
@@ -421,6 +424,34 @@ public sealed class BallController
         _passDefenseAttemptedThisThrow = false;
         ball.SetInAir(qb.Position, throwVelocity, intendedDistance, maxTravelDistance, arcApexHeight);
         qb.Animation.Trigger(PlayerPose.Throwing, throwVelocity);
+    }
+
+    /// <summary>Shared physical throw command for human and CPU callers; no completion shortcuts.</summary>
+    public bool TryThrow(int receiverIndex, Ball ball, Quarterback qb, IReadOnlyList<Receiver> receivers,
+        IReadOnlyList<Defender> defenders, PlayManager play, OffensiveTeamAttributes offense, bool allowsThrow)
+    {
+        if (!allowsThrow || ball.State != BallState.HeldByQB || qb.Position.Y > play.LineOfScrimmage + .1f
+            || receiverIndex < 0 || receiverIndex >= receivers.Count || !receivers[receiverIndex].Eligible
+            || receivers[receiverIndex].IsBlocking || !_priorityManager.HasPriority(receiverIndex)) return false;
+        play.SelectedReceiver = receiverIndex;
+        ExecuteThrow(ball, qb, receivers, defenders, play, offense, receiverIndex);
+        return ball.State == BallState.InAir;
+    }
+
+    public bool TryThrowAway(Ball ball, Quarterback qb, PlayManager play, OffensiveTeamAttributes offense, bool allowsThrow)
+    {
+        if (!allowsThrow || ball.State != BallState.HeldByQB || qb.Position.Y > play.LineOfScrimmage
+            || MathF.Abs(qb.Position.X - Constants.FieldWidth / 2) <= 9) return false;
+        var target = new Vector2(qb.Position.X < Constants.FieldWidth / 2 ? -4 : Constants.FieldWidth + 4,
+            play.LineOfScrimmage + 5);
+        var velocity = _throwingMechanics.CalculateThrowVelocity(qb.Position, qb.Velocity, target,
+            Constants.BallMaxSpeed, 0, offense, _rng);
+        float distance = Vector2.Distance(qb.Position, target);
+        if (!_passAttemptedThisPlay) { _passAttemptedThisPlay = true; _statsTracker.RecordPassAttempt(); }
+        _passDefenseAttemptedThisThrow = false;
+        ball.SetInAir(qb.Position, velocity, distance, distance + 4, GetPassArcApex(distance));
+        qb.Animation.Trigger(PlayerPose.Throwing, velocity);
+        return true;
     }
 
     private static Vector2 GetTargetVelocityForThrow(Quarterback qb, Receiver receiver)

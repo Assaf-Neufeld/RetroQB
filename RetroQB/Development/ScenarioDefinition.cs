@@ -3,7 +3,7 @@ using RetroQB.Gameplay;
 
 namespace RetroQB.Development;
 
-/// <summary>Only state supported by today's game; match clocks are added in M2.</summary>
+/// <summary>Reproducible offensive baselines and the first defensive-drive checkpoint.</summary>
 internal sealed record ScenarioDefinition(string Name, string PlayId, DriveStart Start,
     bool FieldGoal = false, bool Replay = false, int ThrowTick = 45, bool IsRun = false)
 {
@@ -12,13 +12,23 @@ internal sealed record ScenarioDefinition(string Name, string PlayId, DriveStart
     public OffensiveTeamAttributes Offense { get; init; } = OffensiveTeamPresets.Ballers;
     public DefensiveTeamAttributes Defense { get; init; } = DefensiveTeamPresets.ScarletGuard;
     public SeasonStage Stage { get; init; } = SeasonStage.RegularSeason;
+    public bool Defending { get; init; }
+    public bool ScriptedOffense { get; init; }
     public static IReadOnlyList<string> Names { get; } = Array.AsReadOnly(new[]
     {
-        "offense-pass", "offense-run", "offense-play-action", "offense-field-goal", "offense-replay"
+        "offense-pass", "offense-run", "offense-play-action", "offense-field-goal", "offense-replay",
+        "defense-drive", "defense-control-base", "defense-control-nickel",
+        "defense-quick", "defense-deep", "defense-play-action"
     });
 
     public static ScenarioDefinition Get(string name) => name switch
     {
+        "defense-drive" => new(name, "", new()) { Defending = true },
+        "defense-quick" => new(name, "pass.mesh", new()) { Defending = true },
+        "defense-deep" => new(name, "pass.four-verts", new()) { Defending = true },
+        "defense-play-action" => new(name, "pass.gun-doubles.pa-cross", new()) { Defending = true },
+        "defense-control-base" => new(name, "run.hb-dive", new()) { Defending = true, ScriptedOffense = true },
+        "defense-control-nickel" => new(name, "pass.mesh", new()) { Defending = true, ScriptedOffense = true },
         "offense-pass" => new(name, "pass.mesh", new()),
         "offense-run" => new(name, "run.hb-dive", new(), IsRun: true),
         "offense-play-action" => new(name, "pass.gun-doubles.pa-cross", new(), ThrowTick: 90),

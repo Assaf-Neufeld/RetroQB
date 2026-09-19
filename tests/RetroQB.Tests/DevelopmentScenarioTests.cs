@@ -189,7 +189,7 @@ public sealed class DevelopmentScenarioTests
     }
 
     [Theory]
-    [InlineData("--scenario", "defense-drive")]
+    [InlineData("--scenario", "unknown-drive")]
     [InlineData("--scenario")]
     [InlineData("--seed", "abc")]
     [InlineData("--unexpected")]

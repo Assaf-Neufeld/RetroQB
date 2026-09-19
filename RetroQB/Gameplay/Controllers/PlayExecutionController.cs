@@ -19,6 +19,8 @@ public sealed class PlayExecutionController
     public PossessionControl Possession { get; } = new();
     private Vector2 _lastInput;
     private float _passReadyRemaining;
+    public ControlContext Control { get; set; } = new();
+    public OffensiveIntent? CpuIntent { get; set; }
     public string ExchangeStatus => !Backfield.AllowsThrow ? "FAKE" : _passReadyRemaining > 0 ? "PASS READY" : "";
     public void Reset()
     {
@@ -51,26 +53,36 @@ public sealed class PlayExecutionController
         Action<Entity> clampToField,
         float dt)
     {
-        Vector2 inputDir = _input.GetMovementDirection();
+        Vector2 humanInput = _input.GetMovementDirection();
+        OffensiveIntent intent = Control.HumanOnDefense ? CpuIntent ?? new(Vector2.Zero)
+            : new(humanInput, _input.IsSprintHeld());
+        Vector2 inputDir = intent.Movement;
         Possession.Tick(dt);
         Possession.Observe(ball, playManager.SelectedPlay, _lastInput);
         _lastInput = inputDir;
         _passReadyRemaining = MathF.Max(0, _passReadyRemaining - dt);
         bool wasLocked = !Backfield.AllowsThrow;
-        bool sprint = _input.IsSprintHeld();
+        bool sprint = intent.Sprint;
         Backfield.Update(playManager.SelectedPlay, ball, qb, receivers, dt,
-            cancelPlayAction: inputDir.LengthSquared() > 0.001f);
+            cancelPlayAction: !Control.HumanOnDefense && inputDir.LengthSquared() > 0.001f);
         if (wasLocked && Backfield.AllowsThrow) _passReadyRemaining = .6f;
         Receiver? controlledReceiver = ball.State == BallState.HeldByReceiver ? ball.Holder as Receiver : null;
 
         // Reset per-frame blocking contact state before any blocker logic runs
         BlockingUtils.ResetDefenderBlockingState(defenders);
+        var manual = Control.ControlledDefender(defenders);
+        if (manual != null)
+            manual.Velocity = (humanInput.LengthSquared() > 1 ? Vector2.Normalize(humanInput) : humanInput)
+                * manual.Speed * playManager.DefenderSpeedMultiplier;
 
         // Update QB
         UpdateQuarterback(qb, ball, defenders, inputDir, sprint, dt, clampToField);
 
         // Update receivers
-        _receiverController.UpdateAll(receivers, qb, ball, defenders, controlledReceiver, controlledReceiver == null ? inputDir : Possession.Resolve(inputDir), sprint, qbPastLos, isUnderneathManCoverage, playManager, dt, clampToField, Backfield, blockers, Possession.SuppressTurnBoost);
+        _receiverController.UpdateAll(receivers, qb, ball, defenders, controlledReceiver,
+            controlledReceiver == null || Control.HumanOnDefense ? inputDir : Possession.Resolve(inputDir), sprint,
+            qbPastLos, isUnderneathManCoverage, playManager, dt, clampToField, Backfield, blockers,
+            Control.HumanOnDefense || Possession.SuppressTurnBoost);
         Backfield.TryHandoff(playManager.SelectedPlay, ball, qb, receivers);
         ObservePossession(ball, playManager);
 
@@ -79,6 +91,8 @@ public sealed class PlayExecutionController
 
         // Update blockers
         UpdateBlockers(blockers, defenders, qb, ball, playManager, clampToField, dt);
+        // All block contacts can slow/displace the human defender before its single integration.
+        if (manual != null) { manual.Update(dt); clampToField(manual); }
     }
 
     private void UpdateQuarterback(
@@ -181,6 +195,7 @@ public sealed class PlayExecutionController
 
         foreach (var defender in defenders)
         {
+            if (defender == Control.ControlledDefender(defenders)) continue;
             float speedMultiplier = playManager.DefenderSpeedMultiplier * runDefenseAdjust;
             DefenderTargeting.UpdateDefender(
                 defender,

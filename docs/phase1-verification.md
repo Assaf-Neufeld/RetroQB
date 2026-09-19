@@ -1,6 +1,6 @@
 # Phase 1 — Match rules and time
 
-M1 and M2: **Verified**, September 19, 2026. Phase 0 is committed as `b2fe65a`; Phase 1 is the subsequent working-tree change.
+M1 and M2: **Verified**, September 19, 2026. Phase 0 is committed as `b2fe65a`; Phase 1 is committed as `6363ec5`.
 
 ## Results
 
@@ -47,4 +47,4 @@ Additional rule decisions: an interception caught in the throwing team's own end
 
 Normal `GameSession` continues through its existing `DriveState` adapter. It does not yet activate timed quarters, CPU possessions, or linebacker control. This preserves the usable game while M3–M9 build the shared on-field control and orchestration; it is not a permanent second game mode. M7–M9 must consume terminal observations through `TimedMatch`, route live offensive stats to the correct team, and retire synthetic legacy possession scoring. M10 supplies full defensive summaries, persistence migration, and season integration.
 
-Phase 1 changes are not committed yet. The next planned milestone is M3: fixed-linebacker control and shared movement/contact integration.
+Phase 1 was committed as `6363ec5`. Phase 2 implementation and verification are recorded in [phase2-verification.md](phase2-verification.md).
