@@ -201,8 +201,11 @@ public sealed class DefensiveDriveTests
     public void DRIVE01_FirstDownContinuesFromEarnedSpot()
     {
         var input = new ScriptedInput();
-        var drive = new DefensiveDrive(input, 101, new(20, 1, 1), "run.hb-dive");
+        var drive = new DefensiveDrive(input, 101, new(20, 1, 1), "pass.mesh");
         drive.Snap();
+        // Controlled scramble/contact fixture, independent of random formation alignment.
+        drive.Actors.Qb.Position = new(25, 34);
+        drive.Linebacker.Position = new(25, 35.8f);
         for (int i = 0; i < 1800 && drive.Live; i++)
         {
             var delta = (drive.Actors.Ball.Holder?.Position ?? drive.Actors.Ball.Position) - drive.Linebacker.Position;

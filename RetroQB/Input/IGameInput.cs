@@ -10,6 +10,9 @@ public interface IGameInput : IPlayerMovementInput
     bool IsFieldGoalPressed() => false;
     bool IsBackspacePressed() => false;
     bool IsReplayPressed() => false;
+    bool IsTimeoutPressed() => false;
+    bool IsPausePressed() => false;
+    int? GetDefensivePlaySelection() => null;
     bool IsReplaySkipPressed() => false;
     bool IsRestartPressed() => false;
     bool IsLeaderboardPressed() => false;

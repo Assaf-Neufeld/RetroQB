@@ -20,27 +20,29 @@ internal static class DefenseScenarioLauncher
         string output = Path.GetFullPath(options.OutputDirectory ?? Path.Combine(Path.GetTempPath(), "RetroQB", "defense", Guid.NewGuid().ToString("N")));
         Directory.CreateDirectory(output);
         var trace = new List<object>();
-        int tick = 0; float deadTime = 0;
+        int tick = 0;
         string? failure = null;
-        var field = new FieldRenderer();
-        bool paused = false;
+        var renderer = new DefensivePlayRenderer();
+        var session = new DefensivePlaySession(drive, options.Seed);
+        bool replayShown = false;
         bool done() => drive.Complete || failure != null;
-        void step()
+        void step(DefensiveInput? frame = null)
         {
-            if (paused || done()) return;
-            if (!drive.Live)
-            {
-                deadTime += ScenarioDefinition.FixedStep;
-                if (deadTime >= 1 || !automated && keyboard.IsSpacePressed())
-                { drive.Continue(); drive.Snap(); deadTime = 0; }
-            }
+            if (failure != null) return;
             if (automated)
             {
                 var target = drive.Actors.Ball.Holder?.Position ?? drive.Actors.Ball.Position;
                 Vector2 delta = target - drive.Linebacker.Position;
                 script.Frame = new(Movement: delta.LengthSquared() > .1f ? Vector2.Normalize(delta) : Vector2.Zero);
             }
-            drive.Update(ScenarioDefinition.FixedStep); tick++;
+            if (automated && options.Definition.Name == "defense-calls")
+            {
+                bool showReplay = drive.LastReplay != null && !replayShown;
+                replayShown |= showReplay;
+                frame = new(Call: !drive.Live && tick % 20 == 0 ? tick / 20 % 10 : null, Timeout: tick == 100,
+                    Pause: tick is 140 or 170, Replay: showReplay);
+            }
+            session.Update(ScenarioDefinition.FixedStep, frame); tick++;
             if (drive.LiveSeconds > 30) failure = "Live play exceeded 30 seconds; no production whistle forced.";
             if (tick > 60 * 600) failure = "Drive exceeded ten simulated minutes.";
             if (drive.Players.Any(a => !float.IsFinite(a.Position.X) || !float.IsFinite(a.Position.Y))) failure = "Non-finite actor.";
@@ -48,31 +50,14 @@ internal static class DefenseScenarioLauncher
             {
                 Tick = tick, drive.LiveSeconds, drive.SecondsWithoutProgress, drive.SteeringChanges,
                 Call = drive.Plays.SelectedPlay.Id, Exchange = drive.Execution.Backfield.Phase, Intent = drive.Execution.CpuIntent,
+                Defense = drive.SelectedDefense.Definition.Id, Clock = session.Clock.Snapshot(), session.SnapRemaining,
                 drive.Match.Series, Ball = drive.Actors.Ball.State, drive.Actors.Ball.Position,
                 Controlled = drive.Linebacker.Slot, Linebacker = drive.Linebacker.Position,
                 Blocked = drive.Linebacker.IsBeingBlocked, Result = drive.LastResult,
                 Actors = drive.Players.Select(a => new { a.Glyph, a.Position, a.Velocity }).ToArray()
             });
         }
-        void draw()
-        {
-            Constants.UpdateFieldRect();
-            Raylib.ClearBackground(Palette.Background);
-            field.DrawField(drive.Plays.LineOfScrimmage, drive.Plays.FirstDownLine,
-                drive.Match.Opponent.Definition.Name, drive.Match.Opponent.Definition.PrimaryColor,
-                drive.Match.User.Definition.Name, drive.Match.User.Definition.PrimaryColor,
-                SeasonStage.RegularSeason, default, drive.Match.Series.Down);
-            foreach (var actor in drive.Players) actor.Draw();
-            drive.Actors.Ball.Draw();
-            var center = Constants.WorldToScreen(drive.Linebacker.Position);
-            Raylib.DrawCircleLines((int)center.X, (int)center.Y, 13, Palette.Gold);
-            Raylib.DrawText("PLAY DEFENSE", 24, 70, 26, Palette.Gold);
-            Raylib.DrawText($"You: {drive.Match.User.Definition.Name}\nControl: {drive.Linebacker.Slot}\n\nWASD / arrows: move\nSpace: snap sooner\nP: pause\nEsc: close", 24, 120, 20, Palette.White);
-            Raylib.DrawText($"Down {drive.Match.Series.Down}  |  {drive.Match.Series.Distance:0.#} to go\nCPU own {drive.Match.Series.OwnYardLine:0.#}\nPlays: {drive.Match.History.Count}", 24, 340, 20, Palette.White);
-            string status = failure ?? (drive.Complete ? $"DRIVE OVER: {drive.LastResult?.Event.Reason}" : paused ? "PAUSED" : drive.Live ? "LIVE" : "GET READY");
-            Raylib.DrawText(status, 24, 450, 19, Palette.Gold);
-            Raylib.DrawText($"Seed {options.Seed} | Cover 3 | Development drive", 24, 25, 16, Palette.White);
-        }
+        void draw() => renderer.Draw(session, failure);
         if (options.Headless) { while (!done()) step(); }
         else
         {
@@ -83,19 +68,27 @@ internal static class DefenseScenarioLauncher
             {
                 var captured = new HashSet<string>();
                 double accumulator = 0;
+                var pending = new DefensiveInput();
+                bool wasFocused = true;
                 while (!Raylib.WindowShouldClose())
                 {
-                    if (!automated && Raylib.IsKeyPressed(KeyboardKey.P)) paused = !paused;
                     if (options.Capture) step();
                     else
                     {
-                        accumulator += Math.Min(Raylib.GetFrameTime(), .1f);
-                        while (accumulator >= ScenarioDefinition.FixedStep) { step(); accumulator -= ScenarioDefinition.FixedStep; }
+                        bool focused = Raylib.IsWindowFocused();
+                        pending = new(keyboard.GetDefensivePlaySelection() ?? pending.Call,
+                            pending.Ready || keyboard.IsSpacePressed(), pending.Timeout || keyboard.IsTimeoutPressed(),
+                            pending.Pause || keyboard.IsPausePressed(), pending.Replay || keyboard.IsReplayPressed(), focused);
+                        if (focused && !wasFocused) accumulator = 0;
+                        else accumulator += Math.Min(Raylib.GetFrameTime(), .1f);
+                        wasFocused = focused;
+                        while (accumulator >= ScenarioDefinition.FixedStep)
+                        { step(pending); pending = new(Focused: focused); accumulator -= ScenarioDefinition.FixedStep; }
                     }
                     Raylib.BeginDrawing(); draw(); Raylib.EndDrawing();
                     if (options.Capture)
                     {
-                        string key = $"{drive.Match.History.Count}-{drive.Actors.Ball.State}-{drive.Live}";
+                        string key = $"{drive.Match.History.Count}-{drive.SelectedDefense.Definition.Id}-{session.Clock.StopReason}-{session.Clock.Suspension}-{drive.Actors.Ball.State}-{drive.Live}";
                         if (captured.Add(key))
                         {
                             var texture = Raylib.LoadRenderTexture(1440, 900);

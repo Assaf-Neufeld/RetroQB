@@ -17,13 +17,14 @@ internal sealed record ScenarioDefinition(string Name, string PlayId, DriveStart
     public static IReadOnlyList<string> Names { get; } = Array.AsReadOnly(new[]
     {
         "offense-pass", "offense-run", "offense-play-action", "offense-field-goal", "offense-replay",
-        "defense-drive", "defense-control-base", "defense-control-nickel",
+        "defense-drive", "defense-calls", "defense-control-base", "defense-control-nickel",
         "defense-quick", "defense-deep", "defense-play-action"
     });
 
     public static ScenarioDefinition Get(string name) => name switch
     {
         "defense-drive" => new(name, "", new()) { Defending = true },
+        "defense-calls" => new(name, "", new()) { Defending = true },
         "defense-quick" => new(name, "pass.mesh", new()) { Defending = true },
         "defense-deep" => new(name, "pass.four-verts", new()) { Defending = true },
         "defense-play-action" => new(name, "pass.gun-doubles.pa-cross", new()) { Defending = true },

@@ -1,6 +1,6 @@
 # Playable defense: engineering roadmap
 
-Status: Phases 0 and 1 / M0–M2 verified. [Baseline results](phase0-verification.md) and [match rules and clock verification](phase1-verification.md). Phase 2 / M3–M5 is verified with automated gates passing and user acceptance of the test runs; see [Phase 2 report](phase2-verification.md). M6–M11 have not started.
+Status: Phases 0 and 1 / M0–M2 verified. [Baseline results](phase0-verification.md) and [match rules and clock verification](phase1-verification.md). Phase 2 / M3–M5 is verified with automated gates passing and user acceptance of the test runs; see [Phase 2 report](phase2-verification.md). Phase 3 is implemented: M6 verified and M7 ready for hands-on checkpoint B; see [Phase 3 report](phase3-verification.md). M8–M11 have not started.
 
 Product specification: [playable-defense-plan.md](playable-defense-plan.md). This roadmap turns that design into ordered work packages and evidence-based completion gates. It is the implementation tracker; the design remains the source for intended gameplay.
 
@@ -17,7 +17,7 @@ Each milestone can span several small changes, but every change must build and l
 | 0. Baseline and verification support | M0 | Reproducible tests and scenario setup | Verified |
 | 1. Match rules and time | M1–M2 | Correct team ownership, possession, scoring, and clocks without rendering | Verified |
 | 2. First playable defensive drive | M3–M5 | You control a linebacker against a functioning CPU offense | Verified |
-| 3. Defensive playcalling | M6–M7 | Ten real calls, readable assignments, and bounded CPU snap timing | Not started |
+| 3. Defensive playcalling | M6–M7 | Ten real calls, readable assignments, and bounded CPU snap timing | Ready to verify |
 | 4. Complete timed football | M8–M9 | Full regulation, special teams, clock strategy, halftime, and overtime | Not started |
 | 5. Season integration and presentation | M10 | Correct stats, replays, saves, feedback, and three-stage progression | Not started |
 | 6. Release verification | M11 | Validated playbook coverage and a tested default game experience | Not started |
@@ -197,6 +197,8 @@ Status: Verified. Automated gates pass; user accepted checkpoint A after reviewi
 
 ### M6 — Defensive calls are executable data
 
+Status: Verified. Catalog-wide assignment tests and deterministic preview/setup gates pass; see the Phase 3 report.
+
 **Deliverables**
 
 - Add `DefensivePlayDefinition`, catalog, resolver, and resolved assignments for the design's ten calls.
@@ -208,15 +210,17 @@ Status: Verified. Automated gates pass; user accepted checkpoint A after reviewi
 
 **Acceptance gate**
 
-- [ ] `CALL-01`: all ten calls resolve against every existing offensive formation with exactly one valid primary assignment per active defensive slot.
-- [ ] `CALL-02`: pressure packages preserve required matchups/deep help or explicitly declare the intended coverage tradeoff; no absent slots or dangling receiver references.
-- [ ] `CALL-03`: repeated setup and previews of a resolved call retain alignments, jitter, rushers, and assignments without further RNG draws.
-- [ ] `CALL-04`: double mirroring restores original geometry/assignments, and mirroring does not change the controlled linebacker policy.
-- [ ] Equivalent visible formations with different hidden offensive routes produce the same defensive preview for the same call and seed.
+- [x] `CALL-01`: all ten calls resolve against every existing offensive formation with exactly one valid primary assignment per active defensive slot.
+- [x] `CALL-02`: pressure packages preserve required matchups/deep help or explicitly declare the intended coverage tradeoff; no absent slots or dangling receiver references.
+- [x] `CALL-03`: repeated setup and previews of a resolved call retain alignments, jitter, rushers, and assignments without further RNG draws.
+- [x] `CALL-04`: double mirroring restores original geometry/assignments, and mirroring does not change the controlled linebacker policy.
+- [x] Equivalent visible formations with different hidden offensive routes produce the same defensive preview for the same call and seed.
 
 **Evidence:** catalog-wide validation tests and assignment snapshots for a zone, man, and pressure call in both personnel packages.
 
 ### M7 — Playcalling UI, clocks, and CPU cadence work together
+
+Status: Ready to verify. Automated timing gates and visual captures pass; hands-on checkpoint B remains open.
 
 **Deliverables**
 
@@ -229,12 +233,12 @@ Status: Verified. Automated gates pass; user accepted checkpoint A after reviewi
 
 **Acceptance gate**
 
-- [ ] `UI-01`: live defensive views never expose CPU route names, route lines, intended targets, offensive call names, or offensive coaching text.
-- [ ] `UI-02`: displayed defensive lines/zones/rushers match M6's resolved assignments. The controlled linebacker remains identifiable in base and nickel.
-- [ ] `TIME-01`: repeatedly change calls until the CPU deadline; the same offensive call still snaps on time. Space shortens, never extends, that deadline.
-- [ ] `TIME-02`: play-clock expiry gives five yards/half-distance, no lost down, and a stopped game clock until snap; repeated delays cannot consume game time.
-- [ ] `TIME-03`: one C press consumes one timeout; changing plays, pausing, or opening replay cannot reset either clock. Timeout return resumes the correct stopped-clock state.
-- [ ] `TIME-04`: in-bounds results advance without Enter and resume clock play; possession-change summaries can wait. Focus loss pauses without a catch-up clock jump.
+- [x] `UI-01`: live defensive views never expose CPU route names, route lines, intended targets, offensive call names, or offensive coaching text.
+- [x] `UI-02`: displayed defensive lines/zones/rushers match M6's resolved assignments. The controlled linebacker remains identifiable in base and nickel.
+- [x] `TIME-01`: repeatedly change calls until the CPU deadline; the same offensive call still snaps on time. Space shortens, never extends, that deadline.
+- [x] `TIME-02`: play-clock expiry gives five yards/half-distance, no lost down, and a stopped game clock until snap; repeated delays cannot consume game time.
+- [x] `TIME-03`: one C press consumes one timeout; changing plays, pausing, or opening replay cannot reset either clock. Timeout return resumes the correct stopped-clock state.
+- [x] `TIME-04`: in-bounds results advance without Enter and resume clock play; possession-change summaries can wait. Focus loss pauses without a catch-up clock jump.
 
 **Playable checkpoint B:** call Cover 3, defend a snap, change to pressure next snap, use a timeout, and allow the CPU to snap while browsing. Show identical team identities and readable clock state throughout.
 

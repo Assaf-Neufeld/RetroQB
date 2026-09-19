@@ -13,7 +13,6 @@ public sealed class PlaySetupController
 {
     private readonly IFormationFactory _formationFactory;
     private readonly IDefenseFactory _defenseFactory;
-    private readonly DefensiveCoordinator _defensiveCoordinator;
     private readonly Random _rng;
 
     public PlaySetupController(
@@ -24,7 +23,6 @@ public sealed class PlaySetupController
     {
         _formationFactory = formationFactory;
         _defenseFactory = defenseFactory;
-        _defensiveCoordinator = defensiveCoordinator;
         _rng = rng;
     }
 
@@ -46,13 +44,11 @@ public sealed class PlaySetupController
         RouteAssigner.AssignRoutes(formationResult.Receivers, selectedPlay);
 
         DefensivePersonnel personnel = DefensivePersonnelPolicy.Create(formationResult.Receivers, context);
-        BlitzDecision blitz = _defensiveCoordinator.DecideBlitz(call.Scheme, context, defensiveTeam, personnel, _rng);
-        DefensiveCallDecision resolvedCall = call with { Blitz = blitz };
 
         // Create defense using the pre-decided scheme and personnel-aware blitz.
         var defenseResult = _defenseFactory.CreateDefense(
             context,
-            resolvedCall,
+            call,
             personnel,
             formationResult.Receivers,
             _rng,
@@ -68,6 +64,16 @@ public sealed class PlaySetupController
             defenseResult.IsUnderneathManCoverage,
             defenseResult.Blitzers,
             defenseResult.Scheme);
+    }
+
+    public PlaySetupResult SetupPlay(ResolvedPlay selectedPlay, float lineOfScrimmage, ResolvedDefensivePlay defense,
+        OffensiveTeamAttributes offensiveTeam, DefensiveTeamAttributes defensiveTeam)
+    {
+        var formation = _formationFactory.CreateFormation(selectedPlay, lineOfScrimmage, offensiveTeam);
+        RouteAssigner.AssignRoutes(formation.Receivers, selectedPlay);
+        var result = defense.CreateDefense(defensiveTeam);
+        return new(formation.Qb, formation.Ball, formation.Receivers, formation.Blockers, result.Defenders,
+            result.UsesZoneResponsibilities, result.IsUnderneathManCoverage, result.Blitzers, result.Scheme);
     }
 }
 

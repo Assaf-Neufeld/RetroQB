@@ -3,6 +3,7 @@ using RetroQB.AI;
 using RetroQB.Entities;
 using RetroQB.Gameplay.Controllers;
 using RetroQB.Input;
+using RetroQB.Gameplay.Replay;
 
 namespace RetroQB.Gameplay;
 
@@ -21,12 +22,20 @@ public sealed class DefensiveDrive
     private readonly string? _fixedCall;
     private readonly bool _scriptedOffense;
     private float _furthestY;
-    public MatchState Match { get; }
+    private readonly int _defenseSeed;
+    private readonly Dictionary<string, ResolvedDefensivePlay> _defensiveCalls = new();
+    public ResolvedDefensivePlay SelectedDefense { get; private set; } = null!;
+    public TimedMatch Timed { get; }
+    public MatchState Match => Timed.Match;
+    private readonly ReplayRecorder _recorder = new();
+    public ReplayClip? LastReplay { get; private set; }
+    public ResolvedDefensivePlay? LastReplayDefense { get; private set; }
+    public int LastReplayControlledIndex { get; private set; }
     public PlayManager Plays { get; } = new();
     public PlayExecutionController Execution { get; }
     public PlaySetupResult Actors { get; private set; } = null!;
     public bool Live => Match.ActivePlay != null;
-    public bool Complete => Match.PendingPossession != null;
+    public bool Complete => Match.PendingPossession != null || Timed.Finished || Match.PossessionId != Match.Opponent.Definition.Id;
     public float LiveSeconds { get; private set; }
     public float SecondsWithoutProgress { get; private set; }
     public int SteeringChanges => _carrier.SteeringChanges;
@@ -37,11 +46,12 @@ public sealed class DefensiveDrive
     public IEnumerable<Entity> Players => new Entity[] { Actors.Qb }.Concat(Actors.Receivers).Concat(Actors.Blockers).Concat(Actors.Defenders);
 
     public DefensiveDrive(IPlayerMovementInput input, int seed, DriveStart? start = null,
-        string? fixedCall = null, bool scriptedOffense = false)
+        string? fixedCall = null, bool scriptedOffense = false, double quarterSeconds = 180)
     {
         _random = new(seed); _coordinator = new(_random); _fixedCall = fixedCall; _scriptedOffense = scriptedOffense;
+        _defenseSeed = seed;
         var user = TeamCatalog.Get("ballers"); var cpu = TeamCatalog.ForStage(SeasonStage.RegularSeason);
-        Match = new(user, cpu, cpu.Id, start: start);
+        Timed = new(user, cpu, cpu.Id, start: start, quarterSeconds: quarterSeconds);
         _quarterback = new(Match.Opponent.Tendencies.ReadIntervalSeconds);
         _setup = new(new FormationFactory(), new DefenseFactory(), new DefensiveCoordinator(Match.User.DefensiveMemory), _random);
         _ball = new(_random, new ThrowingMechanics(), new StatisticsTracker(), _priorities);
@@ -50,36 +60,74 @@ public sealed class DefensiveDrive
         Prepare();
     }
 
-    private void Prepare()
+    private void Prepare(bool retainOffensiveCall = false)
     {
+        string? retained = retainOffensiveCall ? Plays.SelectedPlay.Id : null;
         Plays.StartNewDrive(Match.Series);
-        Plays.SelectCatalogPlay(_fixedCall ?? _coordinator.Select(Match.Series, Match.Opponent.Tendencies), _random);
+        Plays.SelectCatalogPlay(retained ?? _fixedCall ?? _coordinator.Select(Match.Series, Match.Opponent.Tendencies), _random);
         var context = new DefensiveContext(Plays.LineOfScrimmage, Match.Series.Distance, Match.Series.Down,
             Match.Opponent.Score, Match.User.Score, SeasonStage.RegularSeason, Plays.FirstDownLine);
-        Actors = _setup.SetupPlay(Plays.SelectedPlay, context,
-            new(CoverageScheme.Cover3Zone, BlitzDecision.None), Match.Opponent.OffensiveAttributes, Match.User.DefensiveAttributes);
+        var formation = new FormationFactory().CreateFormation(Plays.SelectedPlay, context.LineOfScrimmage, Match.Opponent.OffensiveAttributes);
+        var visible = VisibleOffense.From(formation);
+        _defensiveCalls.Clear();
+        for (int i = 0; i < DefensivePlaybook.All.Count; i++)
+        {
+            var definition = DefensivePlaybook.All[i];
+            _defensiveCalls.Add(definition.Id, DefensivePlayResolver.Resolve(definition, visible, context,
+                Match.User.DefensiveAttributes, new Random(unchecked(_defenseSeed + Match.History.Count * 7919 + i * 101))));
+        }
+        SelectedDefense = _defensiveCalls[SelectedDefense?.Definition.Id ?? "def.cover3"];
+        Actors = _setup.SetupPlay(Plays.SelectedPlay, context.LineOfScrimmage, SelectedDefense,
+            Match.Opponent.OffensiveAttributes, Match.User.DefensiveAttributes);
         Execution.Reset(); _quarterback.Reset(); _carrier.Reset(); _tackle.Reset();
         _ball.Reset(Plays.LineOfScrimmage); _priorities.AssignPriorities(Actors.Receivers);
         LiveSeconds = SecondsWithoutProgress = 0; _furthestY = Actors.Qb.Position.Y;
     }
 
+    public bool SelectDefense(string id)
+    {
+        if (Live || Complete || LastResult != null) return false;
+        SelectedDefense = _defensiveCalls[id];
+        // Keep the offensive actors, offensive call and all clocks intact while browsing.
+        var defenders = SelectedDefense.CreateDefense(Match.User.DefensiveAttributes);
+        Actors = new(Actors.Qb, Actors.Ball, Actors.Receivers, Actors.Blockers, defenders.Defenders,
+            defenders.UsesZoneResponsibilities, defenders.IsUnderneathManCoverage, defenders.Blitzers, defenders.Scheme);
+        return true;
+    }
+
     public bool Snap()
     {
         if (Live || Complete) return false;
-        Plays.StartPlay(); Match.BeginPlay(Plays.SelectedPlay.Id); LastResult = null;
+        if (Timed.Advance(0, Plays.SelectedPlay.Id) == null) return false;
+        Plays.StartPlay(); LastResult = null;
+        Match.User.RecordCall(SelectedDefense.Definition.Id);
+        _recorder.Begin(Match.History.Count + 1);
+        CaptureReplay(0);
         return true;
     }
 
     public bool Continue()
     {
         if (Live || Complete || LastResult == null) return false;
+        if (!Timed.Continue()) return false;
         Prepare(); LastResult = null; return true;
+    }
+
+    public void AdvancePreSnap(double dt)
+    {
+        if (Live || Complete || LastResult != null) return;
+        var before = Match.Series;
+        Timed.Advance(dt);
+        if (Complete) return;
+        if (Timed.Clock.Phase == ClockPhase.PeriodBreak) Timed.Continue();
+        if (before != Match.Series) Prepare(retainOffensiveCall: true);
     }
 
     public void Update(float dt)
     {
         if (!float.IsFinite(dt) || dt < 0) throw new ArgumentOutOfRangeException(nameof(dt));
-        if (!Live) return;
+        if (!Live || Timed.Clock.Suspension != ClockSuspension.None) return;
+        Timed.Advance(dt);
         LiveSeconds += dt;
         bool past = Actors.Qb.Position.Y > Plays.LineOfScrimmage + .1f;
         OffensiveIntent intent;
@@ -120,6 +168,7 @@ public sealed class DefensiveDrive
         if (intent.ThrowAway && _ball.TryThrowAway(Actors.Ball, Actors.Qb, Plays,
             Match.Opponent.OffensiveAttributes, Execution.Backfield.AllowsThrow)) Throws++;
         foreach (var actor in Players) actor.Animation.Update(dt, actor.Velocity);
+        CaptureReplay(dt);
         float y = Actors.Ball.Holder?.Position.Y ?? Actors.Ball.Position.Y;
         if (y > _furthestY + .25f) { _furthestY = y; SecondsWithoutProgress = 0; }
         else SecondsWithoutProgress += dt;
@@ -131,8 +180,20 @@ public sealed class DefensiveDrive
         var stats = new OffensivePlayStats(_ball.PassAttemptedThisPlay, _ball.PassCompletedThisPlay, target,
             _ball.PassAttemptedThisPlay || contact.Reason == PlayEndReason.Sack ? RushingRole.None
                 : Actors.Ball.Holder is Receiver ? RushingRole.RunningBack : RushingRole.Quarterback);
-        LastResult = Match.Resolve(contact.ToEvent(Match.ActivePlay!, stats, Actors.CoverageScheme));
+        CaptureReplay(0);
+        LastReplayDefense = SelectedDefense;
+        LastReplayControlledIndex = Actors.Defenders.IndexOf(Linebacker);
+        LastResult = Timed.Resolve(contact.ToEvent(Match.ActivePlay!, stats, Actors.CoverageScheme));
+        LastReplay = _recorder.FinalizeClip(contact.Reason switch
+        {
+            PlayEndReason.Touchdown => PlayOutcome.Touchdown, PlayEndReason.Interception => PlayOutcome.Interception,
+            PlayEndReason.Incomplete => PlayOutcome.Incomplete, PlayEndReason.PassDefended => PlayOutcome.PassDefended,
+            PlayEndReason.Safety => PlayOutcome.Safety, _ => PlayOutcome.Tackle
+        });
     }
+
+    private void CaptureReplay(float dt) => _recorder.Capture(Actors.Qb, Actors.Ball, Actors.Receivers,
+        Actors.Blockers, Actors.Defenders, Plays.LineOfScrimmage, Plays.FirstDownLine, dt, Plays.Down);
 
     private void Clamp(Entity actor)
     {

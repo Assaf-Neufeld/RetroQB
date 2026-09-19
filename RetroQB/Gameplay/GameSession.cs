@@ -283,6 +283,11 @@ public sealed class GameSession : IDisposable
 
         // Single decision point for coverage; blitz is resolved after route/personnel setup.
         var call = _defensiveCoordinator.DecideCoverage(context, _sessionRng);
+        // Legacy season adapter selects pressure before setup. Setup consumes the final decision.
+        var formation = new FormationFactory().CreateFormation(_playManager.SelectedPlay, context.LineOfScrimmage, _offensiveTeam);
+        RouteAssigner.AssignRoutes(formation.Receivers, _playManager.SelectedPlay);
+        var personnel = DefensivePersonnelPolicy.Create(formation.Receivers, context);
+        call = call with { Blitz = _defensiveCoordinator.DecideBlitz(call.Scheme, context, _defensiveTeam, personnel, _sessionRng) };
 
         var result = _playSetupController.SetupPlay(
             _playManager.SelectedPlay,
