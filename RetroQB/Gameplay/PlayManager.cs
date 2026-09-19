@@ -83,9 +83,9 @@ public sealed class PlayManager
         RunPlays = Array.AsReadOnly(CallSheet.RunIds.Select(id => _resolvedCalls[id]).ToArray());
     }
 
-    public void StartNewDrive()
+    public void StartNewDrive(DriveStart? start = null)
     {
-        _driveState.Reset();
+        _driveState.Reset(start);
         _sheetSituation = null;
         SelectedPlayType = PlayType.Pass;
         ClearCallRecency();
@@ -112,6 +112,21 @@ public sealed class PlayManager
     }
 
     public int GetCallCount(string playId) => _callCounts.GetValueOrDefault(playId);
+
+    internal void SelectCatalogPlay(string playId, Random rng)
+    {
+        var play = _resolvedCalls.TryGetValue(playId, out var resolved)
+            ? resolved : throw new ArgumentException($"Unknown play ID: {playId}", nameof(playId));
+        var ids = play.Family == PlayType.Pass ? CallSheet.PassIds : CallSheet.RunIds;
+        if (!ids.Contains(playId))
+        {
+            var selectedIds = new[] { playId }.Concat(ids).Take(PlayCallSheet.PlaysPerFamily);
+            SetCallSheet(new PlayCallSheet(Catalog,
+                play.Family == PlayType.Pass ? selectedIds : CallSheet.PassIds,
+                play.Family == PlayType.Run ? selectedIds : CallSheet.RunIds));
+        }
+        ActivatePlay(play.IsWildcard ? GenerateWildcard(play, rng) : play);
+    }
 
     private void ClearCallRecency()
     {

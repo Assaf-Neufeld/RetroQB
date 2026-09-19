@@ -3,6 +3,27 @@ using System.Text;
 using Raylib_cs;
 using RetroQB.Core;
 using RetroQB.Gameplay;
+using RetroQB.Development;
+
+try
+{
+#if DEBUG
+    const bool developmentBuild = true;
+#else
+    const bool developmentBuild = false;
+#endif
+    if (ScenarioLaunchOptions.Parse(args, developmentBuild) is { } scenario)
+    {
+        Environment.ExitCode = ScenarioLauncher.Run(scenario);
+        return;
+    }
+}
+catch (ArgumentException error)
+{
+    Console.Error.WriteLine(error.Message);
+    Environment.ExitCode = 2;
+    return;
+}
 
 Raylib.SetConfigFlags(ConfigFlags.ResizableWindow);
 Raylib.InitWindow(Constants.ScreenWidth, Constants.ScreenHeight, "RetroQB");

@@ -29,7 +29,7 @@ public sealed class ReplayStateHandler
         return true;
     }
 
-    public void Update(float dt, InputManager input, ReplayPlayer player, GameStateManager stateManager)
+    public void Update(float dt, IGameInput input, ReplayPlayer player, GameStateManager stateManager)
     {
         if (stateManager.State != GameState.Replay)
         {

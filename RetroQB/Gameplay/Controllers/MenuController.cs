@@ -11,7 +11,7 @@ public sealed class MenuController
     private const string SecretTeamPassword = "1473";
     private const int SecretTeamPasswordLength = 4;
 
-    private readonly InputManager _input;
+    private readonly IGameInput _input;
     private int _selectedTeamIndex;
     private bool _showLeaderboard;
     private bool _showSecretTeamPrompt;
@@ -24,7 +24,7 @@ public sealed class MenuController
     public string SecretPasswordInput => _secretPasswordInput;
     public string SecretPasswordMessage => _secretPasswordMessage;
 
-    public MenuController(InputManager input)
+    public MenuController(IGameInput input)
     {
         _input = input;
     }

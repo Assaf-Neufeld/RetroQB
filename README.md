@@ -181,6 +181,22 @@ RetroQB/
 - Open the `Football2DQB` folder in VS Code.
 - The workspace includes VS Code settings to avoid showing nested Git repos unnecessarily.
 
+### Development verification scenarios
+
+Debug builds include repeatable offensive baselines with isolated temporary saves:
+
+```powershell
+dotnet run -- --scenario offense-pass --seed 101
+dotnet run -- --scenario offense-replay --seed 101 --headless --output artifacts/replay-check
+```
+
+Available scenarios: `offense-pass`, `offense-run`, `offense-play-action`,
+`offense-field-goal`, and `offense-replay`. Use `--capture` instead of `--headless`
+for hidden-window screenshots. These runs use scripted controls; normal startup
+without arguments is unchanged. Release builds reject scenario arguments.
+See the [Phase 0 verification report](docs/phase0-verification.md) for results,
+saved traces, and reproduction instructions.
+
 ### Created with
 
 - Visual Studio Code

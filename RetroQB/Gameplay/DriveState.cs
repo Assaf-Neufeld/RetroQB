@@ -44,11 +44,13 @@ public sealed class DriveState
         Reset();
     }
 
-    public void Reset()
+    public void Reset(DriveStart? start = null)
     {
-        Down = 1;
-        Distance = DefaultDistance;
-        LineOfScrimmage = FieldGeometry.EndZoneDepth + DefaultStartingYardLine;
+        start ??= new DriveStart(DefaultStartingYardLine, 1, DefaultDistance);
+        start.Validate();
+        Down = start.Down;
+        Distance = start.Distance;
+        LineOfScrimmage = FieldGeometry.EndZoneDepth + start.OwnYardLine;
         FirstDownLine = LineOfScrimmage + Distance;
         DriveHistory.Clear();
         PlayRecords.Clear();

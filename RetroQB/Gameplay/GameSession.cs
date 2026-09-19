@@ -21,8 +21,8 @@ public sealed class GameSession : IDisposable
     private readonly GameStateManager _stateManager;
     private readonly PlayManager _playManager;
     private readonly IStatisticsTracker _statsTracker;
-    private readonly InputManager _input;
-    private readonly Random _sessionRng = new();
+    private readonly IGameInput _input;
+    private readonly Random _sessionRng;
 
     // Controllers (Single Responsibility)
     private readonly PlaySetupController _playSetupController;
@@ -50,7 +50,7 @@ public sealed class GameSession : IDisposable
     private SeasonStage _currentStage = SeasonStage.RegularSeason;
     public SeasonStage CurrentStage => _currentStage;
     private readonly SeasonSummary _seasonSummary = new();
-    private readonly PlayerRecordStore _playerRecordStore = new();
+    private readonly PlayerRecordStore _playerRecordStore;
 
     // Entity state (managed by PlayEntities)
     private readonly PlayEntities _entities = new();
@@ -113,10 +113,18 @@ public sealed class GameSession : IDisposable
     {
     }
 
+    public GameSession(IGameInput input, Random rng, PlayerRecordStore recordStore) : this(
+        new GameStateManager(), new PlayManager(), input, new FieldRenderer(), new HudRenderer(),
+        new FireworksEffect(), rng, new FormationFactory(), new DefenseFactory(), new StatisticsTracker(),
+        new ThrowingMechanics(), new ReplayRecorder(), new ReplayClipStore(), new ReplayPlayer(),
+        new ReplayStateHandler(), recordStore)
+    {
+    }
+
     public GameSession(
         GameStateManager stateManager,
         PlayManager playManager,
-        InputManager input,
+        IGameInput input,
         FieldRenderer fieldRenderer,
         HudRenderer hudRenderer,
         FireworksEffect fireworks,
@@ -128,8 +136,11 @@ public sealed class GameSession : IDisposable
         ReplayRecorder replayRecorder,
         ReplayClipStore replayClipStore,
         ReplayPlayer replayPlayer,
-        ReplayStateHandler replayStateHandler)
+        ReplayStateHandler replayStateHandler,
+        PlayerRecordStore? recordStore = null)
     {
+        _sessionRng = rng;
+        _playerRecordStore = recordStore ?? new PlayerRecordStore();
         _stateManager = stateManager;
         _playManager = playManager;
         _statsTracker = statsTracker;
@@ -321,8 +332,6 @@ public sealed class GameSession : IDisposable
 
     public void Update(float dt)
     {
-        Constants.UpdateFieldRect();
-
         if (CanRestartCurrentSession() && _input.IsRestartPressed())
         {
             HandleRestart();
@@ -539,7 +548,7 @@ public sealed class GameSession : IDisposable
         int? passSelection = _input.GetPassPlaySelection();
         if (passSelection.HasValue)
         {
-            playChanged = _playManager.SelectPassPlay(passSelection.Value, new Random());
+            playChanged = _playManager.SelectPassPlay(passSelection.Value, _sessionRng);
             _manualPlaySelection = true;
         }
 
@@ -547,13 +556,13 @@ public sealed class GameSession : IDisposable
         int? runSelection = _input.GetRunPlaySelection();
         if (runSelection.HasValue)
         {
-            playChanged = _playManager.SelectRunPlay(runSelection.Value, new Random());
+            playChanged = _playManager.SelectRunPlay(runSelection.Value, _sessionRng);
             _manualPlaySelection = true;
         }
 
         if (!passSelection.HasValue && !runSelection.HasValue && !_manualPlaySelection && !_autoPlaySelectionDone)
         {
-            playChanged = _playManager.AutoSelectPlayBySituation(new Random()) || playChanged;
+            playChanged = _playManager.AutoSelectPlayBySituation(_sessionRng) || playChanged;
             _autoPlaySelectionDone = true;
         }
 
@@ -971,6 +980,7 @@ public sealed class GameSession : IDisposable
 
     public void Draw()
     {
+        Constants.UpdateFieldRect();
         _drawingController.SetStatsSnapshot(BuildStatsSnapshot());
         bool replayAvailable = _replayClipStore.HasClip;
 
@@ -1510,4 +1520,39 @@ public sealed class GameSession : IDisposable
         _manualPlaySelection = false;
         _autoPlaySelectionDone = false;
     }
+
+    internal void StartScenario(DriveStart start, string playId,
+        OffensiveTeamAttributes offense, DefensiveTeamAttributes defense, SeasonStage stage = SeasonStage.RegularSeason)
+    {
+        start.Validate();
+        _currentStage = stage;
+        _stateManager.ClearPause();
+        _statsTracker.Reset();
+        _seasonSummary.Reset();
+        _seasonSummary.SaveGameStart(_statsTracker.BuildSnapshot());
+        _playManager.StartNewGame();
+        _playManager.StartNewDrive(start);
+        _playManager.EnsureSituationCallSheet();
+        _playManager.SelectCatalogPlay(playId, _sessionRng);
+        _offensiveTeam = offense;
+        _defensiveTeam = defense;
+        _defensiveMemory.Reset();
+        ResetPlayState();
+        ResetReplayState();
+        SetupEntities();
+        _manualPlaySelection = _autoPlaySelectionDone = true;
+        _stateManager.SetState(GameState.PreSnap);
+    }
+
+    internal SessionSnapshot CaptureSnapshot() => new(
+        _stateManager.State, _stateManager.IsPaused, _playManager.SelectedPlay.Id,
+        _offensiveTeam.Name, _defensiveTeam.Name, _playManager.Down, _playManager.Distance,
+        _playManager.LineOfScrimmage, _playManager.FirstDownLine, _playManager.Score, _playManager.AwayScore,
+        _entities.Ball.State, _entities.Ball.Position, _entities.Ball.Holder?.Glyph,
+        _coverageScheme, _blitzers.ToArray(), _playExecutionController.ExchangeStatus,
+        _fieldGoal?.Phase, _fieldGoal?.Marker, _playManager.PlayRecords.LastOrDefault()?.Outcome,
+        _playManager.PlayRecords.LastOrDefault()?.Gain, _lastPlayText, _statsTracker.BuildSnapshot(),
+        _replayClipStore.Current?.Frames.Count ?? 0,
+        new Entity[] { _entities.Qb }.Concat(_entities.Receivers).Concat(_entities.Blockers)
+            .Concat(_entities.Defenders).Select(e => new ActorSnapshot(e.Glyph, e.Position, e.Velocity)).ToArray());
 }

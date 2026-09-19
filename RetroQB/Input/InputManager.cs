@@ -12,7 +12,7 @@ public interface IPlayerMovementInput
 /// <summary>
 /// Centralizes all input handling. All key checks should go through this class.
 /// </summary>
-public sealed class InputManager : IPlayerMovementInput
+public sealed class InputManager : IGameInput
 {
     public const int MaxPlayerNameLength = 18;
 
