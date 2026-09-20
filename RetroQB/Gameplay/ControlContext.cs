@@ -3,7 +3,7 @@ using RetroQB.Entities;
 
 namespace RetroQB.Gameplay;
 
-public sealed record OffensiveIntent(Vector2 Movement, bool Sprint = false, int? ReceiverIndex = null, bool ThrowAway = false);
+public sealed record OffensiveIntent(Vector2 Movement, bool Sprint = false, int? ReceiverIndex = null, bool ThrowAway = false, bool PocketMovement = false);
 
 /// <summary>Human ownership is independent of ball ownership.</summary>
 public sealed record ControlContext(bool HumanOnDefense = false)

@@ -46,13 +46,18 @@ public sealed class FullMatchTests
     }
 
     [Theory]
-    [InlineData(30, 30)] [InlineData(59, 1)] [InlineData(60, 20)] [InlineData(90, 20)]
-    public void KICK02_PuntUsesNetFortyAndTouchback(float start, float received)
+    [InlineData(30)] [InlineData(59)] [InlineData(60)] [InlineData(90)]
+    public void KICK02_PuntFormationFlightAndReturnDeterminePossession(float start)
     {
         var s = New(new(start, 4, 5)); Assert.True(s.SelectAction(MatchAction.Punt));
-        s.Update(0, new(Ready: true)); s.Update(.8f); Continue(s);
-        Assert.True(s.HumanOnDefense); Assert.Equal(received, s.Match.Series.OwnYardLine);
-        Assert.Equal(0, s.Match.User.Score + s.Match.Opponent.Score);
+        s.Update(0, new(Ready: true));
+        Assert.Equal(SpecialTeamsPhase.Snap, s.SpecialTeams!.Phase);
+        for (int tick = 0; s.Drive.Live && tick < 1800; tick++) s.Update(1f / 60);
+        Assert.False(s.Drive.Live); var result = s.SpecialTeams.Result!; Assert.NotNull(result);
+        Continue(s);
+        Assert.Equal(!result.Touchdown, s.HumanOnDefense);
+        Assert.Equal(result.Touchdown ? 20 : result.ReceivingYard, s.Match.Series.OwnYardLine);
+        Assert.Equal(result.Touchdown ? 7 : 0, s.Match.User.Score + s.Match.Opponent.Score);
     }
 
     [Fact]

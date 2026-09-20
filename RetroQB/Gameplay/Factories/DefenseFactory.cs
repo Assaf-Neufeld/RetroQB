@@ -1104,6 +1104,16 @@ public sealed class DefenseFactory : IDefenseFactory
             .Select(receiver => receiver.Index)
             .ToHashSet();
 
+        if (scheme is CoverageScheme.Cover3Match or CoverageScheme.QuartersMatch)
+        {
+            // The outside receivers belong to the corners' deep match responsibilities.
+            // Underneath carries should only consume the remaining inside threats.
+            availableReceiverIndices.ExceptWith(defenders
+                .Where(defender => !defender.IsRusher
+                    && defender.Slot is DefenderSlot.CB1 or DefenderSlot.CB2)
+                .Select(defender => defender.CoverageReceiverIndex));
+        }
+
         foreach (CoverageAssignmentCandidate candidate in orderedCandidates)
         {
             int preferred = GetPreferredReceiverIndex(candidate, coverageReceivers);
@@ -1151,7 +1161,7 @@ public sealed class DefenseFactory : IDefenseFactory
 
     private static int GetPreferredReceiverIndex(CoverageAssignmentCandidate candidate, IReadOnlyList<Receiver> coverageReceivers)
     {
-        int receiverIndex = candidate.Defender.CoverageReceiverIndex;
+        int receiverIndex = candidate.OriginalReceiverIndex;
         if (receiverIndex < 0)
         {
             return -1;
@@ -1252,7 +1262,11 @@ public sealed class DefenseFactory : IDefenseFactory
     private sealed record CoverageAssignmentCandidate(
         Defender Defender,
         CoverageRole OriginalZoneRole,
-        bool ClearZoneRoleOnAssignment);
+        bool ClearZoneRoleOnAssignment)
+    {
+        // Preserve the plan before the uniqueness pass clears live assignments.
+        public int OriginalReceiverIndex { get; } = Defender.CoverageReceiverIndex;
+    }
 
     private readonly record struct DefensiveLineFront(
         float EndOffset,

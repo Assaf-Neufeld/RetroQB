@@ -362,3 +362,5 @@ Fill one row per milestone as implementation proceeds. Store the detailed comman
 Do not add defender switching, arbitrary player selection, manual tackle/swats, returns, fumbles, advanced audibles, new offensive playbooks, a permanent legacy mode, or full league-rule simulation to these milestones. If a milestone reveals that a proposed simplification is inadequate, record the concrete issue and update the design and its affected acceptance gates before implementing the replacement.
 
 Phases 0–5 are implemented. Phase 6 enables the normal timed game and passes the automated release matrix; the remaining action is the documented hands-on balance and pacing review.
+
+Post-release playtesting explicitly expands the original scope: two-minute halves and playable punt/kickoff returns are authorized by the user. See [feedback 2](playtest-feedback-2.md). Earlier no-return and four-quarter requirements describe the original milestone scope, not the current normal game.

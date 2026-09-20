@@ -12,6 +12,7 @@ public sealed record MatchInput(int? Call = null, int? Run = null, bool Ready = 
 public sealed class FullMatchSession
 {
     private readonly Random _random;
+    private readonly IGameInput _input;
     private double _presentation, _actionSeconds;
     private bool _cpuKickGood;
     public DefensiveDrive Drive { get; }
@@ -21,6 +22,8 @@ public sealed class FullMatchSession
     public ReplayPlayer Replay { get; } = new();
     public MatchAction Action { get; private set; }
     public FieldGoalAttempt? Kick { get; private set; }
+    public SpecialTeamsPlay? SpecialTeams { get; private set; }
+    public bool UserReceivingKick => Drive.PreparedOffenseId != Match.User.Definition.Id;
     public double SnapRemaining { get; private set; }
     public bool HumanOnDefense => Drive.HumanOnDefense;
     public bool ShowStatistics => (Clock.Suspension & ClockSuspension.Statistics) != 0;
@@ -28,33 +31,41 @@ public sealed class FullMatchSession
     public double PresentationSeconds => _presentation;
     public string Status => Timed.Finished ? $"FINAL: {Match.Team(Timed.WinnerId!).Definition.Name} wins"
         : Clock.IsOvertime ? $"OT {Timed.OvertimePair} | attempt {Timed.OvertimeAttempt}/2"
-        : Clock.Phase == ClockPhase.PeriodBreak ? Clock.Quarter == 3 ? "HALFTIME" : $"QUARTER {Clock.Quarter}" : "";
+        : Clock.Phase == ClockPhase.PeriodBreak ? Clock.Quarter == Clock.HalftimePeriod ? "HALFTIME" : Clock.PeriodLabel : "";
 
     public FullMatchSession(IGameInput input, int seed, TimedMatch match)
     {
-        _random = new(seed ^ 0x42319); Drive = new(input, seed, match: match); Prepare();
+        _input = input; _random = new(seed ^ 0x42319); Drive = new(input, seed, match: match); Prepare();
     }
 
     public StrategyContext Context()
-        => new(Clock.Quarter, Clock.RemainingSeconds, Clock.IsOvertime, Match.Offense.Score - Match.Defense.Score,
+        => new(Clock.RegulationPeriods == 2 ? Clock.Quarter * 2 : Clock.Quarter, Clock.RemainingSeconds, Clock.IsOvertime, Match.Offense.Score - Match.Defense.Score,
             Match.Series.Down, Match.Series.OwnYardLine, Match.Series.Distance, Clock.Timeouts(Match.Defense.Definition.Id),
             Clock.PlaySeconds, Clock.StopReason == ClockStopReason.Running
                 || Drive.LastResult is { StopsClock: false } && Clock.StopReason == ClockStopReason.ResultPresentation);
 
     private void Prepare()
     {
-        _presentation = _actionSeconds = 0; Kick = null;
+        _presentation = _actionSeconds = 0; Kick = null; SpecialTeams = null;
+        if (Timed.KickoffReceiverId != null && Clock.Phase == ClockPhase.PreSnap)
+        {
+            Timed.PrepareKickoff(); Drive.PrepareSpecialTeams(); Action = MatchAction.Kickoff;
+            SpecialTeams = new(true, 35, _random); SnapRemaining = 6; return;
+        }
         Action = HumanOnDefense ? MatchStrategy.Choose(Context()) : MatchAction.Scrimmage;
-        SnapRemaining = MatchStrategy.Cadence(Context(), 5 + _random.NextDouble() * 3);
+        SnapRemaining = Math.Max(6, MatchStrategy.Cadence(Context(), 6 + _random.NextDouble() * 2));
         if (Action == MatchAction.FieldGoal) Kick = new(Drive.Plays.LineOfScrimmage);
+        if (Action == MatchAction.Punt) SpecialTeams = new(false, Match.Series.OwnYardLine, _random);
     }
 
     public bool SelectAction(MatchAction action)
     {
-        if (HumanOnDefense || Drive.Live || Drive.LastResult != null || Clock.Phase != ClockPhase.PreSnap) return false;
+        if (Action == MatchAction.Kickoff || HumanOnDefense || Drive.Live || Drive.LastResult != null || Clock.Phase != ClockPhase.PreSnap) return false;
         if (action == MatchAction.Punt && (Clock.IsOvertime || Match.Series.Down != 4)) return false;
         if (action == MatchAction.FieldGoal && FieldGoalAttempt.DistanceFrom(Drive.Plays.LineOfScrimmage) > FieldGoalAttempt.MaxDistance) return false;
+        if (action == MatchAction.Kickoff) return false;
         Action = action; Kick = action == MatchAction.FieldGoal ? new(Drive.Plays.LineOfScrimmage) : null;
+        SpecialTeams = action == MatchAction.Punt ? new(false, Match.Series.OwnYardLine, _random) : null;
         return true;
     }
 
@@ -93,6 +104,17 @@ public sealed class FullMatchSession
         if (Clock.Suspension != ClockSuspension.None || Timed.Finished) return;
         if (input.Timeout) Clock.TryTimeout(Match.User.Definition.Id);
         if (!HumanOnDefense && MatchStrategy.DefensiveTimeout(Context())) Clock.TryTimeout(Match.Opponent.Definition.Id);
+        if (Drive.Live && SpecialTeams is { } special)
+        {
+            if (!special.IsKickoff || special.Phase == SpecialTeamsPhase.Return) Timed.Advance(dt);
+            var movement = Constants.OrientDirection(_input.GetMovementDirection(),
+                Drive.Execution.ScreenRelativeDefensiveInput && UserReceivingKick);
+            special.Update(dt, movement, _input.IsSprintHeld(), UserReceivingKick);
+            if (special.Result is { } result)
+                Drive.ResolveSpecial(special.IsKickoff ? PlayEndReason.Kickoff : PlayEndReason.Punt,
+                    Math.Clamp(100 - result.ReceivingYard, 0, 100), result);
+            return;
+        }
         if (Drive.Live)
         {
             if (Action == MatchAction.Scrimmage) { Drive.Update(dt); return; }
@@ -123,10 +145,19 @@ public sealed class FullMatchSession
             if ((summary ? input.Ready : _presentation >= 1.25) && Drive.Continue()) Prepare();
             return;
         }
+        if (Action == MatchAction.Kickoff && SpecialTeams != null)
+        {
+            SnapRemaining -= dt;
+            if (input.Ready || UserReceivingKick && SnapRemaining <= 0)
+            {
+                if (Timed.Advance(0, "special.kickoff") != null) SpecialTeams.Start();
+            }
+            return;
+        }
         if (HumanOnDefense)
         {
             if (input.Call is >= 0 and < 10) Drive.SelectDefense(DefensivePlaybook.All[input.Call.Value].Id);
-            if (input.Ready) SnapRemaining = Math.Min(SnapRemaining, .35);
+            if (input.Ready) SnapRemaining = 0;
         }
         else
         {
@@ -145,13 +176,15 @@ public sealed class FullMatchSession
         {
             // A timeout can invalidate a previously safe kneel plan.
             Action = MatchStrategy.Choose(Context());
-            SnapRemaining = Math.Min(SnapRemaining, Clock.PlaySeconds - .05);
+            if (Action == MatchAction.Punt && SpecialTeams == null) SpecialTeams = new(false, Match.Series.OwnYardLine, _random);
+            if (Action != MatchAction.Punt) SpecialTeams = null;
             SnapRemaining -= dt;
         }
         if (!(HumanOnDefense ? SnapRemaining <= 0 : input.Ready)) return;
         if (Action == MatchAction.Scrimmage) { Drive.Snap(); return; }
         if (Timed.Advance(0, $"special.{Action.ToString().ToLowerInvariant()}") == null) return;
         _actionSeconds = 0;
+        if (Action == MatchAction.Punt) SpecialTeams!.Start();
         if (Action == MatchAction.FieldGoal)
         {
             Kick = new(Drive.Plays.LineOfScrimmage);

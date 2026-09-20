@@ -6,7 +6,7 @@ namespace RetroQB.Rendering;
 /// <summary>A broadcast matchup card shown once before each game's opening drive.</summary>
 public static class PregameRenderer
 {
-    public static void Draw(OffensiveTeamAttributes offense, DefensiveTeamAttributes defense, SeasonStage stage)
+    public static void Draw(OffensiveTeamAttributes offense, DefensiveTeamAttributes defense, SeasonStage stage, string rulesText = "FIRST TO 21 WINS")
     {
         float scale = Math.Min(1.25f, Math.Min((Raylib.GetScreenWidth() - 48) / 920f,
             (Raylib.GetScreenHeight() - 48) / 540f));
@@ -62,6 +62,6 @@ public static class PregameRenderer
         Text(report.Strength, 48, 373, 824, 24, Palette.Gold);
         Text(report.Tip, 48, 411, 824, 17, Palette.White);
         Text("PRESS ENTER TO TAKE THE FIELD", 32, 468, 856, 23, Palette.White);
-        Text("FIRST TO 21 WINS", 32, 505, 856, 13, Palette.Muted);
+        Text(rulesText, 32, 505, 856, 13, Palette.Muted);
     }
 }

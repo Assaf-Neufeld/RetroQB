@@ -7,6 +7,8 @@ public sealed class TimedMatch
 {
     public MatchState Match { get; }
     public MatchClock Clock { get; }
+    public bool SpecialTeamsEnabled { get; }
+    public string? KickoffReceiverId { get; private set; }
     public string? WinnerId { get; private set; }
     public bool Finished => Clock.Phase == ClockPhase.Finished;
     public int OvertimePair { get; private set; }
@@ -15,10 +17,12 @@ public sealed class TimedMatch
 
     public TimedMatch(TeamDefinition user, TeamDefinition opponent, string openingReceiverId,
         SeasonStage stage = SeasonStage.RegularSeason, DriveStart? start = null,
-        double quarterSeconds = 180, double playSeconds = 20)
+        double quarterSeconds = 180, double playSeconds = 20, int regulationPeriods = 4, bool specialTeams = false)
     {
         Match = new(user, opponent, openingReceiverId, stage, start);
-        Clock = new(user.Id, opponent.Id, quarterSeconds, playSeconds);
+        Clock = new(user.Id, opponent.Id, quarterSeconds, playSeconds, regulationPeriods);
+        SpecialTeamsEnabled = specialTeams;
+        if (specialTeams) KickoffReceiverId = openingReceiverId;
     }
 
     public PlayStart? Advance(double dt, string? snapCallId = null, string? timeoutTeamId = null)
@@ -56,6 +60,8 @@ public sealed class TimedMatch
         Clock.EndPlay(result.StopsClock);
         if (Clock.PendingPeriodEnd) CompletePeriod();
         else if (Clock.IsOvertime && result.DriveEnded) CompleteOvertimeAttempt();
+        else if (SpecialTeamsEnabled && result.Points > 0 && !Finished && !Clock.IsOvertime)
+            KickoffReceiverId = result.NextPossession!.TeamId;
         return result;
     }
 
@@ -69,27 +75,33 @@ public sealed class TimedMatch
 
     private void CompletePeriod()
     {
-        switch (Clock.Quarter)
+        if (Clock.Quarter == Clock.RegulationPeriods)
         {
-            case 1: case 3:
-                Clock.StartPeriod(Clock.Quarter + 1);
-                break;
-            case 2:
-                Match.StartPossession(Match.SecondHalfReceiverId, new());
-                Clock.StartPeriod(3);
-                break;
-            case 4:
-                if (!TryFinish())
-                {
-                    OvertimePair = OvertimeAttempt = 1;
-                    OvertimeOpenerId = Match.OpeningReceiverId;
-                    Match.StartPossession(OvertimeOpenerId, new(75));
-                    Clock.StartOvertime(true);
-                }
-                break;
+            if (!TryFinish())
+            {
+                KickoffReceiverId = null;
+                OvertimePair = OvertimeAttempt = 1;
+                OvertimeOpenerId = Match.OpeningReceiverId;
+                Match.StartPossession(OvertimeOpenerId, new(75));
+                Clock.StartOvertime(true);
+            }
+            return;
         }
+        int next = Clock.Quarter + 1;
+        if (next == Clock.HalftimePeriod)
+        {
+            Match.StartPossession(Match.SecondHalfReceiverId, new());
+            if (SpecialTeamsEnabled) KickoffReceiverId = Match.SecondHalfReceiverId;
+        }
+        Clock.StartPeriod(next);
     }
 
+    internal void PrepareKickoff()
+    {
+        if (KickoffReceiverId is not { } receiver || Clock.Phase != ClockPhase.PreSnap) return;
+        Match.StartPossession(Match.Other(receiver).Definition.Id, new(35));
+        KickoffReceiverId = null;
+    }
     private void CompleteOvertimeAttempt()
     {
         if (OvertimeAttempt == 1)
@@ -112,7 +124,7 @@ public sealed class TimedMatch
         if (Match.User.Score == Match.Opponent.Score) return false;
         WinnerId = Match.User.Score > Match.Opponent.Score ? Match.User.Definition.Id : Match.Opponent.Definition.Id;
         Match.CancelPendingPossession();
-        Clock.Finish();
+        KickoffReceiverId = null; Clock.Finish();
         return true;
     }
 
@@ -120,5 +132,6 @@ public sealed class TimedMatch
     {
         Match.Reset(); Clock.Reset(); WinnerId = OvertimeOpenerId = null;
         OvertimePair = OvertimeAttempt = 0;
+        KickoffReceiverId = SpecialTeamsEnabled ? Match.OpeningReceiverId : null;
     }
 }

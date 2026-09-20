@@ -36,7 +36,7 @@ public sealed class GameSession : IDisposable
     public void StartTimedSeason(int seed, string playerName, PlayerRecordStore? store = null, double quarterSeconds = 180,
         TeamDefinition? team = null)
         => TimedSeason = new(_input, seed, team ?? TeamCatalog.Get("ballers"), playerName,
-            store ?? new PlayerRecordStore(MatchRuleset.TwoSidedTimed), quarterSeconds);
+            store ?? new PlayerRecordStore(MatchRuleset.TwoSidedTimed), quarterSeconds, arcadeRules: _timedDefault);
 
     public void UpdateTimedMatch(float dt, MatchInput input, bool accept = false)
     {
@@ -344,6 +344,7 @@ public sealed class GameSession : IDisposable
     {
         if (FullMatch != null)
         {
+            FullMatch.Drive.Execution.ScreenRelativeDefensiveInput = true;
             bool focused = _input.IsFocused();
             if (_timedDefault && focused && TimedSeason is { Complete: true, Saved: true } && _input.IsEnterPressed())
             {

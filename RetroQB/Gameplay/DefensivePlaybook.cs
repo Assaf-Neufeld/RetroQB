@@ -106,7 +106,7 @@ public static class DefensivePlayResolver
         if (CoverageSchemePolicies.IsUnderneathManCoverage(definition.Scheme))
         {
             foreach (var d in defenders.Where(d => !d.IsRusher))
-            { d.CoverageReceiverIndex = -1; d.ZoneRole = CoverageRole.None; }
+            { d.ZoneRole = CoverageRole.None; }
             var fs = defenders.Single(d => d.Slot == DefenderSlot.FS);
             var ss = defenders.Single(d => d.Slot == DefenderSlot.SS);
             if (definition.Scheme != CoverageScheme.Cover0) fs.ZoneRole = CoverageRole.DeepMiddle;
@@ -114,7 +114,14 @@ public static class DefensivePlayResolver
             { fs.ZoneRole = CoverageRole.DeepLeft; ss.ZoneRole = CoverageRole.DeepRight; }
             if (definition.Scheme == CoverageScheme.Robber) ss.ZoneRole = CoverageRole.Robber;
             var available = defenders.Where(d => !d.IsRusher && d.ZoneRole == CoverageRole.None).ToList();
-            foreach (var r in receivers.OrderBy(r => r.Position.X))
+            var remainingTargets = receivers.Select(r => r.Index).ToHashSet();
+            // Keep the factory's personnel matchups wherever the selected shell permits them.
+            foreach (var d in available.ToArray())
+            {
+                if (remainingTargets.Remove(d.CoverageReceiverIndex)) available.Remove(d);
+                else d.CoverageReceiverIndex = -1;
+            }
+            foreach (var r in receivers.Where(r => remainingTargets.Contains(r.Index)).OrderBy(r => r.Position.X))
             {
                 var d = available.MinBy(d => Vector2.DistanceSquared(d.Position, r.Position))
                     ?? throw new InvalidOperationException("Pressure package lacks a replacement matchup.");
@@ -130,7 +137,15 @@ public static class DefensivePlayResolver
         }
         var qb = new Quarterback(offense.Quarterback); var ball = new Ball(qb.Position);
         ball.SetHeld(qb, BallState.HeldByQB);
-        return new(definition, defenders.Select(d => new DefensiveAssignment(d.Slot, d.PositionRole, d.Position,
+        // Replacement matchups are final now. Position man DBs over that actual target,
+        // including nickel/safety replacements taking a tight end after pressure changes.
+        float manDbDepth = defenders.Single(d => d.Slot == DefenderSlot.CB1).Position.Y;
+        Vector2 Alignment(Defender d) => CoverageSchemePolicies.IsUnderneathManCoverage(definition.Scheme)
+            && !d.IsRusher && d.ZoneRole == CoverageRole.None
+            && d.PositionRole == DefensivePosition.DB && d.CoverageReceiverIndex >= 0
+                ? new Vector2(receivers.Single(r => r.Index == d.CoverageReceiverIndex).Position.X, manDbDepth)
+                : d.Position;
+        return new(definition, defenders.Select(d => new DefensiveAssignment(d.Slot, d.PositionRole, Alignment(d),
             d.IsRusher, d.CoverageReceiverIndex, d.ZoneRole, d.IsPressCoverage, d.ZoneJitterX, d.RushLaneOffsetX,
             d.IsRusher ? qb.Position : d.ZoneRole != CoverageRole.None ? ZoneCoverage.GetZoneTarget(d, receivers, context.LineOfScrimmage)
                 : receivers.Single(r => r.Index == d.CoverageReceiverIndex).Position,

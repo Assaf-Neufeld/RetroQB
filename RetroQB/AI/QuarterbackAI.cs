@@ -32,15 +32,29 @@ public sealed class QuarterbackAI(float readInterval = .25f)
             // Under pressure, search the short outlet without waiting for another progression cycle.
             if (pressure < 5)
                 foreach (var outlet in view.Reads.OrderBy(r => Vector2.DistanceSquared(r.Position, view.Position)))
-                    if (outlet.Eligible && !outlet.Blocking && IsOpen(view.Position, outlet, view.Defenders))
+                    if (outlet.Eligible && !outlet.Blocking && outlet.Position.Y >= view.LineOfScrimmage
+                        && IsOpen(view.Position, outlet, view.Defenders))
                         return new(Vector2.Zero, ReceiverIndex: outlet.Index);
         }
-        if (pressure < 4 || _elapsed > 2.5f || view.Position.Y > view.LineOfScrimmage)
+        if (pressure < 4 || _elapsed > 4f || view.Position.Y > view.LineOfScrimmage || view.Reads.Count == 0 && _elapsed > 2.5f)
         {
             float x = view.Defenders.Count == 0 ? 0 : MathF.Sign(view.Position.X - view.Defenders.MinBy(p => Vector2.DistanceSquared(p, view.Position)).X);
             if (view.Position.X < 4) x = 1;
             if (view.Position.X > Constants.FieldWidth - 4) x = -1;
-            return new(Vector2.Normalize(new Vector2(x * .7f, 1)), true);
+            // Slide away from early pressure while preserving a legal passing window.
+            float forward = _elapsed < 3.5f && view.Reads.Count > 0 && view.Position.Y <= view.LineOfScrimmage ? -.25f : 1;
+            return new(Vector2.Normalize(new Vector2(x * .7f, forward)), true);
+        }
+        // Keep active feet: establish depth, then slide toward the current read without crossing the line.
+        float depth = view.LineOfScrimmage - view.Position.Y;
+        if (depth < 7 && _elapsed < .9f) return new(-Vector2.UnitY, PocketMovement: true);
+        if (_elapsed > .5f && view.Reads.Count > 0)
+        {
+            float targetX = Math.Clamp(view.Reads[_read % view.Reads.Count].Position.X, 13, Constants.FieldWidth - 13);
+            float x = MathF.Sign(targetX - view.Position.X);
+            float y = depth > 9 ? 1 : depth < 4 ? -1 : 0;
+            if (MathF.Abs(targetX - view.Position.X) > 2 || y != 0)
+                return new(new Vector2(x, y), PocketMovement: true);
         }
         return new(Vector2.Zero);
     }
@@ -53,7 +67,9 @@ public sealed class QuarterbackAI(float readInterval = .25f)
         return defenders.All(p =>
         {
             float t = length < .01f ? 1 : Math.Clamp(Vector2.Dot(p - qb, lane) / length, 0, 1);
-            return Vector2.Distance(p, target) > 2.8f && (t < .12f || Vector2.Distance(p, qb + lane * t) > 2.2f);
+            // Deep throws can arc over underneath defenders; nearby rushers still affect throw accuracy.
+            bool underneath = lane.Length() > 14 && t < .65f;
+            return Vector2.Distance(p, target) > 2.8f && (t < .12f || underneath || Vector2.Distance(p, qb + lane * t) > 2.2f);
         });
     }
 }

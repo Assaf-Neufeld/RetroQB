@@ -24,11 +24,25 @@ public static class MatchRules
         bool incomplete = ended.Reason is PlayEndReason.Incomplete or PlayEndReason.PassDefended;
         float spot = incomplete ? play.Series.OwnYardLine : ended.Spot;
         float gain = incomplete || ended.Reason is PlayEndReason.Interception or PlayEndReason.Punt
-            or PlayEndReason.FieldGoalGood or PlayEndReason.FieldGoalMissed ? 0 : MathF.Min(100, spot) - play.Series.OwnYardLine;
+            or PlayEndReason.FieldGoalGood or PlayEndReason.FieldGoalMissed or PlayEndReason.Kickoff ? 0 : MathF.Min(100, spot) - play.Series.OwnYardLine;
 
         PlayResolution Change(string team, float yard, string? scorer = null, int points = 0, bool downs = false)
             => new(ended, gain, downs, scorer, points, new(team, new(yard, 1, MathF.Min(10, 100 - yard))), null);
 
+        if (ended.KickReturn is { } kick)
+        {
+            if (ended.Reason is not (PlayEndReason.Punt or PlayEndReason.Kickoff)
+                || ended.Reason == PlayEndReason.Punt && play.Series.Down != 4
+                || !float.IsFinite(kick.ReceivingYard) || kick.ReceivingYard < 0 || kick.ReceivingYard > 100
+                || kick.Touchdown && (kick.Touchback || kick.ReceivingYard != 100)
+                || kick.Touchback && kick.ReceivingYard != 20
+                || kick.Safety && (kick.Touchback || kick.Touchdown || kick.ReceivingYard != 0))
+                throw new ArgumentException("Invalid special-teams result.");
+            if (kick.Safety) return Change(play.OffenseId, 20, play.OffenseId, 2);
+            return kick.Touchdown ? Change(play.OffenseId, 20, defenseId, 7)
+                : Change(defenseId, kick.Touchback ? 20 : Math.Clamp(kick.ReceivingYard, 1, 99));
+        }
+        if (ended.Reason == PlayEndReason.Kickoff) throw new ArgumentException("Kickoff requires its return result.");
         switch (ended.Reason)
         {
             case PlayEndReason.Touchdown:

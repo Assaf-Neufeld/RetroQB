@@ -121,7 +121,7 @@ internal sealed class SidelineRenderer
             int chainX = x + width - 5;
             int targetY = (int)Constants.WorldToScreenY(firstDownLine);
             int startY = (int)Constants.WorldToScreenY(firstDownLine - 10f);
-            for (int linkY = targetY; linkY <= startY; linkY += 3)
+            for (int linkY = Math.Min(targetY, startY); linkY <= Math.Max(targetY, startY); linkY += 3)
                 Raylib.DrawPixel(chainX, linkY, new Color(88, 80, 65, 255));
             foreach (int poleY in new[] { targetY, startY })
             {

@@ -179,7 +179,7 @@ public sealed class MenuRenderer
         int stageLineSpacing = denseTeamLayout ? 14 : compactLayout ? 16 : 18;
         string[] stageLines = {
             "1. Regular Season  ->  2. Playoff  ->  3. Super Bowl",
-            "Four timed quarters. Play offense AND defense!"
+            "Two 2-minute halves. Offense, defense, special teams!"
         };
         foreach (var line in stageLines)
         {

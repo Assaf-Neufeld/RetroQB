@@ -7,7 +7,7 @@ namespace RetroQB.Gameplay;
 public enum PlayEndReason
 {
     Tackle, Sack, OutOfBounds, Incomplete, PassDefended, Interception,
-    Touchdown, Safety, FieldGoalGood, FieldGoalMissed, Punt, Kneel
+    Touchdown, Safety, FieldGoalGood, FieldGoalMissed, Punt, Kneel, Kickoff
 }
 
 public enum RushingRole { None, Quarterback, RunningBack }
@@ -18,7 +18,7 @@ public sealed record OffensivePlayStats(bool PassAttempt = false, bool Completio
 /// <param name="Spot">Yards from the possessing offense's own goal, including end zones (-10 to 110).</param>
 public sealed record PlayEnded(long PlayId, string OffenseId, PlayEndReason Reason, float Spot,
     OffensivePlayStats? Stats = null, DefenderSlot? Defender = null, CoverageScheme? Coverage = null,
-    DefenderSlot? ControlledDefender = null);
+    DefenderSlot? ControlledDefender = null, KickReturnResult? KickReturn = null);
 
 public sealed record PlayStart(long Id, string OffenseId, string CallId, DriveStart Series);
 public sealed record NextPossession(string TeamId, DriveStart Series);

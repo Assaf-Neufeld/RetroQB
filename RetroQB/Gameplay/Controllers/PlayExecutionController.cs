@@ -21,6 +21,7 @@ public sealed class PlayExecutionController
     private float _passReadyRemaining;
     public ControlContext Control { get; set; } = new();
     public OffensiveIntent? CpuIntent { get; set; }
+    public bool ScreenRelativeDefensiveInput { get; set; }
     public string ExchangeStatus => !Backfield.AllowsThrow ? "FAKE" : _passReadyRemaining > 0 ? "PASS READY" : "";
     public void Reset()
     {
@@ -54,6 +55,7 @@ public sealed class PlayExecutionController
         float dt)
     {
         Vector2 humanInput = _input.GetMovementDirection();
+        humanInput = Constants.OrientDirection(humanInput, ScreenRelativeDefensiveInput && Control.HumanOnDefense);
         OffensiveIntent intent = Control.HumanOnDefense ? CpuIntent ?? new(Vector2.Zero)
             : new(humanInput, _input.IsSprintHeld());
         Vector2 inputDir = intent.Movement;
@@ -107,6 +109,8 @@ public sealed class PlayExecutionController
         if (ball.State == BallState.HeldByQB)
         {
             qb.ApplyInput(inputDir, sprint, false, dt);
+            if (Control.HumanOnDefense && CpuIntent?.PocketMovement == true && qb.Velocity.Length() > 3.2f)
+                qb.Velocity = Vector2.Normalize(qb.Velocity) * 3.2f;
         }
         else if (ball.State == BallState.HeldByReceiver)
         {

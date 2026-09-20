@@ -34,7 +34,7 @@ public static class FootballRenderer
         screen = new Vector2(MathF.Round(screen.X), MathF.Round(screen.Y));
 
         Vector2 direction = flying && velocity.LengthSquared() > 0.1f
-            ? Vector2.Normalize(new Vector2(velocity.X, -velocity.Y)) : Vector2.UnitX;
+            ? Vector2.Normalize(new Vector2(velocity.X, Constants.OffenseDownScreen ? velocity.Y : -velocity.Y)) : Vector2.UnitX;
         Vector2 cross = new(-direction.Y, direction.X);
         float scale = held ? 0.78f : 1f + Math.Clamp(height, 0f, 3f) * 0.06f;
         float length = 8f * scale;

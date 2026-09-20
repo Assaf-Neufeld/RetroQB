@@ -131,10 +131,13 @@ public sealed class DefensiveDrive
         SelectedDefense = null!; Prepare();
     }
 
-    public PlayResolution ResolveSpecial(PlayEndReason reason, float spot)
+    internal void PrepareSpecialTeams() { Prepare(); LastResult = null; }
+
+    public PlayResolution ResolveSpecial(PlayEndReason reason, float spot, KickReturnResult? kickReturn = null)
     {
+        LastReplay = null;
         LastResult = Timed.Resolve(new(Match.ActivePlay!.Id, Match.ActivePlay.OffenseId, reason, spot,
-            reason == PlayEndReason.Kneel ? new(Rush: RushingRole.Quarterback) : null));
+            reason == PlayEndReason.Kneel ? new(Rush: RushingRole.Quarterback) : null, KickReturn: kickReturn));
         return LastResult;
     }
 
@@ -193,7 +196,7 @@ public sealed class DefensiveDrive
         {
             var reads = _priorities.GetPriorityIndices().Select(i => Actors.Receivers[i])
                 .Select(r => new ReceiverRead(r.Index, r.Position, r.Velocity, r.Eligible, r.IsBlocking,
-                    Plays.SelectedPlay.Id == "pass.four-verts" ? 10 : -10)).ToArray();
+                    Plays.SelectedPlay.Id == "pass.four-verts" ? 10 : 2)).ToArray();
             // The authored fake must start before any throw is considered.
             bool ready = Execution.Backfield.AllowsThrow
                 && (Plays.SelectedPlay.Backfield.Action != BackfieldAction.PlayAction || LiveSeconds > dt);

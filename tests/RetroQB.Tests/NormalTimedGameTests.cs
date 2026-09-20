@@ -33,7 +33,11 @@ public sealed class NormalTimedGameTests : IDisposable
         game.Update(0); Assert.NotNull(game.TimedSeason); Assert.True(game.TimedSeason.Pregame);
         input.Team = null; input.Text = "Release Player";
         game.Update(0); input.Enter = false;
-        Assert.False(game.TimedSeason.Pregame); Assert.Equal("Release Player", game.TimedSeason.PlayerName);
+        Assert.False(game.TimedSeason.Pregame); Assert.Empty(game.TimedSeason.PlayerName);
+        Assert.Equal(120, game.FullMatch!.Clock.RemainingSeconds); Assert.Equal(2, game.FullMatch.Clock.RegulationPeriods);
+        for (int tick = 0; game.FullMatch.Drive.LastResult == null && tick < 1800; tick++) game.Update(1f / 60);
+        Assert.NotNull(game.FullMatch.Drive.LastResult);
+        input.Space = true; game.Update(0); input.Space = false;
         return (game, input, records);
     }
 
@@ -44,12 +48,16 @@ public sealed class NormalTimedGameTests : IDisposable
         {
             var s = game.FullMatch!;
             Assert.Equal(OffensiveTeamPresets.All[2].Name, s.Match.User.Definition.Name);
-            Assert.Equal(MatchRuleset.TwoSidedTimed, s.Match.Ruleset); Assert.Equal(180, s.Clock.RemainingSeconds);
+            Assert.Equal(MatchRuleset.TwoSidedTimed, s.Match.Ruleset); Assert.InRange(s.Clock.RemainingSeconds, 100, 120);
             input.Space = true; game.Update(0); input.Space = false;
             s.Drive.Actors.Qb.Position = new(25, 111); game.Update(.01f);
             Assert.Equal(7, s.Match.User.Score); Assert.Equal(0, s.Match.Opponent.Score);
             input.Space = true; game.Update(0); input.Space = false;
-            Assert.True(s.HumanOnDefense); Assert.Equal(20, s.Match.Series.OwnYardLine);
+            Assert.Equal(MatchAction.Kickoff, s.Action); Assert.False(s.UserReceivingKick);
+            input.Space = true; game.Update(0); input.Space = false;
+            for (int tick = 0; s.Drive.LastResult == null && tick < 1800; tick++) game.Update(1f / 60);
+            input.Space = true; game.Update(0); input.Space = false;
+            Assert.True(s.HumanOnDefense); Assert.InRange(s.Match.Series.OwnYardLine, 1, 99);
             s.Match.User.Score = 21; game.Update(0); Assert.False(s.Timed.Finished);
         }
     }
@@ -74,10 +82,12 @@ public sealed class NormalTimedGameTests : IDisposable
         var (game, input, records) = Start(); using (game)
         {
             var s = game.FullMatch!; s.Match.Opponent.Score = 7;
-            s.Clock.StartPeriod(4); s.Timed.Continue(); s.Timed.Advance(0, "fixture.final"); s.Timed.Advance(180);
+            s.Clock.StartPeriod(2); s.Timed.Continue(); s.Timed.Advance(0, "fixture.final"); s.Timed.Advance(120);
             s.Drive.ResolveSpecial(PlayEndReason.Kneel, 19);
             input.Enter = true; game.Update(0);
-            Assert.True(game.TimedSeason!.Complete); Assert.True(game.TimedSeason.Saved);
+            Assert.True(game.TimedSeason!.Complete); Assert.False(game.TimedSeason.Saved);
+            Assert.Empty(records.GetLeaderboard()); input.Text = "Release Player"; game.Update(0);
+            Assert.True(game.TimedSeason.Saved);
             game.Update(0); Assert.Null(game.TimedSeason); Assert.Null(game.FullMatch);
             Assert.Single(records.GetLeaderboard());
             game.Update(0); Assert.NotNull(game.TimedSeason); Assert.True(game.TimedSeason.Pregame);

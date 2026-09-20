@@ -93,7 +93,7 @@ internal static class ReleaseVerification
             var user = TeamCatalog.Get("ballers"); var cpu = TeamCatalog.ForStage(stage);
             bool userOpens = index % 2 == 0;
             var input = new ScriptedInput();
-            var s = new FullMatchSession(input, seed, new(user, cpu, userOpens ? user.Id : cpu.Id, stage, quarterSeconds: defaultLength ? 180 : 15));
+            var s = new FullMatchSession(input, seed, new(user, cpu, userOpens ? user.Id : cpu.Id, stage, quarterSeconds: defaultLength ? 120 : 15, regulationPeriods: 2, specialTeams: true));
             int ticks = 0; string? failure = null; var clock = Stopwatch.StartNew();
             try
             {
@@ -101,6 +101,7 @@ internal static class ReleaseVerification
                 {
                     var d = s.Drive;
                     var delta = d.Execution.Control.HumanOnDefense ? (d.Actors.Ball.Holder?.Position ?? d.Actors.Ball.Position) - d.Linebacker.Position : Vector2.UnitY;
+                    if (s.SpecialTeams is { } special) delta = s.UserReceivingKick ? -Vector2.UnitY : special.Returner.Position - special.Coverage[special.ControlledCoverageIndex].Position;
                     input.Frame = new(Movement: delta.LengthSquared() > .01f ? Vector2.Normalize(delta) : Vector2.Zero, Sprint: true,
                         ThrowTarget: !s.HumanOnDefense && d.LiveSeconds > 1 ? d.Match.History.Count % 5 : null);
                     bool ready = !d.Live && (!defaultLength || !s.HumanOnDefense || d.LastResult != null || s.Clock.Phase == ClockPhase.PeriodBreak);
@@ -118,7 +119,7 @@ internal static class ReleaseVerification
                     || s.Match.History.Sum(h => h.ScoringTeamId == cpu.Id ? h.Points : 0) != s.Match.Opponent.Score) throw new InvalidOperationException("Score attribution mismatch.");
             }
             catch (Exception error) { failure = error.Message; failures++; }
-            var stats = s.Match.Opponent.Stats; int cpuDrives = s.Match.History.Count(h => h.Event.OffenseId == cpu.Id && h.DriveEnded);
+            var stats = s.Match.Opponent.Stats; int cpuDrives = s.Match.History.Count(h => h.Event.OffenseId == cpu.Id && h.DriveEnded && h.Event.Reason != PlayEndReason.Kickoff);
             rows.Add(new { Seed = seed, Stage = stage, UserOpens = userOpens, Failure = failure, SimulatedSeconds = ticks / 60.0,
                 WallSeconds = clock.Elapsed.TotalSeconds, s.Timed.WinnerId, s.Timed.OvertimePair, UserScore = s.Match.User.Score, CpuScore = s.Match.Opponent.Score,
                 CpuStats = stats, UserDefense = s.Match.User.DefenseStats, CpuDrives = cpuDrives, Plays = s.Match.History.Count,

@@ -8,25 +8,34 @@ namespace RetroQB.Rendering;
 public sealed class FullMatchRenderer
 {
     private readonly FieldRenderer _field = new();
+    private readonly TimedScoreboardRenderer _scoreboard = new();
     public void Draw(FullMatchSession session, TimedSeason? season = null, bool returnToMenu = false)
+    {
+        bool previous = Constants.OffenseDownScreen;
+        Constants.OffenseDownScreen = session.Replay.Clip?.MatchContext is { } replay
+            ? replay.OffenseId != replay.UserId : session.Drive.PreparedOffenseId != session.Match.User.Definition.Id;
+        try { DrawMatch(session, season, returnToMenu); }
+        finally { Constants.OffenseDownScreen = previous; }
+    }
+
+    private void DrawMatch(FullMatchSession session, TimedSeason? season, bool returnToMenu)
     {
         var d = session.Drive; var m = session.Match; var c = session.Clock;
         var frame = session.Replay.CurrentFrame; var recorded = session.Replay.Clip?.MatchContext;
         var offense = TeamCatalog.Get(recorded?.OffenseId ?? d.PreparedOffenseId);
         var defense = TeamCatalog.Get(recorded?.DefenseId ?? m.Other(d.PreparedOffenseId).Definition.Id);
-        var displayedClock = recorded?.Clock ?? c.Snapshot();
         bool defending = recorded != null ? recorded.ControlledDefender != null : d.Execution.Control.HumanOnDefense;
         var assignment = recorded?.Assignments ?? d.SelectedDefense;
         Constants.UpdateFieldRect(); Raylib.ClearBackground(Palette.Background);
         var scored = d.LastResult is { Points: > 0 } result ? result : null;
-        bool homeCheers = scored?.ScoringTeamId == offense.Id;
+        bool homeCheers = scored?.ScoringTeamId == m.User.Definition.Id;
         float celebration = scored == null ? 0 : Math.Clamp(1 - (float)session.PresentationSeconds / 3, 0, 1);
         var crowd = new CrowdBackdropState(homeCheers ? celebration : .25f, homeCheers ? .25f : celebration, .35f + celebration * .6f,
-            homeCheers ? offense.Name.ToUpperInvariant() : "", celebration, .5f, .5f,
+            homeCheers ? m.User.Definition.Name.ToUpperInvariant() : "", celebration, .5f, .5f,
             (float)session.PresentationSeconds, celebration, .5f, homeCheers, (float)(180 - c.RemainingSeconds));
         _field.DrawField(frame?.LineOfScrimmage ?? d.Plays.LineOfScrimmage, frame?.FirstDownLine ?? d.Plays.FirstDownLine,
-            offense.Name, offense.PrimaryColor, defense.Name, defense.PrimaryColor, recorded?.Stage ?? m.Stage,
-            frame != null ? default : crowd, frame?.Down ?? m.Series.Down);
+            m.User.Definition.Name, m.User.Definition.PrimaryColor, m.Opponent.Definition.Name, m.Opponent.Definition.PrimaryColor, recorded?.Stage ?? m.Stage,
+            frame != null ? default : crowd, frame?.Down ?? m.Series.Down, showPlayMarkers: frame != null || session.SpecialTeams == null);
         if (frame != null)
         {
             foreach (var actor in new[] { frame.Quarterback }.Concat(frame.Receivers).Concat(frame.Blockers).Concat(frame.Defenders))
@@ -37,6 +46,8 @@ public sealed class FullMatchRenderer
                     .Select(r => r.Position).DefaultIfEmpty(frame.Quarterback.Position).First();
             Ring(controlled);
         }
+        else if (session.SpecialTeams is { } teams)
+            SpecialTeamsRenderer.Draw(teams, offense.PrimaryColor, defense.PrimaryColor, session.UserReceivingKick);
         else if (session.Kick != null)
             FieldGoalRenderer.DrawOnField(session.Kick, d.Plays.LineOfScrimmage, offense.PrimaryColor, defense.PrimaryColor);
         else
@@ -66,8 +77,17 @@ public sealed class FullMatchRenderer
             while (fontSize > 11 && text.Split('\n').Any(line => Raylib.MeasureText(line, fontSize) > 290)) fontSize--;
             Raylib.DrawText(text, x, (int)(y * scale), fontSize, color ?? Palette.White);
         }
-        Text(frame != null ? "REPLAY" : defending ? "CALL DEFENSE" : "CALL OFFENSE", 20, 28, 25, Palette.Gold);
-        if (session.Kick != null && frame == null)
+        Text(frame != null ? "REPLAY" : session.SpecialTeams is { } st ? st.IsKickoff ? "KICKOFF" : "PUNT" : defending ? "CALL DEFENSE" : "CALL OFFENSE", 20, 28, 25, Palette.Gold);
+        if (session.SpecialTeams is { } special && frame == null)
+        {
+            Text(session.UserReceivingKick ? "YOU: KICK RETURNER" : "YOU: COVERAGE LINEBACKER", 20, 100, 18, Palette.Gold);
+            Text(special.Phase.ToString().ToUpperInvariant(), 20, 155, 22);
+            Text("Space: snap / kick / ready\nWASD / arrows: move\nShift: sprint\nReturn the kick or make the tackle", 20, 215, 16);
+            if (special.Phase == SpecialTeamsPhase.Setup && !special.IsKickoff && !session.UserReceivingKick)
+                Text("Choose a pass/run to cancel punt", 20, 335, 15);
+            if (special.Result is { } kr) Text(kr.Touchback ? "TOUCHBACK" : $"RETURN: {kr.ReturnYards} YARDS", 20, 390, 20, Palette.Gold);
+        }
+        else if (session.Kick != null && frame == null)
         {
             if (!session.HumanOnDefense) FieldGoalRenderer.DrawHud(session.Kick, timedMatch: true);
             else Text($"CPU FIELD GOAL\n{session.Kick.Distance:0} YARDS\n{session.Kick.Result}", 20, 100);
@@ -94,31 +114,31 @@ public sealed class FullMatchRenderer
             Text(session.Action == MatchAction.Scrimmage ? d.Plays.SelectedPlay.Name : session.Action.ToString(), 20, 570, 16, Palette.Gold);
         }
         Text("Space: snap / continue\nWASD / arrows: move | Shift: sprint\n1-5 live: throw | X: flip\nK: kick  B: punt  V: kneel\nC: timeout  Esc: pause\nF: replay  Z: restart\nTab: statistics | PgUp/PgDn: history", 20, 695, 15);
-        int seconds = (int)Math.Ceiling(displayedClock.RemainingSeconds);
-        Text(displayedClock.IsOvertime ? "OVERTIME" : $"Q{displayedClock.Quarter} {seconds / 60:00}:{seconds % 60:00}", right, 35, 27, Palette.Gold);
-        Text($"Play clock: {Math.Ceiling(displayedClock.PlaySeconds)}\n\n{m.User.Definition.Name} {recorded?.UserScore ?? m.User.Score}\n{m.Opponent.Definition.Name} {recorded?.OpponentScore ?? m.Opponent.Score}\n\n{(defending ? "CPU" : "YOUR")} BALL\nDown {frame?.Down ?? m.Series.Down} | {(frame != null ? frame.FirstDownLine - frame.LineOfScrimmage : m.Series.Distance):0.#} to go\nOwn {(frame != null ? frame.LineOfScrimmage - 10 : m.Series.OwnYardLine):0.#}\nTimeouts: {displayedClock.UserTimeouts} / {displayedClock.OpponentTimeouts}", right, 95, 20);
-        if (frame == null)
-        {
-            Text(session.Status, right, 385, 17, Palette.Gold);
-            Text(c.Suspension != 0 ? "PAUSED" : d.Live ? "LIVE" : d.LastResult != null ? $"{d.LastResult.Event.Reason} | {d.LastResult.Gain:0.#} yards" : "CHOOSE YOUR CALL", right, 435);
-            if (scored != null) Text($"{m.Team(scored.ScoringTeamId!).Definition.Name} +{scored.Points}", right, 475, 19, Palette.Gold);
-            if (!d.Live && (d.LastResult?.DriveEnded == true || c.Phase == ClockPhase.PeriodBreak)) Text("Space: continue", right, 520);
-            if (d.LastResult?.DriveEnded == true)
-            {
-                var drivePlays = m.History.Reverse().Skip(1).TakeWhile(p => !p.DriveEnded && p.Event.OffenseId == d.LastResult.Event.OffenseId).Prepend(d.LastResult).ToArray();
-                Text($"Drive: {drivePlays.Length} plays, {drivePlays.Sum(p => p.Gain):0} yd", right, 550, 15);
-            }
-            Text("RECENT PLAYS", right, 575, 16, Palette.Gold);
-            int row = 0;
-            foreach (var play in m.History.Reverse().Skip(session.SummaryOffset).Take(5))
-            {
-                var start = m.StartOf(play.Event.PlayId);
-                Text($"{m.Team(play.Event.OffenseId).Definition.Name} | {start.Series.Down} & {start.Series.Distance:0}\n{play.Event.Reason} {play.Gain:+0;-0;0} yd", right, 610 + row++ * 43, 13);
-            }
-        }
+        _scoreboard.Draw(session);
+        if (frame == null && d.LastResult?.DriveEnded == true && !session.ShowStatistics) DrawDriveSummary(session);
         if (season?.Pregame == true || season?.Complete == true) DrawSeason(season, returnToMenu);
         else if (season != null && session.Timed.Finished) Text("Enter: accept result\nZ: restart this matchup\nTab: inspect statistics", right, 820, 15, Palette.Gold);
         if (session.ShowStatistics) DrawStatistics(session, season);
+    }
+
+    private static void DrawDriveSummary(FullMatchSession session)
+    {
+        var summary = CompletedDriveSummary.From(session)!;
+        int width = Math.Min(600, Raylib.GetScreenWidth() - 40), height = 274;
+        int x = (Raylib.GetScreenWidth() - width) / 2, y = (Raylib.GetScreenHeight() - height) / 2;
+        Raylib.DrawRectangle(x + 5, y + 5, width, height, new Color(0, 0, 0, 150));
+        Raylib.DrawRectangle(x, y, width, height, new Color(12, 20, 30, 248));
+        Raylib.DrawRectangleLinesEx(new(x, y, width, height), 2, Palette.Gold);
+        void Line(string text, int offset, int size, Color color)
+        {
+            while (size > 12 && Raylib.MeasureText(text, size) > width - 40) size--;
+            Raylib.DrawText(text, x + 20, y + offset, size, color);
+        }
+        Line(summary.TeamName.ToUpperInvariant() + " | DRIVE RESULT", 20, 19, Palette.Cyan);
+        Line(summary.Outcome, 62, 28, Palette.Gold);
+        Line($"{summary.Plays} {(summary.Plays == 1 ? "PLAY" : "PLAYS")}   {summary.Yards:0} YARDS   {summary.Points} POINTS", 108, 21, Palette.White);
+        Line(summary.Next, 153, 20, Palette.White);
+        Line(session.Timed.Finished ? "Enter: accept result | F: replay | Tab: stats" : "Space: continue | F: replay | Tab: stats", 218, 17, Palette.Gold);
     }
 
     private static void Ring(Vector2 world)
@@ -156,6 +176,21 @@ public sealed class FullMatchRenderer
 
     private static void DrawSeason(TimedSeason season, bool returnToMenu)
     {
+        if (season.Pregame)
+        {
+            PregameRenderer.Draw(season.Team.Offense, season.Current.Match.Opponent.DefensiveAttributes, season.Stage,
+                season.Current.Clock.RegulationPeriods == 2
+                    ? "TWO 2-MINUTE HALVES  /  YOU RECEIVE FIRST  /  NAME ENTRY AFTER THE SEASON"
+                    : "FOUR TIMED QUARTERS  /  PLAY OFFENSE AND DEFENSE");
+            return;
+        }
+        if (season.Complete && !season.Saved)
+        {
+            var teams = OffensiveTeamPresets.GetMenuTeams(true);
+            new MenuRenderer().DrawNameEntry(teams.ToList().FindIndex(t => t.Name == season.Team.Name), teams, season.PlayerName,
+                season.StorageMessage, season.Leaderboard, true);
+            return;
+        }
         Panel(season.Complete ? season.Summary.IsChampion ? "SUPER BOWL CHAMPION" : "SEASON COMPLETE" : season.Stage.GetDisplayName());
         int y = 100;
         void Line(string text, Color? color = null)
@@ -164,27 +199,10 @@ public sealed class FullMatchRenderer
             while (size > 12 && Raylib.MeasureText(text, size) > Raylib.GetScreenWidth() - 80) size--;
             Raylib.DrawText(text, 40, y, size, color ?? Palette.White); y += 38;
         }
-        if (season.Pregame)
-        {
-            Line($"Player: {season.PlayerName}_", Palette.Gold);
-            if (season.Completed.Count == 0) Line("Type your name. Backspace edits. Enter starts the game.");
-            else Line("Enter: start the next matchup");
-            var cpu = season.Current.Match.Opponent;
-            Line($"{season.Team.Name} vs {cpu.Definition.Name}");
-            Line("Unit strength: 1.00 is standard");
-            Line($"Your offense: {season.Team.Offense.OverallRating:0.00} | Defense: {season.Team.Defense.OverallRating:0.00}");
-            Line($"Opponent offense: {cpu.OffensiveAttributes.OverallRating:0.00} | Defense: {cpu.DefensiveAttributes.OverallRating:0.00}");
-            Line("Four quarters | Control QB on offense and linebacker on defense");
-            Line("Your team receives first. Opponent receives after halftime.");
-        }
-        else
-        {
-            Line($"{season.PlayerName} | {season.Team.Name}");
-            Line($"Offensive dominance score: {season.Summary.ComputeDominanceScore():0.0}", Palette.Gold);
-            Line(season.Saved ? "Saved to the timed-season leaderboard" : season.StorageMessage, season.Saved ? Palette.Gold : Palette.Red);
-            if (!season.Saved) Line("Enter: retry save");
-            foreach (var entry in season.Leaderboard.Entries.Take(5)) Line($"#{entry.Rank} {entry.Name} | {entry.TeamName} | {entry.Score:0.0}");
-        }
+        Line($"{season.PlayerName} | {season.Team.Name}");
+        Line($"Offensive dominance score: {season.Summary.ComputeDominanceScore():0.0}", Palette.Gold);
+        Line("Saved to the timed-season leaderboard", Palette.Gold);
+        foreach (var entry in season.Leaderboard.Entries.Take(5)) Line($"#{entry.Rank} {entry.Name} | {entry.TeamName} | {entry.Score:0.0}");
         Line(season.Summary.BuildThreeStageScoreHistory(), Palette.Gold);
         if (season.Completed.Count > 0)
         {

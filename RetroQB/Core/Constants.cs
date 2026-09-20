@@ -22,6 +22,10 @@ public static class Constants
     // Dynamic field rect - call UpdateFieldRect each frame
     private static Rectangle _fieldRect = new(300, 40, 284, 640);
     public static Rectangle FieldRect => _fieldRect;
+    // Set only inside the timed renderer's scoped draw; simulation stays offense-relative.
+    public static bool OffenseDownScreen { get; set; }
+    public static Vector2 OrientDirection(Vector2 direction, bool downScreen)
+        => downScreen ? new(direction.X, -direction.Y) : direction;
     public static int SidelineApronWidth => Math.Max(12, (int)(FieldRect.Width * 0.06f));
 
     public static void UpdateFieldRect()
@@ -140,13 +144,13 @@ public static class Constants
     public static Vector2 WorldToScreen(Vector2 worldPos)
     {
         float x = FieldRect.X + (worldPos.X / FieldWidth) * FieldRect.Width;
-        float y = FieldRect.Y + FieldRect.Height - (worldPos.Y / FieldLength) * FieldRect.Height;
+        float y = WorldToScreenY(worldPos.Y);
         return new Vector2(x, y);
     }
 
     public static float WorldToScreenY(float worldY)
     {
-        return FieldRect.Y + FieldRect.Height - (worldY / FieldLength) * FieldRect.Height;
+        return FieldRect.Y + (OffenseDownScreen ? worldY / FieldLength : 1 - worldY / FieldLength) * FieldRect.Height;
     }
 
     public static float WorldToScreenX(float worldX)

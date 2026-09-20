@@ -35,14 +35,25 @@ public sealed class FieldRenderer
         string awayTeamName,
         Color awayTeamColor,
         SeasonStage stage,
-        CrowdBackdropState crowdState, int down = 1)
+        CrowdBackdropState crowdState, int down = 1, bool showPlayMarkers = true)
     {
-        _stadiumBackdrop.Draw(homeTeamColor, awayTeamColor, stage, crowdState);
-        _fieldSurface.Draw(homeTeamName, homeTeamColor, awayTeamName, awayTeamColor, lineOfScrimmage);
-        _fieldMarkings.Draw(lineOfScrimmage, firstDownLine);
+        bool downScreen = Constants.OffenseDownScreen;
+        // Stadium, turf and end-zone identities stay fixed; only play coordinates change direction.
+        Constants.OffenseDownScreen = false;
+        try
+        {
+            _stadiumBackdrop.Draw(homeTeamColor, awayTeamColor, stage, crowdState);
+            _fieldSurface.Draw(homeTeamName, homeTeamColor, awayTeamName, awayTeamColor,
+                downScreen ? Constants.FieldLength - lineOfScrimmage : lineOfScrimmage);
+        }
+        finally { Constants.OffenseDownScreen = downScreen; }
+        _fieldMarkings.Draw(lineOfScrimmage, firstDownLine, showPlayMarkers);
         _sidelineRenderer.Draw(homeTeamColor, awayTeamColor, lineOfScrimmage, firstDownLine, down);
         DrawBoundary();
-        _stadiumBackdrop.DrawChantOverlay(homeTeamColor, stage, crowdState);
+        // The celebration uses the same fixed seating coordinates as the stadium.
+        Constants.OffenseDownScreen = false;
+        try { _stadiumBackdrop.DrawChantOverlay(homeTeamColor, stage, crowdState); }
+        finally { Constants.OffenseDownScreen = downScreen; }
     }
 
     private static void DrawBoundary()

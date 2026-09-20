@@ -96,8 +96,8 @@ public static class PixelPlayerRenderer
     }
 
     private static Vector2 GetFacing(Vector2 velocity, PlayerVisualFrame visual) =>
-        visual.Facing.LengthSquared() > 0.01f ? visual.Facing :
-        velocity.LengthSquared() > 0.01f ? Vector2.Normalize(velocity) : Vector2.UnitY;
+        Constants.OrientDirection(visual.Facing.LengthSquared() > 0.01f ? visual.Facing :
+        velocity.LengthSquared() > 0.01f ? Vector2.Normalize(velocity) : Vector2.UnitY, Constants.OffenseDownScreen);
 
     private static void DrawArm(Vector2 shoulder, Vector2 hand, Color sleeve)
     {

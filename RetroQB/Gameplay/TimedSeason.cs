@@ -11,6 +11,7 @@ public sealed class TimedSeason
     private readonly IGameInput _input;
     private readonly int _seed;
     private readonly double _quarterSeconds;
+    private readonly bool _arcadeRules;
     private readonly PlayerRecordStore _store;
     private readonly List<CompletedTimedGame> _completed = new();
     private readonly Guid _seasonId = Guid.NewGuid();
@@ -26,19 +27,19 @@ public sealed class TimedSeason
     public LeaderboardSummary Leaderboard { get; private set; } = LeaderboardSummary.Empty;
     public string StorageMessage => _store.StatusMessage;
 
-    public TimedSeason(IGameInput input, int seed, TeamDefinition team, string playerName, PlayerRecordStore store, double quarterSeconds = 180)
+    public TimedSeason(IGameInput input, int seed, TeamDefinition team, string playerName, PlayerRecordStore store, double quarterSeconds = 180, bool arcadeRules = false)
     {
         if (store.Ruleset != MatchRuleset.TwoSidedTimed) throw new ArgumentException("Timed seasons need a timed leaderboard.");
         _input = input; _seed = seed; Team = team; PlayerName = PlayerRecordStore.NormalizeName(playerName);
-        _store = store; _quarterSeconds = quarterSeconds; Current = CreateMatch();
+        _store = store; _arcadeRules = arcadeRules; _quarterSeconds = arcadeRules ? 120 : quarterSeconds; Current = CreateMatch();
     }
 
     private FullMatchSession CreateMatch()
-        => new(_input, unchecked(_seed + (int)Stage * 7919), new(Team, TeamCatalog.ForStage(Stage), Team.Id, Stage, quarterSeconds: _quarterSeconds));
+        => new(_input, unchecked(_seed + (int)Stage * 7919), new(Team, TeamCatalog.ForStage(Stage), Team.Id, Stage, quarterSeconds: _quarterSeconds, regulationPeriods: _arcadeRules ? 2 : 4, specialTeams: _arcadeRules));
 
     public void EditName(string text, bool backspace)
     {
-        if (!Pregame || _completed.Count != 0) return;
+        if (!Complete || Saved) return;
         if (backspace && PlayerName.Length > 0) PlayerName = PlayerName[..^1];
         PlayerName = (PlayerName + text)[..Math.Min(18, PlayerName.Length + text.Length)];
     }
@@ -57,14 +58,14 @@ public sealed class TimedSeason
         if (Pregame)
         {
             PlayerName = PlayerRecordStore.NormalizeName(PlayerName);
-            if (PlayerName.Length > 0) Pregame = false;
+            Pregame = false;
             return;
         }
         if (!Current.Timed.Finished || Current.Replay.IsPlaying || Current.Clock.Suspension != ClockSuspension.None) return;
         var match = Current.Match;
         foreach (var result in match.History.Where(r => r.Event.OffenseId == Team.Id))
         {
-            if (result.Event.Reason is PlayEndReason.FieldGoalGood or PlayEndReason.FieldGoalMissed or PlayEndReason.Punt) continue;
+            if (result.Event.Reason is PlayEndReason.FieldGoalGood or PlayEndReason.FieldGoalMissed or PlayEndReason.Punt or PlayEndReason.Kickoff) continue;
             var play = match.StartOf(result.Event.PlayId);
             Summary.RecordPlay(new() { Down = play.Series.Down, Distance = play.Series.Distance, Gain = result.Gain,
                 WasRun = result.Event.Stats?.Rush is RushingRole.Quarterback or RushingRole.RunningBack,
@@ -82,6 +83,9 @@ public sealed class TimedSeason
 
     private void Save()
     {
+        PlayerName = PlayerRecordStore.NormalizeName(PlayerName);
+        Leaderboard = _store.BuildSummary(PlayerName, Summary.ComputeDominanceScore(), true);
+        if (PlayerName.Length == 0) return;
         Saved = _store.TrySaveSeasonResult(PlayerName, Team.Name, Summary.BuildThreeStageScoreHistory(),
             Summary.BuildDominanceScoreDetails(), Summary.ComputeDominanceScore(), out var leaderboard, _seasonId, Completed);
         Leaderboard = leaderboard;

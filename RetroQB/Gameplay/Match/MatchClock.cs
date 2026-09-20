@@ -7,7 +7,7 @@ public enum ClockSuspension { None = 0, Pause = 1, Replay = 2, FocusLoss = 4, St
 public readonly record struct ClockTick(bool PeriodExpired = false, bool PlayClockExpired = false);
 public sealed record MatchClockSnapshot(int Quarter, double RemainingSeconds, double PlaySeconds,
     ClockPhase Phase, ClockStopReason Reason, ClockSuspension Suspension, bool IsOvertime,
-    bool PendingPeriodEnd, int UserTimeouts, int OpponentTimeouts, int ExpiryCount);
+    bool PendingPeriodEnd, int UserTimeouts, int OpponentTimeouts, int ExpiryCount, int RegulationPeriods = 4);
 
 /// <summary>One owner of simulation time. UI, replay and callers never subtract wall time themselves.</summary>
 public sealed class MatchClock
@@ -16,6 +16,9 @@ public sealed class MatchClock
     private readonly double _quarterLength, _playLength;
     private int _userTimeouts = 3, _opponentTimeouts = 3;
     private bool _runAfterResult, _timeoutUsed, _delayPending;
+    public int RegulationPeriods { get; }
+    public int HalftimePeriod => RegulationPeriods / 2 + 1;
+    public string PeriodLabel => IsOvertime ? "OT" : RegulationPeriods == 2 ? $"H{Quarter}" : $"Q{Quarter}";
     public int Quarter { get; private set; } = 1;
     public double RemainingSeconds { get; private set; }
     public double PlaySeconds { get; private set; }
@@ -26,13 +29,15 @@ public sealed class MatchClock
     public bool IsOvertime { get; private set; }
     public int ExpiryCount { get; private set; }
 
-    public MatchClock(string userId, string opponentId, double quarterSeconds = 180, double playSeconds = 20)
+    public MatchClock(string userId, string opponentId, double quarterSeconds = 180, double playSeconds = 20, int regulationPeriods = 4)
     {
         if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(opponentId) || userId == opponentId)
             throw new ArgumentException("Clock requires distinct team IDs.");
         if (!double.IsFinite(quarterSeconds) || quarterSeconds <= 0 || !double.IsFinite(playSeconds) || playSeconds <= 0)
             throw new ArgumentOutOfRangeException(nameof(quarterSeconds));
         _userId = userId; _opponentId = opponentId;
+        if (regulationPeriods is not (2 or 4)) throw new ArgumentOutOfRangeException(nameof(regulationPeriods));
+        RegulationPeriods = regulationPeriods;
         _quarterLength = RemainingSeconds = quarterSeconds;
         _playLength = PlaySeconds = playSeconds;
     }
@@ -123,16 +128,16 @@ public sealed class MatchClock
 
     internal void StartPeriod(int quarter)
     {
-        if (quarter is < 2 or > 4 || Phase == ClockPhase.LivePlay)
+        if (quarter < 2 || quarter > RegulationPeriods || Phase == ClockPhase.LivePlay)
             throw new InvalidOperationException("Invalid regulation period transition.");
         Quarter = quarter; RemainingSeconds = _quarterLength;
         PrepareBreak();
-        if (quarter == 3) _userTimeouts = _opponentTimeouts = 3;
+        if (quarter == HalftimePeriod) _userTimeouts = _opponentTimeouts = 3;
     }
 
     internal void StartOvertime(bool newPair)
     {
-        IsOvertime = true; Quarter = 5; RemainingSeconds = 0;
+        IsOvertime = true; Quarter = RegulationPeriods + 1; RemainingSeconds = 0;
         PrepareBreak();
         if (newPair) _userTimeouts = _opponentTimeouts = 1;
     }
@@ -159,5 +164,5 @@ public sealed class MatchClock
     }
 
     public MatchClockSnapshot Snapshot() => new(Quarter, RemainingSeconds, PlaySeconds, Phase,
-        StopReason, Suspension, IsOvertime, PendingPeriodEnd, _userTimeouts, _opponentTimeouts, ExpiryCount);
+        StopReason, Suspension, IsOvertime, PendingPeriodEnd, _userTimeouts, _opponentTimeouts, ExpiryCount, RegulationPeriods);
 }

@@ -1,6 +1,6 @@
 namespace RetroQB.AI;
 
-public enum MatchAction { Scrimmage, FieldGoal, Punt, Kneel }
+public enum MatchAction { Scrimmage, FieldGoal, Punt, Kneel, Kickoff }
 public sealed record StrategyContext(int Quarter, double Seconds, bool Overtime, int ScoreMargin,
     int Down, float Yard, float Distance, int OpponentTimeouts, double PlaySeconds, bool ClockRunning);
 
@@ -30,7 +30,7 @@ public static class MatchStrategy
         if (range) return MatchAction.FieldGoal;
         if (c.Overtime || c.Quarter == 4 && c.Seconds <= 120 && c.ScoreMargin < 0
             || c.Yard >= 45 && c.Distance <= 2) return MatchAction.Scrimmage;
-        return MatchAction.Punt;
+        return c.Yard < 20 && c.Distance > 5 ? MatchAction.Punt : MatchAction.Scrimmage;
     }
 
     public static double Cadence(StrategyContext c, double normal)

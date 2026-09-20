@@ -5,11 +5,11 @@ namespace RetroQB.Rendering;
 
 internal sealed class FieldMarkingsRenderer
 {
-    public void Draw(float lineOfScrimmage, float firstDownLine)
+    public void Draw(float lineOfScrimmage, float firstDownLine, bool showPlayMarkers = true)
     {
         DrawYardLines();
         DrawHashMarks();
-        DrawMarkers(lineOfScrimmage, firstDownLine);
+        if (showPlayMarkers) DrawMarkers(lineOfScrimmage, firstDownLine);
     }
 
     private static void DrawYardLines()

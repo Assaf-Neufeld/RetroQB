@@ -22,6 +22,7 @@ internal sealed class FieldSurfaceRenderer
             float botWorld = Constants.EndZoneDepth + yard + 5f;
             float topScreen = Constants.WorldToScreenY(botWorld);  // world Y is inverted vs screen Y
             float botScreen = Constants.WorldToScreenY(topWorld);
+            if (topScreen > botScreen) (topScreen, botScreen) = (botScreen, topScreen);
 
             // Clamp to field rect
             topScreen = MathF.Max(topScreen, rect.Y);
@@ -136,8 +137,8 @@ internal sealed class FieldSurfaceRenderer
     private static void DrawEndZones(Rectangle rect, string homeTeamName, Color homeTeamColor, string awayTeamName, Color awayTeamColor)
     {
         float bottom = rect.Y + rect.Height;
-        float ownEndY = Constants.WorldToScreenY(Constants.EndZoneDepth);
-        float oppEndY = Constants.WorldToScreenY(Constants.EndZoneDepth + 100f);
+        float ownEndY = rect.Y + rect.Height * (1 - Constants.EndZoneDepth / Constants.FieldLength);
+        float oppEndY = rect.Y + rect.Height * Constants.EndZoneDepth / Constants.FieldLength;
 
         int endzoneHeight = (int)(bottom - ownEndY);
         int topEndzoneHeight = (int)(oppEndY - rect.Y);
