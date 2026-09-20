@@ -8,5 +8,7 @@ namespace RetroQB.Gameplay.Controllers;
 public sealed record PlayContact(PlayEndReason Reason, Vector2 Position, DefenderSlot? Defender = null)
 {
     public PlayEnded ToEvent(PlayStart start, OffensivePlayStats? stats = null, CoverageScheme? coverage = null)
-        => new(start.Id, start.OffenseId, Reason, Position.Y - FieldGeometry.EndZoneDepth, stats, Defender, coverage);
+        => new(start.Id, start.OffenseId, Reason,
+            Reason == PlayEndReason.Incomplete ? start.Series.OwnYardLine : Position.Y - FieldGeometry.EndZoneDepth,
+            stats, Defender, coverage);
 }

@@ -14,15 +14,19 @@ internal sealed record ScenarioDefinition(string Name, string PlayId, DriveStart
     public SeasonStage Stage { get; init; } = SeasonStage.RegularSeason;
     public bool Defending { get; init; }
     public bool ScriptedOffense { get; init; }
+    public bool FullMatch { get; init; }
     public static IReadOnlyList<string> Names { get; } = Array.AsReadOnly(new[]
     {
         "offense-pass", "offense-run", "offense-play-action", "offense-field-goal", "offense-replay",
         "defense-drive", "defense-calls", "defense-control-base", "defense-control-nickel",
-        "defense-quick", "defense-deep", "defense-play-action"
+        "defense-quick", "defense-deep", "defense-play-action",
+        "timed-game", "timed-short", "late-tying-kick", "late-protect-lead", "overtime-pairs"
     });
 
     public static ScenarioDefinition Get(string name) => name switch
     {
+        "timed-game" or "timed-short" or "late-tying-kick" or "late-protect-lead" or "overtime-pairs"
+            => new(name, "", new()) { FullMatch = true },
         "defense-drive" => new(name, "", new()) { Defending = true },
         "defense-calls" => new(name, "", new()) { Defending = true },
         "defense-quick" => new(name, "pass.mesh", new()) { Defending = true },

@@ -45,6 +45,14 @@ public sealed class FieldGoalAttempt
     }
     public static float DistanceFrom(float lineOfScrimmage) => FieldGeometry.OpponentGoalLine - lineOfScrimmage + 17f;
 
+    internal void BeginCpuFlight(bool good)
+    {
+        if (Phase != KickPhase.Setup) throw new InvalidOperationException("CPU kick already started.");
+        Power = 1; SnapProgress = 1; LateralError = good ? 0 : 2;
+        IsGood = good; Result = good ? "FIELD GOAL GOOD! +3" : "WIDE RIGHT";
+        Phase = KickPhase.Flight;
+    }
+
     public void PressSpace()
     {
         switch (Phase)

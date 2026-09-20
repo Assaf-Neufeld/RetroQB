@@ -48,6 +48,8 @@ public sealed class InputManager : IGameInput
     public bool IsReplayPressed() => Raylib.IsKeyPressed(KeyboardKey.F);
     public bool IsTimeoutPressed() => Raylib.IsKeyPressed(KeyboardKey.C);
     public bool IsPausePressed() => Raylib.IsKeyPressed(KeyboardKey.P);
+    public bool IsPuntPressed() => Raylib.IsKeyPressed(KeyboardKey.B);
+    public bool IsKneelPressed() => Raylib.IsKeyPressed(KeyboardKey.V);
     public int? GetDefensivePlaySelection() => GetPassPlaySelection();
     public bool IsReplaySkipPressed() => Raylib.IsKeyPressed(KeyboardKey.Space);
     public bool IsRestartPressed() => Raylib.IsKeyPressed(KeyboardKey.Z);

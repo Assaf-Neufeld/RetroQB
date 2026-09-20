@@ -15,6 +15,15 @@ namespace RetroQB.Gameplay;
 /// </summary>
 public sealed class GameSession : IDisposable
 {
+    public FullMatchSession? FullMatch { get; private set; }
+    private readonly FullMatchRenderer _fullMatchRenderer = new();
+    public void StartTimedMatch(int seed, double quarterSeconds = 180, TimedMatch? match = null)
+    {
+        var user = TeamCatalog.Get("ballers"); var cpu = TeamCatalog.ForStage(SeasonStage.RegularSeason);
+        FullMatch = new(_input, seed, match ?? new(user, cpu, user.Id, quarterSeconds: quarterSeconds));
+    }
+
+    public void UpdateTimedMatch(float dt, MatchInput input) => FullMatch!.Update(dt, input);
     private const int WinningScore = 21;
 
     // Core managers
@@ -312,6 +321,14 @@ public sealed class GameSession : IDisposable
 
     public void Update(float dt)
     {
+        if (FullMatch != null)
+        {
+            FullMatch.Update(dt, new(Call: _input.GetPassPlaySelection(), Run: _input.GetRunPlaySelection(),
+                Ready: _input.IsSpacePressed(), Kick: _input.IsFieldGoalPressed(), Punt: _input.IsPuntPressed(),
+                Kneel: _input.IsKneelPressed(), Flip: _input.IsFlipPlayPressed(), Timeout: _input.IsTimeoutPressed(),
+                Pause: _input.IsEscapePressed(), Replay: _input.IsReplayPressed(), Restart: _input.IsRestartPressed()));
+            return;
+        }
         if (CanRestartCurrentSession() && _input.IsRestartPressed())
         {
             HandleRestart();
@@ -961,6 +978,7 @@ public sealed class GameSession : IDisposable
 
     public void Draw()
     {
+        if (FullMatch != null) { _fullMatchRenderer.Draw(FullMatch); return; }
         Constants.UpdateFieldRect();
         _drawingController.SetStatsSnapshot(BuildStatsSnapshot());
         bool replayAvailable = _replayClipStore.HasClip;

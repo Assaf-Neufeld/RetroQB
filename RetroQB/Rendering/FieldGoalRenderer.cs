@@ -80,7 +80,7 @@ public static class FieldGoalRenderer
         FootballRenderer.Draw(ground, target - spot, BallState.InAir, height, flight * FieldGoalAttempt.FlightDuration);
     }
 
-    public static void DrawHud(FieldGoalAttempt kick)
+    public static void DrawHud(FieldGoalAttempt kick, bool timedMatch = false)
     {
         int x = (int)Constants.OuterMargin + 15;
         int y = (int)Constants.OuterMargin + 78;
@@ -101,8 +101,8 @@ public static class FieldGoalRenderer
         Info("Longer kick = less green", Palette.Muted, 12);
         Info("Red power = short kick", Palette.Muted, 12);
         Info("Early: right  |  Late: left", Palette.Muted, 12);
-        Info("Make: you +3, opponent +3", Palette.Muted, 12);
-        Info("Miss: opponent +7", Palette.Muted, 12);
+        Info(timedMatch ? "Make: kicking team +3" : "Make: you +3, opponent +3", Palette.Muted, 12);
+        Info(timedMatch ? "Miss: possession changes" : "Miss: opponent +7", Palette.Muted, 12);
         if (kick.Phase == KickPhase.Setup)
         {
             y += 12;
@@ -152,6 +152,8 @@ public static class FieldGoalRenderer
             _ => kick.Result
         };
         Center(prompt, 58, Palette.Gold);
-        Center(kick.Phase == KickPhase.Result ? $"AWAY +{kick.OpponentPoints}  |  ENTER: CONTINUE" : "PLAY FROZEN - TIME YOUR KICK", 78, Palette.Muted, 10);
+        Center(kick.Phase == KickPhase.Result
+            ? timedMatch ? "SPACE: CONTINUE" : $"AWAY +{kick.OpponentPoints}  |  ENTER: CONTINUE"
+            : timedMatch ? "LIVE KICK - TIME YOUR KICK" : "PLAY FROZEN - TIME YOUR KICK", 78, Palette.Muted, 10);
     }
 }

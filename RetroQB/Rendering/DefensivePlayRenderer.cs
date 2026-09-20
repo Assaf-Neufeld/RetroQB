@@ -65,7 +65,7 @@ public sealed class DefensivePlayRenderer
         Raylib.DrawText("Gold ring: your linebacker\nRed: rush   Blue: zone\nWhite: man assignment", right, 570, 16, Palette.White);
     }
 
-    private static void DrawAssignments(ResolvedDefensivePlay play)
+    internal static void DrawAssignments(ResolvedDefensivePlay play)
     {
         foreach (var job in play.Assignments)
         {
@@ -77,7 +77,7 @@ public sealed class DefensivePlayRenderer
         }
     }
 
-    private static void Text(string text, int x, int y)
+    internal static void Text(string text, int x, int y)
     {
         string line = "";
         foreach (string word in text.Split(' '))

@@ -255,13 +255,13 @@ Status: Ready to verify. Automated timing gates and visual captures pass; hands-
 
 **Acceptance gate**
 
-- [ ] `MATCH-01`: user touchdown -> opponent own-20 drive -> defensive stop -> user offense, preserving correct scores, identities, and spots.
-- [ ] `KICK-01`: made field goal adds only three to the kicker's team; missed kick adds none and gives the next offense the kick spot or own 20, whichever is farther upfield.
-- [ ] `KICK-02`: 40-yard net punt from own 30 yields opponent own 30; a punt reaching the end zone yields opponent own 20. No punt is offered except fourth down in regulation.
-- [ ] `KICK-03`: CPU kicks require no human meter input and are reproducible by seed/distance. The player's existing timing/accuracy rules still apply.
-- [ ] `MATCH-02`: a touchdown, interception, or missed field goal on the final play of Q2 records once, then halftime reception overrides the ordinary pending drive.
-- [ ] `MATCH-03`: a pass, run, or snapped field goal at Q4 0:00 finishes and can change the winner. A score of 21 during regulation never ends play early.
-- [ ] `MATCH-04`: a kneel consumes a down, applies its yardage/safety rules, and leaves the correct running-clock state.
+- [x] `MATCH-01`: user touchdown -> opponent own-20 drive -> defensive stop -> user offense, preserving correct scores, identities, and spots.
+- [x] `KICK-01`: made field goal adds only three to the kicker's team; missed kick adds none and gives the next offense the kick spot or own 20, whichever is farther upfield.
+- [x] `KICK-02`: 40-yard net punt from own 30 yields opponent own 30; a punt reaching the end zone yields opponent own 20. No punt is offered except fourth down in regulation.
+- [x] `KICK-03`: CPU kicks require no human meter input and are reproducible by seed/distance. The player's existing timing/accuracy rules still apply.
+- [x] `MATCH-02`: a touchdown, interception, or missed field goal on the final play of Q2 records once, then halftime reception overrides the ordinary pending drive.
+- [x] `MATCH-03`: a pass, run, or snapped field goal at Q4 0:00 finishes and can change the winner. A score of 21 during regulation never ends play early.
+- [x] `MATCH-04`: a kneel consumes a down, applies its yardage/safety rules, and leaves the correct running-clock state.
 
 **Playable checkpoint C:** finish a short-clock development match with both possessions, a quarter break, halftime, and a regulation winner. Also play through at least one default three-minute quarter to check pacing.
 
@@ -275,12 +275,12 @@ Status: Ready to verify. Automated timing gates and visual captures pass; hands-
 
 **Acceptance gate**
 
-- [ ] `LATE-01`: trailing three in reachable field-goal range on fourth down with little time favors the tying kick; trailing four in the same fixture requires a touchdown attempt.
-- [ ] `LATE-02`: a trailing defense with remaining timeouts uses one after an in-bounds dead ball when the offense could otherwise exhaust the clock. It does not spend multiple timeouts on that same event.
-- [ ] `LATE-03`: a leading CPU kneels when the remaining downs/timeouts/play clocks guarantee clock exhaustion; it does not kneel when that calculation fails.
-- [ ] `OT-01`: tied regulation starts at the opponent's 25. Both attempts finish, punts are disabled, and an interception ends the attempt without creating a normal field-position drive.
-- [ ] `OT-02`: tied pair -> reversed opening order -> decisive pair produces exactly one match result. Overtime has play-clock enforcement and correctly replenished timeout allowances.
-- [ ] Restart from regulation, halftime, and overtime resets current-game score, Q1 time, timeouts, AI state, and pending events, preserving the original opening receiver and earlier season stages.
+- [x] `LATE-01`: trailing three in reachable field-goal range on fourth down with little time favors the tying kick; trailing four in the same fixture requires a touchdown attempt.
+- [x] `LATE-02`: a trailing defense with remaining timeouts uses one after an in-bounds dead ball when the offense could otherwise exhaust the clock. It does not spend multiple timeouts on that same event.
+- [x] `LATE-03`: a leading CPU kneels when the remaining downs/timeouts/play clocks guarantee clock exhaustion; it does not kneel when that calculation fails.
+- [x] `OT-01`: tied regulation starts at the opponent's 25. Both attempts finish, punts are disabled, and an interception ends the attempt without creating a normal field-position drive.
+- [x] `OT-02`: tied pair -> reversed opening order -> decisive pair produces exactly one match result. Overtime has play-clock enforcement and correctly replenished timeout allowances.
+- [x] Restart from regulation, halftime, and overtime resets current-game score, Q1 time, timeouts, AI state, and pending events, preserving the original opening receiver and earlier season stages.
 
 **Demonstration:** reproduce a tying-kick decision, a protected lead, and a tied overtime pair followed by a decisive pair. Use configured scenario states instead of waiting through multiple full games.
 
