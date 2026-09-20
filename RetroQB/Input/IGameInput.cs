@@ -3,6 +3,7 @@ namespace RetroQB.Input;
 /// <summary>Input boundary shared by the keyboard and scripted development runs.</summary>
 public interface IGameInput : IPlayerMovementInput
 {
+    bool IsFocused() => true;
     bool IsEscapePressed() => false;
     bool IsEnterPressed() => false;
     bool IsFlipPlayPressed() => false;

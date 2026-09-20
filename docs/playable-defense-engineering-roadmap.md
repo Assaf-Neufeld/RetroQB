@@ -323,18 +323,18 @@ Status: Ready to verify. Automated timing gates and visual captures pass; hands-
 
 **Automated release gate**
 
-- [ ] Build and full regression suite pass; obsolete synthetic scoring and first-to-21 expectations have intentional replacements.
-- [ ] Catalog sweep: every offensive call × own 20 / midfield / opponent 10 × three stages × three fixed seeds. Generated calls additionally use ten fixed generation seeds. Validate legal actions, finite positions, terminating plays, correct result attribution, and valid field bounds.
-- [ ] A representative run, quick pass, deep pass, play-action, tight formation, and spread set run at 30/60/120 Hz with no stalls, illegal throws, duplicate events, or lost control ownership.
-- [ ] Run at least 20 seeded short-clock full matches covering both opening receivers and all stage profiles, plus explicit overtime and final-play fixtures. Zero crashes, invalid states, duplicate scoring, or scenario time-budget failures.
-- [ ] Save compatibility/recovery, restart, replay suspension, and UI evidence from M10 are complete for the release candidate.
+- [x] Build and full regression suite pass; obsolete synthetic scoring and first-to-21 expectations have intentional replacements.
+- [x] Catalog sweep: every offensive call × own 20 / midfield / opponent 10 × three stages × three fixed seeds. Generated calls additionally use ten fixed generation seeds. Validate legal actions, finite positions, terminating plays, correct result attribution, and valid field bounds.
+- [x] A representative run, quick pass, deep pass, play-action, tight formation, and spread set run at 30/60/120 Hz with no stalls, illegal throws, duplicate events, or lost control ownership.
+- [x] Run at least 20 seeded short-clock full matches covering both opening receivers and all stage profiles, plus explicit overtime and final-play fixtures. Zero crashes, invalid states, duplicate scoring, or scenario time-budget failures.
+- [x] Save compatibility/recovery, restart, replay suspension, and UI evidence from M10 are complete for the release candidate.
 
 **Gameplay release gate**
 
 - [ ] Play at least one full default-length match per stage profile, including user opening on offense and on defense across the sample.
 - [ ] Record actual match duration and rate metrics. Agree and write the acceptable balance ranges before calling this gate verified; do not derive passing thresholds from the candidate's own output after the fact.
 - [ ] Record an explicit gameplay judgment for control responsiveness, ability to affect the play, CPU competence, defensive-call tradeoffs, and clock pacing. List unresolved issues with severity; any game-breaking issue blocks release.
-- [ ] Normal launch starts the complete timed two-sided game; no development setup is necessary to play defense or complete a season.
+- [x] Normal launch starts the complete timed two-sided game; no development setup is necessary to play defense or complete a season.
 
 **Evidence:** release test summary, scenario/seed matrix, screenshots, balance report, manual playtest notes, and final known limitations. No extra mechanics are added under the label of polish.
 
@@ -345,20 +345,20 @@ Fill one row per milestone as implementation proceeds. Store the detailed comman
 | Milestone | Status | Revision/change | Tests and result | Demo/evidence | Remaining issues |
 | --- | --- | --- | --- | --- | --- |
 | M0 | Verified | Working tree based on `0d877c9` | 346 baseline / 371 final passed; Debug and Release clean | [Verification report](phase0-verification.md) | No M0 blocker; clock/defense remain later work |
-| M1 | Not started | — | — | — | — |
-| M2 | Not started | — | — | — | — |
-| M3 | Not started | — | — | — | — |
-| M4 | Not started | — | — | — | — |
-| M5 | Not started | — | — | — | — |
-| M6 | Not started | — | — | — | — |
-| M7 | Not started | — | — | — | — |
-| M8 | Not started | — | — | — | — |
-| M9 | Not started | — | — | — | — |
-| M10 | Not started | — | — | — | — |
-| M11 | Not started | — | — | — | — |
+| M1 | Automated gates verified | `6363ec5` | See phase report | [Phase 1](phase1-verification.md) | Hands-on release review tracked in M11 |
+| M2 | Automated gates verified | `6363ec5` | See phase report | [Phase 1](phase1-verification.md) | Hands-on release review tracked in M11 |
+| M3 | Automated gates verified | `1393da0` | See phase report | [Phase 2](phase2-verification.md) | Hands-on release review tracked in M11 |
+| M4 | Automated gates verified | `1393da0` | See phase report | [Phase 2](phase2-verification.md) | Hands-on release review tracked in M11 |
+| M5 | Automated gates verified | `1393da0` | See phase report | [Phase 2](phase2-verification.md) | Hands-on release review tracked in M11 |
+| M6 | Automated gates verified | `a7e6a06` | See phase report | [Phase 3](phase3-verification.md) | Hands-on release review tracked in M11 |
+| M7 | Automated gates verified | `a7e6a06` | See phase report | [Phase 3](phase3-verification.md) | Hands-on release review tracked in M11 |
+| M8 | Automated gates verified | `be036f0` | See phase report | [Phase 4](phase4-verification.md) | Hands-on release review tracked in M11 |
+| M9 | Automated gates verified | `be036f0` | See phase report | [Phase 4](phase4-verification.md) | Hands-on release review tracked in M11 |
+| M10 | Automated gates verified | `82535cd` | See phase report | [Phase 5](phase5-verification.md) | Hands-on release review tracked in M11 |
+| M11 | Engineering verified; gameplay pending | Phase 6 working tree | 534 tests; 2,880 catalog cases; 27 matches | [Release report](phase6-verification.md) | Balance ranges and hands-on review pending |
 
 ## Scope boundaries
 
 Do not add defender switching, arbitrary player selection, manual tackle/swats, returns, fumbles, advanced audibles, new offensive playbooks, a permanent legacy mode, or full league-rule simulation to these milestones. If a milestone reveals that a proposed simplification is inadequate, record the concrete issue and update the design and its affected acceptance gates before implementing the replacement.
 
-The next engineering action is M1's team and possession foundations. Phase 0 is verified; later milestones remain unimplemented.
+Phases 0–5 are implemented. Phase 6 enables the normal timed game and passes the automated release matrix; the remaining action is the documented hands-on balance and pacing review.

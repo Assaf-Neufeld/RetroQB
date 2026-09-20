@@ -294,7 +294,7 @@ public sealed class DrawingController
         _hudRenderer.SetStatsSnapshot(snapshot);
     }
 
-    private void DrawRouteOverlay(IReadOnlyList<Receiver> receivers, IReadOnlyList<Blocker> blockers, PlayManager playManager)
+    internal static void DrawRouteOverlay(IReadOnlyList<Receiver> receivers, IReadOnlyList<Blocker> blockers, PlayManager playManager)
     {
         foreach (var receiver in receivers)
         {

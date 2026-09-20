@@ -17,7 +17,7 @@ internal static class TimedLayoutCapture
             foreach (var size in new[] { (1000, 700), (1280, 720), (1440, 900), (1920, 1080) })
             {
                 Raylib.SetWindowSize(size.Item1, size.Item2);
-                using var game = new GameSession(new ScriptedInput(), new Random(options.Seed), new PlayerRecordStore(Path.Combine(output, "unused-records.json")));
+                using var game = GameSession.CreateTimed(new ScriptedInput(), new Random(options.Seed), new PlayerRecordStore(Path.Combine(output, "unused-records.json"), MatchRuleset.TwoSidedTimed));
                 void Capture(string name)
                 {
                     var target = Raylib.LoadRenderTexture(size.Item1, size.Item2);
@@ -27,6 +27,7 @@ internal static class TimedLayoutCapture
                         throw new IOException("Layout export failed.");
                     Raylib.UnloadImage(image); Raylib.UnloadRenderTexture(target);
                 }
+                Capture("menu");
                 game.StartTimedSeason(options.Seed, "Layout Review", new PlayerRecordStore(Path.Combine(output, "isolated-records.json"), MatchRuleset.TwoSidedTimed));
                 Capture("pregame");
                 game.TimedSeason!.Accept(); Capture("offense");

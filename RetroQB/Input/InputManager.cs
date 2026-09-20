@@ -15,6 +15,7 @@ public interface IPlayerMovementInput
 public sealed class InputManager : IGameInput
 {
     public const int MaxPlayerNameLength = 18;
+    public bool IsFocused() => Raylib.IsWindowFocused();
 
     public Vector2 GetMovementDirection()
     {

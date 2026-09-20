@@ -1,207 +1,79 @@
-# 🏈 RetroQB
+# RetroQB
 
-**Call the play. Read the coverage. Survive the rush. Be the hero.**
+Call both sides of the ball in a top-down arcade football season. Lead the offense, then control one linebacker while the CPU runs its own drives. Win the Regular Season, Playoff, and Super Bowl to become champion.
 
-RetroQB is a fast, top-down American football game with animated pixel players, a detailed stadium, and a crowd that reacts to the action. Take control of the quarterback: choose a play, read the coverage, and throw on time or scramble out of trouble. Lead your team from the Regular Season through the Playoff to the Super Bowl against defenses that adapt to your decisions.
+![Offensive playcalling](screenshots/gameplay.png)
+![Defensive playcalling and linebacker assignment](screenshots/defense.png)
+![Offense and defense statistics](screenshots/statistics.png)
 
-It is part arcade football fantasy, part drive-management challenge, and part "please let my slot receiver win this route." 
+## Play
 
----
+Requires the .NET 10 SDK. Run from the repository root:
 
-## 📸 Screenshots
-
-<p align="center">
-  <img src="screenshots/gameplay.png" alt="RetroQB pre-snap gameplay with pixel players, route overlays, stadium seating, detailed sidelines, and the full scoreboard" width="1000"/>
-</p>
-
-<p align="center">
-  <em>Ballers vs. Scarlet Guard: read the routes, pick your target, and get ready for the snap.</em>
-</p>
-
-<!-- Add more screenshots as needed:
-<p align="center">
-  <img src="screenshots/touchdown.png" alt="Touchdown!" width="600"/>
-</p>
--->
-
----
-
-## 🎮 What makes it fun
-
-### Pick a play and commit
-Every snap starts with a decision. Do you dial up a quick pass, attack deep, or call a run and trust the blocking? RetroQB keeps play selection simple and readable, so the fun is in the choice: take the safe yards, hunt the big one, or try to outsmart the defense before the ball is even snapped.
-
-### Feel the game-day atmosphere
-A complete stadium bowl surrounds the field, with corner seating, tunnels, stairways, and fans wearing team colors, hats, and scarves. Benches, coaches, reserve players, and camera crews fill the sidelines. Crowd reactions ripple through the stands after big plays, while the lighting changes from warm regular-season evenings to the white-and-gold Super Bowl. A subtle retro background score and a full scoreboard round out game day.
-
-### Follow every throw and tackle
-Pixel players turn, run, release passes, reach for catches, and fall on contact. The football has a pointed silhouette, spinning laces, and a ground shadow that helps you follow its flight. Replays preserve those player poses and the final catch or tackle, so you can watch how the play unfolded.
-
-### Watch the defense adjust
-The defense is not there just to be decorative. Coverages change, blitz looks vary, and tougher stages bring smarter, nastier opponents. As you move from the Regular Season to the Playoff and then the Super Bowl, the defense starts feeling more prepared for what you want to do.
-
-### Live in the pocket
-Some plays are about rhythm. Some are about panic. RetroQB is built for both. Sometimes you plant, fire, and hit a clean route on time. Sometimes the edge collapses, your first read disappears, and you have to sprint out of danger and invent something.
-
-### Build a season one drive at a time
-You are trying to survive a full three-stage run:
-- **Regular Season** — a good place to settle in and find your timing
-- **Playoff** — stronger defenses, tighter windows, more pressure
-- **Super Bowl** — the meanest version of the game, with everything on the line
-
----
-
-## 🏈 Game flow
-
-1. **Choose a team** with its own offensive personality. Before each game, a matchup screen announces both teams, the season stage, and the opponent's top defensive strength. Press **Enter** to take the field.
-2. **Pick a play** before the snap — pass or run, safe or bold.
-3. **Read the defense** and identify your best option.
-4. **Snap the ball** and react fast.
-5. **Throw on time or take off running** if the pocket breaks down.
-6. **Manage the drive** across four downs and chase the end zone.
-7. **Advance through the season** by winning each stage.
-
-If you like football games where the tension comes from decisions more than button combos, this is the idea.
-
----
-
-## 🎯 A few reasons to come back for one more drive
-
-- **Quick decision-making** — pre-snap choices matter
-- **Readable receiver targeting** — eligible receivers are clearly labeled
-- **Run and pass variety** — not every drive has to look the same
-- **Replay support** — rewatch your best throw or your worst mistake
-- **Team variety** — 10 teams with distinct strengths in throwing power, accuracy, receiver speed and hands, running power and speed, and blocking
-- **Stage-based challenge** — the season arc gives every game a purpose
-
----
-
-## 🎮 Controls
-
-| Action | Key |
-|--------|-----|
-| Move | `WASD` or `Arrow Keys` |
-| Sprint | `Left Shift` |
-| Snap Ball | `Space` |
-| Select Field Goal (pre-snap) | `K` |
-| Throw Pass | `1` `2` `3` `4` `5` |
-| Replay Last Play (dead-ball) | `F` |
-| Restart Current Game (keep season progress) | `Z` |
-| Confirm / Next Drive / Continue | `Enter` |
-| Pause | `Esc` |
-
-### Pre-snap play selection
-
-Press **K** before any snap to preview a 3-point field goal on the main game field,
-with the scoreboard visible and a compact timing meter.
-The kicking formation lines up at the current yard line. Distance includes the
-10-yard end zone and 7-yard snap; attempts beyond 60 yards are out of range.
-Press **Space** to snap, just like a normal play, or **Esc** to return to the playbook.
-The ball travels from center to holder, then the players freeze and a timing meter
-appears beside the kicker. Press **Space** to start the power meter, again to lock power, and a third time
-to kick as the returning marker reaches the green accuracy zone. Both meters have
-a green success zone in the center, orange near-miss bands, and red outer edges.
-Longer attempts have narrower green zones. Locking power outside green leaves the
-kick short; on accuracy, early timing goes right and late timing goes left.
-If you wait too long, the meter locks at the red edge and the attempt misses.
-A make gives **3 points to both teams**. A miss gives you **0** and the opponent **7 points**.
-Both end the drive. **Enter** accepts the result and continues to the drive summary.
-Kicks have fixed ability, no wind, and no random misses. Touchdowns still earn **7**.
-
-The playbook contains **100 calls**, with **10 pass and 10 run choices** selected for each
-situation. Calls are organized by concept category and formation, with personnel and
-coaching guidance for the selected play. New shotgun, pistol, two-TE and two-back sets
-include fullback lead blocks, staged routes and real play-action fakes.
-See the [playbook guide](docs/playbook-expansion.md) for formations and selection details.
-
-At the team menu, use **Up/Down** or **1–9 / 0** to select any of the ten teams, then press **Enter**. Press **G** to enter the secret-team password. All ten teams and their skills are visible together in two columns.
-
-| Action | Key |
-|--------|-----|
-| Select pass play | `1`-`0` |
-| Select run play | `Q`-`P` |
-| Flip selected play | `X` |
-
----
-
-## 🧠 Quick tips
-
-- **Do not wait forever** — the rush is coming
-- **Throw where a receiver is going** — not where they are standing
-- **Use the run game** — it helps when the defense starts selling out against the pass
-- **Respect tight coverage** — forcing hero throws is how drives die
-- **Scramble with purpose** — a smart run can be better than a bad pass
-
----
-
-## ⚙️ Technical details
-
-### Quick start
-
-```bash
+```powershell
 dotnet run
 ```
 
-### Requirements
+Choose one of ten teams with Up/Down or 1–9/0, then press Enter. G opens the secret-team password prompt. Enter your player name on the matchup screen and press Enter to play.
 
-- .NET 10 SDK
-- Windows x64 target for publish output
+Each game has four three-minute quarters, a 20-second play clock, and three timeouts per half. Possession changes put you on the other side of the ball. Touchdowns score seven, field goals three, and safeties two, only for the scoring team. Reaching 21 does not end the game. Tied regulation uses paired possessions from the opponent's 25; both teams get an attempt before a winner is decided.
 
-### Tech stack
+On offense, choose from ten situational pass calls and ten run calls drawn from the 100-call catalog. Route and blocking previews show the selected assignment. The CPU uses that catalog too. See the [playbook guide](docs/playbook-expansion.md).
 
-- C# / .NET 10
-- Raylib-cs 7.0.2
-- Single-project desktop game structure
+On defense, choose one of ten coverage/pressure calls. The highlighted player is always your linebacker: MLB in base personnel or OLB1 in nickel. Move and sprint to cover, contain, or pursue; contact handles tackles and pass interactions. The CPU snaps after its cadence, or Space signals that you are ready.
 
-### Project structure
+At a final result, Enter accepts the game and advances after a win. A loss or Super Bowl result saves the season; Enter then returns to team selection.
 
-```
-RetroQB.csproj    # Project file (run from repo root)
-RetroQB/
-├── AI/           # Coverage logic, defensive memory, targeting, line AI
-├── Core/         # Constants, game state, rules, field geometry
-├── Data/         # Offensive and defensive team presets and attributes
-├── Entities/     # QB, receivers, defenders, blockers, ball
-├── Gameplay/
-│   ├── Controllers/   # Play execution, blocking, tackling, menus, drawing
-│   └── Factories/     # Formations, defense creation, blitz decisions
-├── Input/        # Centralized input handling
-├── Rendering/    # Field, HUD, stadium, overlays, effects
-├── Routes/       # Route types, geometry, assignment, visualization
-└── Stats/        # Game and season stat tracking
-```
+## Controls
 
-### Build notes
+| Action | Key |
+| --- | --- |
+| Move / sprint | WASD or arrows / Left Shift |
+| Offensive pass call / defensive call before snap | 1–9, 0 |
+| Offensive run call before snap | Q W E R T Y U I O P |
+| Flip offensive call | X |
+| Snap / ready / continue a drive or period summary | Space |
+| Throw to receiver during a live offensive pass | 1–5 |
+| Select field goal / punt / kneel | K / B / V |
+| Timeout | C |
+| Pause | Esc |
+| Statistics / return | Tab |
+| Scroll recent plays | Page Up / Page Down |
+| Replay last play / skip replay | F / Space |
+| Restart current matchup, preserving accepted earlier games | Z |
+| Accept pregame or final result / return after saving | Enter |
 
-- Run regression tests with `dotnet test tests/RetroQB.Tests/RetroQB.Tests.csproj`.
-- Refresh the README screenshot from the current game renderer with `dotnet run --project tests/VisualPreview/VisualPreview.csproj -- --readme`. This captures a fresh pre-snap scene with the production HUD at 1440 × 900.
-- Leaderboards are stored in `%LOCALAPPDATA%\RetroQB\player-records.json`, with the previous save in `.bak`. If saving fails, the name-entry screen keeps your season score so you can fix disk access and press Enter to retry. Unreadable saves are preserved; restore a valid save or backup before retrying.
+Pause, statistics, replay, and loss of window focus suspend play. Restart is disabled after the completed season is saved.
 
-- Build from the repository root.
-- Open the `Football2DQB` folder in VS Code.
-- The workspace includes VS Code settings to avoid showing nested Git repos unnecessarily.
+For a field goal, press K before the snap, then Space to snap. Once the holder is ready, use Space to start the meter, lock power, and lock accuracy in the green zones. Distance includes the end zone and snap; attempts beyond 60 yards are unavailable. A miss changes possession without awarding points. Select another offensive call before snapping to leave kick setup. Punts are available only on fourth down in regulation.
 
-### Development verification scenarios
+## Records and current limitations
 
-Debug builds include repeatable offensive baselines with isolated temporary saves:
+Records live at `%LOCALAPPDATA%\RetroQB\player-records.json`, with a `.bak` backup. Version 2 preserves legacy records and ranks timed seasons separately. Detailed game results include both units' statistics and controlled-linebacker contributions. The season rating retains the existing offensive formula. Failed saves can be retried with Enter.
+
+This is an arcade ruleset: no kickoffs, returns, fumbles, extra-point attempts, defender switching, or manual tackle/swats. Punts use a fixed 40-yard net distance with touchbacks. CPU field goals use seeded distance-based outcomes; human kicks use the timing meter. Delay of game is enforced, but the full football penalty rulebook is not simulated.
+
+Phase 6 automated verification is documented in the [release report](docs/phase6-verification.md). Hands-on balance, defensive influence, and pacing review remain pending; automated simulations do not establish those qualities.
+
+## Development
+
+C# / .NET 10, Raylib-cs 7.0.2; publish target Windows x64.
 
 ```powershell
-dotnet run -- --scenario offense-pass --seed 101
-dotnet run -- --scenario offense-replay --seed 101 --headless --output artifacts/replay-check
+dotnet build
+dotnet test tests/RetroQB.Tests/RetroQB.Tests.csproj
+dotnet build -c Release
 ```
 
-Available scenarios: `offense-pass`, `offense-run`, `offense-play-action`,
-`offense-field-goal`, and `offense-replay`. Use `--capture` instead of `--headless`
-for hidden-window screenshots. These runs use scripted controls; normal startup
-without arguments is unchanged. Release builds reject scenario arguments.
-See the [Phase 0 verification report](docs/phase0-verification.md) for results,
-saved traces, and reproduction instructions.
+Debug-only reproducible verification:
 
-### Created with
+```powershell
+dotnet run -- --scenario release-catalog --headless --output artifacts/phase6/candidate
+dotnet run -- --scenario release-matches --headless --output artifacts/phase6/candidate
+dotnet run -- --scenario release-default --headless --output artifacts/phase6/candidate
+dotnet run -- --scenario timed-layout --capture --output artifacts/phase6/layouts
+```
 
-- Visual Studio Code
-- OpenAI Codex
+The release matrix freezes its seeds internally. Layout capture exports menu, pregame, offense, defense, statistics, kicking, halftime, overtime, final, and replay screens at four sizes. README images use its 1440×900 captures.
 
----
-
-*The crowd is loud, the pocket is shrinking, and somebody has to make the read.*
+Other fixtures include `timed-short`, `late-tying-kick`, `late-protect-lead`, `overtime-pairs`, and `timed-season-short`. Original `offense-*` fixtures retain isolated legacy regression adapters. Normal startup always uses timed two-sided seasons; Release builds reject scenario arguments.

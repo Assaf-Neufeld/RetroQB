@@ -2,12 +2,12 @@ using RetroQB.Gameplay;
 
 namespace RetroQB.AI;
 
-/// <summary>Initial supported CPU call set; expansion to the full catalog is a later gate.</summary>
+/// <summary>Seeded run/pass selection over the catalog verified by the release sweep.</summary>
 public sealed class OffensiveCoordinator(Random random)
 {
-    public static IReadOnlyList<string> Passes { get; } = Array.AsReadOnly(new[]
-        { "pass.mesh", "pass.slant-flat", "pass.four-verts", "pass.gun-doubles.pa-cross" });
-    public static IReadOnlyList<string> Runs { get; } = Array.AsReadOnly(new[] { "run.hb-dive" });
+    private static readonly PlayCatalog Catalog = PlaybookBuilder.BuildCatalog();
+    public static IReadOnlyList<string> Passes { get; } = Array.AsReadOnly(Catalog.Plays.Where(p => p.Family == PlayType.Pass).Select(p => p.Id).ToArray());
+    public static IReadOnlyList<string> Runs { get; } = Array.AsReadOnly(Catalog.Plays.Where(p => p.Family == PlayType.Run).Select(p => p.Id).ToArray());
     public string Select(DriveStart series, CpuTendencies tendencies)
     {
         float chance = Math.Clamp(tendencies.PassPreference + (series.Distance > 7 && series.Down >= 3 ? .25f : 0), .15f, .85f);

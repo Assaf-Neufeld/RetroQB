@@ -15,6 +15,13 @@ namespace RetroQB.Gameplay;
 /// </summary>
 public sealed class GameSession : IDisposable
 {
+    private bool _timedDefault;
+    /// <summary>Normal launch with injectable input/storage for release verification.</summary>
+    public static GameSession CreateTimed(IGameInput input, Random random, PlayerRecordStore records)
+    {
+        if (records.Ruleset != MatchRuleset.TwoSidedTimed) throw new ArgumentException("Normal play requires timed-season records.");
+        return new(input, random, records) { _timedDefault = true };
+    }
     private FullMatchSession? _fullMatch;
     public FullMatchSession? FullMatch => TimedSeason?.Current ?? _fullMatch;
     public TimedSeason? TimedSeason { get; private set; }
@@ -132,6 +139,8 @@ public sealed class GameSession : IDisposable
         new ReplayPlayer(),
         new ReplayStateHandler())
     {
+        _timedDefault = true;
+        _playerRecordStore = new PlayerRecordStore(MatchRuleset.TwoSidedTimed);
     }
 
     public GameSession(IGameInput input, Random rng, PlayerRecordStore recordStore) : this(
@@ -335,12 +344,28 @@ public sealed class GameSession : IDisposable
     {
         if (FullMatch != null)
         {
+            bool focused = _input.IsFocused();
+            if (_timedDefault && focused && TimedSeason is { Complete: true, Saved: true } && _input.IsEnterPressed())
+            {
+                _playerName = TimedSeason.PlayerName;
+                TimedSeason = null; _fullMatch = null; _stateManager.SetState(GameState.MainMenu);
+                return;
+            }
             TimedSeason?.EditName(_input.ReadTextInput(18), _input.IsBackspacePressed());
-            UpdateTimedMatch(dt, new(Call: _input.GetPassPlaySelection(), Run: _input.GetRunPlaySelection(),
+            var input = new MatchInput(Call: _input.GetPassPlaySelection(), Run: _input.GetRunPlaySelection(),
                 Ready: _input.IsSpacePressed(), Kick: _input.IsFieldGoalPressed(), Punt: _input.IsPuntPressed(),
                 Kneel: _input.IsKneelPressed(), Flip: _input.IsFlipPlayPressed(), Timeout: _input.IsTimeoutPressed(),
                 Pause: _input.IsEscapePressed(), Replay: _input.IsReplayPressed(), Restart: _input.IsRestartPressed(),
-                Statistics: _input.IsStatisticsPressed(), SummaryScroll: _input.IsDriveSummaryScrollOlderPressed() ? 1 : _input.IsDriveSummaryScrollNewerPressed() ? -1 : 0), _input.IsEnterPressed());
+                Statistics: _input.IsStatisticsPressed(), SummaryScroll: _input.IsDriveSummaryScrollOlderPressed() ? 1 : _input.IsDriveSummaryScrollNewerPressed() ? -1 : 0, Focused: focused);
+            bool accept = focused && _input.IsEnterPressed();
+            // Consume edges once; bounded physics steps prevent a slow frame from skipping contact.
+            float remaining = Math.Clamp(float.IsFinite(dt) ? dt : 0, 0, .1f);
+            do
+            {
+                float step = Math.Min(remaining, 1f / 60);
+                UpdateTimedMatch(step, input, accept); remaining -= step;
+                input = new(Focused: focused); accept = false;
+            } while (remaining > .00001f);
             return;
         }
         if (CanRestartCurrentSession() && _input.IsRestartPressed())
@@ -454,6 +479,12 @@ public sealed class GameSession : IDisposable
 
             _menuController.CloseLeaderboard();
             SetOffensiveTeam(teams[_selectedTeamIndex]);
+            if (_timedDefault)
+            {
+                var team = TeamCatalog.Selectable.Single(t => t.Name == _offensiveTeam.Name);
+                StartTimedSeason(_sessionRng.Next(), "", _playerRecordStore, team: team);
+                return;
+            }
             StartSeasonFromMenu();
         }
     }
@@ -992,7 +1023,7 @@ public sealed class GameSession : IDisposable
 
     public void Draw()
     {
-        if (FullMatch != null) { _fullMatchRenderer.Draw(FullMatch, TimedSeason); return; }
+        if (FullMatch != null) { _fullMatchRenderer.Draw(FullMatch, TimedSeason, _timedDefault); return; }
         Constants.UpdateFieldRect();
         _drawingController.SetStatsSnapshot(BuildStatsSnapshot());
         bool replayAvailable = _replayClipStore.HasClip;

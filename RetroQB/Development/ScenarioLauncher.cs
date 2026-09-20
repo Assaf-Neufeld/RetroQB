@@ -7,6 +7,7 @@ internal static class ScenarioLauncher
 {
     public static int Run(ScenarioLaunchOptions options)
     {
+        if (options.Definition.Name.StartsWith("release-")) return ReleaseVerification.Run(options);
         if (options.Definition.FullMatch) return FullMatchScenarioLauncher.Run(options);
         if (options.Definition.Defending) return DefenseScenarioLauncher.Run(options);
         using var run = new ScenarioRun(options.Definition, options.Seed, options.OutputDirectory);

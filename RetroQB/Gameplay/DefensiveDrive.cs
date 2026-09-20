@@ -71,7 +71,12 @@ public sealed class DefensiveDrive
     {
         string? retained = retainOffensiveCall ? Plays.SelectedPlay.Id : null;
         Plays.StartNewDrive(Match.Series);
-        Plays.SelectCatalogPlay(retained ?? _fixedCall ?? _coordinator.Select(Match.Series, Match.Offense.Tendencies), _random);
+        if (!HumanOnDefense && _fixedCall == null && !retainOffensiveCall)
+            Plays.SetCallSheet(SituationalCallSheet.Build(Plays.Catalog,
+                new(Match.Series.Down, Match.Series.Distance, Plays.LineOfScrimmage, Plays.FirstDownLine),
+                unchecked(_defenseSeed + Match.History.Count * 7919), Match.Offense.GetCallCount));
+        Plays.SelectCatalogPlay(retained ?? _fixedCall ?? (HumanOnDefense
+            ? _coordinator.Select(Match.Series, Match.Offense.Tendencies) : Plays.CallSheet.PassIds[0]), _random);
         PrepareActors();
     }
 

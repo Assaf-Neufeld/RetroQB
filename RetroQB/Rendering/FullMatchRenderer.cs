@@ -8,7 +8,7 @@ namespace RetroQB.Rendering;
 public sealed class FullMatchRenderer
 {
     private readonly FieldRenderer _field = new();
-    public void Draw(FullMatchSession session, TimedSeason? season = null)
+    public void Draw(FullMatchSession session, TimedSeason? season = null, bool returnToMenu = false)
     {
         var d = session.Drive; var m = session.Match; var c = session.Clock;
         var frame = session.Replay.CurrentFrame; var recorded = session.Replay.Clip?.MatchContext;
@@ -42,6 +42,13 @@ public sealed class FullMatchRenderer
         else
         {
             if (!d.Live && d.LastResult == null && defending) DefensivePlayRenderer.DrawAssignments(assignment);
+            if (!d.Live && d.LastResult == null && !defending)
+            {
+                var rect = Constants.FieldRect;
+                Raylib.BeginScissorMode((int)rect.X, (int)rect.Y, (int)rect.Width, (int)rect.Height);
+                RetroQB.Gameplay.Controllers.DrawingController.DrawRouteOverlay(d.Actors.Receivers, d.Actors.Blockers, d.Plays);
+                Raylib.EndScissorMode();
+            }
             foreach (var actor in d.Players) actor.Draw();
             d.Actors.Ball.Draw();
             Ring(defending ? d.Linebacker.Position : d.Actors.Ball.Holder?.Position ?? d.Actors.Qb.Position);
@@ -109,7 +116,7 @@ public sealed class FullMatchRenderer
                 Text($"{m.Team(play.Event.OffenseId).Definition.Name} | {start.Series.Down} & {start.Series.Distance:0}\n{play.Event.Reason} {play.Gain:+0;-0;0} yd", right, 610 + row++ * 43, 13);
             }
         }
-        if (season?.Pregame == true || season?.Complete == true) DrawSeason(season);
+        if (season?.Pregame == true || season?.Complete == true) DrawSeason(season, returnToMenu);
         else if (season != null && session.Timed.Finished) Text("Enter: accept result\nZ: restart this matchup\nTab: inspect statistics", right, 820, 15, Palette.Gold);
         if (session.ShowStatistics) DrawStatistics(session, season);
     }
@@ -147,7 +154,7 @@ public sealed class FullMatchRenderer
             Raylib.DrawText($"Accepted games: {season.Completed.Count} | {season.Summary.BuildThreeStageScoreHistory()}", 40, Raylib.GetScreenHeight() - 62, 17, Palette.Gold);
     }
 
-    private static void DrawSeason(TimedSeason season)
+    private static void DrawSeason(TimedSeason season, bool returnToMenu)
     {
         Panel(season.Complete ? season.Summary.IsChampion ? "SUPER BOWL CHAMPION" : "SEASON COMPLETE" : season.Stage.GetDisplayName());
         int y = 100;
@@ -185,5 +192,6 @@ public sealed class FullMatchRenderer
             Line($"Controlled linebacker tackles: {season.Completed.Sum(g => g.Defense.ControlledTackles)}");
         }
         if (season.Complete) Line("Tab: inspect final match statistics");
+        if (season is { Complete: true, Saved: true } && returnToMenu) Line("Enter: return to team selection");
     }
 }
