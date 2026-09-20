@@ -10,6 +10,7 @@ public static class MatchRules
             || defenseId == play.OffenseId) throw new ArgumentException("Play/team identity mismatch.");
         if (!Enum.IsDefined(ended.Reason) || !float.IsFinite(ended.Spot) || ended.Spot < -10 || ended.Spot > 110
             || ended.Defender.HasValue && !Enum.IsDefined(ended.Defender.Value)
+            || ended.ControlledDefender.HasValue && !Enum.IsDefined(ended.ControlledDefender.Value)
             || ended.Coverage.HasValue && !Enum.IsDefined(ended.Coverage.Value))
             throw new ArgumentException("Invalid terminal reason/spot.");
         var stats = ended.Stats ?? new();

@@ -17,7 +17,8 @@ public sealed record OffensivePlayStats(bool PassAttempt = false, bool Completio
 
 /// <param name="Spot">Yards from the possessing offense's own goal, including end zones (-10 to 110).</param>
 public sealed record PlayEnded(long PlayId, string OffenseId, PlayEndReason Reason, float Spot,
-    OffensivePlayStats? Stats = null, DefenderSlot? Defender = null, CoverageScheme? Coverage = null);
+    OffensivePlayStats? Stats = null, DefenderSlot? Defender = null, CoverageScheme? Coverage = null,
+    DefenderSlot? ControlledDefender = null);
 
 public sealed record PlayStart(long Id, string OffenseId, string CallId, DriveStart Series);
 public sealed record NextPossession(string TeamId, DriveStart Series);

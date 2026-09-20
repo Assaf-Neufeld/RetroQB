@@ -33,6 +33,7 @@ public sealed class DefensiveDrive
     public TimedMatch Timed { get; }
     public MatchState Match => Timed.Match;
     private readonly ReplayRecorder _recorder = new();
+    private ReplayMatchContext? _replayContext;
     public ReplayClip? LastReplay { get; private set; }
     public ResolvedDefensivePlay? LastReplayDefense { get; private set; }
     public int LastReplayControlledIndex { get; private set; }
@@ -79,7 +80,7 @@ public sealed class DefensiveDrive
         PreparedOffenseId = Match.PossessionId;
         Execution.Control = new(HumanOnDefense);
         var context = new DefensiveContext(Plays.LineOfScrimmage, Match.Series.Distance, Match.Series.Down,
-            Match.Offense.Score, Match.Defense.Score, SeasonStage.RegularSeason, Plays.FirstDownLine);
+            Match.Offense.Score, Match.Defense.Score, Match.Stage, Plays.FirstDownLine);
         var formation = new FormationFactory().CreateFormation(Plays.SelectedPlay, context.LineOfScrimmage, Match.Offense.OffensiveAttributes);
         var visible = VisibleOffense.From(formation);
         _defensiveCalls.Clear();
@@ -139,6 +140,9 @@ public sealed class DefensiveDrive
         Plays.StartPlay(); LastResult = null;
         Match.Defense.RecordCall(SelectedDefense.Definition.Id);
         _recorder.Begin(Match.History.Count + 1);
+        _replayContext = new(Match.PossessionId, Match.Defense.Definition.Id, Match.Stage, Timed.Clock.Snapshot(),
+            Match.User.Score, Match.Opponent.Score, Match.User.Definition.Id, Match.Opponent.Definition.Id,
+            HumanOnDefense ? Linebacker.Slot : null, HumanOnDefense ? Actors.Defenders.IndexOf(Linebacker) : -1, SelectedDefense, Plays.SelectedPlay.Name);
         CaptureReplay(0);
         return true;
     }
@@ -224,13 +228,15 @@ public sealed class DefensiveDrive
         CaptureReplay(0);
         LastReplayDefense = SelectedDefense;
         LastReplayControlledIndex = HumanOnDefense ? Actors.Defenders.IndexOf(Linebacker) : -1;
-        LastResult = Timed.Resolve(contact.ToEvent(Match.ActivePlay!, stats, Actors.CoverageScheme));
+        LastResult = Timed.Resolve(contact.ToEvent(Match.ActivePlay!, stats, Actors.CoverageScheme) with
+            { ControlledDefender = HumanOnDefense ? Linebacker.Slot : null });
         LastReplay = _recorder.FinalizeClip(contact.Reason switch
         {
             PlayEndReason.Touchdown => PlayOutcome.Touchdown, PlayEndReason.Interception => PlayOutcome.Interception,
             PlayEndReason.Incomplete => PlayOutcome.Incomplete, PlayEndReason.PassDefended => PlayOutcome.PassDefended,
             PlayEndReason.Safety => PlayOutcome.Safety, _ => PlayOutcome.Tackle
         });
+        if (LastReplay != null) LastReplay.MatchContext = _replayContext;
     }
 
     private void CaptureReplay(float dt) => _recorder.Capture(Actors.Qb, Actors.Ball, Actors.Receivers,

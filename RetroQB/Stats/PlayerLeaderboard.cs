@@ -6,7 +6,10 @@ public sealed record PlayerRecord(
     string ScoreHistory,
     string ScoreDetails,
     float DominanceScore,
-    DateTime LastUpdatedUtc);
+    DateTime LastUpdatedUtc,
+    RetroQB.Gameplay.MatchRuleset Ruleset = RetroQB.Gameplay.MatchRuleset.LegacyOffenseOnly,
+    Guid? SeasonId = null,
+    IReadOnlyList<RetroQB.Gameplay.CompletedTimedGame>? Games = null);
 
 public readonly record struct LeaderboardEntry(
     string Name,

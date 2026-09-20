@@ -8,6 +8,7 @@ public sealed class ReplayClip
     public float CaptureFps { get; }
     public DateTime CreatedAtUtc { get; }
     public IReadOnlyList<ReplayFrame> Frames { get; }
+    public ReplayMatchContext? MatchContext { get; internal set; }
 
     public ReplayClip(int playNumber, PlayOutcome outcome, float durationSeconds, float captureFps, IReadOnlyList<ReplayFrame> frames)
     {

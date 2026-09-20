@@ -20,12 +20,12 @@ internal sealed record ScenarioDefinition(string Name, string PlayId, DriveStart
         "offense-pass", "offense-run", "offense-play-action", "offense-field-goal", "offense-replay",
         "defense-drive", "defense-calls", "defense-control-base", "defense-control-nickel",
         "defense-quick", "defense-deep", "defense-play-action",
-        "timed-game", "timed-short", "late-tying-kick", "late-protect-lead", "overtime-pairs"
+        "timed-game", "timed-short", "late-tying-kick", "late-protect-lead", "overtime-pairs", "timed-season", "timed-season-short", "timed-layout"
     });
 
     public static ScenarioDefinition Get(string name) => name switch
     {
-        "timed-game" or "timed-short" or "late-tying-kick" or "late-protect-lead" or "overtime-pairs"
+        "timed-game" or "timed-short" or "late-tying-kick" or "late-protect-lead" or "overtime-pairs" or "timed-season" or "timed-season-short" or "timed-layout"
             => new(name, "", new()) { FullMatch = true },
         "defense-drive" => new(name, "", new()) { Defending = true },
         "defense-calls" => new(name, "", new()) { Defending = true },

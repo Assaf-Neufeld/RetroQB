@@ -300,12 +300,12 @@ Status: Ready to verify. Automated timing gates and visual captures pass; hands-
 
 **Acceptance gate**
 
-- [ ] `STATS-01`: CPU passing/rushing totals and user defensive totals update from the same event without polluting user QB/rushing stats. Linebacker tackles and teammate tackles have distinct attribution.
-- [ ] `REPLAY-01`: replay after a possession change shows recorded teams, period/time, assignments, and controlled actor. Replaying or skipping twice leaves match state and stats unchanged.
-- [ ] `SAVE-01`: load a legacy fixture, save a two-sided season under the same name, reload, and retain both records with separate rankings. Backup recovery and failed-save retry remain correct.
-- [ ] `SEASON-01`: regular-season win -> playoff win -> Super Bowl win yields one champion record. A loss in each stage yields one correct elimination record.
-- [ ] `SEASON-02`: restarting the current matchup twice restores its pregame baseline without erasing earlier games or duplicating completed-game statistics.
-- [ ] Screenshots at 1000×700, 1280×720, 1440×900, and 1920×1080 show readable calls, linebacker assignment, both clocks, timeouts, possession, halftime, and overtime without clipping.
+- [x] `STATS-01`: CPU passing/rushing totals and user defensive totals update from the same event without polluting user QB/rushing stats. Linebacker tackles and teammate tackles have distinct attribution.
+- [x] `REPLAY-01`: replay after a possession change shows recorded teams, period/time, assignments, and controlled actor. Replaying or skipping twice leaves match state and stats unchanged.
+- [x] `SAVE-01`: load a legacy fixture, save a two-sided season under the same name, reload, and retain both records with separate rankings. Backup recovery and failed-save retry remain correct.
+- [x] `SEASON-01`: regular-season win -> playoff win -> Super Bowl win yields one champion record. A loss in each stage yields one correct elimination record.
+- [x] `SEASON-02`: restarting the current matchup twice restores its pregame baseline without erasing earlier games or duplicating completed-game statistics.
+- [x] Screenshots at 1000×700, 1280×720, 1440×900, and 1920×1080 show readable calls, linebacker assignment, both clocks, timeouts, possession, halftime, and overtime without clipping.
 
 **Playable checkpoint D:** finish and save a three-stage season, inspect both units' statistics, replay a defensive highlight, restart a current matchup, and verify the earlier stage remains intact.
 

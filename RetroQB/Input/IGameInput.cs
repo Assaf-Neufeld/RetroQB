@@ -14,6 +14,7 @@ public interface IGameInput : IPlayerMovementInput
     bool IsPausePressed() => false;
     bool IsPuntPressed() => false;
     bool IsKneelPressed() => false;
+    bool IsStatisticsPressed() => false;
     int? GetDefensivePlaySelection() => null;
     bool IsReplaySkipPressed() => false;
     bool IsRestartPressed() => false;

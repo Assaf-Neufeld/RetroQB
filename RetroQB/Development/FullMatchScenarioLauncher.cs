@@ -32,12 +32,17 @@ internal static class FullMatchScenarioLauncher
 
     public static int Run(ScenarioLaunchOptions options)
     {
+        if (options.Definition.Name == "timed-layout") return TimedLayoutCapture.Run(options);
         string output = Path.GetFullPath(options.OutputDirectory ?? Path.Combine("artifacts", options.Definition.Name));
         Directory.CreateDirectory(output);
         bool automated = options.Headless || options.Capture;
         var script = new ScriptedInput(); var keyboard = new InputManager();
         using var game = new GameSession(automated ? script : keyboard, new Random(options.Seed), new PlayerRecordStore(Path.Combine(output, "isolated-records.json")));
-        game.StartTimedMatch(options.Seed, match: Create(options.Definition.Name));
+        if (options.Definition.Name.StartsWith("timed-season"))
+            game.StartTimedSeason(options.Seed, automated ? "Phase5" : "",
+                new PlayerRecordStore(Path.Combine(output, "isolated-records.json"), MatchRuleset.TwoSidedTimed),
+                options.Definition.Name == "timed-season" ? 180 : 15);
+        else game.StartTimedMatch(options.Seed, match: Create(options.Definition.Name));
         var session = game.FullMatch!;
         int ticks = 0; string? failure = null;
         var periods = new HashSet<int>(); var possessions = new HashSet<string>();
@@ -55,15 +60,16 @@ internal static class FullMatchScenarioLauncher
                         || kick.Phase == KickPhase.Accuracy && kick.Marker <= .505;
                 input = new(Ready: ready, Run: !drive.Live && !session.HumanOnDefense ? 1 : null);
             }
-            try { game.UpdateTimedMatch(ScenarioDefinition.FixedStep, input ?? new()); }
+            try { game.UpdateTimedMatch(ScenarioDefinition.FixedStep, input ?? new(), automated && game.TimedSeason is { } season && (season.Pregame || session.Timed.Finished)); }
             catch (Exception error) { failure = $"Tick {ticks}: {error}"; }
+            session = game.FullMatch!;
             ticks++;
             periods.Add(session.Clock.Quarter); possessions.Add(session.Match.PossessionId);
             if (ticks > 60 * 3600) failure = "Exceeded one simulated hour.";
             if (drive.LiveSeconds > 40) failure = "Scrimmage play exceeded 40 seconds.";
             if (drive.Players.Any(a => !float.IsFinite(a.Position.X) || !float.IsFinite(a.Position.Y))) failure = "Non-finite actor position.";
         }
-        bool Done() => session.Timed.Finished || failure != null;
+        bool Done() => (game.TimedSeason?.Complete ?? session.Timed.Finished) || failure != null;
         if (options.Headless) { while (!Done()) Step(); }
         else
         {
@@ -82,18 +88,22 @@ internal static class FullMatchScenarioLauncher
                         var input = new MatchInput(Call: keyboard.GetPassPlaySelection(), Run: keyboard.GetRunPlaySelection(),
                             Ready: keyboard.IsSpacePressed(), Kick: keyboard.IsFieldGoalPressed(), Punt: keyboard.IsPuntPressed(),
                             Kneel: keyboard.IsKneelPressed(), Flip: keyboard.IsFlipPlayPressed(), Timeout: keyboard.IsTimeoutPressed(),
-                            Pause: keyboard.IsEscapePressed(), Replay: keyboard.IsReplayPressed(), Restart: keyboard.IsRestartPressed(), Focused: Raylib.IsWindowFocused());
+                            Pause: keyboard.IsEscapePressed(), Replay: keyboard.IsReplayPressed(), Restart: keyboard.IsRestartPressed(), Focused: Raylib.IsWindowFocused(),
+                            Statistics: keyboard.IsStatisticsPressed(), SummaryScroll: keyboard.IsDriveSummaryScrollOlderPressed() ? 1 : keyboard.IsDriveSummaryScrollNewerPressed() ? -1 : 0);
+                        game.TimedSeason?.EditName(keyboard.ReadTextInput(18), keyboard.IsBackspacePressed());
+                        bool accept = keyboard.IsEnterPressed();
                         float remaining = Math.Min(Raylib.GetFrameTime(), .1f);
                         do
                         {
                             float dt = Math.Min(remaining, ScenarioDefinition.FixedStep);
-                            game.UpdateTimedMatch(dt, input); remaining -= dt;
+                            game.UpdateTimedMatch(dt, input, accept); remaining -= dt;
+                            session = game.FullMatch!; accept = false;
                             input = new(Focused: input.Focused);
                         } while (remaining > .00001f);
                     }
                     if (options.Capture)
                     {
-                        string key = $"{session.Clock.Quarter}-{session.Match.PossessionId}-{session.Action}-{session.Clock.Phase}";
+                        string key = $"{session.Match.Stage}-{session.Clock.Quarter}-{session.Match.PossessionId}-{session.Action}-{session.Clock.Phase}";
                         if (captures.Add(key) || Done())
                         {
                             var target = Raylib.LoadRenderTexture(1440, 900);
@@ -112,7 +122,8 @@ internal static class FullMatchScenarioLauncher
         string report = Path.Combine(output, "report.json");
         File.WriteAllText(report, JsonSerializer.Serialize(new { options.Definition.Name, options.Seed, Ticks = ticks, Failure = failure,
             session.Timed.WinnerId, session.Timed.OvertimePair, Periods = periods.Order().ToArray(), Possessions = possessions.Order().ToArray(),
-            UserScore = session.Match.User.Score, CpuScore = session.Match.Opponent.Score, Clock = session.Clock.Snapshot(), Plays = session.Match.History },
+            UserScore = session.Match.User.Score, CpuScore = session.Match.Opponent.Score, Clock = session.Clock.Snapshot(), Plays = session.Match.History,
+            Season = game.TimedSeason?.Completed, Saved = game.TimedSeason?.Saved },
             new JsonSerializerOptions { WriteIndented = true }));
         Console.WriteLine($"{options.Definition.Name}: {session.Status} {failure} | {report}");
         return failure == null ? 0 : 1;

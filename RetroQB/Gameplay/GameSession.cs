@@ -15,15 +15,27 @@ namespace RetroQB.Gameplay;
 /// </summary>
 public sealed class GameSession : IDisposable
 {
-    public FullMatchSession? FullMatch { get; private set; }
+    private FullMatchSession? _fullMatch;
+    public FullMatchSession? FullMatch => TimedSeason?.Current ?? _fullMatch;
+    public TimedSeason? TimedSeason { get; private set; }
     private readonly FullMatchRenderer _fullMatchRenderer = new();
     public void StartTimedMatch(int seed, double quarterSeconds = 180, TimedMatch? match = null)
     {
         var user = TeamCatalog.Get("ballers"); var cpu = TeamCatalog.ForStage(SeasonStage.RegularSeason);
-        FullMatch = new(_input, seed, match ?? new(user, cpu, user.Id, quarterSeconds: quarterSeconds));
+        TimedSeason = null;
+        _fullMatch = new(_input, seed, match ?? new(user, cpu, user.Id, quarterSeconds: quarterSeconds));
     }
 
-    public void UpdateTimedMatch(float dt, MatchInput input) => FullMatch!.Update(dt, input);
+    public void StartTimedSeason(int seed, string playerName, PlayerRecordStore? store = null, double quarterSeconds = 180,
+        TeamDefinition? team = null)
+        => TimedSeason = new(_input, seed, team ?? TeamCatalog.Get("ballers"), playerName,
+            store ?? new PlayerRecordStore(MatchRuleset.TwoSidedTimed), quarterSeconds);
+
+    public void UpdateTimedMatch(float dt, MatchInput input, bool accept = false)
+    {
+        if (TimedSeason != null) TimedSeason.Update(dt, input, accept);
+        else FullMatch!.Update(dt, input);
+    }
     private const int WinningScore = 21;
 
     // Core managers
@@ -57,7 +69,7 @@ public sealed class GameSession : IDisposable
 
     // Season progression
     private SeasonStage _currentStage = SeasonStage.RegularSeason;
-    public SeasonStage CurrentStage => _currentStage;
+    public SeasonStage CurrentStage => TimedSeason?.Stage ?? _currentStage;
     private readonly SeasonSummary _seasonSummary = new();
     private readonly PlayerRecordStore _playerRecordStore;
 
@@ -323,10 +335,12 @@ public sealed class GameSession : IDisposable
     {
         if (FullMatch != null)
         {
-            FullMatch.Update(dt, new(Call: _input.GetPassPlaySelection(), Run: _input.GetRunPlaySelection(),
+            TimedSeason?.EditName(_input.ReadTextInput(18), _input.IsBackspacePressed());
+            UpdateTimedMatch(dt, new(Call: _input.GetPassPlaySelection(), Run: _input.GetRunPlaySelection(),
                 Ready: _input.IsSpacePressed(), Kick: _input.IsFieldGoalPressed(), Punt: _input.IsPuntPressed(),
                 Kneel: _input.IsKneelPressed(), Flip: _input.IsFlipPlayPressed(), Timeout: _input.IsTimeoutPressed(),
-                Pause: _input.IsEscapePressed(), Replay: _input.IsReplayPressed(), Restart: _input.IsRestartPressed()));
+                Pause: _input.IsEscapePressed(), Replay: _input.IsReplayPressed(), Restart: _input.IsRestartPressed(),
+                Statistics: _input.IsStatisticsPressed(), SummaryScroll: _input.IsDriveSummaryScrollOlderPressed() ? 1 : _input.IsDriveSummaryScrollNewerPressed() ? -1 : 0), _input.IsEnterPressed());
             return;
         }
         if (CanRestartCurrentSession() && _input.IsRestartPressed())
@@ -978,7 +992,7 @@ public sealed class GameSession : IDisposable
 
     public void Draw()
     {
-        if (FullMatch != null) { _fullMatchRenderer.Draw(FullMatch); return; }
+        if (FullMatch != null) { _fullMatchRenderer.Draw(FullMatch, TimedSeason); return; }
         Constants.UpdateFieldRect();
         _drawingController.SetStatsSnapshot(BuildStatsSnapshot());
         bool replayAvailable = _replayClipStore.HasClip;

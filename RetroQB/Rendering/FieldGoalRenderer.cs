@@ -107,12 +107,12 @@ public static class FieldGoalRenderer
         {
             y += 12;
             Info(kick.InRange ? "SPACE: SNAP BALL" : "MOVE CLOSER BEFORE KICKING", Palette.Gold, 13);
-            Info("ESC: BACK TO PLAYBOOK", Palette.White, 13);
+            Info(timedMatch ? "SELECT A PLAY TO CANCEL" : "ESC: BACK TO PLAYBOOK", Palette.White, 13);
         }
         else if (kick.Phase == KickPhase.Snap)
             Info("SNAP TO HOLDER...", Palette.Gold);
         else if (kick.TimingActive)
-            Info("PLAY FROZEN - TIME YOUR KICK", Palette.Gold, 12);
+            Info(timedMatch ? "LIVE KICK - TIME YOUR KICK" : "PLAY FROZEN - TIME YOUR KICK", Palette.Gold, 12);
         else if (kick.Phase == KickPhase.Flight)
             Info("KICK IS AWAY...", Palette.Gold);
 

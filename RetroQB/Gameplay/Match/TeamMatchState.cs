@@ -11,6 +11,8 @@ public sealed class TeamMatchState
     private readonly Dictionary<string, int> _calls = new(StringComparer.Ordinal);
     internal StatisticsTracker Statistics { get; } = new();
     public GameStatsSnapshot Stats => Statistics.BuildSnapshot();
+    internal DefensiveStatistics DefensiveStatistics { get; } = new();
+    public DefenseStatsSnapshot DefenseStats => DefensiveStatistics.Snapshot();
     public TeamDefinition Definition { get; }
     public OffensiveTeamAttributes OffensiveAttributes => Definition.Offense;
     public DefensiveTeamAttributes DefensiveAttributes { get; }
@@ -36,6 +38,7 @@ public sealed class TeamMatchState
     {
         Score = 0;
         Statistics.Reset();
+        DefensiveStatistics.Reset();
         DefensiveMemory.Reset();
         _calls.Clear();
     }

@@ -6,7 +6,7 @@ namespace RetroQB.Gameplay;
 
 public sealed record MatchInput(int? Call = null, int? Run = null, bool Ready = false, bool Kick = false,
     bool Punt = false, bool Kneel = false, bool Flip = false, bool Timeout = false, bool Pause = false,
-    bool Replay = false, bool Restart = false, bool Focused = true);
+    bool Replay = false, bool Restart = false, bool Focused = true, bool Statistics = false, int SummaryScroll = 0);
 
 /// <summary>Both possessions share the same actors, contact detection, clock and exactly-once resolver.</summary>
 public sealed class FullMatchSession
@@ -23,6 +23,9 @@ public sealed class FullMatchSession
     public FieldGoalAttempt? Kick { get; private set; }
     public double SnapRemaining { get; private set; }
     public bool HumanOnDefense => Drive.HumanOnDefense;
+    public bool ShowStatistics => (Clock.Suspension & ClockSuspension.Statistics) != 0;
+    public int SummaryOffset { get; private set; }
+    public double PresentationSeconds => _presentation;
     public string Status => Timed.Finished ? $"FINAL: {Match.Team(Timed.WinnerId!).Definition.Name} wins"
         : Clock.IsOvertime ? $"OT {Timed.OvertimePair} | attempt {Timed.OvertimeAttempt}/2"
         : Clock.Phase == ClockPhase.PeriodBreak ? Clock.Quarter == 3 ? "HALFTIME" : $"QUARTER {Clock.Quarter}" : "";
@@ -57,7 +60,7 @@ public sealed class FullMatchSession
 
     public void Restart()
     {
-        Replay.Unload(); Drive.Restart(); Prepare();
+        Replay.Unload(); Drive.Restart(); SummaryOffset = 0; Prepare();
     }
 
     public void Update(float dt, MatchInput? input = null)
@@ -65,6 +68,11 @@ public sealed class FullMatchSession
         if (!float.IsFinite(dt) || dt < 0) throw new ArgumentOutOfRangeException(nameof(dt));
         input ??= new();
         if (input.Restart) { Restart(); return; }
+        if (input.Statistics)
+        {
+            if (ShowStatistics) Clock.Resume(ClockSuspension.Statistics); else Clock.Suspend(ClockSuspension.Statistics);
+        }
+        SummaryOffset = Math.Clamp(SummaryOffset + input.SummaryScroll, 0, Math.Max(0, Match.History.Count - 5));
         if (input.Focused) Clock.Resume(ClockSuspension.FocusLoss); else Clock.Suspend(ClockSuspension.FocusLoss);
         if (input.Pause)
         {

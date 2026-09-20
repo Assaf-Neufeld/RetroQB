@@ -3,7 +3,7 @@ namespace RetroQB.Gameplay;
 public enum ClockPhase { PreSnap, LivePlay, Result, PeriodBreak, Finished }
 public enum ClockStopReason { UntilSnap, Running, ResultPresentation, PeriodExpired, Timeout, DelayOfGame, Finished }
 [Flags]
-public enum ClockSuspension { None = 0, Pause = 1, Replay = 2, FocusLoss = 4 }
+public enum ClockSuspension { None = 0, Pause = 1, Replay = 2, FocusLoss = 4, Statistics = 8 }
 public readonly record struct ClockTick(bool PeriodExpired = false, bool PlayClockExpired = false);
 public sealed record MatchClockSnapshot(int Quarter, double RemainingSeconds, double PlaySeconds,
     ClockPhase Phase, ClockStopReason Reason, ClockSuspension Suspension, bool IsOvertime,
@@ -108,7 +108,7 @@ public sealed class MatchClock
 
     public void Suspend(ClockSuspension reason)
     {
-        if (reason == ClockSuspension.None || (reason & ~(ClockSuspension.Pause | ClockSuspension.Replay | ClockSuspension.FocusLoss)) != 0)
+        if (reason == ClockSuspension.None || (reason & ~(ClockSuspension.Pause | ClockSuspension.Replay | ClockSuspension.FocusLoss | ClockSuspension.Statistics)) != 0)
             throw new ArgumentOutOfRangeException(nameof(reason));
         Suspension |= reason;
     }

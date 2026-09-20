@@ -7,8 +7,11 @@ public sealed class MatchState
 {
     private readonly Dictionary<long, PlayResolution> _resolved = new();
     private readonly List<PlayResolution> _history = new();
+    private readonly Dictionary<long, PlayStart> _starts = new();
+    public PlayStart StartOf(long playId) => _starts[playId];
     private long _nextPlayId = 1;
     public MatchRuleset Ruleset => MatchRuleset.TwoSidedTimed;
+    public SeasonStage Stage { get; }
     public TeamMatchState User { get; }
     public TeamMatchState Opponent { get; }
     public string OpeningReceiverId { get; }
@@ -27,6 +30,7 @@ public sealed class MatchState
         if (string.IsNullOrWhiteSpace(user.Id) || string.IsNullOrWhiteSpace(opponent.Id) || user.Id == opponent.Id)
             throw new ArgumentException("A match requires two distinct team IDs.");
         User = new(user, false, stage);
+        Stage = stage;
         Opponent = new(opponent, true, stage);
         Team(openingReceiverId);
         OpeningReceiverId = PossessionId = openingReceiverId;
@@ -43,6 +47,7 @@ public sealed class MatchState
         if (string.IsNullOrWhiteSpace(callId)) throw new ArgumentException("Call ID is required.");
         if (ActivePlay != null || PendingPossession != null) throw new InvalidOperationException("Finish the current play/transition first.");
         ActivePlay = new(_nextPlayId++, PossessionId, callId, Series);
+        _starts.Add(ActivePlay.Id, ActivePlay);
         Offense.RecordCall(callId);
         return ActivePlay;
     }
@@ -57,6 +62,7 @@ public sealed class MatchState
         var result = MatchRules.Resolve(play, ended, Defense.Definition.Id);
         // Validation happens before any score, stat, memory, or series mutations.
         ApplyStats(Offense.Statistics, result);
+        Defense.DefensiveStatistics.Record(play, result);
         if (result.ScoringTeamId != null) Team(result.ScoringTeamId).Score += result.Points;
         if (result.NextSeries != null) Series = result.NextSeries;
         PendingPossession = result.NextPossession;
@@ -109,7 +115,7 @@ public sealed class MatchState
     public void Reset()
     {
         User.Reset(); Opponent.Reset();
-        _history.Clear(); _resolved.Clear();
+        _history.Clear(); _resolved.Clear(); _starts.Clear();
         // IDs never repeat on restart, so a stale event cannot resolve a new play.
         ActivePlay = null; PendingPossession = null;
         PossessionId = OpeningReceiverId; Series = new();

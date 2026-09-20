@@ -1,4 +1,5 @@
 using System.Text.Json;
+using RetroQB.Gameplay;
 
 namespace RetroQB.Stats;
 
@@ -12,6 +13,7 @@ public sealed class PlayerRecordStore
     };
 
     private readonly string _savePath;
+    public MatchRuleset Ruleset { get; }
     private readonly List<PlayerRecord> _records = new();
     private bool _loadFailed;
     private bool _recoveredFromBackup;
@@ -24,8 +26,13 @@ public sealed class PlayerRecordStore
     {
     }
 
-    public PlayerRecordStore(string savePath)
+    public PlayerRecordStore(MatchRuleset ruleset) : this(Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RetroQB", "player-records.json"), ruleset) { }
+
+    public PlayerRecordStore(string savePath, MatchRuleset ruleset = MatchRuleset.LegacyOffenseOnly)
     {
+        if (!Enum.IsDefined(ruleset)) throw new ArgumentOutOfRangeException(nameof(ruleset));
+        Ruleset = ruleset;
         _savePath = Path.GetFullPath(savePath);
         Load();
     }
@@ -62,26 +69,30 @@ public sealed class PlayerRecordStore
             entries) { StorageMessage = StatusMessage };
     }
 
-    public bool TrySaveSeasonResult(string playerName, string teamName, string scoreHistory, string scoreDetails, float seasonScore, out LeaderboardSummary summary)
+    public bool TrySaveSeasonResult(string playerName, string teamName, string scoreHistory, string scoreDetails, float seasonScore, out LeaderboardSummary summary, Guid? seasonId = null,
+        IReadOnlyList<CompletedTimedGame>? games = null)
     {
-        // Allow retry after the user restores an unreadable save or fixes access.
+        // Refresh both rulesets before writing; another session may have saved since this store was opened.
+        Load();
         if (_loadFailed)
         {
-            Load();
-            if (_loadFailed)
-            {
-                summary = BuildSummary(playerName, seasonScore);
-                return false;
-            }
+            summary = BuildSummary(playerName, seasonScore);
+            return false;
         }
 
         string normalizedName = NormalizeName(playerName);
+        if (seasonId.HasValue && _records.Any(r => r.Ruleset == Ruleset && r.SeasonId == seasonId))
+        {
+            summary = BuildSummary(normalizedName, seasonScore, true);
+            return true;
+        }
         string normalizedTeamName = NormalizeStoredTeamName(teamName);
         string normalizedScoreHistory = NormalizeScoreHistory(scoreHistory);
         string normalizedScoreDetails = NormalizeScoreDetails(scoreDetails);
         DateTime savedAtUtc = DateTime.UtcNow;
 
-        _records.Add(new PlayerRecord(normalizedName, normalizedTeamName, normalizedScoreHistory, normalizedScoreDetails, seasonScore, savedAtUtc));
+        _records.Add(new PlayerRecord(normalizedName, normalizedTeamName, normalizedScoreHistory, normalizedScoreDetails, seasonScore, savedAtUtc, Ruleset, seasonId,
+            games == null ? null : Array.AsReadOnly(games.ToArray())));
 
         try
         {
@@ -155,7 +166,7 @@ public sealed class PlayerRecordStore
         {
             string json = File.ReadAllText(path);
             StorageModel? model = JsonSerializer.Deserialize<StorageModel>(json, JsonOptions);
-            if (model?.Records is null)
+            if (model?.Records is null || model.Version is < 1 or > 2)
             {
                 return false;
             }
@@ -166,6 +177,7 @@ public sealed class PlayerRecordStore
                 {
                     return false;
                 }
+                if (!Enum.IsDefined(record.Ruleset)) return false;
 
                 string normalizedName = NormalizeName(record.Name);
                 if (string.IsNullOrWhiteSpace(normalizedName))
@@ -181,7 +193,7 @@ public sealed class PlayerRecordStore
                 string teamName = NormalizeStoredTeamName(record.TeamName);
                 string scoreHistory = NormalizeScoreHistory(record.ScoreHistory);
                 string scoreDetails = NormalizeScoreDetails(record.ScoreDetails);
-                records.Add(new PlayerRecord(normalizedName, teamName, scoreHistory, scoreDetails, score, record.LastUpdatedUtc));
+                records.Add(new PlayerRecord(normalizedName, teamName, scoreHistory, scoreDetails, score, record.LastUpdatedUtc, record.Ruleset, record.SeasonId, record.Games));
             }
             return true;
         }
@@ -206,6 +218,7 @@ public sealed class PlayerRecordStore
 
         var model = new StorageModel
         {
+            Version = 2,
             Records = _records
                 .Select(record => new StorageRecord
                 {
@@ -214,7 +227,8 @@ public sealed class PlayerRecordStore
                     ScoreHistory = record.ScoreHistory,
                     ScoreDetails = record.ScoreDetails,
                     DominanceScore = record.DominanceScore,
-                    LastUpdatedUtc = record.LastUpdatedUtc
+                    LastUpdatedUtc = record.LastUpdatedUtc,
+                    Ruleset = record.Ruleset, SeasonId = record.SeasonId, Games = record.Games
                 })
                 .ToList()
         };
@@ -254,7 +268,7 @@ public sealed class PlayerRecordStore
     }
 
     private int FindRecordIndex(string normalizedName)
-        => _records.FindIndex(record => NamesMatch(record.Name, normalizedName));
+        => _records.FindIndex(record => record.Ruleset == Ruleset && NamesMatch(record.Name, normalizedName));
 
     private static int? FindRecordRank(IReadOnlyList<PlayerRecord> sortedRecords, PlayerRecord target)
     {
@@ -279,7 +293,7 @@ public sealed class PlayerRecordStore
         }
 
         return _records
-            .Where(record => NamesMatch(record.Name, normalizedName))
+            .Where(record => record.Ruleset == Ruleset && NamesMatch(record.Name, normalizedName))
             .OrderByDescending(record => record.LastUpdatedUtc)
             .FirstOrDefault();
     }
@@ -287,6 +301,7 @@ public sealed class PlayerRecordStore
     private List<PlayerRecord> GetSortedRecords()
     {
         return _records
+            .Where(record => record.Ruleset == Ruleset)
             .OrderByDescending(record => record.DominanceScore)
             .ThenBy(record => record.LastUpdatedUtc)
             .ThenBy(record => record.Name, StringComparer.OrdinalIgnoreCase)
@@ -377,11 +392,15 @@ public sealed class PlayerRecordStore
 
     private sealed class StorageModel
     {
+        public int Version { get; set; } = 1;
         public List<StorageRecord>? Records { get; set; }
     }
 
     private sealed class StorageRecord
     {
+        public MatchRuleset Ruleset { get; set; } = MatchRuleset.LegacyOffenseOnly;
+        public Guid? SeasonId { get; set; }
+        public IReadOnlyList<CompletedTimedGame>? Games { get; set; }
         public string Name { get; set; } = string.Empty;
         public string TeamName { get; set; } = string.Empty;
         public string ScoreHistory { get; set; } = string.Empty;
