@@ -81,6 +81,10 @@ public static class RouteRunner
         for (int i = path.Points.Count - 1; i > 0 && direction.LengthSquared() < 0.001f; i--)
             direction = path.Points[i] - path.Points[i - 1];
         if (direction.LengthSquared() < 0.001f) { state.Phase = RoutePhase.Completed; return; }
+        // Keep an outlet alive when a crossing or outward route reaches the sideline.
+        bool atSideline = direction.X < 0 && receiver.Position.X <= Constants.ReceiverRadius + 0.001f
+            || direction.X > 0 && receiver.Position.X >= Constants.FieldWidth - Constants.ReceiverRadius - 0.001f;
+        if (atSideline && direction.Y >= 0) direction = Vector2.UnitY;
         MoveWithinField(receiver, Vector2.Normalize(direction), dt, remaining);
     }
 

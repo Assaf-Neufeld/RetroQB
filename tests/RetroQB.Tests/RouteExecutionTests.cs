@@ -7,6 +7,46 @@ namespace RetroQB.Tests;
 
 public sealed class RouteExecutionTests
 {
+    [Theory]
+    [InlineData(RouteType.Hitch, -1)]
+    [InlineData(RouteType.Hitch, 1)]
+    [InlineData(RouteType.Curl, -1)]
+    [InlineData(RouteType.Curl, 1)]
+    public void ShortRoutesKeepCrossingAfterTheirReadPoint(RouteType type, int side)
+    {
+        var receiver = Receiver(null);
+        receiver.Route = type;
+        receiver.RouteSide = side;
+        var path = RouteGeometry.GetPath(receiver);
+        for (int i = 0; i < 1000 && !RouteGeometry.HasCompletedBreak(receiver); i++) Tick(receiver, .02f);
+        Assert.True(RouteGeometry.HasCompletedBreak(receiver));
+        Assert.True(receiver.RouteState.StepIndex < path.Definition.Steps.Count);
+        for (int i = 0; i < 1000 && receiver.RouteState.Phase != RoutePhase.Continuing; i++) Tick(receiver, .02f);
+        Assert.Equal(RoutePhase.Continuing, receiver.RouteState.Phase);
+        Vector2 position = receiver.Position;
+        for (int i = 0; i < 25; i++) Tick(receiver, .02f);
+        Assert.True((receiver.Position.X - position.X) * side < -1);
+        Assert.InRange(MathF.Abs(receiver.Position.Y - position.Y), 0, .001f);
+    }
+
+    [Theory]
+    [InlineData(-1, 0f)]
+    [InlineData(1, 0f)]
+    [InlineData(-1, 1f)]
+    [InlineData(1, 1f)]
+    public void ContinuingRoutesTurnUpfieldAtEitherSideline(int side, float rise)
+    {
+        float edge = side < 0 ? Constants.ReceiverRadius : Constants.FieldWidth - Constants.ReceiverRadius;
+        var receiver = Receiver(new([new(new(4, rise))]));
+        receiver.Position = receiver.RouteStart = new Vector2(edge - side * 2, 30);
+        receiver.RouteSide = side;
+        for (int i = 0; i < 100; i++) Tick(receiver, .02f);
+        Assert.Equal(RoutePhase.Continuing, receiver.RouteState.Phase);
+        Assert.InRange(MathF.Abs(receiver.Position.X - edge), 0, .001f);
+        Assert.True(receiver.Position.Y > 32);
+        Assert.InRange(MathF.Abs(receiver.Velocity.Y - receiver.Speed), 0, .001f);
+    }
+
     [Fact]
     public void DisplacedRunnerCanRoundAnIntermediateTurnButMustReachAHoldExactly()
     {

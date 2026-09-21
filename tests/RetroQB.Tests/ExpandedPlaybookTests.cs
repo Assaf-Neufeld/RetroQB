@@ -9,6 +9,44 @@ namespace RetroQB.Tests;
 
 public sealed class ExpandedPlaybookTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void PassRoutesRemainMovingUnlessTheyAreComebacks(bool flipped)
+    {
+        foreach (var definition in PlaybookBuilder.BuildCatalog().Plays.Where(p => p.Family == PlayType.Pass))
+        {
+            var play = PlayResolver.Resolve(definition, flipped);
+            var field = new FormationFactory().CreateFormation(play, 30);
+            RouteAssigner.AssignRoutes(field.Receivers, play);
+            foreach (var receiver in field.Receivers.Where(r => play.Assignments[r.Slot].Role == AssignmentRole.Route))
+            {
+                // Exercise each route after any opening protection or fake has released it.
+                receiver.IsBlocking = false;
+                for (int frame = 0; frame < 480; frame++)
+                {
+                    RouteRunner.UpdateRoute(receiver, 1f / 60);
+                    receiver.Update(1f / 60);
+                }
+                Vector2 position = receiver.Position;
+                for (int frame = 0; frame < 30; frame++)
+                {
+                    RouteRunner.UpdateRoute(receiver, 1f / 60);
+                    receiver.Update(1f / 60);
+                }
+                if (receiver.Route == RouteType.Comeback)
+                {
+                    Assert.Equal(RoutePhase.Settled, receiver.RouteState.Phase);
+                    Assert.Equal(position, receiver.Position);
+                    Assert.Equal(RouteVisualizer.GetRouteWaypoints(receiver)[^1], receiver.Position);
+                }
+                else
+                    Assert.True(Vector2.Distance(position, receiver.Position) > 1,
+                        $"{play.Id} {receiver.Slot} {receiver.Route} stopped at {receiver.Position}");
+            }
+        }
+    }
+
     [Fact]
     public void AdditionalPersonnelAppearInReceivingStatistics()
     {

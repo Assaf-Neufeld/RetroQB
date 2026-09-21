@@ -11,12 +11,12 @@ public static class ExpandedPlaybook
     // Routes bind in formation order: outside receivers, inside players, then the primary back.
     private static readonly PassConcept[] Concepts =
     [
-        new("spacing", "Spacing", PlayCategory.Quick, [Hitch, Hitch, Curl, Flat, Angle], "Find the open stop; the back works inside."),
+        new("spacing", "Spacing", PlayCategory.Quick, [Hitch, Hitch, Curl, Flat, Angle], "Read the quick inside breaks; the back works inside."),
         new("drive", "Drive", PlayCategory.Crossers, [Drag, InDeep, Seam, Drag, Flat], "Read the shallow cross underneath the dig."),
         new("sail", "Sail", PlayCategory.Intermediate, [Go, Comeback, Corner, Flat, Flat], "Read the corner over the flat outlet."),
         new("scissors", "Scissors", PlayCategory.Vertical, [PostDeep, Corner, Seam, Curl, Flat], "Look for the post/corner split behind coverage."),
         new("pa-cross", "PA Cross", PlayCategory.PlayAction, [PostDeep, InDeep, Drag, Flat, Wheel], "Fake the handoff, then read the deep cross.", true),
-        new("stick", "Stick", PlayCategory.Quick, [Slant, Hitch, Hitch, Flat, Angle], "Read the short stop against the flat defender."),
+        new("stick", "Stick", PlayCategory.Quick, [Slant, Hitch, Hitch, Flat, Angle], "Read the short inside break against the flat defender."),
         new("mesh-wheel", "Mesh Wheel", PlayCategory.Crossers, [Drag, Drag, Corner, Curl, Wheel], "Cross underneath; watch the wheel up the sideline."),
         new("levels", "Levels", PlayCategory.Intermediate, [InDeep, InShallow, Curl, Seam, Flat], "Read the two inside routes at different depths."),
         new("mills", "Mills", PlayCategory.Vertical, [PostDeep, InDeep, Go, Seam, Angle], "Read the post over the dig; check down inside."),

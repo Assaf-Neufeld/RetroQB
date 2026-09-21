@@ -29,6 +29,10 @@ the previous implicit scramble fallback, and man-coverage shakes cannot move a s
 receiver off a hold. QB scramble support requests scrambling explicitly. Targeted receivers
 can still adjust to an airborne pass, and a catch transfers movement to the player.
 
+Default hitches and curls now break inside and keep crossing after their initial read
+point instead of settling. Comebacks retain their intentional stop. Continuing crossing
+and outward routes turn upfield at the sideline to remain available as passing targets.
+
 For example, a comeback can be authored as:
 
 ```csharp
