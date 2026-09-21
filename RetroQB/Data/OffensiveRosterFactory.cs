@@ -16,8 +16,10 @@ public static class OffensiveRosterFactory
         string qbName,
         IReadOnlyList<string> wideReceiverNames,
         string tightEndName,
-        string runningBackName)
+        string runningBackName,
+        IReadOnlySet<string>? stars = null)
     {
+        bool Star(string slot) => stars?.Contains(slot) == true;
         if (wideReceiverNames.Count < WideReceiverSlots.Length)
         {
             throw new ArgumentException("Four wide receiver names are required.", nameof(wideReceiverNames));
@@ -46,9 +48,10 @@ public static class OffensiveRosterFactory
             float routeSkill = Math.Clamp(wrBaseRouteSkill + WideReceiverSkillOffsets[i], 0.40f, 0.99f);
             wideReceivers[WideReceiverSlots[i]] = new WrProfile
             {
+                IsStarPlayer = Star(WideReceiverSlots[i].ToString()),
                 Name = wideReceiverNames[i],
-                Speed = Constants.WrSpeed * speedFactor,
-                CatchingAbility = catchAbility,
+                Speed = Constants.WrSpeed * (speedFactor + (Star(WideReceiverSlots[i].ToString()) ? .04f : 0)),
+                CatchingAbility = Math.Min(.95f, catchAbility + (Star(WideReceiverSlots[i].ToString()) ? .035f : 0)),
                 CatchRadius = catchRadius,
                 RouteSkill = routeSkill
             };
@@ -72,18 +75,19 @@ public static class OffensiveRosterFactory
         {
             Quarterback = new QbProfile
             {
+                IsStarPlayer = Star("QB"),
                 Name = qbName,
                 MaxSpeed = Constants.QbMaxSpeed * Lerp(0.82f, 1.14f, qbMobility),
                 SprintSpeed = Constants.QbSprintSpeed * Lerp(0.84f, 1.16f, qbMobility),
                 Acceleration = Constants.QbAcceleration * Lerp(0.82f, 1.18f, qbMobility),
                 Friction = Constants.QbFriction,
-                ArmStrength = Lerp(0.72f, 1.34f, qbThrowPower),
-                Accuracy = Lerp(1.20f, 0.52f, qbThrowAccuracy),
+                ArmStrength = Lerp(0.72f, 1.34f, qbThrowPower) + (Star("QB") ? .04f : 0),
+                Accuracy = Lerp(1.20f, 0.52f, qbThrowAccuracy) * (Star("QB") ? .94f : 1),
                 DeepAccuracyPenalty = Lerp(1.38f, 1.00f, qbThrowAccuracy)
             },
             WideReceivers = wideReceivers,
-            TightEnds = CreateTightEnds(tightEndName, teSpeedFactor, teCatching, teCatchRadius, teBlocking),
-            RunningBacks = CreateRunningBacks(runningBackName, rbSpeedFactor, rbCatching, rbCatchRadius, rbTackleBreak),
+            TightEnds = CreateTightEnds(tightEndName, teSpeedFactor, teCatching, teCatchRadius, teBlocking, Star("TE1")),
+            RunningBacks = CreateRunningBacks(runningBackName, rbSpeedFactor, rbCatching, rbCatchRadius, rbTackleBreak, Star("RB1")),
             OffensiveLine = new OLineProfile
             {
                 Speed = Constants.OlSpeed * olSpeedFactor,
@@ -104,7 +108,7 @@ public static class OffensiveRosterFactory
         float speedFactor,
         float catchingAbility,
         float catchRadius,
-        float blockingStrength)
+        float blockingStrength, bool star)
     {
         var starter = new TeProfile
         {
@@ -117,7 +121,9 @@ public static class OffensiveRosterFactory
 
         return new Dictionary<ReceiverSlot, TeProfile>
         {
-            [ReceiverSlot.TE1] = starter,
+            [ReceiverSlot.TE1] = starter with { IsStarPlayer = star,
+                CatchingAbility = Math.Min(.95f, starter.CatchingAbility + (star ? .07f : 0)),
+                BlockingStrength = starter.BlockingStrength * (star ? 1.08f : 1) },
             [ReceiverSlot.TE2] = starter with { Name = $"{tightEndName} II" }
         };
     }
@@ -127,7 +133,7 @@ public static class OffensiveRosterFactory
         float speedFactor,
         float catchingAbility,
         float catchRadius,
-        float tackleBreakChance)
+        float tackleBreakChance, bool star)
     {
         var starter = new RbProfile
         {
@@ -140,7 +146,9 @@ public static class OffensiveRosterFactory
 
         return new Dictionary<ReceiverSlot, RbProfile>
         {
-            [ReceiverSlot.RB1] = starter,
+            [ReceiverSlot.RB1] = starter with { IsStarPlayer = star,
+                Speed = starter.Speed * (star ? 1.04f : 1),
+                TackleBreakChance = Math.Min(.60f, starter.TackleBreakChance + (star ? .05f : 0)) },
             [ReceiverSlot.RB2] = starter with { Name = $"{runningBackName} II" }
         };
     }

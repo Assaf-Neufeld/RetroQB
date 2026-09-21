@@ -14,13 +14,19 @@ public static class FieldGoalRenderer
         float center = Constants.FieldWidth / 2;
         const float halfWidth = 3.0833f;
         Vector2 post = Constants.WorldToScreen(new(center, Constants.FieldLength));
-        float width = halfWidth / Constants.FieldWidth * Constants.FieldRect.Width;
+        // Draw the uprights larger for readability; the kick target and accuracy rules
+        // continue to use the unchanged halfWidth value above.
+        float width = halfWidth / Constants.FieldWidth * Constants.FieldRect.Width * 1.45f;
         // Goalposts sit at the back of the actual opponent end zone.
-        float crossbarY = post.Y - 10;
-        Raylib.DrawLineEx(post, new(post.X, crossbarY), 3, Palette.Gold);
-        Raylib.DrawLineEx(new(post.X - width, crossbarY), new(post.X + width, crossbarY), 3, Palette.Gold);
-        Raylib.DrawLineEx(new(post.X - width, crossbarY), new(post.X - width, crossbarY - 22), 3, Palette.Gold);
-        Raylib.DrawLineEx(new(post.X + width, crossbarY), new(post.X + width, crossbarY - 22), 3, Palette.Gold);
+        float crossbarY = post.Y - 14;
+        Raylib.DrawLineEx(post, new(post.X, crossbarY), 7, new Color(255, 190, 45, 80));
+        Raylib.DrawLineEx(new(post.X - width, crossbarY), new(post.X + width, crossbarY), 7, new Color(255, 190, 45, 80));
+        Raylib.DrawLineEx(new(post.X - width, crossbarY), new(post.X - width, crossbarY - 34), 7, new Color(255, 190, 45, 80));
+        Raylib.DrawLineEx(new(post.X + width, crossbarY), new(post.X + width, crossbarY - 34), 7, new Color(255, 190, 45, 80));
+        Raylib.DrawLineEx(post, new(post.X, crossbarY), 4, Palette.Gold);
+        Raylib.DrawLineEx(new(post.X - width, crossbarY), new(post.X + width, crossbarY), 4, Palette.Gold);
+        Raylib.DrawLineEx(new(post.X - width, crossbarY), new(post.X - width, crossbarY - 34), 4, Palette.Gold);
+        Raylib.DrawLineEx(new(post.X + width, crossbarY), new(post.X + width, crossbarY - 34), 4, Palette.Gold);
 
         bool launched = kick.Phase is KickPhase.Flight or KickPhase.Result;
         float runUp = launched ? Math.Min(1, kick.FlightProgress / 0.12f) : 0;
@@ -91,7 +97,7 @@ public static class FieldGoalRenderer
         }
         Info("FIELD GOAL", Palette.Gold, 22);
         Info($"{kick.Distance:F0} YARDS  |  3 POINTS", Palette.White);
-        Info(kick.InRange ? kick.Difficulty : "OUT OF RANGE - MAX 60 YD", Palette.Cyan);
+        Info(kick.InRange ? kick.Difficulty : $"OUT OF RANGE - MAX {FieldGoalAttempt.MaxDistance:0} YD", Palette.Cyan);
         y += 12;
         Info("SPACE: SNAP THE BALL", Palette.White);
         Info("Then time the kick:", Palette.Muted, 12);

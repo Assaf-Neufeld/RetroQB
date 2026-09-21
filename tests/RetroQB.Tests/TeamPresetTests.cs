@@ -11,15 +11,15 @@ namespace RetroQB.Tests;
 public sealed class TeamPresetTests
 {
     [Fact]
-    public void TenRegularTeamsRemainSortedAndSecretTeamIsAdditional()
+    public void TwelveRegularTeamsRemainSortedAndSecretTeamIsAdditional()
     {
         var teams = OffensiveTeamPresets.GetMenuTeams(false);
-        Assert.Equal(10, teams.Count);
-        Assert.Equal(10, teams.Select(t => t.Name).Distinct().Count());
+        Assert.Equal(12, teams.Count);
+        Assert.Equal(12, teams.Select(t => t.Name).Distinct().Count());
         Assert.Equal(teams.OrderByDescending(t => t.TeamScore), teams);
         var unlocked = OffensiveTeamPresets.GetMenuTeams(true);
-        Assert.Equal(11, unlocked.Count);
-        Assert.Equal(teams, unlocked.Take(10));
+        Assert.Equal(13, unlocked.Count);
+        Assert.Equal(teams, unlocked.Take(12));
         Assert.Equal(OffensiveTeamPresets.GoldenLegion.Name, unlocked[^1].Name);
     }
 

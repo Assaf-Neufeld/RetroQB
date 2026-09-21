@@ -10,6 +10,7 @@ namespace RetroQB.Data;
 /// </summary>
 public sealed record QbProfile
 {
+    public bool IsStarPlayer { get; init; }
     public string Name { get; init; } = "QB";
     public float MaxSpeed { get; init; } = Constants.QbMaxSpeed;
     public float SprintSpeed { get; init; } = Constants.QbSprintSpeed;
@@ -31,6 +32,7 @@ public sealed record QbProfile
 /// </summary>
 public sealed record WrProfile
 {
+    public bool IsStarPlayer { get; init; }
     public string Name { get; init; } = "WR";
     public float Speed { get; init; } = Constants.WrSpeed;
     /// <summary>Catching ability (higher = better). Range 0.0-1.0, baseline 0.7.</summary>
@@ -48,6 +50,7 @@ public sealed record WrProfile
 /// </summary>
 public sealed record TeProfile
 {
+    public bool IsStarPlayer { get; init; }
     public string Name { get; init; } = "TE";
     public float Speed { get; init; } = Constants.TeSpeed;
     /// <summary>Catching ability (higher = better). Range 0.0-1.0, baseline 0.65.</summary>
@@ -65,6 +68,7 @@ public sealed record TeProfile
 /// </summary>
 public sealed record RbProfile
 {
+    public bool IsStarPlayer { get; init; }
     public string Name { get; init; } = "RB";
     public float Speed { get; init; } = Constants.RbSpeed;
     /// <summary>Catching ability (higher = better). Range 0.0-1.0, baseline 0.6.</summary>
@@ -149,6 +153,9 @@ public sealed class OffensiveRoster
     }
 
     // Receiver accessors by slot
+    public bool IsStarPlayer(ReceiverSlot slot) => MatchReceiver(slot,
+        rb => rb.IsStarPlayer, te => te.IsStarPlayer, wr => wr.IsStarPlayer, false);
+
     public float GetReceiverSpeed(ReceiverSlot slot) => MatchReceiver(
         slot,
         rb => rb.Speed,

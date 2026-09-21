@@ -1,11 +1,14 @@
 using Raylib_cs;
 using RetroQB.Gameplay;
+using System.Runtime.Versioning;
 
 namespace RetroQB.Rendering;
 
 /// <summary>The original stats-board presentation, adapted to team-owned timed match data.</summary>
 public sealed class TimedScoreboardRenderer
 {
+    private int _lastBeepSecond = -1;
+
     public void Draw(FullMatchSession session)
     {
         var m = session.Match; var d = session.Drive;
@@ -33,8 +36,25 @@ public sealed class TimedScoreboardRenderer
         Box(8, 28, Palette.Gold); Text("GAME DAY | STATS BOARD", 14, 16, Palette.Gold);
         Text((replay?.Stage ?? m.Stage).GetDisplayName().ToUpperInvariant(), 47, 16, Palette.Lime);
         int seconds = (int)Math.Ceiling(clock.RemainingSeconds);
-        Box(77, 53, Palette.Gold);
-        Text(clock.IsOvertime ? "OVERTIME" : $"{(clock.RegulationPeriods == 2 ? "H" : "Q")}{clock.Quarter}  {seconds / 60:00}:{seconds % 60:00}", 85, 27, Palette.Gold);
+        bool clockRunning = clock.Reason == ClockStopReason.Running
+            && clock.Suspension == ClockSuspension.None && clock.Phase is ClockPhase.PreSnap or ClockPhase.LivePlay;
+        bool lowTime = clockRunning && seconds is > 0 and <= 30;
+        bool criticalTime = lowTime && seconds <= 10;
+        if (!clockRunning || seconds > 10) _lastBeepSecond = -1;
+        else if (seconds is 10 or 5 or 3 or 2 or 1 && seconds != _lastBeepSecond)
+        {
+            _lastBeepSecond = seconds;
+            if (OperatingSystem.IsWindows()) _ = Task.Run(BeepOnWindows);
+        }
+        float pulse = .5f + .5f * MathF.Sin((float)Raylib.GetTime() * 8);
+        Color clockColor = criticalTime
+            ? new Color((byte)255, (byte)(35 + pulse * 75), (byte)(35 + pulse * 75), (byte)255)
+            : lowTime ? new Color(255, 183, 45, 255) : Palette.Gold;
+        Box(77, 53, criticalTime ? clockColor : Palette.Gold);
+        Text(clock.IsOvertime ? "OVERTIME" : $"{(clock.RegulationPeriods == 2 ? "H" : "Q")}{clock.Quarter}  {seconds / 60:00}:{seconds % 60:00}", 85, 27, clockColor);
+        if (lowTime)
+            Text(criticalTime ? $"HURRY! {seconds} SECONDS" : seconds == 30 ? "30 SECONDS LEFT" : "LOW TIME", 119, 13,
+                criticalTime ? clockColor : new Color(255, 183, 45, 255), 76);
         Text($"PLAY {Math.Ceiling(clock.PlaySeconds):00}", 95, 16, clock.PlaySeconds <= 5 ? Palette.Red : Palette.White, 222);
         int row = 141;
         foreach (var team in new[] { m.User, m.Opponent })
@@ -79,5 +99,12 @@ public sealed class TimedScoreboardRenderer
         }
         Text(frame != null ? "F / SPACE: RETURN" : session.Clock.Suspension != 0 ? "PAUSED" : session.Status != "" ? session.Status : d.Live ? "LIVE" : "SELECT YOUR CALL", 804, 14, Palette.Gold);
         Text("TAB: FULL STATS   PGUP/PGDN: HISTORY", 831, 11, Palette.Cyan);
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static void BeepOnWindows()
+    {
+        try { Console.Beep(880, 85); }
+        catch (Exception) { /* Audio may be unavailable; the visual warning remains active. */ }
     }
 }

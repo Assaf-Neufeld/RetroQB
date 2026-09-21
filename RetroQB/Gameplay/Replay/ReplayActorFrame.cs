@@ -23,4 +23,5 @@ public readonly record struct ReplayActorFrame(
     bool HasBall,
     bool Eligible,
     bool IsBlocking,
-    PlayerVisualFrame Visual = default);
+    PlayerVisualFrame Visual = default,
+    bool IsStarPlayer = false);

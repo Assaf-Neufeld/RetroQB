@@ -26,8 +26,8 @@ public static class TeamDifficulty
             BlitzSlotMultipliers = baseDefense.BlitzSlotMultipliers,
             DlSpeed = (baseDefense.DlSpeed > 0 ? baseDefense.DlSpeed : Constants.DlSpeed) * rushMult,
             DeSpeed = (baseDefense.DeSpeed > 0 ? baseDefense.DeSpeed : Constants.DeSpeed) * rushMult,
-            LbSpeed = (baseDefense.LbSpeed > 0 ? baseDefense.LbSpeed : Constants.LbSpeed) * stageMult,
-            DbSpeed = (baseDefense.DbSpeed > 0 ? baseDefense.DbSpeed : Constants.DbSpeed) * stageMult
+            LbSpeed = baseDefense.LbSpeed > 0 ? baseDefense.LbSpeed : Constants.LbSpeed,
+            DbSpeed = baseDefense.DbSpeed > 0 ? baseDefense.DbSpeed : Constants.DbSpeed
         };
 
         return scaledDefense;

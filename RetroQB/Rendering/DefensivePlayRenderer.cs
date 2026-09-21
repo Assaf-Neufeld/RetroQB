@@ -62,7 +62,7 @@ public sealed class DefensivePlayRenderer
             : clock.StopReason == ClockStopReason.Timeout ? "TIMEOUT" : clock.StopReason == ClockStopReason.DelayOfGame ? "DELAY OF GAME" : "CHOOSE YOUR CALL");
         Text(status, right, 415);
         if (drive.LastResult != null) Text(drive.LastResult.Event.Reason.ToString(), right, 485);
-        Raylib.DrawText("Gold ring: your linebacker\nRed: rush   Blue: zone\nWhite: man assignment", right, 570, 16, Palette.White);
+        Raylib.DrawText("Gold ring: your linebacker\nRed: rush   Blue: zone/match\nWhite: man assignment", right, 570, 16, Palette.White);
     }
 
     internal static void DrawAssignments(ResolvedDefensivePlay play)

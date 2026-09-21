@@ -14,7 +14,9 @@ Requires the .NET 10 SDK. Run from the repository root:
 dotnet run
 ```
 
-Choose one of ten teams with Up/Down or 1–9/0, then press Enter. G opens the secret-team password prompt. Press Enter on the matchup screen to play immediately. Enter your name on the original save-score screen after your season ends.
+Choose one of twelve teams with Up/Down or 1–9/0, then press Enter. G opens the secret-team password prompt. Press Enter on the matchup screen to play immediately. Enter your name on the original save-score screen after your season ends.
+
+Teams have distinct offensive and defensive strengths, with two permanent `*` roster stars per standard team. Selection shows both units' ratings and named stars; pregame scouting covers the opponent's offense and defense. See the [team balance guide](docs/team-balance.md) for identities, tradeoffs, and opponent tendencies.
 
 Your team always attacks up-screen and defends the bottom end zone. The field stays fixed across possession changes, with screen-relative linebacker controls.
 
@@ -49,7 +51,7 @@ At a final result, Enter accepts the game and advances after a win. After a loss
 
 Pause, statistics, replay, and loss of window focus suspend play. Restart is disabled after the completed season is saved.
 
-For a field goal, press K before the snap, then Space to snap. Once the holder is ready, use Space to start the meter, lock power, and lock accuracy in the green zones. Distance includes the end zone and snap; attempts beyond 60 yards are unavailable. A miss changes possession without awarding points. Select another offensive call before snapping to leave kick setup. Punts are available only on fourth down in regulation. B selects the punt formation; Space snaps to the punter, who kicks downfield. The CPU normally goes for it, punting only inside its own 20 with more than five yards to gain (unless late-game urgency requires going for it).
+For a field goal, press K before the snap, then Space to snap. Once the holder is ready, use Space to start the meter, lock power, and lock accuracy in the green zones. Distance includes the end zone and snap; attempts beyond 80 yards are unavailable, with kicks beyond 65 yards rated extreme difficulty. A miss changes possession without awarding points. Select another offensive call before snapping to leave kick setup. Punts are available only on fourth down in regulation. B selects the punt formation; Space snaps to the punter, who kicks downfield. On fourth down, the CPU considers field-goal distance, yards to gain, field position, and game urgency; it normally punts when backed up or facing a longer gap. Extreme-range attempts are reserved for game-changing situations.
 
 Kickoffs start each half and follow scores in regulation. Space starts your kick or readies your receiving team; CPU kickers also start automatically. The kicking side controls a coverage linebacker, while the receiving side controls the highlighted returner after the catch. WASD/arrows move in screen directions and Shift sprints. Coverage and blockers move on the field; tackles, sidelines, touchbacks, return touchdowns and return safeties determine the next possession. Kickoff flight does not consume the half clock; the clock starts on the return.
 

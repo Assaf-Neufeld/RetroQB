@@ -19,7 +19,8 @@ public sealed record DefenderProfile(
     float SpeedRating = 1.0f,
     float TackleRating = 1.0f,
     float CoverageRating = 1.0f,
-    float BlockShedRating = 1.0f);
+    float BlockShedRating = 1.0f,
+    bool IsStarPlayer = false);
 
 /// <summary>
 /// Defensive position slots for roster management.

@@ -47,6 +47,18 @@ public static class ZoneCoverage
     /// </summary>
     public static Vector2 GetZoneTarget(Defender defender, IReadOnlyList<Receiver> receivers, float lineOfScrimmage)
     {
+        // A match corner carries its assigned outside threat, including an attached TE
+        // on a closed side. Keep deep leverage without abandoning it for a different lane.
+        var primary = defender.MatchReceiverIndex >= 0
+            ? receivers.FirstOrDefault(r => r.Index == defender.MatchReceiverIndex && r.Eligible && !r.IsBlocking)
+            : null;
+        if (primary != null && defender.ZoneRole.IsDeepZone())
+        {
+            var projected = GetProjectedReceiverPosition(primary, defender.ZoneRole);
+            return new Vector2(Math.Clamp(projected.X, .75f, Constants.FieldWidth - .75f),
+                MathF.Min(FieldGeometry.PlayableBackLine,
+                    MathF.Max(defender.AlignmentPosition.Y, projected.Y + Constants.ZoneDeepCushion * GetBackLineCushionScale(projected.Y))));
+        }
         ZoneContext context = BuildZoneContext(defender, lineOfScrimmage);
         Vector2 baseTarget = context.Anchor;
 

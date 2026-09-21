@@ -56,11 +56,22 @@ public static class PregameRenderer
         Text("VS", 392, 208, 136, 44, Palette.Gold);
 
         var report = OpponentScoutingReport.FromTeam(defense);
+        var opponent = TeamCatalog.Opponents.SingleOrDefault(t => t.Name == defense.Name);
         Box(32, 338, 856, 106, Palette.Cabinet);
         Box(32, 338, 4, 106, defense.PrimaryColor);
-        Text("OPPONENT'S TOP STRENGTH", 48, 351, 824, 13, Palette.Muted);
-        Text(report.Strength, 48, 373, 824, 24, Palette.Gold);
-        Text(report.Tip, 48, 411, 824, 17, Palette.White);
+        if (opponent == null)
+        {
+            Text("OPPONENT'S TOP STRENGTH", 48, 351, 824, 13, Palette.Muted);
+            Text(report.Strength, 48, 373, 824, 24, Palette.Gold);
+            Text(report.Tip, 48, 411, 824, 17, Palette.White);
+        }
+        else
+        {
+            Text($"THEIR OFFENSE: {opponent.Offense.Description}", 48, 348, 824, 17, Palette.White);
+            Text($"THEIR DEFENSE: {opponent.Defense.Description}", 48, 373, 824, 17, Palette.White);
+            Text(RosterStars.Summary(opponent), 48, 402, 824, 15, Palette.Gold);
+            Text($"CALLING: {(int)(opponent.Tendencies.PassPreference * 100)}% PASS / {(int)MathF.Round((1 - opponent.Tendencies.PassPreference) * 100)}% RUN BEFORE SITUATIONAL ADJUSTMENTS", 48, 425, 824, 11, Palette.Muted);
+        }
         Text("PRESS ENTER TO TAKE THE FIELD", 32, 468, 856, 23, Palette.White);
         Text(rulesText, 32, 505, 856, 13, Palette.Muted);
     }

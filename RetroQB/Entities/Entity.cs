@@ -12,6 +12,7 @@ public abstract class Entity
     public float Radius;
     public string Glyph;
     public Color Color;
+    public bool IsStarPlayer { get; protected set; }
     public PlayerAnimation Animation { get; } = new();
 
     protected Entity(Vector2 position, float radius, string glyph, Color color)
@@ -32,5 +33,12 @@ public abstract class Entity
     {
         Vector2 screen = Constants.WorldToScreen(Position);
         PixelPlayerRenderer.Draw(screen, Velocity, Glyph, Color, Animation.Frame);
+        if (IsStarPlayer) DrawStar(screen);
+    }
+
+    public static void DrawStar(Vector2 screen)
+    {
+        Raylib.DrawText("*", (int)screen.X + 5, (int)screen.Y - 18, 14, Palette.Ink);
+        Raylib.DrawText("*", (int)screen.X + 4, (int)screen.Y - 19, 14, Palette.Gold);
     }
 }

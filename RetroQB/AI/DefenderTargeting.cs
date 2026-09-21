@@ -26,6 +26,11 @@ public static class DefenderTargeting
         float lineOfScrimmage)
     {
         float speed = defender.Speed * speedMultiplier;
+        // Unit skills affect their football assignment, not open-field pursuit speed.
+        if (ball.State == BallState.HeldByQB && !qbIsRunner)
+            speed *= MathF.Sqrt(Math.Clamp(defender.IsRusher
+                ? defender.TeamAttributes.PassRushAbility
+                : defender.TeamAttributes.CoverageTightness, .5f, 1.5f));
 
         Vector2 target = GetTarget(
             defender, qb, receivers, ball,

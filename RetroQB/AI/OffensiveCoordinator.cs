@@ -10,7 +10,7 @@ public sealed class OffensiveCoordinator(Random random)
     public static IReadOnlyList<string> Runs { get; } = Array.AsReadOnly(Catalog.Plays.Where(p => p.Family == PlayType.Run).Select(p => p.Id).ToArray());
     public string Select(DriveStart series, CpuTendencies tendencies)
     {
-        float chance = Math.Clamp(tendencies.PassPreference + .15f
+        float chance = Math.Clamp(tendencies.PassPreference
             + (series.Distance > 7 && series.Down >= 3 ? .2f : 0)
             - (series.Distance <= 2 ? .2f : 0), .25f, .9f);
         var calls = random.NextDouble() < chance ? Passes : Runs;

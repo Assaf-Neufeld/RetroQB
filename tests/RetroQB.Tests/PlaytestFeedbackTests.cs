@@ -10,12 +10,12 @@ namespace RetroQB.Tests;
 public sealed class PlaytestFeedbackTests
 {
     [Fact]
-    public void CpuCallsMorePassesInNormalAndLongYardageSituationsButKeepsShortYardageRuns()
+    public void PassFocusedCpuKeepsShortYardageRunsAndThrowsMoreOnLongThirdDowns()
     {
         int Passes(DriveStart series)
         {
             var calls = new OffensiveCoordinator(new Random(417));
-            return Enumerable.Range(0, 1000).Count(_ => OffensiveCoordinator.Passes.Contains(calls.Select(series, new(.5f))));
+            return Enumerable.Range(0, 1000).Count(_ => OffensiveCoordinator.Passes.Contains(calls.Select(series, new(.65f))));
         }
         Assert.InRange(Passes(new(20)), 600, 700);
         Assert.InRange(Passes(new(20, 3, 10)), 800, 900);

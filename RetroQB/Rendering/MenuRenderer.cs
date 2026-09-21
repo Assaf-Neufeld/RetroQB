@@ -286,7 +286,8 @@ public sealed class MenuRenderer
         Raylib.DrawLine(panelX + dividerPadding, contentY, panelX + panelWidth - dividerPadding, contentY, new Color(60, 80, 100, 180));
         contentY += denseTeamLayout ? 8 : compactLayout ? 10 : 16;
 
-        string controls1 = $"{teams.Count} teams  |  UP/DOWN or 1-9, 0 to select";
+        var selected = TeamCatalog.Selectable.Single(t => t.Name == teams[selectedTeamIndex].Name);
+        string controls1 = $"OFF {selected.OffenseScore}  /  DEF {selected.DefenseScore}  |  {RosterStars.Summary(selected)}";
         string controls2 = "Press ENTER to start";
         string controls3 = "Press G for secret team";
         string controls4 = string.IsNullOrEmpty(storageMessage)
@@ -295,11 +296,10 @@ public sealed class MenuRenderer
         int ctrlSize = denseTeamLayout ? 13 : compactLayout ? 14 : 16;
         int ctrlGap = denseTeamLayout ? 4 : compactLayout ? 6 : 8;
 
-        int ctrl1Width = Raylib.MeasureText(controls1, ctrlSize);
         int ctrl2Width = Raylib.MeasureText(controls2, ctrlSize);
         int ctrl3Width = Raylib.MeasureText(controls3, ctrlSize);
 
-        Raylib.DrawText(controls1, panelX + (panelWidth - ctrl1Width) / 2, contentY, ctrlSize, new Color(160, 180, 200, 255));
+        DrawCenteredText(controls1, panelX, panelWidth, contentY, ctrlSize, Palette.Gold);
         contentY += ctrlSize + ctrlGap;
         Raylib.DrawText(controls2, panelX + (panelWidth - ctrl2Width) / 2, contentY, ctrlSize, Palette.Yellow);
         contentY += ctrlSize + ctrlGap;
@@ -594,17 +594,19 @@ public sealed class MenuRenderer
     private static (string[] Labels, float[] Values) GetTeamSkillMetrics(OffensiveTeamAttributes team)
     {
         OffensiveTeamSkills skills = team.Skills;
+        var defense = TeamCatalog.Selectable.Single(t => t.Name == team.Name).Defense;
+        float DefensiveBar(float value) => Math.Clamp((value - .7f) / .6f, 0, 1);
         return
         (
-            ["ARM", "AIM", "WR SPD", "HANDS", "RB PWR", "RB SPD", "OL"],
+            ["PASS", "SPEED", "RUN", "OL", "COVER", "RUSH", "TACKLE"],
             [
-                skills.QbThrowPower,
-                skills.QbThrowAccuracy,
+                (skills.QbThrowPower + skills.QbThrowAccuracy + skills.WrSkill) / 3,
                 skills.WrSpeed,
-                skills.WrSkill,
-                skills.RbPower,
-                skills.RbSpeed,
-                skills.OlStrength
+                (skills.RbPower + skills.RbSpeed) / 2,
+                skills.OlStrength,
+                DefensiveBar((defense.CoverageTightness + defense.InterceptionAbility) / 2),
+                DefensiveBar(defense.PassRushAbility),
+                DefensiveBar(defense.TackleAbility)
             ]
         );
     }

@@ -74,7 +74,7 @@ public sealed class ReplayRecorder
                 qb.Color,
                 ball.Holder == qb,
                 true,
-                false, qb.Animation.Frame),
+                false, qb.Animation.Frame, qb.IsStarPlayer),
             Receivers = receivers
                 .Select(receiver => new ReplayActorFrame(
                     100 + receiver.Index,
@@ -86,7 +86,7 @@ public sealed class ReplayRecorder
                     receiver.Color,
                     ball.Holder == receiver,
                     receiver.Eligible,
-                    receiver.IsBlocking, receiver.Animation.Frame))
+                    receiver.IsBlocking, receiver.Animation.Frame, receiver.IsStarPlayer))
                 .ToList(),
             Blockers = blockers
                 .Select((blocker, index) => new ReplayActorFrame(
@@ -112,7 +112,7 @@ public sealed class ReplayRecorder
                     defender.Color,
                     ball.Holder == defender,
                     false,
-                    false, defender.Animation.Frame))
+                    false, defender.Animation.Frame, defender.IsStarPlayer))
                 .ToList(),
             Ball = new ReplayBallFrame(
                 ball.Position,

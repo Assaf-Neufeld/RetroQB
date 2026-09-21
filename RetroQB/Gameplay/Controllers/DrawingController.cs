@@ -505,6 +505,7 @@ public sealed class DrawingController
     {
         Vector2 screen = Constants.WorldToScreen(actor.Position);
         PixelPlayerRenderer.Draw(screen, actor.Velocity, actor.Glyph, actor.Color, actor.Visual);
+        if (actor.IsStarPlayer) Entity.DrawStar(screen);
     }
 
     private static void DrawReplayBall(ReplayBallFrame ball, ReplayFrame frame)

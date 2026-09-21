@@ -9,7 +9,7 @@ public sealed class TeamDefinitionTests
     [Fact]
     public void CatalogPreservesExistingProfilesAndSuppliesBothUnits()
     {
-        Assert.Equal(11, TeamCatalog.Selectable.Count);
+        Assert.Equal(13, TeamCatalog.Selectable.Count);
         Assert.Equal(4, TeamCatalog.Opponents.Count);
         var golden = OffensiveTeamPresets.GoldenLegion;
         var retained = TeamCatalog.Get("golden-legion").Offense;

@@ -5,30 +5,6 @@ namespace RetroQB.Gameplay;
 
 internal static class DefensePostProcessor
 {
-    public static void ApplyStarPlayers(IReadOnlyList<Defender> defenders, SeasonStage stage)
-    {
-        if (stage == SeasonStage.RegularSeason)
-        {
-            return;
-        }
-
-        if (stage == SeasonStage.Playoff)
-        {
-            ApplyStarToSlot(defenders, DefenderSlot.FS);
-            ApplyStarToSlot(defenders, DefenderSlot.DE1);
-            return;
-        }
-
-        if (stage == SeasonStage.SuperBowl)
-        {
-            ApplyStarToSlot(defenders, DefenderSlot.DE1);
-            ApplyStarToSlot(defenders, DefenderSlot.DE2);
-            ApplyStarToFirstExistingSlot(defenders, DefenderSlot.MLB, DefenderSlot.NB);
-            ApplyStarToSlot(defenders, DefenderSlot.CB1);
-            ApplyStarToSlot(defenders, DefenderSlot.FS);
-        }
-    }
-
     public static List<string> BuildBlitzerSummary(IReadOnlyList<Defender> defenders)
     {
         int lbCount = 0;
@@ -77,43 +53,6 @@ internal static class DefensePostProcessor
         }
 
         return blitzers;
-    }
-
-    private static void ApplyStarToSlot(IReadOnlyList<Defender> defenders, DefenderSlot slot)
-    {
-        Defender? defender = defenders.FirstOrDefault(d => d.Slot == slot);
-        if (defender == null)
-        {
-            return;
-        }
-
-        switch (defender.PositionRole)
-        {
-            case DefensivePosition.DB:
-                defender.ApplyStarBoost(speedMultiplier: 1.08f, tackleMultiplier: 1.02f, interceptionMultiplier: 1.40f, blockShedMultiplier: 1.05f);
-                break;
-            case DefensivePosition.DE:
-                defender.ApplyStarBoost(speedMultiplier: 1.10f, tackleMultiplier: 1.10f, interceptionMultiplier: 1.00f, blockShedMultiplier: 1.35f);
-                break;
-            case DefensivePosition.LB:
-                defender.ApplyStarBoost(speedMultiplier: 1.07f, tackleMultiplier: 1.25f, interceptionMultiplier: 1.10f, blockShedMultiplier: 1.20f);
-                break;
-            default:
-                defender.ApplyStarBoost(speedMultiplier: 1.05f, tackleMultiplier: 1.15f, interceptionMultiplier: 1.00f, blockShedMultiplier: 1.25f);
-                break;
-        }
-    }
-
-    private static void ApplyStarToFirstExistingSlot(IReadOnlyList<Defender> defenders, params DefenderSlot[] slots)
-    {
-        foreach (DefenderSlot slot in slots)
-        {
-            if (defenders.Any(defender => defender.Slot == slot))
-            {
-                ApplyStarToSlot(defenders, slot);
-                return;
-            }
-        }
     }
 
     private static bool IsLinebackerSlot(DefenderSlot slot)

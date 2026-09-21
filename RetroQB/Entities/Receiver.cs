@@ -46,6 +46,7 @@ public sealed class Receiver : Entity
         TeamAttributes = teamAttributes ?? OffensiveTeamAttributes.Default;
         Index = index;
         Slot = slot;
+        IsStarPlayer = TeamAttributes.Roster.IsStarPlayer(slot);
         IsRunningBack = slot.IsRunningBackSlot();
         IsTightEnd = slot.IsTightEndSlot() && !IsRunningBack;
         PositionRole = IsRunningBack ? OffensivePosition.RB : IsTightEnd ? OffensivePosition.TE : OffensivePosition.WR;

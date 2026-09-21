@@ -39,16 +39,19 @@ public sealed record DefensiveAssignment(DefenderSlot Slot, DefensivePosition Po
     bool Rush, int ManTarget, CoverageRole Zone, bool Press, float Jitter, float RushLane,
     Vector2 Target, float SpeedBoost, float TackleBoost, float InterceptionBoost, float ShedBoost, bool Star)
 {
+    public int MatchTarget { get; init; } = -1;
     public string Responsibility => Rush ? "Rush the quarterback" : Zone != CoverageRole.None
-        ? $"Zone: {Zone}" : $"Man: receiver {ManTarget + 1}";
+        ? MatchTarget >= 0 ? $"Match: receiver {MatchTarget + 1} ({Zone})" : $"Zone: {Zone}"
+        : $"Man: receiver {ManTarget + 1}";
     public Defender Create(DefensiveTeamAttributes attributes)
     {
         var defender = new Defender(Position, PositionRole, Slot, attributes)
         {
             IsRusher = Rush, CoverageReceiverIndex = ManTarget, ZoneRole = Zone,
+            MatchReceiverIndex = MatchTarget,
             IsPressCoverage = Press, ZoneJitterX = Jitter, RushLaneOffsetX = RushLane
         };
-        if (Star) defender.ApplyStarBoost(SpeedBoost, TackleBoost, InterceptionBoost, ShedBoost);
+        defender.RestoreModifiers(SpeedBoost, TackleBoost, InterceptionBoost, ShedBoost, Star);
         return defender;
     }
 }
@@ -147,8 +150,10 @@ public static class DefensivePlayResolver
                 : d.Position;
         return new(definition, defenders.Select(d => new DefensiveAssignment(d.Slot, d.PositionRole, Alignment(d),
             d.IsRusher, d.CoverageReceiverIndex, d.ZoneRole, d.IsPressCoverage, d.ZoneJitterX, d.RushLaneOffsetX,
-            d.IsRusher ? qb.Position : d.ZoneRole != CoverageRole.None ? ZoneCoverage.GetZoneTarget(d, receivers, context.LineOfScrimmage)
+            d.IsRusher ? qb.Position : d.MatchReceiverIndex >= 0 ? receivers.Single(r => r.Index == d.MatchReceiverIndex).Position
+                : d.ZoneRole != CoverageRole.None ? ZoneCoverage.GetZoneTarget(d, receivers, context.LineOfScrimmage)
                 : receivers.Single(r => r.Index == d.CoverageReceiverIndex).Position,
-            d.SpeedMultiplier, d.TackleMultiplier, d.InterceptionMultiplier, d.BlockShedMultiplier, d.IsStarPlayer)));
+            d.SpeedMultiplier, d.TackleMultiplier, d.InterceptionMultiplier, d.BlockShedMultiplier, d.IsStarPlayer)
+            { MatchTarget = d.MatchReceiverIndex }));
     }
 }

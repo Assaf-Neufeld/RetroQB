@@ -18,7 +18,7 @@ public static class DefensiveTeamPresets
     public static DefensiveTeamAttributes ScarletGuard => new()
     {
         Name = "Scarlet Guard",
-        Description = "Regular season",
+        Description = "Sure tackling; modest rush and deep coverage",
         PrimaryColor = new Color(255, 156, 220, 255),
         SecondaryColor = new Color(112, 28, 78, 255),
         Roster = new DefensiveRoster
@@ -29,7 +29,7 @@ public static class DefensiveTeamPresets
                 [DefenderSlot.DT2] = new DefenderProfile("Anchor", 0.98f, 1.02f, 0.9f, 1.0f),
                 [DefenderSlot.DE1] = new DefenderProfile("Edge", 1.05f, 1.0f, 0.95f, 1.02f),
                 [DefenderSlot.DE2] = new DefenderProfile("Rush", 1.02f, 0.98f, 0.92f, 1.0f),
-                [DefenderSlot.MLB] = new DefenderProfile("Core", 1.0f, 1.08f, 1.0f, 1.08f),
+                [DefenderSlot.MLB] = new DefenderProfile("Core", 1.04f, 1.12f, 1.0f, 1.10f, true),
                 [DefenderSlot.OLB1] = new DefenderProfile("Hawk", 1.02f, 1.05f, 1.0f, 1.05f),
                 [DefenderSlot.OLB2] = new DefenderProfile("Scout", 1.0f, 1.02f, 0.98f, 1.02f),
                 [DefenderSlot.CB1] = new DefenderProfile("Lock", 1.05f, 0.95f, 1.08f, 0.9f),
@@ -66,7 +66,7 @@ public static class DefensiveTeamPresets
     public static DefensiveTeamAttributes CrimsonRush => new()
     {
         Name = "Crimson Rush",
-        Description = "Playoff",
+        Description = "Aggressive edge rush; attack the vacated coverage",
         PrimaryColor = new Color(228, 242, 255, 255),
         SecondaryColor = new Color(60, 78, 104, 255),
         Roster = new DefensiveRoster
@@ -75,7 +75,7 @@ public static class DefensiveTeamPresets
             {
                 [DefenderSlot.DT1] = new DefenderProfile("Wrecker", 1.1f, 1.12f, 0.8f, 1.2f),
                 [DefenderSlot.DT2] = new DefenderProfile("Crusher", 1.08f, 1.1f, 0.75f, 1.18f),
-                [DefenderSlot.DE1] = new DefenderProfile("Fury", 1.15f, 1.05f, 0.85f, 1.15f),
+                [DefenderSlot.DE1] = new DefenderProfile("Fury", 1.10f, 1.08f, 0.85f, 1.22f, true),
                 [DefenderSlot.DE2] = new DefenderProfile("Storm", 1.12f, 1.02f, 0.82f, 1.12f),
                 [DefenderSlot.MLB] = new DefenderProfile("Hammer", 1.05f, 1.18f, 0.9f, 1.25f),
                 [DefenderSlot.OLB1] = new DefenderProfile("Blaze", 1.1f, 1.15f, 0.88f, 1.2f),
@@ -101,8 +101,8 @@ public static class DefensiveTeamPresets
         InterceptionAbility = 0.85f,
         TackleAbility = 1.15f,
         CoverageTightness = 0.85f,
-        PassRushAbility = 1.3f,
-        BlitzFrequency = 1.8f,
+        PassRushAbility = 1.18f,
+        BlitzFrequency = 1.55f,
         BlitzSlotMultipliers = new Dictionary<DefenderSlot, float>
         {
             [DefenderSlot.OLB1] = 1.35f,
@@ -122,7 +122,7 @@ public static class DefensiveTeamPresets
     public static DefensiveTeamAttributes Lockdown => new()
     {
         Name = "Lockdown",
-        Description = "Coverage elite",
+        Description = "Elite secondary; run at the light front",
         PrimaryColor = new Color(70, 130, 120, 255),
         SecondaryColor = new Color(200, 210, 205, 255),
         Roster = new DefensiveRoster
@@ -136,9 +136,9 @@ public static class DefensiveTeamPresets
                 [DefenderSlot.MLB] = new DefenderProfile("Read", 0.95f, 1.0f, 1.1f, 0.95f),
                 [DefenderSlot.OLB1] = new DefenderProfile("Zone", 1.0f, 0.95f, 1.12f, 0.92f),
                 [DefenderSlot.OLB2] = new DefenderProfile("Drop", 0.98f, 0.92f, 1.1f, 0.9f),
-                [DefenderSlot.CB1] = new DefenderProfile("Island", 1.15f, 0.9f, 1.25f, 0.85f),
+                [DefenderSlot.CB1] = new DefenderProfile("Island", 1.10f, 0.9f, 1.24f, 0.85f, true),
                 [DefenderSlot.CB2] = new DefenderProfile("Blanket", 1.12f, 0.88f, 1.22f, 0.82f),
-                [DefenderSlot.FS] = new DefenderProfile("Hawk", 1.18f, 0.85f, 1.3f, 0.8f),
+                [DefenderSlot.FS] = new DefenderProfile("Hawk", 1.10f, 0.85f, 1.24f, 0.8f, true),
                 [DefenderSlot.SS] = new DefenderProfile("Range", 1.1f, 0.92f, 1.2f, 0.88f),
                 [DefenderSlot.NB] = new DefenderProfile("Stick", 1.2f, 0.82f, 1.25f, 0.78f)
             },
@@ -155,12 +155,12 @@ public static class DefensiveTeamPresets
             }
         },
         OverallRating = 1.0f,
-        DbSpeed = Constants.DbSpeed * 1.15f,
+        DbSpeed = Constants.DbSpeed * 1.03f,
         LbSpeed = Constants.LbSpeed * 1.05f,
         SpeedMultiplier = 1.0f,
-        InterceptionAbility = 1.25f,
+        InterceptionAbility = 1.08f,
         TackleAbility = 0.9f,
-        CoverageTightness = 1.25f,
+        CoverageTightness = 1.16f,
         PassRushAbility = 0.85f,
         BlitzFrequency = 0.7f,
         BlitzSlotMultipliers = new Dictionary<DefenderSlot, float>
@@ -182,19 +182,19 @@ public static class DefensiveTeamPresets
     public static DefensiveTeamAttributes BloodlineBastion => new()
     {
         Name = "Bloodline Bastion",
-        Description = "Super Bowl",
+        Description = "Dominant run front; slower secondary",
         PrimaryColor = new Color(148, 255, 35, 255),
         SecondaryColor = new Color(42, 78, 20, 255),
         Roster = new DefensiveRoster
         {
             Defenders = new Dictionary<DefenderSlot, DefenderProfile>
             {
-                [DefenderSlot.DT1] = new DefenderProfile("Wall", 1.0f, 1.2f, 0.8f, 1.3f),
+                [DefenderSlot.DT1] = new DefenderProfile("Wall", 1.03f, 1.18f, 0.8f, 1.24f, true),
                 [DefenderSlot.DT2] = new DefenderProfile("Pillar", 0.98f, 1.18f, 0.78f, 1.28f),
                 [DefenderSlot.DE1] = new DefenderProfile("Gate", 1.02f, 1.15f, 0.85f, 1.22f),
                 [DefenderSlot.DE2] = new DefenderProfile("Bolt", 1.0f, 1.12f, 0.82f, 1.2f),
-                [DefenderSlot.MLB] = new DefenderProfile("Fortress", 0.95f, 1.25f, 0.95f, 1.35f),
-                [DefenderSlot.OLB1] = new DefenderProfile("Bulwark", 0.98f, 1.2f, 0.92f, 1.3f),
+                [DefenderSlot.MLB] = new DefenderProfile("Fortress", 1.02f, 1.20f, 0.95f, 1.24f, true),
+                [DefenderSlot.OLB1] = new DefenderProfile("Bulwark", 1.03f, 1.16f, 0.92f, 1.22f, true),
                 [DefenderSlot.OLB2] = new DefenderProfile("Bastion", 0.95f, 1.18f, 0.9f, 1.28f),
                 [DefenderSlot.CB1] = new DefenderProfile("Trail", 0.95f, 0.98f, 0.95f, 0.9f),
                 [DefenderSlot.CB2] = new DefenderProfile("Chase", 0.92f, 0.95f, 0.92f, 0.88f),
@@ -221,10 +221,10 @@ public static class DefensiveTeamPresets
         DlSpeed = Constants.DlSpeed * 0.95f,
         DeSpeed = Constants.DeSpeed * 0.95f,
         LbSpeed = Constants.LbSpeed * 0.95f,
-        DbSpeed = Constants.DbSpeed * 0.9f,
-        SpeedMultiplier = 0.95f,
+        DbSpeed = Constants.DbSpeed * 0.96f,
+        SpeedMultiplier = 0.99f,
         InterceptionAbility = 0.9f,
-        TackleAbility = 1.25f,
+        TackleAbility = 1.16f,
         CoverageTightness = 0.95f,
         PassRushAbility = 1.1f,
         BlitzFrequency = 0.9f,
@@ -252,4 +252,3 @@ public static class DefensiveTeamPresets
         Lockdown,
     };
 }
-

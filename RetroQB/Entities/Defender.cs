@@ -40,9 +40,9 @@ public sealed class Defender : Entity
     public float InterceptionMultiplier { get; private set; } = 1f;
     public float TackleMultiplier { get; private set; } = 1f;
     public float BlockShedMultiplier { get; private set; } = 1f;
-    public bool IsStarPlayer { get; private set; }
     public bool IsRusher { get; set; }
     public int CoverageReceiverIndex { get; set; } = -1;
+    public int MatchReceiverIndex { get; set; } = -1;
     public bool HasBall { get; set; }
     public CoverageRole ZoneRole { get; set; } = CoverageRole.None;
     public float RushLaneOffsetX { get; set; }
@@ -84,6 +84,12 @@ public sealed class Defender : Entity
         PositionRole = role;
         Slot = slot;
         _baseSpeed = TeamAttributes.GetEffectiveSpeed(role);
+        var profile = TeamAttributes.Roster.GetProfile(slot);
+        SpeedMultiplier = Math.Clamp(profile.SpeedRating, .7f, 1.4f);
+        TackleMultiplier = Math.Clamp(profile.TackleRating, .7f, 1.4f);
+        InterceptionMultiplier = Math.Clamp(profile.CoverageRating, .7f, 1.4f);
+        BlockShedMultiplier = Math.Clamp(profile.BlockShedRating, .7f, 1.4f);
+        IsStarPlayer = profile.IsStarPlayer;
     }
 
     public void ApplyStarBoost(float speedMultiplier, float tackleMultiplier, float interceptionMultiplier, float blockShedMultiplier)
@@ -95,23 +101,12 @@ public sealed class Defender : Entity
         BlockShedMultiplier *= blockShedMultiplier;
     }
 
-    public override void Draw()
+    internal void RestoreModifiers(float speed, float tackle, float interception, float shed, bool star)
     {
-        base.Draw();
-
-        if (!IsStarPlayer)
-        {
-            return;
-        }
-
-        Vector2 screen = Constants.WorldToScreen(Position);
-        const int fontSize = 14;
-        const string marker = "*";
-        int markerWidth = Raylib.MeasureText(marker, fontSize);
-        int drawX = (int)screen.X + 8 - markerWidth / 2;
-        int drawY = (int)screen.Y - 19;
-
-        Raylib.DrawText(marker, drawX + 1, drawY + 1, fontSize, new Color(10, 10, 14, 180));
-        Raylib.DrawText(marker, drawX, drawY, fontSize, Palette.Gold);
+        SpeedMultiplier = speed;
+        TackleMultiplier = tackle;
+        InterceptionMultiplier = interception;
+        BlockShedMultiplier = shed;
+        IsStarPlayer = star;
     }
 }

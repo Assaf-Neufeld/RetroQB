@@ -66,6 +66,12 @@ public sealed class DefenseFactory : IDefenseFactory
 
         // Use the pre-decided scheme and blitz from the coordinator
         CoverageScheme scheme = call.Scheme;
+        if (scheme is CoverageScheme.Cover3Match or CoverageScheme.QuartersMatch)
+        {
+            var visible = receivers.OrderBy(r => r.Position.X).ToList();
+            left = surface.LeftWideReceiverIndex >= 0 ? surface.LeftWideReceiverIndex : visible.FirstOrDefault()?.Index ?? -1;
+            right = surface.RightWideReceiverIndex >= 0 ? surface.RightWideReceiverIndex : visible.LastOrDefault()?.Index ?? -1;
+        }
         BlitzDecision blitzDecision = call.Blitz;
         bool hasNickelPackage = resolvedPersonnel.UsesNickel;
         ManCoveragePlan manPlan = BuildManCoveragePlan(scheme, receivers, hasNickelPackage, blitzDecision);
@@ -129,7 +135,10 @@ public sealed class DefenseFactory : IDefenseFactory
             receivers, surface, hasNickelPackage, rng);
 
         // Cornerbacks
-        defenders.Add(new Defender(new Vector2(GetManAlignmentXOrDefault(receivers, manPlan, DefenderSlot.CB1, dbConfig.LeftCbX), dbConfig.LeftCbDepth), DefensivePosition.DB, DefenderSlot.CB1, attrs)
+        bool isMatch = scheme is CoverageScheme.Cover3Match or CoverageScheme.QuartersMatch;
+        float leftCornerX = isMatch ? GetReceiverXOrDefault(receivers, left, dbConfig.LeftCbX) : dbConfig.LeftCbX;
+        float rightCornerX = isMatch ? GetReceiverXOrDefault(receivers, right, dbConfig.RightCbX) : dbConfig.RightCbX;
+        defenders.Add(new Defender(new Vector2(GetManAlignmentXOrDefault(receivers, manPlan, DefenderSlot.CB1, leftCornerX), dbConfig.LeftCbDepth), DefensivePosition.DB, DefenderSlot.CB1, attrs)
         {
             IsRusher = blitzDecision.IsBlitzer(DefenderSlot.CB1),
             CoverageReceiverIndex = GetInitialCoverageIndex(manPlan, DefenderSlot.CB1, left),
@@ -138,7 +147,7 @@ public sealed class DefenseFactory : IDefenseFactory
             ZoneJitterX = GetJitter(rng),
             RushLaneOffsetX = -10.0f
         });
-        defenders.Add(new Defender(new Vector2(GetManAlignmentXOrDefault(receivers, manPlan, DefenderSlot.CB2, dbConfig.RightCbX), dbConfig.RightCbDepth), DefensivePosition.DB, DefenderSlot.CB2, attrs)
+        defenders.Add(new Defender(new Vector2(GetManAlignmentXOrDefault(receivers, manPlan, DefenderSlot.CB2, rightCornerX), dbConfig.RightCbDepth), DefensivePosition.DB, DefenderSlot.CB2, attrs)
         {
             IsRusher = blitzDecision.IsBlitzer(DefenderSlot.CB2),
             CoverageReceiverIndex = GetInitialCoverageIndex(manPlan, DefenderSlot.CB2, right),
@@ -155,6 +164,11 @@ public sealed class DefenseFactory : IDefenseFactory
             float nickelX = dbConfig.NickelX >= 0
                 ? dbConfig.NickelX
                 : GetReceiverXOrDefault(receivers, nickelTarget, GetMiddleFieldAlignmentX(surface));
+            if (isMatch)
+            {
+                var slotReceiver = receivers.FirstOrDefault(r => r.PositionRole == OffensivePosition.WR && r.Index != left && r.Index != right);
+                if (slotReceiver != null) nickelX = slotReceiver.Position.X;
+            }
 
             defenders.Add(new Defender(new Vector2(
                 GetManAlignmentXOrDefault(receivers, manPlan, DefenderSlot.NB, nickelX),
@@ -197,8 +211,6 @@ public sealed class DefenseFactory : IDefenseFactory
         });
 
         ApplyUniqueCoverageAssignments(scheme, defenders, receivers);
-
-        DefensePostProcessor.ApplyStarPlayers(defenders, context.Stage);
 
         return new DefenseResult
         {
@@ -1075,6 +1087,11 @@ public sealed class DefenseFactory : IDefenseFactory
 
     private static void ApplyUniqueCoverageAssignments(CoverageScheme scheme, List<Defender> defenders, IReadOnlyList<Receiver> receivers)
     {
+        if (scheme is CoverageScheme.Cover3Match or CoverageScheme.QuartersMatch)
+        {
+            ApplyMatchCoverageAssignments(defenders, receivers);
+            return;
+        }
         var coverageReceivers = receivers
             .Where(receiver => receiver.Eligible)
             .OrderBy(receiver => receiver.Position.X)
@@ -1103,16 +1120,6 @@ public sealed class DefenseFactory : IDefenseFactory
         var availableReceiverIndices = coverageReceivers
             .Select(receiver => receiver.Index)
             .ToHashSet();
-
-        if (scheme is CoverageScheme.Cover3Match or CoverageScheme.QuartersMatch)
-        {
-            // The outside receivers belong to the corners' deep match responsibilities.
-            // Underneath carries should only consume the remaining inside threats.
-            availableReceiverIndices.ExceptWith(defenders
-                .Where(defender => !defender.IsRusher
-                    && defender.Slot is DefenderSlot.CB1 or DefenderSlot.CB2)
-                .Select(defender => defender.CoverageReceiverIndex));
-        }
 
         foreach (CoverageAssignmentCandidate candidate in orderedCandidates)
         {
@@ -1156,6 +1163,57 @@ public sealed class DefenseFactory : IDefenseFactory
             }
 
             candidate.Defender.ZoneRole = candidate.OriginalZoneRole;
+        }
+    }
+
+    private static void ApplyMatchCoverageAssignments(List<Defender> defenders, IReadOnlyList<Receiver> receivers)
+    {
+        // Match the visible formation, never the offense's hidden route/blocking choices.
+        var remaining = receivers.ToList();
+        foreach (var corner in defenders.Where(d => !d.IsRusher && d.Slot is DefenderSlot.CB1 or DefenderSlot.CB2))
+        {
+            var outside = remaining.FirstOrDefault(r => r.Index == corner.CoverageReceiverIndex);
+            if (outside == null) continue;
+            corner.MatchReceiverIndex = outside.Index;
+            remaining.Remove(outside);
+        }
+
+        var underneath = defenders.Where(d => !d.IsRusher && IsMatchCarryCandidate(d)).ToList();
+        foreach (var defender in underneath) defender.CoverageReceiverIndex = -1;
+        // There are at most three underneath defenders. Evaluate the whole assignment
+        // rather than letting the first linebacker consume another defender's best target.
+        int[] current = Enumerable.Repeat(-1, underneath.Count).ToArray();
+        int[] best = (int[])current.Clone();
+        float bestCost = float.MaxValue;
+        var used = new HashSet<int>();
+        int assignmentCount = Math.Min(remaining.Count, underneath.Count);
+        void Search(int defenderIndex, float cost)
+        {
+            if (defenderIndex == underneath.Count)
+            {
+                if (used.Count == assignmentCount && cost < bestCost)
+                { bestCost = cost; best = (int[])current.Clone(); }
+                return;
+            }
+            var defender = underneath[defenderIndex];
+            foreach (var receiver in remaining)
+            {
+                if (!used.Add(receiver.Index)) continue;
+                float dx = defender.AlignmentPosition.X - receiver.Position.X;
+                float personnelPenalty = receiver.PositionRole == OffensivePosition.WR && defender.PositionRole == DefensivePosition.LB
+                    || receiver.IsRunningBack && defender.Slot == DefenderSlot.NB ? 1000f : 0f;
+                current[defenderIndex] = receiver.Index;
+                Search(defenderIndex + 1, cost + dx * dx + personnelPenalty);
+                used.Remove(receiver.Index);
+            }
+            current[defenderIndex] = -1;
+            if (remaining.Count < underneath.Count) Search(defenderIndex + 1, cost);
+        }
+        Search(0, 0);
+        for (int i = 0; i < underneath.Count; i++)
+        {
+            underneath[i].CoverageReceiverIndex = best[i];
+            if (best[i] >= 0) underneath[i].ZoneRole = CoverageRole.None;
         }
     }
 
@@ -1237,12 +1295,6 @@ public sealed class DefenseFactory : IDefenseFactory
                     && defender.CoverageReceiverIndex >= 0
                     && defender.ZoneRole == CoverageRole.None)
                 .Select(defender => new CoverageAssignmentCandidate(defender, defender.ZoneRole, ClearZoneRoleOnAssignment: false))
-                .ToList(),
-
-            CoverageScheme.Cover3Match or CoverageScheme.QuartersMatch => defenders
-                .Where(defender => !defender.IsRusher
-                    && IsMatchCarryCandidate(defender))
-                .Select(defender => new CoverageAssignmentCandidate(defender, defender.ZoneRole, ClearZoneRoleOnAssignment: true))
                 .ToList(),
 
             _ => new List<CoverageAssignmentCandidate>()

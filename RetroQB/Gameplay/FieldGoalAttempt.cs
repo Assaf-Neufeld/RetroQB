@@ -8,7 +8,7 @@ public enum KickPhase { Setup, Snap, Ready, Power, Accuracy, Flight, Result }
 /// <summary>Deterministic, frame-time based kicking; no rendering or keyboard dependencies.</summary>
 public sealed class FieldGoalAttempt
 {
-    public const float MaxDistance = 60f;
+    public const float MaxDistance = 80f;
     public const float AccuracyTarget = 0.5f;
     public const float PowerTarget = 0.5f;
     public const float FlightDuration = 1.6f;
@@ -23,7 +23,8 @@ public sealed class FieldGoalAttempt
     public bool ShowMeter => TimingActive || Phase == KickPhase.Result;
     public float Distance { get; }
     public bool InRange => Distance <= MaxDistance;
-    public string Difficulty => Distance < 30 ? "FORGIVING" : Distance <= 45 ? "MODERATE" : Distance <= 55 ? "HARD" : "VERY HARD";
+    public string Difficulty => Distance < 30 ? "FORGIVING" : Distance <= 45 ? "MODERATE"
+        : Distance <= 55 ? "HARD" : Distance <= 65 ? "VERY HARD" : "EXTREME";
     public KickPhase Phase { get; private set; }
     public float Marker { get; private set; }
     public float Power { get; private set; }

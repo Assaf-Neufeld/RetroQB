@@ -17,6 +17,7 @@ public sealed class Quarterback : Entity
         : base(position, Constants.QbRadius, "QB", ResolveQbColor(teamAttributes))
     {
         TeamAttributes = teamAttributes ?? OffensiveTeamAttributes.Default;
+        IsStarPlayer = TeamAttributes.Roster.Quarterback.IsStarPlayer;
         Color = ResolveQbColor(TeamAttributes);
     }
 
