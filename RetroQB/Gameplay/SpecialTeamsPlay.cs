@@ -14,6 +14,8 @@ public sealed record KickReturnResult(float ReceivingYard, bool Touchback, bool 
 /// <summary>Playable punt/kickoff flight, coverage, blocking and return in kicking-team coordinates.</summary>
 public sealed class SpecialTeamsPlay
 {
+    private static readonly float[] KickoffCoverageLanes = [-18f, -14f, -10f, -6f, -2f, 2f, 6f, 10f, 14f, 18f, 0f];
+    private static readonly float[] PuntCoverageLanes = [-20f, -15f, -10f, -6f, -2f, 2f, 6f, 10f, 15f, 20f, 0f];
     public bool IsKickoff { get; }
     public SpecialTeamsPhase Phase { get; private set; }
     public List<SpecialTeamsPlayer> Coverage { get; } = new();
@@ -31,6 +33,7 @@ public sealed class SpecialTeamsPlay
     private float _catchY;
     private readonly SpecialTeamsPlayer[] _blockingPlayers;
     private readonly SpecialTeamsPlayer[] _coveragePlayers;
+    private HashSet<int> _primaryPursuers = new();
     public SpecialTeamsPlay(bool kickoff, float ownYard, Random random)
     {
         IsKickoff = kickoff; LineOfScrimmage = ownYard + 10;
@@ -106,6 +109,7 @@ public sealed class SpecialTeamsPlay
                 BallHeight = 0;
                 if (_landing.Y >= 110) { Finish(20, true); return; }
                 Returner.Position = _landing; _catchY = _landing.Y;
+                AssignReturnCoverageRoles(userReceiving);
                 Phase = SpecialTeamsPhase.Return; _phaseSeconds = 0;
             }
             return;
@@ -141,7 +145,9 @@ public sealed class SpecialTeamsPlay
         for (int i = 0; i < _coveragePlayers.Length; i++)
         {
             var player = _coveragePlayers[i];
-            var direction = !userReceiving && i == ControlledCoverageIndex ? movement : Toward(player.Position, target);
+            var controlledByUser = !userReceiving && i == ControlledCoverageIndex;
+            var pursuitTarget = GetCoverageTarget(i, target);
+            var direction = controlledByUser ? movement : Toward(player.Position, pursuitTarget);
             float speed = !userReceiving && i == ControlledCoverageIndex && sprint ? 9 : 7.1f;
             if (Blockers.Any(b => Vector2.DistanceSquared(b.Position, player.Position) < 5)) speed *= .38f;
             player.Velocity = direction * speed;
@@ -165,6 +171,36 @@ public sealed class SpecialTeamsPlay
             float closing = Vector2.Dot(b.Velocity - a.Velocity, normal);
             if (closing < 0) { a.Velocity += normal * closing / 2; b.Velocity -= normal * closing / 2; }
         }
+    }
+
+    private void AssignReturnCoverageRoles(bool userReceiving)
+    {
+        _primaryPursuers = _coveragePlayers
+            .Select((player, index) => (player, index))
+            .Where(pair => userReceiving || pair.index != ControlledCoverageIndex)
+            .OrderBy(pair => Vector2.DistanceSquared(pair.player.Position, Returner.Position))
+            .Take(2)
+            .Select(pair => pair.index)
+            .ToHashSet();
+    }
+
+    private Vector2 GetCoverageTarget(int index, Vector2 returnTarget)
+    {
+        if (_primaryPursuers.Contains(index)) return returnTarget;
+
+        // Gunners and outside coverage keep the widest lanes; interior players
+        // fill the staggered gaps. Because lanes move with the returner, coverage
+        // fans out and then closes the escape routes instead of forming a mob.
+        float offset = (IsKickoff ? KickoffCoverageLanes : PuntCoverageLanes)[index];
+        if (Phase == SpecialTeamsPhase.Flight)
+        {
+            float spread = IsKickoff ? 0.55f : 0.42f;
+            return new(Math.Clamp(_landing.X + offset * spread, 2f, Constants.FieldWidth - 2f),
+                Math.Max(1f, _landing.Y - 3f));
+        }
+
+        return new(Math.Clamp(returnTarget.X + offset, 1.5f, Constants.FieldWidth - 1.5f),
+            Math.Min(119f, returnTarget.Y + 2.5f));
     }
     private static Vector2 Toward(Vector2 from, Vector2 to)
         => Vector2.DistanceSquared(from, to) < .01f ? Vector2.Zero : Vector2.Normalize(to - from);
