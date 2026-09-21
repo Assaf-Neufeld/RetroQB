@@ -27,6 +27,29 @@ public sealed class TimedSeasonTests : IDisposable
     }
 
     [Fact]
+    public void StageVictoryWaitsForAcceptanceAndPreviewDoesNotCommitResults()
+    {
+        var season = NewSeason(); season.Accept();
+        Finish(season, true);
+        Assert.True(season.StageVictory);
+        var preview = season.PreviewResult();
+        Assert.Single(preview.Games);
+        Assert.Empty(season.Completed); Assert.Empty(season.Summary.Games);
+        Assert.Equal(preview.ComputeDominanceScore(), season.PreviewResult().ComputeDominanceScore());
+        season.Update(10, new());
+        Assert.True(season.StageVictory); Assert.Equal(SeasonStage.RegularSeason, season.Stage);
+        season.Accept();
+        Assert.False(season.StageVictory); Assert.True(season.Pregame);
+        Assert.Single(season.Completed);
+        Assert.Equal(preview.ComputeDominanceScore(), season.Summary.ComputeDominanceScore());
+        season.Accept(); Finish(season, true);
+        Assert.True(season.StageVictory);
+        Assert.Equal(2, season.PreviewResult().Games.Count);
+        season.Current.Restart();
+        Assert.False(season.StageVictory); Assert.Single(season.Completed);
+    }
+
+    [Fact]
     public void STATS01_CpuOffenseAndUserDefenseShareOneEventWithoutPollutingUserOffense()
     {
         var u = TeamCatalog.Get("ballers"); var o = TeamCatalog.ForStage(SeasonStage.RegularSeason);

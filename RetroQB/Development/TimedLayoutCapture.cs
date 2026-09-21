@@ -84,6 +84,19 @@ internal static class TimedLayoutCapture
                 final.Match.Opponent.Score = 7; final.Clock.StartPeriod(2); final.Timed.Continue();
                 final.Timed.Advance(0, "layout.final"); final.Timed.Advance(120); final.Drive.ResolveSpecial(PlayEndReason.Kneel, 19);
                 game.TimedSeason.Accept(); Capture("name-after-season");
+                game.StartTimedSeason(options.Seed, "", new PlayerRecordStore(Path.Combine(output, "victory-preview.json"), MatchRuleset.TwoSidedTimed));
+                for (int stage = 0; stage < 2; stage++)
+                {
+                    game.TimedSeason!.Accept();
+                    var victory = game.FullMatch!;
+                    victory.Match.User.Score = 14; victory.Match.Opponent.Score = 7;
+                    victory.Clock.StartPeriod(2); victory.Timed.Continue();
+                    victory.Timed.Advance(0, "layout.victory"); victory.Timed.Advance(120);
+                    victory.Drive.ResolveSpecial(PlayEndReason.Kneel, 19);
+                    Capture(stage == 0 ? "regular-season-victory" : "playoff-victory");
+                    game.TimedSeason.Accept();
+                    Capture(stage == 0 ? "playoff-pregame" : "superbowl-pregame");
+                }
             }
         }
         finally { Raylib.CloseWindow(); }

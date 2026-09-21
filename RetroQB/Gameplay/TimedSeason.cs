@@ -24,6 +24,8 @@ public sealed class TimedSeason
     public bool Pregame { get; private set; } = true;
     public bool Complete { get; private set; }
     public bool Saved { get; private set; }
+    public bool StageVictory => !Pregame && !Complete && Current.Timed.Finished
+        && Current.Timed.WinnerId == Team.Id && Stage.GetNextStage() != null;
     public LeaderboardSummary Leaderboard { get; private set; } = LeaderboardSummary.Empty;
     public string StorageMessage => _store.StatusMessage;
 
@@ -63,22 +65,37 @@ public sealed class TimedSeason
         }
         if (!Current.Timed.Finished || Current.Replay.IsPlaying || Current.Clock.Suspension != ClockSuspension.None) return;
         var match = Current.Match;
-        foreach (var result in match.History.Where(r => r.Event.OffenseId == Team.Id))
-        {
-            if (result.Event.Reason is PlayEndReason.FieldGoalGood or PlayEndReason.FieldGoalMissed or PlayEndReason.Punt or PlayEndReason.Kickoff) continue;
-            var play = match.StartOf(result.Event.PlayId);
-            Summary.RecordPlay(new() { Down = play.Series.Down, Distance = play.Series.Distance, Gain = result.Gain,
-                WasRun = result.Event.Stats?.Rush is RushingRole.Quarterback or RushingRole.RunningBack,
-                Outcome = result.Points == 7 && result.ScoringTeamId == Team.Id ? PlayOutcome.Touchdown
-                    : result.Event.Reason == PlayEndReason.Interception ? PlayOutcome.Interception
-                    : result.TurnoverOnDowns ? PlayOutcome.Turnover : PlayOutcome.Tackle });
-        }
+        RecordCurrentPlays(Summary);
         bool won = Current.Timed.WinnerId == Team.Id;
         _completed.Add(new(new(Stage, match.User.Score, match.Opponent.Score, won), match.User.Stats,
             match.User.DefenseStats, match.Opponent.Stats, match.Opponent.DefenseStats));
         Summary.RecordGame(Stage, match.User.Score, match.Opponent.Score, StatsAggregation.Sum(_completed.Select(g => g.Offense)));
         if (!won || Stage == SeasonStage.SuperBowl) { Complete = true; Save(); }
         else { Stage = Stage.GetNextStage()!.Value; Current = CreateMatch(); Pregame = true; }
+    }
+
+    public SeasonSummary PreviewResult()
+    {
+        var stats = StatsAggregation.Sum(_completed.Select(g => g.Offense).Append(Current.Match.User.Stats));
+        var preview = Summary.CopyForPreview(stats);
+        RecordCurrentPlays(preview);
+        preview.RecordGame(Stage, Current.Match.User.Score, Current.Match.Opponent.Score, stats);
+        return preview;
+    }
+
+    private void RecordCurrentPlays(SeasonSummary summary)
+    {
+        var match = Current.Match;
+        foreach (var result in match.History.Where(r => r.Event.OffenseId == Team.Id))
+        {
+            if (result.Event.Reason is PlayEndReason.FieldGoalGood or PlayEndReason.FieldGoalMissed or PlayEndReason.Punt or PlayEndReason.Kickoff) continue;
+            var play = match.StartOf(result.Event.PlayId);
+            summary.RecordPlay(new() { Down = play.Series.Down, Distance = play.Series.Distance, Gain = result.Gain,
+                WasRun = result.Event.Stats?.Rush is RushingRole.Quarterback or RushingRole.RunningBack,
+                Outcome = result.Points == 7 && result.ScoringTeamId == Team.Id ? PlayOutcome.Touchdown
+                    : result.Event.Reason == PlayEndReason.Interception ? PlayOutcome.Interception
+                    : result.TurnoverOnDowns ? PlayOutcome.Turnover : PlayOutcome.Tackle });
+        }
     }
 
     private void Save()

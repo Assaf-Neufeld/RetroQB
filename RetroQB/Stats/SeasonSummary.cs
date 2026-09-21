@@ -52,6 +52,19 @@ public sealed class SeasonSummary
 
     public IReadOnlyList<GameResult> Games => _games;
 
+    internal SeasonSummary CopyForPreview(GameStatsSnapshot stats)
+    {
+        var copy = new SeasonSummary
+        {
+            _offensivePlays = _offensivePlays, _successfulPlays = _successfulPlays,
+            _explosivePlays = _explosivePlays, _runPlays = _runPlays,
+            _successfulRuns = _successfulRuns, _explosiveRuns = _explosiveRuns
+        };
+        copy._games.AddRange(_games);
+        copy.ApplySeasonSnapshot(stats);
+        return copy;
+    }
+
     /// <summary>Cumulative QB stats across all games.</summary>
     public QbStatsSnapshot CumulativeQbStats => new(
         _cumulativeQb.Completions,

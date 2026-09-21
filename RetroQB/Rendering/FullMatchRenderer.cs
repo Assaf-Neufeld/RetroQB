@@ -115,9 +115,13 @@ public sealed class FullMatchRenderer
         }
         Text("Space: snap / continue\nWASD / arrows: move | Shift: sprint\n1-5 live: throw | X: flip\nK: kick  B: punt  V: kneel\nC: timeout  Esc: pause\nF: replay  Z: restart\nTab: statistics | PgUp/PgDn: history", 20, 695, 15);
         _scoreboard.Draw(session);
-        if (frame == null && d.LastResult?.DriveEnded == true && !session.ShowStatistics) DrawDriveSummary(session);
+        bool stageVictory = season?.StageVictory == true && frame == null && c.Suspension == ClockSuspension.None;
+        if (stageVictory)
+            new BannerRenderer().DrawStageCompleteBanner(m.User.Score, m.Opponent.Score, season!.Stage,
+                m.User.Stats, season.PreviewResult(), season.Leaderboard);
+        else if (frame == null && d.LastResult?.DriveEnded == true && !session.ShowStatistics) DrawDriveSummary(session);
         if (season?.Pregame == true || season?.Complete == true) DrawSeason(season, returnToMenu);
-        else if (season != null && session.Timed.Finished) Text("Enter: accept result\nZ: restart this matchup\nTab: inspect statistics", right, 820, 15, Palette.Gold);
+        else if (!stageVictory && season != null && session.Timed.Finished) Text("Enter: accept result\nZ: restart this matchup\nTab: inspect statistics", right, 820, 15, Palette.Gold);
         if (session.ShowStatistics) DrawStatistics(session, season);
     }
 
