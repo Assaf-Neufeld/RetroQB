@@ -2,7 +2,7 @@ namespace RetroQB.Gameplay.Replay;
 
 public sealed class ReplayPlayer
 {
-    public const float DefaultPlaybackSpeed = 0.35f;
+    public const float DefaultPlaybackSpeed = ReplayPlaybackPolicy.NormalSpeed;
     private const float MinimumVisibleSeconds = 0.35f;
 
     private ReplayClip? _clip;

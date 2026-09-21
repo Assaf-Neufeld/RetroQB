@@ -26,6 +26,8 @@ public sealed class TimedSeason
     public bool Saved { get; private set; }
     public bool StageVictory => !Pregame && !Complete && Current.Timed.Finished
         && Current.Timed.WinnerId == Team.Id && Stage.GetNextStage() != null;
+    public bool SuperBowlVictory => !Pregame && !Complete && Current.Timed.Finished
+        && Current.Timed.WinnerId == Team.Id && Stage == SeasonStage.SuperBowl;
     public LeaderboardSummary Leaderboard { get; private set; } = LeaderboardSummary.Empty;
     public string StorageMessage => _store.StatusMessage;
 

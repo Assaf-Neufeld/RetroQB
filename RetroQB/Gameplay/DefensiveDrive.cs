@@ -135,7 +135,6 @@ public sealed class DefensiveDrive
 
     public PlayResolution ResolveSpecial(PlayEndReason reason, float spot, KickReturnResult? kickReturn = null)
     {
-        LastReplay = null;
         LastResult = Timed.Resolve(new(Match.ActivePlay!.Id, Match.ActivePlay.OffenseId, reason, spot,
             reason == PlayEndReason.Kneel ? new(Rush: RushingRole.Quarterback) : null, KickReturn: kickReturn));
         return LastResult;

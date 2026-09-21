@@ -1,6 +1,8 @@
 using System.Numerics;
 using Raylib_cs;
 using RetroQB.Gameplay;
+using RetroQB.Entities;
+using RetroQB.Gameplay.Replay;
 using RetroQB.AI;
 
 namespace RetroQB.Rendering;
@@ -40,7 +42,11 @@ public sealed class FullMatchRenderer
         {
             foreach (var actor in new[] { frame.Quarterback }.Concat(frame.Receivers).Concat(frame.Blockers).Concat(frame.Defenders))
                 PixelPlayerRenderer.Draw(Constants.WorldToScreen(actor.Position), actor.Velocity, actor.Glyph, actor.Color, actor.Visual);
-            Raylib.DrawCircleV(Constants.WorldToScreen(frame.Ball.Position), 3, Palette.White);
+            ReplayActorFrame? holder = FindBallHolder(frame);
+            float ballHeight = GetBallArcHeight(frame.Ball);
+            FootballRenderer.DrawGroundShadow(frame.Ball.Position, frame.Ball.State, ballHeight);
+            FootballRenderer.Draw(frame.Ball.Position, frame.Ball.Velocity, frame.Ball.State,
+                ballHeight, frame.Ball.AirTime, holder?.Position, holder?.Velocity, holder?.Visual ?? default);
             Vector2 controlled = recorded?.ControlledIndex is >= 0 and var index && index < frame.Defenders.Count
                 ? frame.Defenders[index].Position : frame.Receivers.Where(r => r.Id == frame.Ball.HolderId)
                     .Select(r => r.Position).DefaultIfEmpty(frame.Quarterback.Position).First();
@@ -113,15 +119,19 @@ public sealed class FullMatchRenderer
             for (int i = 0; i < d.Plays.RunPlays.Count; i++) Text($"{keys[i]} {d.Plays.RunPlays[i].Name}", 20, 320 + i * 22, 13);
             Text(session.Action == MatchAction.Scrimmage ? d.Plays.SelectedPlay.Name : session.Action.ToString(), 20, 570, 16, Palette.Gold);
         }
-        Text("Space: snap / continue\nWASD / arrows: move | Shift: sprint\n1-5 live: throw | X: flip\nK: kick  B: punt  V: kneel\nC: timeout  Esc: pause\nF: replay  Z: restart\nTab: statistics | PgUp/PgDn: history", 20, 695, 15);
+        Text("Space: snap / continue\nWASD / arrows: move | Shift: sprint\n1-5 live: throw | X: flip\nK: kick  B: punt  V: kneel\nC: timeout  Esc: pause\nZ: restart\nTab: statistics | PgUp/PgDn: history", 20, 695, 15);
         _scoreboard.Draw(session);
+        bool superBowlVictory = season?.SuperBowlVictory == true && frame == null && c.Suspension == ClockSuspension.None;
         bool stageVictory = season?.StageVictory == true && frame == null && c.Suspension == ClockSuspension.None;
-        if (stageVictory)
+        if (superBowlVictory)
+            new BannerRenderer().DrawSuperBowlVictoryBanner(m.User.Score, m.Opponent.Score,
+                m.User.Stats, season!.PreviewResult());
+        else if (stageVictory)
             new BannerRenderer().DrawStageCompleteBanner(m.User.Score, m.Opponent.Score, season!.Stage,
                 m.User.Stats, season.PreviewResult(), season.Leaderboard);
         else if (frame == null && d.LastResult?.DriveEnded == true && !session.ShowStatistics) DrawDriveSummary(session);
         if (season?.Pregame == true || season?.Complete == true) DrawSeason(season, returnToMenu);
-        else if (!stageVictory && season != null && session.Timed.Finished) Text("Enter: accept result\nZ: restart this matchup\nTab: inspect statistics", right, 820, 15, Palette.Gold);
+        else if (!stageVictory && !superBowlVictory && season != null && session.Timed.Finished) Text("Enter: accept result\nZ: restart this matchup\nTab: inspect statistics", right, 820, 15, Palette.Gold);
         if (session.ShowStatistics) DrawStatistics(session, season);
     }
 
@@ -142,12 +152,34 @@ public sealed class FullMatchRenderer
         Line(summary.Outcome, 62, 28, Palette.Gold);
         Line($"{summary.Plays} {(summary.Plays == 1 ? "PLAY" : "PLAYS")}   {summary.Yards:0} YARDS   {summary.Points} POINTS", 108, 21, Palette.White);
         Line(summary.Next, 153, 20, Palette.White);
-        Line(session.Timed.Finished ? "Enter: accept result | F: replay | Tab: stats" : "Space: continue | F: replay | Tab: stats", 218, 17, Palette.Gold);
+        string controls = session.Drive.LastReplay != null
+            ? session.Timed.Finished ? "Enter: accept result | F: replay | Tab: stats" : "Space: continue | F: replay | Tab: stats"
+            : session.Timed.Finished ? "Enter: accept result | Tab: stats" : "Space: continue | Tab: stats";
+        Line(controls, 218, 17, Palette.Gold);
     }
 
     private static void Ring(Vector2 world)
     {
         var p = Constants.WorldToScreen(world); Raylib.DrawCircleLines((int)p.X, (int)p.Y, 13, Palette.Gold);
+    }
+
+    private static ReplayActorFrame? FindBallHolder(ReplayFrame frame)
+    {
+        if (frame.Ball.State == BallState.HeldByQB && frame.Quarterback.Id == frame.Ball.HolderId)
+            return frame.Quarterback;
+        if (frame.Ball.State == BallState.HeldByReceiver)
+            foreach (var receiver in frame.Receivers)
+                if (receiver.Id == frame.Ball.HolderId) return receiver;
+        return null;
+    }
+
+    private static float GetBallArcHeight(ReplayBallFrame ball)
+    {
+        if (ball.State != BallState.InAir || ball.ArcApexHeight <= 0f) return 0f;
+        float progress = ball.IntendedDistance > 0.01f
+            ? Math.Clamp(Vector2.Distance(ball.ThrowStart, ball.Position) / ball.IntendedDistance, 0f, 1f)
+            : 1f;
+        return ball.ArcApexHeight * 4f * progress * (1f - progress);
     }
 
     private static void Panel(string heading)

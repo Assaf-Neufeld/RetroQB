@@ -50,10 +50,10 @@ public static class OffensiveRosterFactory
             {
                 IsStarPlayer = Star(WideReceiverSlots[i].ToString()),
                 Name = wideReceiverNames[i],
-                Speed = Constants.WrSpeed * (speedFactor + (Star(WideReceiverSlots[i].ToString()) ? .04f : 0)),
-                CatchingAbility = Math.Min(.95f, catchAbility + (Star(WideReceiverSlots[i].ToString()) ? .035f : 0)),
-                CatchRadius = catchRadius,
-                RouteSkill = routeSkill
+                Speed = Constants.WrSpeed * (speedFactor + (Star(WideReceiverSlots[i].ToString()) ? .015f : 0)),
+                CatchingAbility = Math.Min(.95f, catchAbility + (Star(WideReceiverSlots[i].ToString()) ? .025f : 0)),
+                CatchRadius = Math.Min(1.22f, catchRadius + (Star(WideReceiverSlots[i].ToString()) ? .0125f : 0)),
+                RouteSkill = Math.Min(.99f, routeSkill + (Star(WideReceiverSlots[i].ToString()) ? .02f : 0))
             };
         }
 
@@ -81,8 +81,8 @@ public static class OffensiveRosterFactory
                 SprintSpeed = Constants.QbSprintSpeed * Lerp(0.84f, 1.16f, qbMobility),
                 Acceleration = Constants.QbAcceleration * Lerp(0.82f, 1.18f, qbMobility),
                 Friction = Constants.QbFriction,
-                ArmStrength = Lerp(0.72f, 1.34f, qbThrowPower) + (Star("QB") ? .04f : 0),
-                Accuracy = Lerp(1.20f, 0.52f, qbThrowAccuracy) * (Star("QB") ? .94f : 1),
+                ArmStrength = Lerp(0.72f, 1.34f, qbThrowPower) + (Star("QB") ? .02f : 0),
+                Accuracy = Lerp(1.20f, 0.52f, qbThrowAccuracy) * (Star("QB") ? .97f : 1),
                 DeepAccuracyPenalty = Lerp(1.38f, 1.00f, qbThrowAccuracy)
             },
             WideReceivers = wideReceivers,
@@ -122,8 +122,8 @@ public static class OffensiveRosterFactory
         return new Dictionary<ReceiverSlot, TeProfile>
         {
             [ReceiverSlot.TE1] = starter with { IsStarPlayer = star,
-                CatchingAbility = Math.Min(.95f, starter.CatchingAbility + (star ? .07f : 0)),
-                BlockingStrength = starter.BlockingStrength * (star ? 1.08f : 1) },
+                CatchingAbility = Math.Min(.95f, starter.CatchingAbility + (star ? .035f : 0)),
+                BlockingStrength = starter.BlockingStrength * (star ? 1.04f : 1) },
             [ReceiverSlot.TE2] = starter with { Name = $"{tightEndName} II" }
         };
     }
@@ -147,8 +147,8 @@ public static class OffensiveRosterFactory
         return new Dictionary<ReceiverSlot, RbProfile>
         {
             [ReceiverSlot.RB1] = starter with { IsStarPlayer = star,
-                Speed = starter.Speed * (star ? 1.04f : 1),
-                TackleBreakChance = Math.Min(.60f, starter.TackleBreakChance + (star ? .05f : 0)) },
+                Speed = starter.Speed * (star ? 1.015f : 1),
+                TackleBreakChance = Math.Min(.60f, starter.TackleBreakChance + (star ? .025f : 0)) },
             [ReceiverSlot.RB2] = starter with { Name = $"{runningBackName} II" }
         };
     }

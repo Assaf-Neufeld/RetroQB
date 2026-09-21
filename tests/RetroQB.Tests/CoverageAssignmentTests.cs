@@ -14,19 +14,26 @@ public sealed class CoverageAssignmentTests
     [Theory]
     [InlineData(CoverageScheme.QuartersMatch)]
     [InlineData(CoverageScheme.Cover3Match)]
-    public void MatchUnderneathDefendersDoNotTakeTheCornersOutsideReceivers(CoverageScheme scheme)
+    public void FormerMatchShellsKeepEveryDefenderInALocalZone(CoverageScheme scheme)
     {
         foreach (bool flipped in new[] { false, true })
         foreach (var definition in PlaybookBuilder.BuildCatalog().Plays)
         {
             var formation = new FormationFactory().CreateFormation(PlayResolver.Resolve(definition, flipped), 30);
             var defense = Create(scheme, formation.Receivers);
-            var outsideTargets = defense.Defenders
-                .Where(d => d.Slot is DefenderSlot.CB1 or DefenderSlot.CB2)
-                .Select(d => d.CoverageReceiverIndex).Where(i => i >= 0).ToHashSet();
-            var carries = defense.Defenders.Where(d => !d.IsRusher && d.ZoneRole == CoverageRole.None).ToList();
-            Assert.DoesNotContain(carries, d => outsideTargets.Contains(d.CoverageReceiverIndex));
-            Assert.Equal(carries.Count, carries.Select(d => d.CoverageReceiverIndex).Distinct().Count());
+            var coverage = defense.Defenders.Where(d => !d.IsRusher).ToList();
+            Assert.All(coverage, defender =>
+            {
+                Assert.NotEqual(CoverageRole.None, defender.ZoneRole);
+                Assert.Equal(-1, defender.CoverageReceiverIndex);
+                Assert.Equal(-1, defender.MatchReceiverIndex);
+            });
+
+            float middle = Constants.FieldWidth * .5f;
+            Assert.All(coverage.Where(d => d.ZoneRole is CoverageRole.DeepLeft or CoverageRole.DeepQuarterLeft
+                or CoverageRole.FlatLeft or CoverageRole.HookLeft), d => Assert.True(d.Position.X < middle));
+            Assert.All(coverage.Where(d => d.ZoneRole is CoverageRole.DeepRight or CoverageRole.DeepQuarterRight
+                or CoverageRole.FlatRight or CoverageRole.HookRight), d => Assert.True(d.Position.X > middle));
         }
     }
 

@@ -211,6 +211,7 @@ public sealed class DefenseFactory : IDefenseFactory
         });
 
         ApplyUniqueCoverageAssignments(scheme, defenders, receivers);
+        KeepZoneAlignmentsLocal(defenders);
 
         return new DefenseResult
         {
@@ -221,6 +222,31 @@ public sealed class DefenseFactory : IDefenseFactory
             Scheme = scheme
         };
     }
+
+    private static void KeepZoneAlignmentsLocal(IEnumerable<Defender> defenders)
+    {
+        float middle = Constants.FieldWidth * .5f;
+        float seamBuffer = MaxZoneJitter + .75f;
+        foreach (var defender in defenders.Where(defender => !defender.IsRusher))
+        {
+            float x = defender.AlignmentPosition.X;
+            if (IsLeftZone(defender.ZoneRole)) x = MathF.Min(x, middle - seamBuffer);
+            else if (IsRightZone(defender.ZoneRole)) x = MathF.Max(x, middle + seamBuffer);
+            else if (IsMiddleZone(defender.ZoneRole))
+                x = Math.Clamp(x, middle - Constants.FieldWidth * .10f, middle + Constants.FieldWidth * .10f);
+            if (x != defender.AlignmentPosition.X)
+                defender.SetAlignment(new Vector2(x, defender.AlignmentPosition.Y));
+        }
+    }
+
+    private static bool IsLeftZone(CoverageRole role) => role is CoverageRole.DeepLeft
+        or CoverageRole.DeepQuarterLeft or CoverageRole.FlatLeft or CoverageRole.HookLeft;
+
+    private static bool IsRightZone(CoverageRole role) => role is CoverageRole.DeepRight
+        or CoverageRole.DeepQuarterRight or CoverageRole.FlatRight or CoverageRole.HookRight;
+
+    private static bool IsMiddleZone(CoverageRole role) => role is CoverageRole.DeepMiddle
+        or CoverageRole.HookMiddle or CoverageRole.Robber;
 
     // --- DB configuration per scheme ---
 
@@ -1089,7 +1115,19 @@ public sealed class DefenseFactory : IDefenseFactory
     {
         if (scheme is CoverageScheme.Cover3Match or CoverageScheme.QuartersMatch)
         {
-            ApplyMatchCoverageAssignments(defenders, receivers);
+            // These shells used to attach defenders to receivers after the snap. A crossing
+            // route could therefore pull a corner, safety, or linebacker across half the field
+            // and vacate the quick-pass lane. Keep the distinct three/four-deep alignments, but
+            // make every responsibility a local zone.
+            foreach (var defender in defenders.Where(defender => !defender.IsRusher))
+            {
+                defender.CoverageReceiverIndex = -1;
+                defender.MatchReceiverIndex = -1;
+                if (defender.ZoneRole == CoverageRole.None)
+                {
+                    defender.ZoneRole = GetLocalUnderneathZone(defender.AlignmentPosition.X);
+                }
+            }
             return;
         }
         var coverageReceivers = receivers
@@ -1215,6 +1253,15 @@ public sealed class DefenseFactory : IDefenseFactory
             underneath[i].CoverageReceiverIndex = best[i];
             if (best[i] >= 0) underneath[i].ZoneRole = CoverageRole.None;
         }
+    }
+
+    private static CoverageRole GetLocalUnderneathZone(float x)
+    {
+        float middle = Constants.FieldWidth * 0.5f;
+        float middleLaneHalfWidth = Constants.FieldWidth * 0.10f;
+        if (x < middle - middleLaneHalfWidth) return CoverageRole.HookLeft;
+        if (x > middle + middleLaneHalfWidth) return CoverageRole.HookRight;
+        return CoverageRole.HookMiddle;
     }
 
     private static int GetPreferredReceiverIndex(CoverageAssignmentCandidate candidate, IReadOnlyList<Receiver> coverageReceivers)

@@ -55,6 +55,24 @@ public sealed class BannerRenderer
             true);
     }
 
+    public void DrawSuperBowlVictoryBanner(int finalScore, int awayScore, GameStatsSnapshot stats, SeasonSummary seasonSummary)
+    {
+        DrawSeasonOutcomeBanner(
+            "CHAMPION!",
+            "SUPER BOWL WINNER",
+            "PRESS ENTER TO FINISH SEASON",
+            finalScore,
+            awayScore,
+            seasonSummary,
+            LeaderboardSummary.Empty,
+            Palette.Gold,
+            stats,
+            true,
+            false,
+            false,
+            false);
+    }
+
     public void DrawEliminationBanner(int finalScore, int awayScore, SeasonStage stage, GameStatsSnapshot stats, SeasonSummary seasonSummary, LeaderboardSummary leaderboardSummary)
     {
         DrawSeasonOutcomeBanner(

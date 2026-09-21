@@ -90,10 +90,11 @@ public sealed class FullMatchSession
             if ((Clock.Suspension & ClockSuspension.Pause) != 0) Clock.Resume(ClockSuspension.Pause);
             else Clock.Suspend(ClockSuspension.Pause);
         }
-        if (input.Replay && !Drive.Live)
+        bool showingDriveResult = Drive.LastResult?.DriveEnded == true && !ShowStatistics;
+        if (input.Replay && showingDriveResult)
         {
             if (Replay.IsPlaying) { Replay.Unload(); Clock.Resume(ClockSuspension.Replay); }
-            else if (Drive.LastReplay is { } clip) { Replay.Load(clip); Clock.Suspend(ClockSuspension.Replay); }
+            else if (Drive.LastReplay is { } clip) { Replay.Load(clip, ReplayPlaybackPolicy.GetSpeed(clip)); Clock.Suspend(ClockSuspension.Replay); }
         }
         if (Replay.IsPlaying)
         {

@@ -4,22 +4,22 @@ The 12 standard teams now span 70–91 overall. Ratings average offense and defe
 
 Standard ratings: Sharks 70, Firebirds 73, Mustangs 76, Cyclones 77, Ballers and Phantoms 78, Bulldozers 80, Sentinels 82, Lightning 84, Ironclad 86, Bombers 87, and Vipers 91.
 
-Each standard team has two permanent roster stars. Stars stay with their actual positions: a benched MLB does not turn the nickel back into a star. The gold `*` appears on both offensive and defensive players and survives replay. Team selection lists the selected team's named stars and OFF/DEF ratings, with bars for passing, receiver speed, rushing, protection, coverage, pass rush, and tackling.
+Each standard team has permanent roster stars and at least one defensive star. Stars stay with their actual positions: a benched MLB does not turn the nickel back into a star. Every star bonus is deliberately modest, so stars remain better without overpowering their matchup. Star defensive backs follow the featured receiver in man and match coverages. The gold `*` appears on both offensive and defensive players and survives replay. Team selection lists the selected team's named stars and OFF/DEF ratings, with bars for passing, receiver speed, rushing, protection, coverage, pass rush, and tackling.
 
 | Team | Strengths | Weaknesses | Offensive stars | Defensive stars |
 | --- | --- | --- | --- | --- |
 | Ballers | Versatile offense and balanced defense | No dominant unit | QB Ace | MLB Captain |
-| Lightning | Fast spread receivers, accurate passing | Weak blocking and tackling | QB Spark, WR1 Flash | — |
+| Lightning | Fast spread receivers, accurate passing | Weak blocking and tackling | QB Spark, WR1 Flash | CB1 Voltage |
 | Bulldozers | Power back, heavy protection, stout front | Slow perimeter and limited passing | RB1 Pound | DT1 Quarry |
 | Phantoms | Coverage and takeaways, accurate short passing | Light run defense, limited deep arm | — | CB1 Specter, FS Mirage |
 | Cyclones | Receiver/back speed, fast edge pursuit | Interior power and blocking | WR2 Gale | OLB1 Tempest |
 | Ironclad | Tackling, front-seven strength, protection | Slow receivers and modest passing | — | DT1 Crucible, MLB Bastion |
-| Firebirds | Receiving technique, featured tight end | Leaky defense and modest running | WR1 Flare, TE1 Torch | — |
+| Firebirds | Receiving technique, featured tight end | Leaky defense and modest running | WR1 Flare, TE1 Torch | CB1 Ash |
 | Mustangs | Fast rushing attack and linebacker pursuit | Modest passing and coverage | RB1 Gallop | MLB Wrangler |
 | Bombers | Accurate deep passing, quick receivers, and strong pressure | Less explosive arm and blitzing than before; otherwise solid across the roster | QB Cannon | DE1 Warhead |
 | Sentinels | Coverage, protection, reliable hands | Slow offense and limited pass rush | — | CB1 Warden, OLB1 Vigil |
 | Sharks | Accurate possession passing and takeaways | Weak offensive line and defensive front | — | CB1 Mako, FS Finback |
-| Vipers | Elite passing, receivers, and pressure | Patient power rushing can attack the defense | QB Venom, WR1 Fang | — |
+| Vipers | Elite passing, receivers, and pressure | Patient power rushing can attack the defense | QB Venom, WR1 Fang | CB1 Cobra |
 
 Golden Legion has QB Crown, WR1 Solar, RB1 Inferno, MLB Caesar, DE1 Aureus, and CB1 Midas. Its ratings are 90 overall; the Vipers are the strongest standard team at 91.
 

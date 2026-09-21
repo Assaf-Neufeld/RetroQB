@@ -88,6 +88,34 @@ public sealed class DefensivePlaybookTests
         }
     }
 
+    [Fact]
+    public void ZoneCallsNeverSendDefendersAcrossTheFormation()
+    {
+        var factory = new FormationFactory();
+        var context = new DefensiveContext(30, 10, 1, 0, 0, SeasonStage.RegularSeason);
+        float middle = Constants.FieldWidth * .5f;
+        foreach (var definition in new PlayManager().Catalog.Plays)
+        foreach (bool flipped in new[] { false, true })
+        {
+            var formation = factory.CreateFormation(PlayResolver.Resolve(definition, flipped), 30);
+            foreach (var call in DefensivePlaybook.All)
+            {
+                var result = DefensivePlayResolver.Resolve(call, VisibleOffense.From(formation), context,
+                    DefensiveTeamAttributes.Default, new Random(17));
+                foreach (var assignment in result.Assignments.Where(a => !a.Rush))
+                {
+                    Assert.Equal(-1, assignment.MatchTarget);
+                    if (assignment.Zone is CoverageRole.DeepLeft or CoverageRole.DeepQuarterLeft
+                        or CoverageRole.FlatLeft or CoverageRole.HookLeft)
+                        Assert.True(assignment.Position.X < middle, $"{call.Name}: {assignment.Slot} starts opposite {assignment.Zone}");
+                    if (assignment.Zone is CoverageRole.DeepRight or CoverageRole.DeepQuarterRight
+                        or CoverageRole.FlatRight or CoverageRole.HookRight)
+                        Assert.True(assignment.Position.X > middle, $"{call.Name}: {assignment.Slot} starts opposite {assignment.Zone}");
+                }
+            }
+        }
+    }
+
     private sealed class CountingRandom(int seed) : Random(seed)
     {
         public int Calls { get; private set; }

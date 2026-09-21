@@ -46,7 +46,7 @@ public sealed class TeamBalanceTests
     }
 
     [Fact]
-    public void StandardTeamsHaveComparableBudgetsAndExactlyTwoRosterStars()
+    public void StandardTeamsHaveComparableBudgetsAndDefensiveStars()
     {
         var teams = TeamCatalog.Selectable.Where(t => t.Id != "golden-legion").ToArray();
         Assert.Equal(12, teams.Length);
@@ -54,7 +54,8 @@ public sealed class TeamBalanceTests
         Assert.Equal(91, teams.Max(t => t.Offense.TeamScore));
         foreach (var team in teams)
         {
-            Assert.Equal(2, CountOffensiveStars(team) + team.Defense.Roster.Defenders.Count(p => p.Value.IsStarPlayer));
+            Assert.True(CountOffensiveStars(team) + team.Defense.Roster.Defenders.Count(p => p.Value.IsStarPlayer) >= 2);
+            Assert.Contains(team.Defense.Roster.Defenders, player => player.Value.IsStarPlayer);
             Assert.Equal(12, team.Defense.Roster.Defenders.Count);
             Assert.Equal(TeamDefinition.CalculateScore(team.Offense.Skills, team.Defense), team.Offense.TeamScore);
         }

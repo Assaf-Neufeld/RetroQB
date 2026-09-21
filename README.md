@@ -16,7 +16,7 @@ dotnet run
 
 Choose one of twelve teams with Up/Down or 1–9/0, then press Enter. G opens the secret-team password prompt. Press Enter on the matchup screen to play immediately. Enter your name on the original save-score screen after your season ends.
 
-Teams have distinct offensive and defensive strengths, with two permanent `*` roster stars per standard team. Selection shows both units' ratings and named stars; pregame scouting covers the opponent's offense and defense. See the [team balance guide](docs/team-balance.md) for identities, tradeoffs, and opponent tendencies.
+Teams have distinct offensive and defensive strengths, with permanent `*` roster stars and at least one defensive star per standard team. Selection shows both units' ratings and named stars; pregame scouting covers the opponent's offense and defense. See the [team balance guide](docs/team-balance.md) for identities, tradeoffs, and opponent tendencies.
 
 Your team always attacks up-screen and defends the bottom end zone. The field stays fixed across possession changes, with screen-relative linebacker controls.
 

@@ -148,7 +148,8 @@ public sealed class SidePanelRenderer
         y += 10;
         Raylib.DrawText("CONTROLS", x, y, 14, Palette.Yellow);
         y += 18;
-        string[] controls = ["Move: Arrows | Sprint: Shift", "Snap: Space | Flip play: X", "Pass: 1-9,0 | Run: Q-P", "Throw: 1-5 | Field goal: K", "Replay: F | Restart game: Z", "Pause: Esc"];
+        string replayControl = replayAvailable && state != GameState.PlayActive ? "Replay: F | Restart game: Z" : "Restart game: Z";
+        string[] controls = ["Move: Arrows | Sprint: Shift", "Snap: Space | Flip play: X", "Pass: 1-9,0 | Run: Q-P", "Throw: 1-5 | Field goal: K", replayControl, "Pause: Esc"];
         if (state == GameState.FieldGoal)
             controls = ["Snap / Start meter: Space", "Lock power / Kick: Space", "Continue after kick: Enter", "Restart game: Z", "Esc: Back before snap", "Esc: Pause after snap"];
         foreach (string control in controls)

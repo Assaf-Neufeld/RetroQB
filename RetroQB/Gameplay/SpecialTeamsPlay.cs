@@ -40,8 +40,8 @@ public sealed class SpecialTeamsPlay
         float center = Constants.FieldWidth / 2;
         _launch = new(center, kickoff ? LineOfScrimmage : Math.Max(1, LineOfScrimmage - 14));
         float landingX = 10 + (float)random.NextDouble() * 33;
-        // Explicit one-in-five touchback chance, independent of kick placement.
-        bool touchback = kickoff && random.Next(5) == 0;
+        // Explicit one-in-seven touchback chance, independent of kick placement.
+        bool touchback = kickoff && random.Next(7) == 0;
         float landingY = kickoff
             ? (touchback ? 110 : 90) + (float)random.NextDouble() * (touchback ? 3 : 15)
             : Math.Min(118, LineOfScrimmage + 36 + (float)random.NextDouble() * 14);
@@ -149,7 +149,9 @@ public sealed class SpecialTeamsPlay
             var pursuitTarget = GetCoverageTarget(i, target);
             var direction = controlledByUser ? movement : Toward(player.Position, pursuitTarget);
             float speed = !userReceiving && i == ControlledCoverageIndex && sprint ? 9 : 7.1f;
-            if (Blockers.Any(b => Vector2.DistanceSquared(b.Position, player.Position) < 5)) speed *= .38f;
+            // Return-team blocks delay coverage, but should not stop a lane
+            // player from working around contact on kickoffs or punts.
+            if (Blockers.Any(b => Vector2.DistanceSquared(b.Position, player.Position) < 5)) speed *= .62f;
             player.Velocity = direction * speed;
             player.Position += player.Velocity * dt;
             player.Position = new(Math.Clamp(player.Position.X, 0, Constants.FieldWidth), Math.Clamp(player.Position.Y, 1, 119));
@@ -189,8 +191,8 @@ public sealed class SpecialTeamsPlay
         if (_primaryPursuers.Contains(index)) return returnTarget;
 
         // Gunners and outside coverage keep the widest lanes; interior players
-        // fill the staggered gaps. Because lanes move with the returner, coverage
-        // fans out and then closes the escape routes instead of forming a mob.
+        // fill staggered gaps. Their lanes stay spread across the field and ahead
+        // of the returner, instead of every player chasing the ball from behind.
         float offset = (IsKickoff ? KickoffCoverageLanes : PuntCoverageLanes)[index];
         if (Phase == SpecialTeamsPhase.Flight)
         {
@@ -199,8 +201,16 @@ public sealed class SpecialTeamsPlay
                 Math.Max(1f, _landing.Y - 3f));
         }
 
-        return new(Math.Clamp(returnTarget.X + offset, 1.5f, Constants.FieldWidth - 1.5f),
-            Math.Min(119f, returnTarget.Y + 2.5f));
+        float laneX = Constants.FieldWidth / 2 + offset * (IsKickoff ? 1.12f : 1.05f);
+        float leverageDepth = (IsKickoff ? 7f : 5.5f) + index % 3 * 2.25f;
+        Vector2 laneTarget = new(Math.Clamp(laneX, 1.5f, Constants.FieldWidth - 1.5f),
+            Math.Max(1f, returnTarget.Y - leverageDepth));
+
+        // Once a lane defender is close enough to make a play, he can leave the
+        // landmark and converge. Distant defenders keep their spacing and contain.
+        float distance = Vector2.Distance(_coveragePlayers[index].Position, returnTarget);
+        float convergence = Math.Clamp((11f - distance) / 7f, 0f, 1f);
+        return Vector2.Lerp(laneTarget, returnTarget, convergence);
     }
     private static Vector2 Toward(Vector2 from, Vector2 to)
         => Vector2.DistanceSquared(from, to) < .01f ? Vector2.Zero : Vector2.Normalize(to - from);

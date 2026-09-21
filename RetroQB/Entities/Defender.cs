@@ -31,7 +31,7 @@ public enum DefensivePosition
 
 public sealed class Defender : Entity
 {
-    public Vector2 AlignmentPosition { get; }
+    public Vector2 AlignmentPosition { get; private set; }
     public DefensivePosition PositionRole { get; }
     public DefenderSlot Slot { get; }
     private readonly float _baseSpeed;
@@ -108,5 +108,11 @@ public sealed class Defender : Entity
         InterceptionMultiplier = interception;
         BlockShedMultiplier = shed;
         IsStarPlayer = star;
+    }
+
+    internal void SetAlignment(Vector2 position)
+    {
+        AlignmentPosition = position;
+        Position = position;
     }
 }

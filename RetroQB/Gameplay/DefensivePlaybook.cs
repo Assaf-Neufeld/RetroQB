@@ -18,8 +18,8 @@ public static class DefensivePlaybook
         new("def.cover4", "Cover 4", CoverageScheme.Cover4Zone, DefensivePressure.Four, "Four deep; concede short space."),
         new("def.cover2-man", "Cover 2 Man", CoverageScheme.Cover2Man, DefensivePressure.Four, "Man coverage; two deep helpers."),
         new("def.robber", "Robber", CoverageScheme.Robber, DefensivePressure.Four, "One deep; robber attacks inside."),
-        new("def.cover3-match", "Cover 3 Match", CoverageScheme.Cover3Match, DefensivePressure.Four, "Match threats from three deep zones."),
-        new("def.quarters-match", "Quarters Match", CoverageScheme.QuartersMatch, DefensivePressure.Four, "Match threats from four deep zones."),
+        new("def.cover3-match", "Cover 3 Buzz", CoverageScheme.Cover3Match, DefensivePressure.Four, "Three deep with local underneath zones; no cross-field chase."),
+        new("def.quarters-match", "Quarters Zone", CoverageScheme.QuartersMatch, DefensivePressure.Four, "Four deep with every defender protecting a nearby lane."),
         new("def.edge", "Cover 1 Edge Pressure", CoverageScheme.Cover1, DefensivePressure.Edge, "Five rush; single-high man behind it."),
         new("def.zero", "Cover 0 Pressure", CoverageScheme.Cover0, DefensivePressure.Zero, "Six rush; five man matchups, no deep help.")
     });
@@ -27,11 +27,11 @@ public static class DefensivePlaybook
 }
 
 /// <summary>The preview contract deliberately contains no routes, eligibility changes, or offensive call ID.</summary>
-public sealed record VisibleReceiver(int Index, ReceiverSlot Slot, Vector2 Position);
+public sealed record VisibleReceiver(int Index, ReceiverSlot Slot, Vector2 Position, bool IsStarPlayer = false);
 public sealed record VisibleOffense(Vector2 Quarterback, IReadOnlyList<VisibleReceiver> Receivers)
 {
     public static VisibleOffense From(FormationResult formation) => new(formation.Qb.Position,
-        Array.AsReadOnly(formation.Receivers.Select(r => new VisibleReceiver(r.Index, r.Slot, r.Position)).ToArray()));
+        Array.AsReadOnly(formation.Receivers.Select(r => new VisibleReceiver(r.Index, r.Slot, r.Position, r.IsStarPlayer)).ToArray()));
     internal List<Receiver> CreateReceivers() => Receivers.Select(r => new Receiver(r.Index, r.Slot, r.Position)).ToList();
 }
 
@@ -131,6 +131,7 @@ public static class DefensivePlayResolver
                 d.CoverageReceiverIndex = r.Index; available.Remove(d);
             }
             foreach (var helper in available) helper.ZoneRole = CoverageRole.HookMiddle;
+            MatchStarDefensiveBack(defenders, offense.Receivers);
         }
         foreach (var d in defenders)
         {
@@ -143,11 +144,27 @@ public static class DefensivePlayResolver
         // Replacement matchups are final now. Position man DBs over that actual target,
         // including nickel/safety replacements taking a tight end after pressure changes.
         float manDbDepth = defenders.Single(d => d.Slot == DefenderSlot.CB1).Position.Y;
-        Vector2 Alignment(Defender d) => CoverageSchemePolicies.IsUnderneathManCoverage(definition.Scheme)
-            && !d.IsRusher && d.ZoneRole == CoverageRole.None
-            && d.PositionRole == DefensivePosition.DB && d.CoverageReceiverIndex >= 0
-                ? new Vector2(receivers.Single(r => r.Index == d.CoverageReceiverIndex).Position.X, manDbDepth)
-                : d.Position;
+        Vector2 Alignment(Defender d)
+        {
+            if (CoverageSchemePolicies.IsUnderneathManCoverage(definition.Scheme)
+                && !d.IsRusher && d.ZoneRole == CoverageRole.None
+                && d.PositionRole == DefensivePosition.DB && d.CoverageReceiverIndex >= 0)
+                return new Vector2(receivers.Single(r => r.Index == d.CoverageReceiverIndex).Position.X, manDbDepth);
+
+            float middle = Constants.FieldWidth * .5f;
+            const float seamBuffer = 2.55f;
+            float x = d.ZoneRole switch
+            {
+                CoverageRole.DeepLeft or CoverageRole.DeepQuarterLeft or CoverageRole.FlatLeft or CoverageRole.HookLeft
+                    => MathF.Min(d.Position.X, middle - seamBuffer),
+                CoverageRole.DeepRight or CoverageRole.DeepQuarterRight or CoverageRole.FlatRight or CoverageRole.HookRight
+                    => MathF.Max(d.Position.X, middle + seamBuffer),
+                CoverageRole.DeepMiddle or CoverageRole.HookMiddle or CoverageRole.Robber
+                    => Math.Clamp(d.Position.X, middle - Constants.FieldWidth * .10f, middle + Constants.FieldWidth * .10f),
+                _ => d.Position.X
+            };
+            return new Vector2(x, d.Position.Y);
+        }
         return new(definition, defenders.Select(d => new DefensiveAssignment(d.Slot, d.PositionRole, Alignment(d),
             d.IsRusher, d.CoverageReceiverIndex, d.ZoneRole, d.IsPressCoverage, d.ZoneJitterX, d.RushLaneOffsetX,
             d.IsRusher ? qb.Position : d.MatchReceiverIndex >= 0 ? receivers.Single(r => r.Index == d.MatchReceiverIndex).Position
@@ -155,5 +172,32 @@ public static class DefensivePlayResolver
                 : receivers.Single(r => r.Index == d.CoverageReceiverIndex).Position,
             d.SpeedMultiplier, d.TackleMultiplier, d.InterceptionMultiplier, d.BlockShedMultiplier, d.IsStarPlayer)
             { MatchTarget = d.MatchReceiverIndex }));
+    }
+
+    private static void MatchStarDefensiveBack(List<Defender> defenders,
+        IReadOnlyList<VisibleReceiver> receivers)
+    {
+        VisibleReceiver? featured = receivers
+            .OrderByDescending(receiver => receiver.IsStarPlayer)
+            .ThenBy(receiver => receiver.Slot switch
+            {
+                ReceiverSlot.WR1 => 0, ReceiverSlot.WR2 => 1, ReceiverSlot.TE1 => 2,
+                ReceiverSlot.RB1 => 3, _ => 4
+            })
+            .FirstOrDefault();
+        if (featured == null) return;
+
+        Defender? starDb = defenders.FirstOrDefault(defender => defender.IsStarPlayer
+            && defender.PositionRole == DefensivePosition.DB && !defender.IsRusher
+            && defender.ZoneRole == CoverageRole.None);
+        if (starDb == null) return;
+
+        if (starDb.CoverageReceiverIndex == featured.Index) return;
+        Defender? previousMatch = defenders.FirstOrDefault(defender => defender != starDb
+            && !defender.IsRusher && defender.ZoneRole == CoverageRole.None
+            && defender.CoverageReceiverIndex == featured.Index);
+        int formerTarget = starDb.CoverageReceiverIndex;
+        starDb.CoverageReceiverIndex = featured.Index;
+        if (previousMatch != null) previousMatch.CoverageReceiverIndex = formerTarget;
     }
 }
