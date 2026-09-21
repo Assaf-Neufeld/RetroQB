@@ -5,11 +5,25 @@ namespace RetroQB.Rendering;
 
 internal sealed class FieldMarkingsRenderer
 {
-    public void Draw(float lineOfScrimmage, float firstDownLine, bool showPlayMarkers = true)
+    public void Draw(float lineOfScrimmage, float firstDownLine, bool showPlayMarkers = true, bool highlightGoalLines = false)
     {
         DrawYardLines();
+        if (highlightGoalLines) DrawHighlightedGoalLines();
         DrawHashMarks();
         if (showPlayMarkers) DrawMarkers(lineOfScrimmage, firstDownLine);
+    }
+
+    private static void DrawHighlightedGoalLines()
+    {
+        Rectangle rect = Constants.FieldRect;
+        int left = (int)rect.X, right = (int)(rect.X + rect.Width);
+        foreach (float worldY in new[] { Constants.EndZoneDepth, Constants.EndZoneDepth + 100 })
+        {
+            int y = (int)Constants.WorldToScreenY(worldY);
+            Raylib.DrawRectangle(left, y - 7, right - left, 15, new Color(255, 190, 45, 45));
+            Raylib.DrawRectangle(left, y - 3, right - left, 7, new Color(255, 190, 45, 180));
+            Raylib.DrawLineEx(new(left, y), new(right, y), 2, Palette.White);
+        }
     }
 
     private static void DrawYardLines()

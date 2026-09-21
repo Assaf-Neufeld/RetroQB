@@ -35,7 +35,8 @@ public sealed class FullMatchRenderer
             (float)session.PresentationSeconds, celebration, .5f, homeCheers, (float)(180 - c.RemainingSeconds));
         _field.DrawField(frame?.LineOfScrimmage ?? d.Plays.LineOfScrimmage, frame?.FirstDownLine ?? d.Plays.FirstDownLine,
             m.User.Definition.Name, m.User.Definition.PrimaryColor, m.Opponent.Definition.Name, m.Opponent.Definition.PrimaryColor, recorded?.Stage ?? m.Stage,
-            frame != null ? default : crowd, frame?.Down ?? m.Series.Down, showPlayMarkers: frame != null || session.SpecialTeams == null);
+            frame != null ? default : crowd, frame?.Down ?? m.Series.Down, showPlayMarkers: frame != null || session.SpecialTeams == null,
+            highlightGoalLines: frame == null && (session.SpecialTeams != null || session.Kick != null));
         if (frame != null)
         {
             foreach (var actor in new[] { frame.Quarterback }.Concat(frame.Receivers).Concat(frame.Blockers).Concat(frame.Defenders))
