@@ -43,7 +43,7 @@ public sealed class ReplayRecorder
         IReadOnlyList<Defender> defenders,
         float lineOfScrimmage,
         float firstDownLine,
-        float dt, int down = 1)
+        float dt, int down = 1, Defense.DefensiveDecisionFrame? defensiveDecision = null)
     {
         if (!_isRecording)
         {
@@ -61,6 +61,7 @@ public sealed class ReplayRecorder
         var frame = new ReplayFrame
         {
             ElapsedSeconds = _elapsedSeconds,
+            DefensiveDecision = defensiveDecision,
             LineOfScrimmage = lineOfScrimmage,
             FirstDownLine = firstDownLine,
             Down = down,
@@ -180,6 +181,7 @@ public sealed class ReplayRecorder
             _frames.Add(new ReplayFrame
             {
                 ElapsedSeconds = last.ElapsedSeconds + elapsed,
+                DefensiveDecision = last.DefensiveDecision,
                 LineOfScrimmage = last.LineOfScrimmage,
                 FirstDownLine = last.FirstDownLine,
                 Down = last.Down,
@@ -458,6 +460,7 @@ public sealed class ReplayRecorder
             normalized.Add(new ReplayFrame
             {
                 ElapsedSeconds = elapsed,
+                DefensiveDecision = frame.DefensiveDecision,
                 LineOfScrimmage = frame.LineOfScrimmage,
                 FirstDownLine = frame.FirstDownLine,
                 Down = frame.Down,

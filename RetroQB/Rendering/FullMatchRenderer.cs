@@ -76,6 +76,8 @@ public sealed class FullMatchRenderer
             }
         }
         float scale = Math.Min(1, Raylib.GetScreenHeight() / 900f);
+        if (defending) DefensivePlayRenderer.DrawCoverage(recorded?.CompiledPlan ?? (frame == null ? d.CompiledPlan : null),
+            frame?.DefensiveDecision ?? (frame == null ? d.Execution.DefenseRuntime?.Current : null));
         int right = Raylib.GetScreenWidth() - 310;
         void Text(string text, int x, int y, int size = 17, Color? color = null)
         {
@@ -101,11 +103,16 @@ public sealed class FullMatchRenderer
         else if (defending)
         {
             for (int i = 0; i < 10; i++)
-                Text($"{(i + 1) % 10} {DefensivePlaybook.All[i].Name}", 20, 95 + i * 29, 16,
-                    assignment.Definition == DefensivePlaybook.All[i] ? Palette.Gold : Palette.White);
+                Text($"{(i + 1) % 10} {DefensivePlaybook.All[i].Name}{(d.SupportsDefense(DefensivePlaybook.All[i].Id) ? "" : " (unavailable)")}", 20, 95 + i * 29, 16,
+                    assignment.Definition == DefensivePlaybook.All[i] ? Palette.Gold : d.SupportsDefense(DefensivePlaybook.All[i].Id) ? Palette.White : new Color(110, 110, 110, 255));
             Text($"YOU: {assignment.ControlledSlot}", 20, 415, 20, Palette.Gold);
-            Text(assignment.Assignments.Single(a => a.Slot == assignment.ControlledSlot).Responsibility, 20, 450);
+            var cue = (frame?.DefensiveDecision ?? (frame == null ? d.Execution.DefenseRuntime?.Current : null))?.Decisions.Single(i => i.Actor == assignment.ControlledSlot);
+            Text(cue == null ? assignment.Assignments.Single(a => a.Slot == assignment.ControlledSlot).Responsibility : Gameplay.Defense.DefensivePlanPresentation.Describe(cue), 20, 450);
             if (frame == null) Text($"CPU snap in {Math.Max(0, session.SnapRemaining):0.0}s", 20, 520);
+            var decision = frame?.DefensiveDecision ?? (frame == null ? d.Execution.DefenseRuntime?.Current : null);
+            if (decision != null) Text(Gameplay.Defense.DefensivePlanPresentation.Describe(decision.Decisions.Single(x => x.Actor == assignment.ControlledSlot)), 20, 555, 14);
+            if (decision?.Coverage is { } board) Text(DefensivePlayRenderer.CoverageCue(board, assignment.ControlledSlot), 20, 590, 13);
+            if (decision?.Observation.ConfirmedCarrier == true && decision.Run is { } run) Text(DefensivePlayRenderer.RunCue(run), 20, 590, 13);
         }
         else if (frame != null)
         {

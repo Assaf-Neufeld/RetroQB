@@ -75,6 +75,33 @@ public sealed class PlaySetupController
         return new(formation.Qb, formation.Ball, formation.Receivers, formation.Blockers, result.Defenders,
             result.UsesZoneResponsibilities, result.IsUnderneathManCoverage, result.Blitzers, result.Scheme);
     }
+
+    /// <summary>P1 passive preview only. Typed ownership stays in Plan; no legacy assignment repair or runtime conversion.</summary>
+    public Defense.DefensivePlanPreview SetupPreview(ResolvedPlay selectedPlay, Defense.ResolvedDefensivePlan plan,
+        OffensiveTeamAttributes offensiveTeam, DefensiveTeamAttributes defensiveTeam)
+    {
+        var formation = _formationFactory.CreateFormation(selectedPlay, plan.Offense.LineOfScrimmage, offensiveTeam);
+        return new(plan, formation, defensiveTeam);
+    }
+
+    public PlaySetupResult SetupCompiledPlay(ResolvedPlay selectedPlay, Defense.ResolvedDefensivePlan plan,
+        OffensiveTeamAttributes offensiveTeam, DefensiveTeamAttributes defensiveTeam)
+    {
+        var preview = SetupPreview(selectedPlay, plan, offensiveTeam, defensiveTeam);
+        RouteAssigner.AssignRoutes(preview.Offense.Receivers, selectedPlay);
+        var actors = preview.Defenders.ToList();
+        foreach (var actor in actors)
+        {
+            var assignment = plan.Assignments.Single(a => a.ActorId == actor.Slot);
+            actor.IsRusher = assignment.Pass is Defense.RushResponsibility;
+            // Offense's existing matchup effect compares this value to Receiver.Index, never subscripts it.
+            // New defensive movement never consumes the legacy targeting path.
+            actor.CoverageReceiverIndex = (assignment.Pass as Defense.ManResponsibility)?.Target.Value ?? -1;
+        }
+        return new(preview.Offense.Qb, preview.Offense.Ball, preview.Offense.Receivers, preview.Offense.Blockers,
+            actors, false, true, actors.Where(d => d.IsRusher && d.PositionRole is not (DefensivePosition.DL or DefensivePosition.DE)).Select(d => d.Slot.ToString()).ToList(),
+            DefensivePlaybook.Get(plan.Call.Id).Scheme);
+    }
 }
 
 /// <summary>

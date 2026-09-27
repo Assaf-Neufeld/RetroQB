@@ -3,6 +3,7 @@ namespace RetroQB.Gameplay.Replay;
 public sealed class ReplayFrame
 {
     public float ElapsedSeconds { get; init; }
+    public Defense.DefensiveDecisionFrame? DefensiveDecision { get; init; }
     public float LineOfScrimmage { get; init; }
     public float FirstDownLine { get; init; }
     public int Down { get; init; } = 1;

@@ -16,7 +16,7 @@ internal static class DefenseScenarioLauncher
         var keyboard = new InputManager();
         bool automated = options.Headless || options.Capture;
         var drive = new DefensiveDrive(automated ? script : keyboard, options.Seed, options.Definition.Start,
-            string.IsNullOrEmpty(options.Definition.PlayId) ? null : options.Definition.PlayId, options.Definition.ScriptedOffense);
+            string.IsNullOrEmpty(options.Definition.PlayId) ? null : options.Definition.PlayId, options.Definition.ScriptedOffense, engine: options.Engine);
         string output = Path.GetFullPath(options.OutputDirectory ?? Path.Combine(Path.GetTempPath(), "RetroQB", "defense", Guid.NewGuid().ToString("N")));
         Directory.CreateDirectory(output);
         var trace = new List<object>();
@@ -55,6 +55,7 @@ internal static class DefenseScenarioLauncher
                 Controlled = drive.Linebacker.Slot, Linebacker = drive.Linebacker.Position,
                 Blocked = drive.Linebacker.IsBeingBlocked, Result = drive.LastResult,
                 Actors = drive.Players.Select(a => new { a.Glyph, a.Position, a.Velocity }).ToArray()
+                , Decision = drive.Execution.DefenseRuntime?.Current
             });
         }
         void draw() => renderer.Draw(session, failure);

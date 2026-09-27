@@ -18,13 +18,14 @@ internal sealed record ScenarioDefinition(string Name, string PlayId, DriveStart
     public static IReadOnlyList<string> Names { get; } = Array.AsReadOnly(new[]
     {
         "offense-pass", "offense-run", "offense-play-action", "offense-field-goal", "offense-replay",
-        "defense-drive", "defense-calls", "defense-control-base", "defense-control-nickel",
+        "defense-fit-matrix", "defense-runtime-matrix", "defense-redesign-matrix", "defense-plan-matrix", "defense-drive", "defense-calls", "defense-control-base", "defense-control-nickel",
         "defense-quick", "defense-deep", "defense-play-action",
         "timed-game", "timed-short", "late-tying-kick", "late-protect-lead", "overtime-pairs", "timed-season", "timed-season-short", "timed-layout", "release-catalog", "release-matches", "release-default"
     });
 
     public static ScenarioDefinition Get(string name) => name switch
     {
+        "defense-fit-matrix" or "defense-runtime-matrix" or "defense-redesign-matrix" or "defense-plan-matrix" => new(name, "", new()),
         "release-catalog" or "release-matches" or "release-default" => new(name, "", new()),
         "timed-game" or "timed-short" or "late-tying-kick" or "late-protect-lead" or "overtime-pairs" or "timed-season" or "timed-season-short" or "timed-layout"
             => new(name, "", new()) { FullMatch = true },

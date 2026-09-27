@@ -4,6 +4,7 @@ using RetroQB.AI;
 using RetroQB.Core;
 using RetroQB.Entities;
 using RetroQB.Input;
+using RetroQB.Gameplay.Defense;
 
 namespace RetroQB.Gameplay.Controllers;
 
@@ -21,6 +22,7 @@ public sealed class PlayExecutionController
     private float _passReadyRemaining;
     public ControlContext Control { get; set; } = new();
     public OffensiveIntent? CpuIntent { get; set; }
+    public DefensiveRuntime? DefenseRuntime { get; set; }
     public bool ScreenRelativeDefensiveInput { get; set; }
     public string ExchangeStatus => !Backfield.AllowsThrow ? "FAKE" : _passReadyRemaining > 0 ? "PASS READY" : "";
     public void Reset()
@@ -54,6 +56,22 @@ public sealed class PlayExecutionController
         Action<Entity> clampToField,
         float dt)
     {
+        if (DefenseRuntime != null && dt == 0) return;
+        var decision = DefenseRuntime?.Decide(DefensiveSighting.Capture(qb, ball, receivers, defenders), dt,
+            human: Control.ControlledDefender(defenders)?.Slot, speedMultiplier: playManager.DefenderSpeedMultiplier);
+        if (DefenseRuntime?.Stopped == true) return;
+        if (decision != null)
+        {
+            foreach (var defender in defenders)
+            {
+                var defensiveIntent = decision.Decisions.Single(i => i.Actor == defender.Slot);
+                defender.IsRusher = defensiveIntent.ActiveRusher;
+                defender.CoverageReceiverIndex = defensiveIntent.Primary?.Value ?? -1;
+                if (defender != Control.ControlledDefender(defenders))
+                    defender.Velocity = DefenderMotor.Velocity(decision.Observation.Visible.Defenders.Single(d => d.Id == defender.Slot),
+                        defensiveIntent, decision.Observation.Visible.Defenders, playManager.DefenderSpeedMultiplier, dt);
+            }
+        }
         Vector2 humanInput = _input.GetMovementDirection();
         humanInput = Constants.OrientDirection(humanInput, ScreenRelativeDefensiveInput && Control.HumanOnDefense);
         OffensiveIntent intent = Control.HumanOnDefense ? CpuIntent ?? new(Vector2.Zero)
@@ -89,12 +107,17 @@ public sealed class PlayExecutionController
         ObservePossession(ball, playManager);
 
         // Update defenders
-        UpdateDefenders(defenders, qb, receivers, ball, playManager, qbPastLos, usesZoneResponsibilities, clampToField, dt);
+        if (DefenseRuntime == null)
+            UpdateDefenders(defenders, qb, receivers, ball, playManager, qbPastLos, usesZoneResponsibilities, clampToField, dt);
 
         // Update blockers
         UpdateBlockers(blockers, defenders, qb, ball, playManager, clampToField, dt);
         // All block contacts can slow/displace the human defender before its single integration.
-        if (manual != null) { manual.Update(dt); clampToField(manual); }
+        if (DefenseRuntime != null)
+        {
+            foreach (var defender in defenders) { defender.Update(dt); clampToField(defender); }
+        }
+        else if (manual != null) { manual.Update(dt); clampToField(manual); }
     }
 
     private void UpdateQuarterback(
