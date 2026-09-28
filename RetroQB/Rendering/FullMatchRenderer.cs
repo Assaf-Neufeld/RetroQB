@@ -114,7 +114,7 @@ public sealed class FullMatchRenderer
             if (plan != null)
             {
                 Text(Gameplay.Defense.DefensivePlanPresentation.PressureSummary(plan, decision), 20, 625, 14);
-                if (!d.Live && frame == null && plan.Pressure.Entries.Count > 4) Text("Q/E: variant | X: pressure side", 20, 670, 14);
+                if (!d.Live && frame == null && (plan.Pressure.Entries.Count > 4 || plan.Call.Zone == Gameplay.Defense.SpotZoneFamily.Cover3)) Text("Q/E: variant | X: pressure side", 20, 670, 14);
             }
             if (decision != null) Text(Gameplay.Defense.DefensivePlanPresentation.Describe(decision.Decisions.Single(x => x.Actor == assignment.ControlledSlot)), 20, 555, 14);
             if (decision?.Coverage is { } board) Text(DefensivePlayRenderer.CoverageCue(board, assignment.ControlledSlot), 20, 590, 13);

@@ -25,7 +25,12 @@ public static class DefensivePlanValidator
         var owners = plan.Assignments.Select(a => a.Pass).OfType<ManResponsibility>().Select(m => m.Target.Value).Order();
         if (plan.Call.Zone == SpotZoneFamily.None && !owners.SequenceEqual(plan.Offense.Skills.Select(p => p.Id.Value).Order())) errors.Add("Every potential receiver needs exactly one primary man owner.");
         var rushers = plan.Assignments.Where(a => a.Pass is RushResponsibility).ToArray();
-        if (rushers.Length != plan.Call.RushCount) errors.Add("Wrong rush budget.");
+        int rushBudget = plan.Pressure.Selection.Kind == PressureKind.ZoneFive ? 5 : plan.Call.RushCount;
+        if (rushers.Length != rushBudget) errors.Add("Wrong rush budget.");
+        if (plan.Pressure.Drops.Count != (plan.Pressure.Selection.Kind is PressureKind.ZoneFive or PressureKind.Simulated ? 1 : 0)) errors.Add("Wrong declared drop budget.");
+        foreach (var drop in plan.Pressure.Drops)
+            if (!plan.Assignments.Any(a => a.ActorId == drop.Actor && a.Pass is ZoneResponsibility)
+                || !OffensiveAlignmentSnapshot.InField(drop.Home)) errors.Add("Invalid declared drop.");
         var rushJobs = rushers.Select(a => (RushResponsibility)a.Pass).ToArray();
         if (rushJobs.Select(r => r.GapIndex).Distinct().Count() != rushJobs.Length
             || rushJobs.Any(r => !plan.Surface.Gaps.Any(g => g.Index == r.GapIndex) || !Enum.IsDefined(r.Contain))) errors.Add("Invalid/duplicate rush entry.");
@@ -69,7 +74,7 @@ public static class DefensivePlanValidator
         {
             var zones = plan.Assignments.Where(a => a.Pass is ZoneResponsibility).ToArray();
             int expectedDeep = plan.Call.Zone == SpotZoneFamily.Cover2 ? 2 : plan.Call.Zone == SpotZoneFamily.Cover4 ? 4 : 3;
-            if (zones.Length != 7 || zones.Count(a => ((ZoneResponsibility)a.Pass).IsDeep) != expectedDeep)
+            if (zones.Length != 11 - rushBudget || zones.Count(a => ((ZoneResponsibility)a.Pass).IsDeep) != expectedDeep)
                 errors.Add("Wrong zone shell/underneath budget.");
             if (plan.Assignments.Any(a => a.Pass is ManResponsibility or HelpResponsibility)) errors.Add("Spot call contains man jobs.");
             foreach (var a in zones)

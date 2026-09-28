@@ -84,7 +84,8 @@ public sealed class PressureCoordinator
             bool manual = actor.Id == human;
             bool participating = !release && (!manual || actor.Contact || Vector2.Dot(actor.Velocity, target - actor.Position) > .5f);
             string rule = _plan.Pressure.Selection.Kind switch { PressureKind.Mike => "PRESS-02", PressureKind.Edge => "PRESS-03",
-                PressureKind.Nickel => "PRESS-04", PressureKind.Zero => "PRESS-05", _ => "PRESS-01" };
+                PressureKind.Nickel => "PRESS-04", PressureKind.Zero => "PRESS-05", PressureKind.ZoneFive => "PRESS-06",
+                PressureKind.Simulated => "PRESS-07", _ => "PRESS-01" };
             jobs.Add(new(actor.Id, state.Gap, stage, target, entry.Contain, true, participating, manual,
                 manual && !participating && !release ? "HUMAN-02:ManualActorNotParticipating" : reason));
             intents.Add(new(actor.Id, entry.Contain == ContainRole.None ? DefensiveIntentKind.Rush : DefensiveIntentKind.Contain,

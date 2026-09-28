@@ -211,7 +211,7 @@ public sealed class DefensiveDrive
     public bool CyclePressure(int step)
     {
         if (CompiledPlan == null || Live || LastResult != null || Complete || !HumanOnDefense || step == 0) return false;
-        var variants = PressureVariants.Available(CompiledPlan);
+        var variants = PressureVariants.Available(CompiledPlan, Match.Defense.DefensiveAttributes);
         if (variants.Count < 2) return false;
         int current = variants.ToList().FindIndex(v => v == CompiledPlan.Pressure.Selection);
         return SelectPressure(variants[(Math.Max(0, current) + Math.Sign(step) + variants.Count) % variants.Count]);

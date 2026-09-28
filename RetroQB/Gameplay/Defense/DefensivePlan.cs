@@ -158,5 +158,6 @@ public sealed class DefensivePlanPreview
         Plan = plan; Offense = offense;
         Defenders = Array.AsReadOnly(plan.Assignments.Select(a =>
             new Defender(a.Alignment, a.PositionRole, a.ActorId, team)).ToArray());
+        PressureCompiler.ValidateDrops(plan, Defenders);
     }
 }

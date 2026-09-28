@@ -18,7 +18,7 @@ Evidence under `artifacts/defense-redesign/p06/tests/`:
 - `p06-package1-regression.trx`: **770 passed / the same five P0 failures, 775 total**.
 - `p06-first-regression.trx`: 99 earlier compiler, man, observation and run-fit tests passed before the new package tests.
 
-P6.3 zone/simulated pressure and P6.4 conditional pressure/screens remain outstanding. The existing protected stationary-QB case can still remain live for 30 seconds; counters are physical attempts, not guaranteed sacks or forced whistles. Full-phase acceptance must requalify broader production scenarios and remaining pressure interactions.
+P6.4 conditional pressure/screens remain outstanding. The existing protected stationary-QB case can still remain live for 30 seconds; counters are physical attempts, not guaranteed sacks or forced whistles. Full-phase acceptance must requalify broader production scenarios and remaining pressure interactions.
 
 ## P6.2 — human pressure workflow
 
@@ -29,3 +29,14 @@ Pre-snap controls are ignored while live, suspended, unfocused, presenting resul
 `PressureInputTests` passes five cases, including injected real keyboard 9/0/X/Q/E mappings, double-flip equality, invalid nickel-on-base rejection, legal variant cycling, preview/snap parity, both session controllers, clock/identity preservation, and idle manual participation. Existing defensive-session tests also pass. The hidden `defense-calls --engine zone --capture` run was inspected at 1440×900 for readable pressure selection, personnel/rush summary and X/Q/E controls.
 
 P6.2 full regression: **775 passed / the same five P0 failures, 780 total** (p06-package2-regression.trx). The capture drive ended through a production touchdown with no harness failure.
+
+## P6.3 — zone and simulated pressure
+
+Cover 3 now offers five-man zone pressure and four-man simulated pressure on either side through Q/E. Both explicitly drop the near end and send the near linebacker with contain. Five-man zone pressure additionally sends the middle actor and allocates exactly three deep/three underneath jobs. Simulated pressure allocates three deep/four underneath jobs. The far end retains opposite contain.
+
+The dropping end starts at its compiled physical alignment and travels to its curl/flat home. Preview and available-variant filtering check the actual roster's speed, turn/acceleration estimate and a 0.10-second margin against a declared 2.5-second arrival window. An incapable roster is rejected before preview; early flat exposure is a real cost of the drop. No defender is spawned at its live coverage home after snap. Existing spot-zone allocation, transfer and overload-concession rules apply to the actual six/seven coverage actors.
+
+Production execution clears the drop's rusher flag before pass protection runs. The existing protection planner already consumes current IsRusher state; no duplicate protection implementation was added. Tests query its actual assignments throughout live plays to ensure the dropping end never remains a pass-rush target.
+
+`p06-zone-pressure.trx`: six passing tests, including 1,600 catalog plans (100 plays × two offensive flips × two rosters × two sides × two variants), incompatible-call/slow-roster rejection, and 36 production plays (three passing plays × two sides × two variants × 30/60/120 Hz). All production plays end with ordinary whistles, preserved coverage boards and bounded speed. `p06-zone-integration.trx` requalifies 46 fixed-pressure/spot-zone tests.
+P6.3 full regression: **781 passed / the same five P0 failures, 786 total** (`p06-package3-regression.trx`).

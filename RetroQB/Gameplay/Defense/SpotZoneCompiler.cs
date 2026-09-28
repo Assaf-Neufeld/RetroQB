@@ -19,13 +19,32 @@ public sealed record ZoneResponsibility(SpotZoneRole Role, ZoneArea Area, Vector
 internal static class SpotZoneCompiler
 {
     public static ResolvedDefensivePlan Compile(OffensiveAlignmentSnapshot offense, DefensiveCallDefinition call,
-        OffensiveSurface surface, DefensePackage package, int seed, IEnumerable<DefensiveAssignment> front)
+        OffensiveSurface surface, DefensePackage package, int seed, IEnumerable<DefensiveAssignment> front, PressureSelection? pressure = null)
     {
         var jobs = front.ToList(); float width = Constants.FieldWidth, los = offense.LineOfScrimmage;
         float scale = FieldGeometry.CoverageDepthScale(los);
         float Y(float depth) => Math.Clamp(los + depth * scale, los + .1f, Constants.FieldLength - Constants.DefenderRadius);
         DefenderSlot middle = package == DefensePackage.Base ? DefenderSlot.MLB : DefenderSlot.NB;
-        if (call.Zone == SpotZoneFamily.Cover2)
+        pressure ??= PressureSelection.For(call);
+        if (pressure.Kind is PressureKind.ZoneFive or PressureKind.Simulated)
+        {
+            bool left = pressure.Side == FieldSide.Left;
+            var drop = left ? DefenderSlot.DE1 : DefenderSlot.DE2;
+            var farLinebacker = left ? DefenderSlot.OLB2 : DefenderSlot.OLB1;
+            Add(DefenderSlot.CB1, SpotZoneRole.DeepThird, 0, width / 3, 12);
+            Add(DefenderSlot.FS, SpotZoneRole.DeepThird, width / 3, width * 2 / 3, 16);
+            Add(DefenderSlot.CB2, SpotZoneRole.DeepThird, width * 2 / 3, width, 12);
+            float edge = pressure.Kind == PressureKind.ZoneFive ? width / 3 : width / 4;
+            Add(drop, SpotZoneRole.CurlFlat, left ? 0 : width - edge, left ? edge : width, 5);
+            Add(DefenderSlot.SS, SpotZoneRole.CurlFlat, left ? width - edge : 0, left ? width : edge, 6);
+            if (pressure.Kind == PressureKind.ZoneFive) Add(farLinebacker, SpotZoneRole.Hook, edge, width - edge, 7);
+            else
+            {
+                Add(middle, SpotZoneRole.Hook, left ? edge : width / 2, left ? width / 2 : width - edge, 7);
+                Add(farLinebacker, SpotZoneRole.Hook, left ? width / 2 : edge, left ? width - edge : width / 2, 7);
+            }
+        }
+        else if (call.Zone == SpotZoneFamily.Cover2)
         {
             Add(DefenderSlot.FS, SpotZoneRole.DeepHalf, 0, width / 2, 14);
             Add(DefenderSlot.SS, SpotZoneRole.DeepHalf, width / 2, width, 14);
@@ -79,7 +98,7 @@ internal static class SpotZoneCompiler
             }
             placed.Add(job with { Alignment = p });
         }
-        var plan = new ResolvedDefensivePlan(call, offense, surface, package, seed, RunFitCompiler.Bind(surface, placed).Assignments, 0);
+        var plan = new ResolvedDefensivePlan(call, offense, surface, package, seed, RunFitCompiler.Bind(surface, placed).Assignments, 0, pressure: pressure);
         DefensivePlanValidator.ThrowIfInvalid(plan); return plan;
 
         void Add(DefenderSlot slot, SpotZoneRole role, float left, float right, float depth, bool rotates = false)
@@ -89,6 +108,12 @@ internal static class SpotZoneCompiler
             var area = new ZoneArea(left, right, deep ? Y(7) : los - 2, deep ? Constants.FieldLength - Constants.DefenderRadius : Y(12));
             // Buzz starts above its home and physically travels down/out; it is never counted as a fourth deep role.
             Vector2 alignment = rotates ? new(home.X - 3, Y(12)) : home;
+            if (slot is DefenderSlot.DE1 or DefenderSlot.DE2)
+            {
+                float x = slot == DefenderSlot.DE1 ? surface.Gaps.Min(g => g.X) : surface.Gaps.Max(g => g.X);
+                alignment = DefenderMotor.Clamp(new(x, Y(1.5f)));
+                home.X = Math.Clamp(x, left + 1.3f, right - 1.3f);
+            }
             jobs.Add(new(slot, slot.GetPositionType(), alignment, new ZoneResponsibility(role, area, home, Array.Empty<DefenderSlot>(), rotates),
                 new(deep ? RunRole.DeepSupport : RunRole.Pursuit, home.X < width / 2 ? FieldSide.Left : FieldSide.Right, RunTrigger.ObservedRunCommitment)));
         }

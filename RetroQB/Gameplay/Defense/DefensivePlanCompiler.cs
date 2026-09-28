@@ -25,7 +25,7 @@ public static class DefensivePlanCompiler
         if (call.Zone != SpotZoneFamily.None)
         {
             if (!adjustments.Equivalent(ManCoverageAdjustments.None)) throw new ArgumentException("Man adjustments cannot modify spot zones.");
-            return SpotZoneCompiler.Compile(offense, call, surface, personnel, resolutionSeed, jobs.Values);
+            return SpotZoneCompiler.Compile(offense, call, surface, personnel, resolutionSeed, jobs.Values, pressure);
         }
         if (call.Shell == ManShell.TwoHigh)
         {
