@@ -7,10 +7,9 @@ namespace RetroQB.Gameplay.Defense;
 public static class DefensivePlanCompiler
 {
     public const float MinimumSpacing = 2.25f;
-    private static readonly DefenderSlot[] Front = [DefenderSlot.DE1, DefenderSlot.DT1, DefenderSlot.DT2, DefenderSlot.DE2];
 
     public static ResolvedDefensivePlan Compile(OffensiveAlignmentSnapshot offense, DefensiveCallDefinition call,
-        DefensePackage? package = null, int resolutionSeed = 101, ManCoverageAdjustments? adjustments = null)
+        DefensePackage? package = null, int resolutionSeed = 101, ManCoverageAdjustments? adjustments = null, PressureSelection? pressure = null)
     {
         ArgumentNullException.ThrowIfNull(offense); ArgumentNullException.ThrowIfNull(call);
         adjustments ??= ManCoverageAdjustments.None;
@@ -21,31 +20,12 @@ public static class DefensivePlanCompiler
         if (!Enum.IsDefined(personnel)) throw new ArgumentOutOfRangeException(nameof(package));
         var active = ActiveSlots(personnel);
         var jobs = new Dictionary<DefenderSlot, DefensiveAssignment>();
-        var gapPool = surface.Gaps.ToList();
-        foreach (var slot in Front)
-        {
-            LineGap gap = slot switch
-            {
-                DefenderSlot.DE1 => gapPool.MinBy(g => g.X)!,
-                DefenderSlot.DE2 => gapPool.MaxBy(g => g.X)!,
-                DefenderSlot.DT1 => gapPool.Where(g => !g.Outside).MinBy(g => g.X)!,
-                _ => gapPool.Where(g => !g.Outside).MaxBy(g => g.X)!
-            };
-            gapPool.Remove(gap); AddRush(slot, gap);
-        }
+        pressure ??= PressureSelection.For(call);
+        PressureCompiler.Bind(offense, surface, personnel, call, pressure, jobs);
         if (call.Zone != SpotZoneFamily.None)
         {
             if (!adjustments.Equivalent(ManCoverageAdjustments.None)) throw new ArgumentException("Man adjustments cannot modify spot zones.");
             return SpotZoneCompiler.Compile(offense, call, surface, personnel, resolutionSeed, jobs.Values);
-        }
-        if (call.RushCount >= 5)
-        {
-            var gap = gapPool.MinBy(g => g.X)!; gapPool.Remove(gap); AddRush(DefenderSlot.OLB1, gap);
-        }
-        if (call.RushCount == 6)
-        {
-            var gap = gapPool.MaxBy(g => g.X)!;
-            AddRush(personnel == DefensePackage.Base ? DefenderSlot.MLB : DefenderSlot.OLB2, gap);
         }
         if (call.Shell == ManShell.TwoHigh)
         {
@@ -118,19 +98,13 @@ public static class DefensivePlanCompiler
             }
             placed.Add(job with { Alignment = p });
         }
-        var plan = new ResolvedDefensivePlan(call, offense, surface, personnel, resolutionSeed, RunFitCompiler.Bind(surface, placed).Assignments, pairing.TotalCost, adjustments);
+        var plan = new ResolvedDefensivePlan(call, offense, surface, personnel, resolutionSeed, RunFitCompiler.Bind(surface, placed).Assignments, pairing.TotalCost, adjustments, pressure);
         DefensivePlanValidator.ThrowIfInvalid(plan);
         return plan;
 
         Vector2 Position(float x, float depth) => new(Math.Clamp(x, Constants.DefenderRadius, Constants.FieldWidth - Constants.DefenderRadius),
             Math.Clamp(offense.LineOfScrimmage + depth * FieldGeometry.CoverageDepthScale(offense.LineOfScrimmage),
                 offense.LineOfScrimmage + .1f, Constants.FieldLength - Constants.DefenderRadius));
-        void AddRush(DefenderSlot slot, LineGap gap)
-        {
-            var contain = slot == DefenderSlot.DE1 ? ContainRole.LeftEdge : slot == DefenderSlot.DE2 ? ContainRole.RightEdge : ContainRole.None;
-            jobs.Add(slot, new(slot, slot.GetPositionType(), Position(gap.X, 1.5f), new RushResponsibility(gap.Index, contain),
-                new(contain == ContainRole.None ? RunRole.Gap : RunRole.Force, gap.Side, RunTrigger.ObservedRunCommitment, gap.Index)));
-        }
         void AddHelp(DefenderSlot slot, HelperRole role)
         {
             float x = role == HelperRole.DeepLeft ? surface.CenterX - 10 : role == HelperRole.DeepRight ? surface.CenterX + 10 : surface.CenterX;

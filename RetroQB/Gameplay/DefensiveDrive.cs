@@ -171,10 +171,23 @@ public sealed class DefensiveDrive
         if (Engine is not (DefensiveEngineMode.ManDevelopment or DefensiveEngineMode.ZoneDevelopment) || Live || LastResult != null || Complete || CompiledPlan == null) return false;
         try
         {
-            var plan = DefensivePlanCompiler.Compile(CompiledPlan.Offense, CompiledPlan.Call, CompiledPlan.Package, CompiledPlan.ResolutionSeed, adjustments);
+            var plan = DefensivePlanCompiler.Compile(CompiledPlan.Offense, CompiledPlan.Call, CompiledPlan.Package, CompiledPlan.ResolutionSeed, adjustments, CompiledPlan.Pressure.Selection);
             ApplyCompiledPlan(plan, retainOffense: true); return true;
         }
         catch (ArgumentException error) { SelectionRejection = error.Message; return false; }
+    }
+
+    public bool SelectPressure(PressureSelection selection)
+    {
+        if (Engine == DefensiveEngineMode.Legacy || !HumanOnDefense || Live || LastResult != null || Complete || CompiledPlan == null) return false;
+        try
+        {
+            var plan = DefensivePlanCompiler.Compile(CompiledPlan.Offense, CompiledPlan.Call, CompiledPlan.Package,
+                CompiledPlan.ResolutionSeed, CompiledPlan.Adjustments, selection);
+            ApplyCompiledPlan(plan, retainOffense: true); return true;
+        }
+        catch (ArgumentException error) { SelectionRejection = error.Message; return false; }
+        catch (InvalidOperationException error) { SelectionRejection = error.Message; return false; }
     }
 
     internal bool SelectCompiledDefenseForDevelopment(string id)

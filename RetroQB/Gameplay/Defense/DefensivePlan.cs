@@ -95,7 +95,7 @@ public sealed record DefensiveCallDefinition(string Id, int Version, ManShell Sh
 
 public sealed class ResolvedDefensivePlan
 {
-    public const string RulesVersion = "defense-plan-p5-v1";
+    public const string RulesVersion = "defense-plan-p6-v1";
     public string RuleVersion => RulesVersion;
     public DefensiveCallDefinition Call { get; }
     public OffensiveAlignmentSnapshot Offense { get; }
@@ -105,6 +105,7 @@ public sealed class ResolvedDefensivePlan
     public DefenderSlot ControlledActor => Package == DefensePackage.Base ? DefenderSlot.MLB : DefenderSlot.OLB1;
     public IReadOnlyList<DefensiveAssignment> Assignments { get; }
     public RunFitPlan Fits { get; }
+    public PressurePlan Pressure { get; }
     public double PairingCost { get; }
     public ManCoverageAdjustments Adjustments { get; }
     public IReadOnlyList<BunchSwitchGroup> SwitchGroups { get; }
@@ -113,13 +114,16 @@ public sealed class ResolvedDefensivePlan
 
     internal ResolvedDefensivePlan(DefensiveCallDefinition call, OffensiveAlignmentSnapshot offense,
         OffensiveSurface surface, DefensePackage package, int seed, IEnumerable<DefensiveAssignment> assignments, double pairingCost,
-        ManCoverageAdjustments? adjustments = null)
+        ManCoverageAdjustments? adjustments = null, PressureSelection? pressure = null)
     {
         Call = call; Offense = offense; Surface = surface; Package = package; ResolutionSeed = seed;
         // Keep caller-supplied jobs intact so validation can detect corruption. Compilers bind fits before construction.
         Assignments = Array.AsReadOnly(assignments.OrderBy(a => a.ActorId).ToArray()); PairingCost = pairingCost;
+        Pressure = PressureCompiler.Describe(offense, surface, Assignments, pressure ?? PressureSelection.For(call));
         Fits = new(Array.AsReadOnly(Assignments.Where(a => a.Run?.GapIndex != null)
-            .Select(a => new GapFit(a.Run.GapIndex!.Value, a.ActorId)).OrderBy(g => g.GapIndex).ToArray()), DefenderSlot.DE1, DefenderSlot.DE2,
+            .Select(a => new GapFit(a.Run.GapIndex!.Value, a.ActorId)).OrderBy(g => g.GapIndex).ToArray()),
+            Assignments.FirstOrDefault(a => a.Run is { Role: RunRole.Force, Side: FieldSide.Left })?.ActorId ?? DefenderSlot.DE1,
+            Assignments.FirstOrDefault(a => a.Run is { Role: RunRole.Force, Side: FieldSide.Right })?.ActorId ?? DefenderSlot.DE2,
             Assignments.FirstOrDefault(a => a.Run is { Role: RunRole.Cutback, Side: FieldSide.Left })?.ActorId ?? DefenderSlot.DE1,
             Assignments.FirstOrDefault(a => a.Run is { Role: RunRole.Cutback, Side: FieldSide.Right })?.ActorId ?? DefenderSlot.DE2,
             Assignments.FirstOrDefault(a => a.Run?.Role == RunRole.DeepSupport)?.ActorId ?? DefenderSlot.DE1);

@@ -8,12 +8,13 @@ public sealed record DefensiveDecisionFrame(string Version, float Seconds, Defen
 {
     public CoverageBoard? Coverage { get; init; }
     public RunBoard? Run { get; init; }
+    public PressureBoard? Pressure { get; init; }
 }
 
 /// <summary>One team decision authority. All reads use the same immutable observation; only the motor/contact layer moves actors.</summary>
 public sealed class DefensiveRuntime
 {
-    public const string Version = "defense-runtime-p5-v1";
+    public const string Version = "defense-runtime-p6-v1";
     private sealed class State
     {
         public ReceiverId? Primary, Helping;
@@ -23,6 +24,7 @@ public sealed class DefensiveRuntime
     private readonly DefensiveObservationBuilder _observer;
     private readonly CoverageCoordinator? _coverage;
     private readonly RunFitCoordinator _run;
+    private readonly PressureCoordinator _pressure;
     private readonly HashSet<int> _settledGroups = new();
     public int SwitchCommitCount { get; private set; }
     public ResolvedDefensivePlan Plan { get; }
@@ -32,7 +34,7 @@ public sealed class DefensiveRuntime
     public DefensiveRuntime(ResolvedDefensivePlan plan)
     {
         DefensivePlanValidator.ThrowIfInvalid(plan); Plan = plan; _observer = new(plan);
-        _run = new(plan);
+        _run = new(plan); _pressure = new(plan);
         if (plan.Call.Zone != SpotZoneFamily.None) _coverage = new(plan);
         _states = plan.Assignments.ToDictionary(a => a.ActorId, a => new State { Primary = (a.Pass as ManResponsibility)?.Target });
     }
@@ -47,6 +49,7 @@ public sealed class DefensiveRuntime
         if (sighting.Ball.State == BallState.Dead) { Stop(); return Current; }
         var frame = _observer.Observe(sighting, dt, _coverage?.Owners ?? _states.Where(s => s.Value.Primary != null).ToDictionary(s => s.Value.Primary!.Value, s => s.Key));
         var decisions = new Dictionary<DefenderSlot, DefensiveIntent>(); var events = new List<string>();
+        foreach (var intent in _pressure.Decide(frame, human)) decisions.Add(intent.Actor, intent);
         if (_coverage != null)
         {
             foreach (var intent in _coverage.Decide(frame, human)) decisions.Add(intent.Actor, intent);
@@ -147,26 +150,6 @@ public sealed class DefensiveRuntime
                 { target.X += side * 1.2f; reason += ";MOVE-04:LateralBackLineLeverage"; }
                 decisions[assignment.ActorId] = new(assignment.ActorId, kind, DefenderMotor.Clamp(target), state.Primary, null, rule, reason, false);
             }
-            else if (assignment.Pass is RushResponsibility rush)
-            {
-                var gap = Plan.Surface.Gaps.Single(g => g.Index == rush.GapIndex);
-                float los = Plan.Offense.LineOfScrimmage;
-                Vector2 target = new(gap.X, los - 1.5f);
-                string reason = "NamedInteriorEntry"; var kind = DefensiveIntentKind.Rush;
-                if (rush.Contain != ContainRole.None)
-                {
-                    int side = rush.Contain == ContainRole.LeftEdge ? -1 : 1;
-                    float boundary = side < 0 ? MathF.Min(gap.X, sighting.Quarterback.X - 2) : MathF.Max(gap.X, sighting.Quarterback.X + 2);
-                    target = self.Position.Y > los - 1 ? new(boundary, los - 2) : new(boundary, sighting.Quarterback.Y - .5f);
-                    // Close only when already outside and sufficiently behind the QB to protect the escape angle.
-                    if (self.Position.Y <= sighting.Quarterback.Y - .5f && (self.Position.X - sighting.Quarterback.X) * side >= 0)
-                        target = sighting.Quarterback + new Vector2(side * .8f, -.4f);
-                    kind = DefensiveIntentKind.Contain; reason = "NamedOutsideShoulder;FarEdgeRetainsReversal";
-                }
-                else if (self.Position.Y <= los - 1) target = sighting.Quarterback;
-                decisions[assignment.ActorId] = new(assignment.ActorId, kind, DefenderMotor.Clamp(target), null, null,
-                    Plan.Call.RushCount == 4 ? "PRESS-01" : "P3-FIXED-RUSH", reason, true);
-            }
             var current = decisions[assignment.ActorId];
             if (sighting.Ball.State == BallState.InAir && frame.AirSeconds >= RecognitionDelay(self))
             {
@@ -178,7 +161,7 @@ public sealed class DefensiveRuntime
         }
         _run.Apply(frame, decisions, human, speedMultiplier, events);
         Current = new(Version, frame.Seconds, frame, Array.AsReadOnly(decisions.Values.OrderBy(d => d.Actor).ToArray()), events.AsReadOnly())
-            { Coverage = frame.ConfirmedCarrier ? null : _coverage?.Current, Run = _run.Current };
+            { Coverage = frame.ConfirmedCarrier ? null : _coverage?.Current, Run = _run.Current, Pressure = _pressure.Current };
         return Current;
     }
 

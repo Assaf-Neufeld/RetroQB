@@ -16,6 +16,8 @@ internal static class RunFitCompiler
         OffensiveSurface surface, IEnumerable<DefensiveAssignment> assignments)
     {
         var jobs = assignments.OrderBy(a => a.ActorId).ToArray();
+        var leftForce = jobs.Single(a => a.Pass is RushResponsibility { Contain: ContainRole.LeftEdge }).ActorId;
+        var rightForce = jobs.Single(a => a.Pass is RushResponsibility { Contain: ContainRole.RightEdge }).ActorId;
         var last = jobs.Where(a => a.Pass is not RushResponsibility).OrderByDescending(a => DeepPass(a.Pass))
             .ThenByDescending(a => a.Alignment.Y).ThenBy(a => a.ActorId).First().ActorId;
         var gaps = new Dictionary<int, DefenderSlot>();
@@ -28,20 +30,20 @@ internal static class RunFitCompiler
                 .ThenBy(a => a.Alignment.Y).ThenBy(a => a.ActorId).First();
             gaps.Add(gap.Index, owner.ActorId);
         }
-        var available = jobs.Where(a => a.ActorId != last && a.ActorId is not (DefenderSlot.DE1 or DefenderSlot.DE2)).ToArray();
+        var available = jobs.Where(a => a.ActorId != last && a.ActorId != leftForce && a.ActorId != rightForce).ToArray();
         var left = available.OrderBy(a => gaps.Values.Contains(a.ActorId)).ThenBy(a => DeepPass(a.Pass))
             .ThenBy(a => MathF.Abs(a.Alignment.X - (surface.CenterX - 5))).ThenBy(a => a.ActorId).First().ActorId;
         var right = available.Where(a => a.ActorId != left).OrderBy(a => gaps.Values.Contains(a.ActorId)).ThenBy(a => DeepPass(a.Pass))
             .ThenBy(a => MathF.Abs(a.Alignment.X - (surface.CenterX + 5))).ThenBy(a => a.ActorId).First().ActorId;
         var fits = new RunFitPlan(Array.AsReadOnly(gaps.OrderBy(p => p.Key).Select(p => new GapFit(p.Key, p.Value)).ToArray()),
-            DefenderSlot.DE1, DefenderSlot.DE2, left, right, last);
+            leftForce, rightForce, left, right, last);
         var bound = jobs.Select(a =>
         {
             int? gap = fits.Gaps.FirstOrDefault(g => g.Owner == a.ActorId)?.GapIndex;
-            RunRole role = a.ActorId == last ? RunRole.DeepSupport : a.ActorId is DefenderSlot.DE1 or DefenderSlot.DE2 ? RunRole.Force
+            RunRole role = a.ActorId == last ? RunRole.DeepSupport : a.ActorId == leftForce || a.ActorId == rightForce ? RunRole.Force
                 : a.ActorId == left || a.ActorId == right ? RunRole.Cutback : gap != null ? RunRole.Gap : RunRole.Pursuit;
-            FieldSide side = a.ActorId == left || a.ActorId == DefenderSlot.DE1 ? FieldSide.Left
-                : a.ActorId == right || a.ActorId == DefenderSlot.DE2 ? FieldSide.Right
+            FieldSide side = a.ActorId == left || a.ActorId == leftForce ? FieldSide.Left
+                : a.ActorId == right || a.ActorId == rightForce ? FieldSide.Right
                 : gap is { } index ? surface.Gaps.Single(g => g.Index == index).Side
                 : a.Alignment.X < surface.CenterX ? FieldSide.Left : FieldSide.Right;
             return a with { Run = new(role, side, RunTrigger.ObservedRunCommitment, gap) };

@@ -29,8 +29,12 @@ public static class DefensivePlanValidator
         var rushJobs = rushers.Select(a => (RushResponsibility)a.Pass).ToArray();
         if (rushJobs.Select(r => r.GapIndex).Distinct().Count() != rushJobs.Length
             || rushJobs.Any(r => !plan.Surface.Gaps.Any(g => g.Index == r.GapIndex) || !Enum.IsDefined(r.Contain))) errors.Add("Invalid/duplicate rush entry.");
-        if (!rushers.Any(a => a.ActorId == DefenderSlot.DE1 && ((RushResponsibility)a.Pass).Contain == ContainRole.LeftEdge)
-            || !rushers.Any(a => a.ActorId == DefenderSlot.DE2 && ((RushResponsibility)a.Pass).Contain == ContainRole.RightEdge)) errors.Add("Named edge contain missing.");
+        if (rushJobs.Count(r => r.Contain == ContainRole.LeftEdge) != 1
+            || rushJobs.Count(r => r.Contain == ContainRole.RightEdge) != 1) errors.Add("Named edge contain missing.");
+        foreach (var entry in plan.Pressure.Entries)
+            if (!OffensiveAlignmentSnapshot.InField(entry.Entry) || entry.AlternateGap is { } alternate
+                && (rushJobs.Any(r => r.GapIndex == alternate) || !plan.Surface.Gaps.Any(g => g.Index == alternate && !g.Outside)
+                    || Math.Abs(alternate - entry.Gap) != 1 || entry.Contain != ContainRole.None)) errors.Add("Illegal pressure alternate lane.");
         if (plan.Call.Zone == SpotZoneFamily.None)
         {
         if (plan.Assignments.Any(a => a.Pass is ZoneResponsibility)) errors.Add("Man call contains zone jobs.");
@@ -85,8 +89,8 @@ public static class DefensivePlanValidator
         if (plan.Assignments.Count(a => a.Run?.Role == RunRole.DeepSupport) != 1
             || plan.Assignments.Count(a => a.Run is { Role: RunRole.Cutback, Side: FieldSide.Left }) != 1
             || plan.Assignments.Count(a => a.Run is { Role: RunRole.Cutback, Side: FieldSide.Right }) != 1
-            || !plan.Assignments.Any(a => a.ActorId == DefenderSlot.DE1 && a.Run is { Role: RunRole.Force, Side: FieldSide.Left })
-            || !plan.Assignments.Any(a => a.ActorId == DefenderSlot.DE2 && a.Run is { Role: RunRole.Force, Side: FieldSide.Right })) errors.Add("Named force/cutback/last-support structure missing.");
+            || plan.Assignments.Count(a => a.Run is { Role: RunRole.Force, Side: FieldSide.Left }) != 1
+            || plan.Assignments.Count(a => a.Run is { Role: RunRole.Force, Side: FieldSide.Right }) != 1) errors.Add("Named force/cutback/last-support structure missing.");
         for (int i = 0; i < plan.Assignments.Count; i++)
         for (int j = i + 1; j < plan.Assignments.Count; j++)
             if (Vector2.Distance(plan.Assignments[i].Alignment, plan.Assignments[j].Alignment) < DefensivePlanCompiler.MinimumSpacing - .0001f)
