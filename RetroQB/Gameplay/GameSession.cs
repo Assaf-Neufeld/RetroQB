@@ -353,11 +353,12 @@ public sealed class GameSession : IDisposable
                 return;
             }
             TimedSeason?.EditName(_input.ReadTextInput(18), _input.IsBackspacePressed());
-            var input = new MatchInput(Call: _input.GetPassPlaySelection(), Run: _input.GetRunPlaySelection(),
+            var input = new MatchInput(Call: FullMatch.HumanOnDefense ? _input.GetDefensivePlaySelection() : _input.GetPassPlaySelection(), Run: _input.GetRunPlaySelection(),
                 Ready: _input.IsSpacePressed(), Kick: _input.IsFieldGoalPressed(), Punt: _input.IsPuntPressed(),
                 Kneel: _input.IsKneelPressed(), Flip: _input.IsFlipPlayPressed(), Timeout: _input.IsTimeoutPressed(),
                 Pause: _input.IsEscapePressed(), Replay: _input.IsReplayPressed(), Restart: _input.IsRestartPressed(),
-                Statistics: _input.IsStatisticsPressed(), SummaryScroll: _input.IsDriveSummaryScrollOlderPressed() ? 1 : _input.IsDriveSummaryScrollNewerPressed() ? -1 : 0, Focused: focused);
+                Statistics: _input.IsStatisticsPressed(), SummaryScroll: _input.IsDriveSummaryScrollOlderPressed() ? 1 : _input.IsDriveSummaryScrollNewerPressed() ? -1 : 0, Focused: focused,
+                DefensiveVariantStep: _input.GetDefensiveVariantStep());
             bool accept = focused && _input.IsEnterPressed();
             // Consume edges once; bounded physics steps prevent a slow frame from skipping contact.
             float remaining = Math.Clamp(float.IsFinite(dt) ? dt : 0, 0, .1f);

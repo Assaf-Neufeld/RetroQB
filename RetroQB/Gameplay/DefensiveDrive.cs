@@ -159,8 +159,23 @@ public sealed class DefensiveDrive
     private void ApplyCompiledPlan(ResolvedDefensivePlan plan, bool retainOffense)
     {
         var setup = _setup.SetupCompiledPlay(Plays.SelectedPlay, plan, Match.Offense.OffensiveAttributes, Match.Defense.DefensiveAttributes);
-        if (retainOffense) setup = new(Actors.Qb, Actors.Ball, Actors.Receivers, Actors.Blockers, setup.Defenders,
-            setup.UsesZoneResponsibilities, setup.IsUnderneathManCoverage, setup.Blitzers, setup.CoverageScheme);
+        if (retainOffense)
+        {
+            var defenders = setup.Defenders;
+            if (Actors.Defenders.Select(d => d.Slot).Order().SequenceEqual(defenders.Select(d => d.Slot).Order()))
+            {
+                defenders = Actors.Defenders;
+                foreach (var actor in defenders)
+                {
+                    var job = plan.Assignments.Single(a => a.ActorId == actor.Slot);
+                    actor.Position = job.Alignment; actor.Velocity = Vector2.Zero;
+                    actor.IsRusher = job.Pass is RushResponsibility;
+                    actor.CoverageReceiverIndex = (job.Pass as ManResponsibility)?.Target.Value ?? -1;
+                }
+            }
+            setup = new(Actors.Qb, Actors.Ball, Actors.Receivers, Actors.Blockers, defenders,
+                setup.UsesZoneResponsibilities, setup.IsUnderneathManCoverage, setup.Blitzers, setup.CoverageScheme);
+        }
         Actors = setup; CompiledPlan = plan; SelectionRejection = null;
         Execution.DefenseRuntime = new(plan);
         SelectedDefense = DefensivePlanPresentation.Project(plan, Actors.Defenders);
@@ -188,6 +203,18 @@ public sealed class DefensiveDrive
         }
         catch (ArgumentException error) { SelectionRejection = error.Message; return false; }
         catch (InvalidOperationException error) { SelectionRejection = error.Message; return false; }
+    }
+
+    public bool FlipPressure() => CompiledPlan?.Pressure.Selection.Kind is not (null or PressureKind.Base)
+        && SelectPressure(CompiledPlan.Pressure.Selection.Flip());
+
+    public bool CyclePressure(int step)
+    {
+        if (CompiledPlan == null || Live || LastResult != null || Complete || !HumanOnDefense || step == 0) return false;
+        var variants = PressureVariants.Available(CompiledPlan);
+        if (variants.Count < 2) return false;
+        int current = variants.ToList().FindIndex(v => v == CompiledPlan.Pressure.Selection);
+        return SelectPressure(variants[(Math.Max(0, current) + Math.Sign(step) + variants.Count) % variants.Count]);
     }
 
     internal bool SelectCompiledDefenseForDevelopment(string id)

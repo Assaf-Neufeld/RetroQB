@@ -15,6 +15,9 @@ public interface IPlayerMovementInput
 public sealed class InputManager : IGameInput
 {
     public const int MaxPlayerNameLength = 18;
+    private readonly Func<KeyboardKey, bool> _pressed;
+    public InputManager() : this(key => Raylib.IsKeyPressed(key)) { }
+    internal InputManager(Func<KeyboardKey, bool> pressed) => _pressed = pressed;
     public bool IsFocused() => Raylib.IsWindowFocused();
 
     public Vector2 GetMovementDirection()
@@ -40,31 +43,32 @@ public sealed class InputManager : IGameInput
         return Raylib.IsKeyDown(KeyboardKey.LeftShift);
     }
 
-    public bool IsEscapePressed() => Raylib.IsKeyPressed(KeyboardKey.Escape);
-    public bool IsEnterPressed() => Raylib.IsKeyPressed(KeyboardKey.Enter);
-    public bool IsFlipPlayPressed() => Raylib.IsKeyPressed(KeyboardKey.X);
-    public bool IsSpacePressed() => Raylib.IsKeyPressed(KeyboardKey.Space);
-    public bool IsFieldGoalPressed() => Raylib.IsKeyPressed(KeyboardKey.K);
-    public bool IsBackspacePressed() => Raylib.IsKeyPressed(KeyboardKey.Backspace);
-    public bool IsReplayPressed() => Raylib.IsKeyPressed(KeyboardKey.F);
-    public bool IsTimeoutPressed() => Raylib.IsKeyPressed(KeyboardKey.C);
-    public bool IsPausePressed() => Raylib.IsKeyPressed(KeyboardKey.P);
-    public bool IsPuntPressed() => Raylib.IsKeyPressed(KeyboardKey.B);
-    public bool IsKneelPressed() => Raylib.IsKeyPressed(KeyboardKey.V);
-    public bool IsStatisticsPressed() => Raylib.IsKeyPressed(KeyboardKey.Tab);
+    public bool IsEscapePressed() => _pressed(KeyboardKey.Escape);
+    public bool IsEnterPressed() => _pressed(KeyboardKey.Enter);
+    public bool IsFlipPlayPressed() => _pressed(KeyboardKey.X);
+    public bool IsSpacePressed() => _pressed(KeyboardKey.Space);
+    public bool IsFieldGoalPressed() => _pressed(KeyboardKey.K);
+    public bool IsBackspacePressed() => _pressed(KeyboardKey.Backspace);
+    public bool IsReplayPressed() => _pressed(KeyboardKey.F);
+    public bool IsTimeoutPressed() => _pressed(KeyboardKey.C);
+    public bool IsPausePressed() => _pressed(KeyboardKey.P);
+    public bool IsPuntPressed() => _pressed(KeyboardKey.B);
+    public bool IsKneelPressed() => _pressed(KeyboardKey.V);
+    public bool IsStatisticsPressed() => _pressed(KeyboardKey.Tab);
     public int? GetDefensivePlaySelection() => GetPassPlaySelection();
-    public bool IsReplaySkipPressed() => Raylib.IsKeyPressed(KeyboardKey.Space);
-    public bool IsRestartPressed() => Raylib.IsKeyPressed(KeyboardKey.Z);
-    public bool IsLeaderboardPressed() => Raylib.IsKeyPressed(KeyboardKey.L);
-    public bool IsSecretTeamPressed() => Raylib.IsKeyPressed(KeyboardKey.G);
+    public int GetDefensiveVariantStep() => _pressed(KeyboardKey.Q) ? -1 : _pressed(KeyboardKey.E) ? 1 : 0;
+    public bool IsReplaySkipPressed() => _pressed(KeyboardKey.Space);
+    public bool IsRestartPressed() => _pressed(KeyboardKey.Z);
+    public bool IsLeaderboardPressed() => _pressed(KeyboardKey.L);
+    public bool IsSecretTeamPressed() => _pressed(KeyboardKey.G);
     public int GetTeamNavigation()
     {
-        if (Raylib.IsKeyPressed(KeyboardKey.Up)) return -1;
-        if (Raylib.IsKeyPressed(KeyboardKey.Down)) return 1;
+        if (_pressed(KeyboardKey.Up)) return -1;
+        if (_pressed(KeyboardKey.Down)) return 1;
         return 0;
     }
-    public bool IsDriveSummaryScrollOlderPressed() => Raylib.IsKeyPressed(KeyboardKey.PageUp);
-    public bool IsDriveSummaryScrollNewerPressed() => Raylib.IsKeyPressed(KeyboardKey.PageDown);
+    public bool IsDriveSummaryScrollOlderPressed() => _pressed(KeyboardKey.PageUp);
+    public bool IsDriveSummaryScrollNewerPressed() => _pressed(KeyboardKey.PageDown);
     public float GetMouseWheelMove() => Raylib.GetMouseWheelMove();
 
     public string ReadTextInput(int maxLength)
@@ -91,8 +95,8 @@ public sealed class InputManager : IGameInput
 
     public int? GetNameConflictChoice()
     {
-        if (Raylib.IsKeyPressed(KeyboardKey.One)) return 1;
-        if (Raylib.IsKeyPressed(KeyboardKey.Two)) return 2;
+        if (_pressed(KeyboardKey.One)) return 1;
+        if (_pressed(KeyboardKey.Two)) return 2;
         return null;
     }
 
@@ -101,16 +105,16 @@ public sealed class InputManager : IGameInput
     /// </summary>
     public int? GetTeamSelection()
     {
-        if (Raylib.IsKeyPressed(KeyboardKey.One)) return 0;
-        if (Raylib.IsKeyPressed(KeyboardKey.Two)) return 1;
-        if (Raylib.IsKeyPressed(KeyboardKey.Three)) return 2;
-        if (Raylib.IsKeyPressed(KeyboardKey.Four)) return 3;
-        if (Raylib.IsKeyPressed(KeyboardKey.Five)) return 4;
-        if (Raylib.IsKeyPressed(KeyboardKey.Six)) return 5;
-        if (Raylib.IsKeyPressed(KeyboardKey.Seven)) return 6;
-        if (Raylib.IsKeyPressed(KeyboardKey.Eight)) return 7;
-        if (Raylib.IsKeyPressed(KeyboardKey.Nine)) return 8;
-        if (Raylib.IsKeyPressed(KeyboardKey.Zero)) return 9;
+        if (_pressed(KeyboardKey.One)) return 0;
+        if (_pressed(KeyboardKey.Two)) return 1;
+        if (_pressed(KeyboardKey.Three)) return 2;
+        if (_pressed(KeyboardKey.Four)) return 3;
+        if (_pressed(KeyboardKey.Five)) return 4;
+        if (_pressed(KeyboardKey.Six)) return 5;
+        if (_pressed(KeyboardKey.Seven)) return 6;
+        if (_pressed(KeyboardKey.Eight)) return 7;
+        if (_pressed(KeyboardKey.Nine)) return 8;
+        if (_pressed(KeyboardKey.Zero)) return 9;
         return null;
     }
 
@@ -120,16 +124,16 @@ public sealed class InputManager : IGameInput
     /// </summary>
     public int? GetPassPlaySelection()
     {
-        if (Raylib.IsKeyPressed(KeyboardKey.One)) return 0;
-        if (Raylib.IsKeyPressed(KeyboardKey.Two)) return 1;
-        if (Raylib.IsKeyPressed(KeyboardKey.Three)) return 2;
-        if (Raylib.IsKeyPressed(KeyboardKey.Four)) return 3;
-        if (Raylib.IsKeyPressed(KeyboardKey.Five)) return 4;
-        if (Raylib.IsKeyPressed(KeyboardKey.Six)) return 5;
-        if (Raylib.IsKeyPressed(KeyboardKey.Seven)) return 6;
-        if (Raylib.IsKeyPressed(KeyboardKey.Eight)) return 7;
-        if (Raylib.IsKeyPressed(KeyboardKey.Nine)) return 8;
-        if (Raylib.IsKeyPressed(KeyboardKey.Zero)) return 9;
+        if (_pressed(KeyboardKey.One)) return 0;
+        if (_pressed(KeyboardKey.Two)) return 1;
+        if (_pressed(KeyboardKey.Three)) return 2;
+        if (_pressed(KeyboardKey.Four)) return 3;
+        if (_pressed(KeyboardKey.Five)) return 4;
+        if (_pressed(KeyboardKey.Six)) return 5;
+        if (_pressed(KeyboardKey.Seven)) return 6;
+        if (_pressed(KeyboardKey.Eight)) return 7;
+        if (_pressed(KeyboardKey.Nine)) return 8;
+        if (_pressed(KeyboardKey.Zero)) return 9;
         return null;
     }
 
@@ -139,16 +143,16 @@ public sealed class InputManager : IGameInput
     /// </summary>
     public int? GetRunPlaySelection()
     {
-        if (Raylib.IsKeyPressed(KeyboardKey.Q)) return 0;
-        if (Raylib.IsKeyPressed(KeyboardKey.W)) return 1;
-        if (Raylib.IsKeyPressed(KeyboardKey.E)) return 2;
-        if (Raylib.IsKeyPressed(KeyboardKey.R)) return 3;
-        if (Raylib.IsKeyPressed(KeyboardKey.T)) return 4;
-        if (Raylib.IsKeyPressed(KeyboardKey.Y)) return 5;
-        if (Raylib.IsKeyPressed(KeyboardKey.U)) return 6;
-        if (Raylib.IsKeyPressed(KeyboardKey.I)) return 7;
-        if (Raylib.IsKeyPressed(KeyboardKey.O)) return 8;
-        if (Raylib.IsKeyPressed(KeyboardKey.P)) return 9;
+        if (_pressed(KeyboardKey.Q)) return 0;
+        if (_pressed(KeyboardKey.W)) return 1;
+        if (_pressed(KeyboardKey.E)) return 2;
+        if (_pressed(KeyboardKey.R)) return 3;
+        if (_pressed(KeyboardKey.T)) return 4;
+        if (_pressed(KeyboardKey.Y)) return 5;
+        if (_pressed(KeyboardKey.U)) return 6;
+        if (_pressed(KeyboardKey.I)) return 7;
+        if (_pressed(KeyboardKey.O)) return 8;
+        if (_pressed(KeyboardKey.P)) return 9;
         return null;
     }
 
@@ -157,11 +161,11 @@ public sealed class InputManager : IGameInput
     /// </summary>
     public int? GetThrowTarget()
     {
-        if (Raylib.IsKeyPressed(KeyboardKey.One)) return 0;
-        if (Raylib.IsKeyPressed(KeyboardKey.Two)) return 1;
-        if (Raylib.IsKeyPressed(KeyboardKey.Three)) return 2;
-        if (Raylib.IsKeyPressed(KeyboardKey.Four)) return 3;
-        if (Raylib.IsKeyPressed(KeyboardKey.Five)) return 4;
+        if (_pressed(KeyboardKey.One)) return 0;
+        if (_pressed(KeyboardKey.Two)) return 1;
+        if (_pressed(KeyboardKey.Three)) return 2;
+        if (_pressed(KeyboardKey.Four)) return 3;
+        if (_pressed(KeyboardKey.Five)) return 4;
         return null;
     }
 

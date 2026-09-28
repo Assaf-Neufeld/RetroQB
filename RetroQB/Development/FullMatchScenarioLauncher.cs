@@ -85,11 +85,12 @@ internal static class FullMatchScenarioLauncher
                     else
                     {
                         // One input edge per frame, bounded substeps, no focus-loss catch-up.
-                        var input = new MatchInput(Call: keyboard.GetPassPlaySelection(), Run: keyboard.GetRunPlaySelection(),
+                        var input = new MatchInput(Call: game.FullMatch!.HumanOnDefense ? keyboard.GetDefensivePlaySelection() : keyboard.GetPassPlaySelection(), Run: keyboard.GetRunPlaySelection(),
                             Ready: keyboard.IsSpacePressed(), Kick: keyboard.IsFieldGoalPressed(), Punt: keyboard.IsPuntPressed(),
                             Kneel: keyboard.IsKneelPressed(), Flip: keyboard.IsFlipPlayPressed(), Timeout: keyboard.IsTimeoutPressed(),
                             Pause: keyboard.IsEscapePressed(), Replay: keyboard.IsReplayPressed(), Restart: keyboard.IsRestartPressed(), Focused: Raylib.IsWindowFocused(),
-                            Statistics: keyboard.IsStatisticsPressed(), SummaryScroll: keyboard.IsDriveSummaryScrollOlderPressed() ? 1 : keyboard.IsDriveSummaryScrollNewerPressed() ? -1 : 0);
+                            Statistics: keyboard.IsStatisticsPressed(), SummaryScroll: keyboard.IsDriveSummaryScrollOlderPressed() ? 1 : keyboard.IsDriveSummaryScrollNewerPressed() ? -1 : 0,
+                            DefensiveVariantStep: keyboard.GetDefensiveVariantStep());
                         game.TimedSeason?.EditName(keyboard.ReadTextInput(18), keyboard.IsBackspacePressed());
                         bool accept = keyboard.IsEnterPressed();
                         float remaining = Math.Min(Raylib.GetFrameTime(), .1f);

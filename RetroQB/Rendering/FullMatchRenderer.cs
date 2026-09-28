@@ -110,6 +110,12 @@ public sealed class FullMatchRenderer
             Text(cue == null ? assignment.Assignments.Single(a => a.Slot == assignment.ControlledSlot).Responsibility : Gameplay.Defense.DefensivePlanPresentation.Describe(cue), 20, 450);
             if (frame == null) Text($"CPU snap in {Math.Max(0, session.SnapRemaining):0.0}s", 20, 520);
             var decision = frame?.DefensiveDecision ?? (frame == null ? d.Execution.DefenseRuntime?.Current : null);
+            var plan = recorded?.CompiledPlan ?? (frame == null ? d.CompiledPlan : null);
+            if (plan != null)
+            {
+                Text(Gameplay.Defense.DefensivePlanPresentation.PressureSummary(plan, decision), 20, 625, 14);
+                if (!d.Live && frame == null && plan.Pressure.Entries.Count > 4) Text("Q/E: variant | X: pressure side", 20, 670, 14);
+            }
             if (decision != null) Text(Gameplay.Defense.DefensivePlanPresentation.Describe(decision.Decisions.Single(x => x.Actor == assignment.ControlledSlot)), 20, 555, 14);
             if (decision?.Coverage is { } board) Text(DefensivePlayRenderer.CoverageCue(board, assignment.ControlledSlot), 20, 590, 13);
             if (decision?.Observation.ConfirmedCarrier == true && decision.Run is { } run) Text(DefensivePlayRenderer.RunCue(run), 20, 590, 13);

@@ -17,6 +17,11 @@ public static class DefensiveEngineCalls
 
 public static class DefensivePlanPresentation
 {
+    public static string PressureSummary(ResolvedDefensivePlan plan, DefensiveDecisionFrame? frame)
+    {
+        string name = plan.Pressure.Selection.Kind == PressureKind.Base ? "Four-man rush" : $"{plan.Pressure.Selection.Kind} / {plan.Pressure.Selection.Side}";
+        return $"{plan.Package} | {name}\nRush: {plan.Pressure.Entries.Count} called" + (frame?.Pressure is { } p ? $", {p.ActualCount} active" : "");
+    }
     public static string Describe(DefensiveIntent intent) => intent.Kind == DefensiveIntentKind.Pursuit ? "Pursue on a cutoff angle"
         : intent.Kind == DefensiveIntentKind.Tackle ? "Attack the ball carrier"
         : intent.Kind == DefensiveIntentKind.Force ? "Force the runner inside"

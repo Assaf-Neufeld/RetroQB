@@ -56,7 +56,11 @@ public sealed class DefensivePlayRenderer
         var liveCue = (replay?.DefensiveDecision ?? (replay == null ? drive.Execution.DefenseRuntime?.Current : null))?.Decisions.Single(d => d.Actor == displayedCall.ControlledSlot);
         Text(liveCue == null ? job.Responsibility : Gameplay.Defense.DefensivePlanPresentation.Describe(liveCue), 20, 555);
         var displayedPlan = session.Replay.Clip?.MatchContext?.CompiledPlan ?? (replay == null ? drive.CompiledPlan : null);
-        if (displayedPlan != null && displayedPlan.SwitchGroups.Count > 0) Text("Paired bunch switch armed; other targets locked", 20, 590);
+        if (displayedPlan != null)
+        {
+            Text(Gameplay.Defense.DefensivePlanPresentation.PressureSummary(displayedPlan, replay?.DefensiveDecision ?? (replay == null ? drive.Execution.DefenseRuntime?.Current : null)), 20, 590);
+            if (!drive.Live && replay == null && displayedPlan.Pressure.Entries.Count > 4) Text("Q/E: variant   X: pressure side", 20, 735);
+        }
         Raylib.DrawText("WASD / arrows: move\nC: timeout    P: pause\nF: replay     Esc: close", 20, 640, 17, Palette.White);
         int right = Raylib.GetScreenWidth() - 310;
         int seconds = (int)Math.Ceiling(clock.RemainingSeconds);
@@ -103,6 +107,13 @@ public sealed class DefensivePlayRenderer
 
     internal static void DrawCoverage(Gameplay.Defense.ResolvedDefensivePlan? plan, Gameplay.Defense.DefensiveDecisionFrame? frame)
     {
+        if (plan != null && frame?.Pressure?.Jobs.Any(j => j.Actor == plan.ControlledActor) == true && !frame.Observation.ConfirmedCarrier)
+        {
+            var rushIntent = frame.Decisions.Single(i => i.Actor == plan.ControlledActor);
+            var actor = frame.Observation.Visible.Defenders.Single(a => a.Id == plan.ControlledActor);
+            Raylib.DrawLineEx(Constants.WorldToScreen(actor.Position), Constants.WorldToScreen(rushIntent.Target), 2, Palette.Gold);
+            return;
+        }
         if (plan != null && frame?.Observation.ConfirmedCarrier == true)
         {
             var runIntent = frame.Decisions.Single(i => i.Actor == plan.ControlledActor);

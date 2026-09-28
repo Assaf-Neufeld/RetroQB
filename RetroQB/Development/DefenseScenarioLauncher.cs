@@ -79,7 +79,8 @@ internal static class DefenseScenarioLauncher
                         bool focused = Raylib.IsWindowFocused();
                         pending = new(keyboard.GetDefensivePlaySelection() ?? pending.Call,
                             pending.Ready || keyboard.IsSpacePressed(), pending.Timeout || keyboard.IsTimeoutPressed(),
-                            pending.Pause || keyboard.IsPausePressed(), pending.Replay || keyboard.IsReplayPressed(), focused);
+                            pending.Pause || keyboard.IsPausePressed(), pending.Replay || keyboard.IsReplayPressed(), focused,
+                            pending.Flip || keyboard.IsFlipPlayPressed(), keyboard.GetDefensiveVariantStep() is var variant && variant != 0 ? variant : pending.VariantStep);
                         if (focused && !wasFocused) accumulator = 0;
                         else accumulator += Math.Min(Raylib.GetFrameTime(), .1f);
                         wasFocused = focused;

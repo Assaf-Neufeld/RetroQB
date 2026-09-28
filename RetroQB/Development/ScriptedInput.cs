@@ -6,7 +6,7 @@ namespace RetroQB.Development;
 internal sealed record InputFrame(Vector2 Movement = default, bool Sprint = false,
     bool Space = false, bool Enter = false, bool FieldGoal = false, bool Replay = false,
     bool Escape = false, bool Restart = false, int? ThrowTarget = null,
-    int? PassSelection = null, int? RunSelection = null);
+    int? PassSelection = null, int? RunSelection = null, bool Flip = false, int DefensiveVariantStep = 0);
 
 internal sealed class ScriptedInput : IGameInput
 {
@@ -22,5 +22,8 @@ internal sealed class ScriptedInput : IGameInput
     public bool IsRestartPressed() => Frame.Restart;
     public int? GetThrowTarget() => Frame.ThrowTarget;
     public int? GetPassPlaySelection() => Frame.PassSelection;
+    public int? GetDefensivePlaySelection() => Frame.PassSelection;
+    public int GetDefensiveVariantStep() => Frame.DefensiveVariantStep;
+    public bool IsFlipPlayPressed() => Frame.Flip;
     public int? GetRunPlaySelection() => Frame.RunSelection;
 }
