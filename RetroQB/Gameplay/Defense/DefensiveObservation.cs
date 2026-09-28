@@ -13,6 +13,7 @@ public static class DefensiveTuning
 
 public enum ReleaseDirection { Unknown, Outward, Inward, Upfield }
 public sealed record VisibleMotion(ReceiverId Id, Vector2 Position, Vector2 Velocity, float Radius);
+public sealed record VisibleBlocker(int Id, Vector2 Position, Vector2 Velocity, float Radius);
 public sealed record DefenderMotion(DefenderSlot Id, Vector2 Position, Vector2 Velocity, float Speed,
     float Radius, float RecognitionRating, bool Contact);
 public sealed record VisibleBall(BallState State, Vector2 Position, Vector2 Velocity, float Height, ReceiverId? Carrier);
@@ -24,18 +25,22 @@ public sealed class DefensiveSighting
     public VisibleBall Ball { get; }
     public IReadOnlyList<VisibleMotion> Receivers { get; }
     public IReadOnlyList<DefenderMotion> Defenders { get; }
-    public DefensiveSighting(Vector2 quarterback, VisibleBall ball, IEnumerable<VisibleMotion> receivers, IEnumerable<DefenderMotion> defenders)
+    public IReadOnlyList<VisibleBlocker> Linemen { get; }
+    public DefensiveSighting(Vector2 quarterback, VisibleBall ball, IEnumerable<VisibleMotion> receivers, IEnumerable<DefenderMotion> defenders,
+        IEnumerable<VisibleBlocker>? linemen = null)
     {
         Quarterback = quarterback; Ball = ball;
         Receivers = Array.AsReadOnly(receivers.OrderBy(r => r.Id.Value).ToArray());
         Defenders = Array.AsReadOnly(defenders.OrderBy(d => d.Id).ToArray());
+        Linemen = Array.AsReadOnly((linemen ?? []).OrderBy(b => b.Id).ToArray());
     }
-    public static DefensiveSighting Capture(Quarterback qb, Ball ball, IReadOnlyList<Receiver> receivers, IReadOnlyList<Defender> defenders)
+    public static DefensiveSighting Capture(Quarterback qb, Ball ball, IReadOnlyList<Receiver> receivers, IReadOnlyList<Defender> defenders, IReadOnlyList<Blocker>? blockers = null)
         => new(qb.Position, new(ball.State, ball.Position, ball.Velocity, ball.GetArcHeight(),
                 ball.Holder is Receiver r ? new ReceiverId(r.Index) : null),
             receivers.Select(r => new VisibleMotion(new(r.Index), r.Position, r.Velocity, r.Radius)),
             defenders.Select(d => new DefenderMotion(d.Slot, d.Position, d.Velocity, d.Speed, d.Radius,
-                d.InterceptionMultiplier, d.IsBeingBlocked)));
+                d.InterceptionMultiplier, d.IsBeingBlocked)),
+            blockers?.OrderBy(b => b.HomeX).Select((b, i) => new VisibleBlocker(i, b.Position, b.Velocity, b.Radius)));
 }
 
 public sealed record ObservedReceiver(ReceiverId Id, Vector2 Position, Vector2 Velocity, ReleaseDirection Release,

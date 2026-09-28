@@ -59,9 +59,9 @@ public sealed class DefensivePlayRenderer
         if (displayedPlan != null)
         {
             Text(Gameplay.Defense.DefensivePlanPresentation.PressureSummary(displayedPlan, replay?.DefensiveDecision ?? (replay == null ? drive.Execution.DefenseRuntime?.Current : null)), 20, 590);
-            if (!drive.Live && replay == null && (displayedPlan.Pressure.Entries.Count > 4 || displayedPlan.Call.Zone == Gameplay.Defense.SpotZoneFamily.Cover3)) Text("Q/E: variant   X: pressure side", 20, 735);
+            if (!drive.Live && replay == null && (displayedPlan.Pressure.Entries.Count > 4 || displayedPlan.Call.Zone == Gameplay.Defense.SpotZoneFamily.Cover3 || displayedPlan.Call.Id == "def.cover1")) Text("Q/E: variant   X: pressure side", 20, 790);
         }
-        Raylib.DrawText("WASD / arrows: move\nC: timeout    P: pause\nF: replay     Esc: close", 20, 640, 17, Palette.White);
+        Raylib.DrawText("WASD / arrows: move\nC: timeout    P: pause\nF: replay     Esc: close", 20, 700, 17, Palette.White);
         int right = Raylib.GetScreenWidth() - 310;
         int seconds = (int)Math.Ceiling(clock.RemainingSeconds);
         Raylib.DrawText($"Q{clock.Quarter}  {seconds / 60:00}:{seconds % 60:00}", right, 35, 25, Palette.Gold);
@@ -140,12 +140,15 @@ public sealed class DefensivePlayRenderer
 
     internal static void Text(string text, int x, int y)
     {
-        string line = "";
-        foreach (string word in text.Split(' '))
+        foreach (string paragraph in text.Split('\n'))
         {
-            if (Raylib.MeasureText(line + word, 17) > 285) { Raylib.DrawText(line, x, y, 17, Palette.White); y += 23; line = ""; }
-            line += word + " ";
+            string line = "";
+            foreach (string word in paragraph.Split(' '))
+            {
+                if (Raylib.MeasureText(line + word, 17) > 285) { Raylib.DrawText(line, x, y, 17, Palette.White); y += 23; line = ""; }
+                line += word + " ";
+            }
+            Raylib.DrawText(line, x, y, 17, Palette.White); y += 23;
         }
-        Raylib.DrawText(line, x, y, 17, Palette.White);
     }
 }

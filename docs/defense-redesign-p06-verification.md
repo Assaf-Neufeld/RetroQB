@@ -1,6 +1,6 @@
 # P6 verification — coordinated pressure and human controls
 
-September 28, 2026. Work in progress after P5 commit `7bf1241`. Plan/runtime versions: `defense-plan-p6-v1` / `defense-runtime-p6-v1`. The complete P6 exit gate is still pending; normal gameplay remains legacy until P10.
+September 28, 2026. P6.1–P6.4 implemented and verified in development mode after P5 commit `7bf1241`. Plan/runtime versions: `defense-plan-p6-v1` / `defense-runtime-p6-v1`. Milestone B is complete within the base/nickel man and spot-zone scope; normal gameplay remains legacy until P10.
 
 ## P6.1 — fixed pressure packages (verified)
 
@@ -18,7 +18,7 @@ Evidence under `artifacts/defense-redesign/p06/tests/`:
 - `p06-package1-regression.trx`: **770 passed / the same five P0 failures, 775 total**.
 - `p06-first-regression.trx`: 99 earlier compiler, man, observation and run-fit tests passed before the new package tests.
 
-P6.4 conditional pressure/screens remain outstanding. The existing protected stationary-QB case can still remain live for 30 seconds; counters are physical attempts, not guaranteed sacks or forced whistles. Full-phase acceptance must requalify broader production scenarios and remaining pressure interactions.
+The existing protected stationary-QB case can still remain live for 30 seconds; counters are physical attempts, not guaranteed sacks or forced whistles. The P6.4 section below records conditional pressure and full-phase requalification.
 
 ## P6.2 — human pressure workflow
 
@@ -40,3 +40,36 @@ Production execution clears the drop's rusher flag before pass protection runs. 
 
 `p06-zone-pressure.trx`: six passing tests, including 1,600 catalog plans (100 plays × two offensive flips × two rosters × two sides × two variants), incompatible-call/slow-roster rejection, and 36 production plays (three passing plays × two sides × two variants × 30/60/120 Hz). All production plays end with ordinary whistles, preserved coverage boards and bounded speed. `p06-zone-integration.trx` requalifies 46 fixed-pressure/spot-zone tests.
 P6.3 full regression: **781 passed / the same five P0 failures, 786 total** (`p06-package3-regression.trx`).
+
+## P6.4 — conditional pressure, stunts and screen response
+
+Cover 1 exposes three additional authored variants through the same Q/E/X input path:
+
+- **Green dog:** the compiled owner of the nearest visible back retains man responsibility until 0.35 seconds of observed blocking engagement. Launch uses a reserved interior entry and explicitly removes live primary coverage of that back; its identity remains the release key. An observed late release restores the same primary and a physical recovery intent, including while engaged. Empty formations without a back cannot select this variant. A late release can beat the recovering defender.
+- **Delayed:** the otherwise uncommitted low helper stages without giving other man defenders false help credit, then enters after 0.45 seconds with a visible pass read. All receiving targets retain separate owners. A spy/bracket that consumes this helper makes the variant unavailable. Observed throws and confirmed runs cancel the launch.
+- **Stunt:** two interior linemen receive distinct penetrator/looper entries. The looper waits for observed clearance, including visible offensive linemen. After at most 0.50 seconds it uses its declared free fallback lane. Both contain actors retain their jobs. Throw/run transitions end the exchange; ordinary motor and blocking physics remain authoritative.
+
+The sighting boundary now includes lineman identities, positions, velocities and radii. It excludes offensive blocking assignments and play metadata. Screen response requires a lineman advancing at least 1.5 yards from his original position with forward velocity over 1 yard/second for 0.12 seconds, together with a nearby moving outlet behind him. One available interior fixed rusher occupies the rally lane. Contains, the outlet's existing owner and conditional release keys are preserved. A moving outlet or advancing lineman alone cannot trigger it.
+
+Fixed rushers cannot counter into a conditional actor's reserved entry. Pressure boards record staging, engagement, fallback, screen response, called jobs and actual participation; idle humans remain manual and do not generate replacement rushers. Pause and replay do not advance tactical timers. The menu shows pressure side and conditional/active counts; its expanded text was inspected at 1440×900 in `conditional-controls-capture`. That production drive ended with a tackle and no harness failure.
+
+`ConditionalPressureTests` covers DM-10/11/12 plus screen positive/negative cases, cancellation, roster filtering, all catalog surfaces/flips/base-nickel/sides, manual participation, production lineman contact and bounded motor recovery. Frame-sensitive cases run at 30/60/120 Hz. `p06-contact-recovery.trx` passes all 64 conditional-pressure and run-fit cases. Existing fixed/zone/simulated pressure, keyboard, blocking, pass-protection and session tests remain in the full-suite gate.
+
+The final full suite passes **811 tests with the same five P0 failures, 816 total** (`p06-final-regression.trx`). P6 adds 51 passing cases, including 30 in `ConditionalPressureTests`. A direct comparison of failed test identities against `p00/tests/baseline.trx` finds no additions or removals. The five failures remain the unrelated field-goal range test, replay reopening after possession change, and three CPU punt expectations. Debug compilation, Release build (zero warnings/errors), and whitespace checks succeed.
+
+The broader production matrix exposed four equivalent failures at 60 Hz: right-side simulated pressure against `run.hb-dive` with a stationary human runner. Contact repeatedly reset force ownership to its original actor, stealing and restarting the actor's outside recovery path. Force now retains its committed owner until a reachable replacement accepts, and replacement selection respects the active recovery reservation. A focused regression verifies ordinary resolution at all three rates. Initial traces remain in `final-runtime-60`; corrected sweeps use `verified-runtime-*`. No forced whistle or movement-speed increase was introduced.
+
+Final production gate: **2,736 plays, zero failures** — 912 each at 30/60/120 Hz, seed 101, Ballers/Scarlet Guard in both possession orientations, four control modes, both pressure sides, six offensive calls and every legal pressure kind. Unsupported empty-back green dogs and base-roster nickel variants are explicitly excluded. Every play must end through a production whistle within 30 seconds with eleven finite intents, unique receiving ownership (only the declared green-dog release key may be conceded), consistent live-rusher counts and bounded physical speed. Frame-level football decisions are also checked by the targeted tests rather than inferred from play completion. Source/evidence hashes and failure identities are retained in `artifacts/defense-redesign/p06/verification-summary.json`.
+
+Rules ALIGN-08, MOVE-03, PRESS-02–10/12 and HUMAN-01/02 are verified; PRESS-01/11 and the P5 carrier-response rules are requalified with added pressure. This is 74 of 98 rules across P1–P6. Authored match coverage (P7), additional fronts/dime (P8), strategic CPU calling (P9), balance and production cutover (P10) remain pending. These tests do not promise a sack against every protected stationary QB or establish final competitive balance.
+
+## Reproduce P6
+
+```powershell
+dotnet test tests/RetroQB.Tests/RetroQB.Tests.csproj --logger "trx;LogFileName=p06-final-regression.trx" --results-directory artifacts/defense-redesign/p06/tests
+dotnet build RetroQB.csproj -c Release
+dotnet run --project RetroQB.csproj -- --scenario defense-pressure-matrix --headless --engine zone --hz 30 --seed 101 --output artifacts/defense-redesign/p06/verified-runtime-30
+dotnet run --project RetroQB.csproj -- --scenario defense-pressure-matrix --headless --engine zone --hz 60 --seed 101 --output artifacts/defense-redesign/p06/verified-runtime-60
+dotnet run --project RetroQB.csproj -- --scenario defense-pressure-matrix --headless --engine zone --hz 120 --seed 101 --output artifacts/defense-redesign/p06/verified-runtime-120
+dotnet run --project RetroQB.csproj -- --scenario defense-pressure-controls --engine zone --capture --seed 101 --output artifacts/defense-redesign/p06/conditional-controls-capture
+```

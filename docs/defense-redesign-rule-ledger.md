@@ -1,10 +1,10 @@
 # Defensive redesign rule implementation ledger
 
-Updated September 27, 2026. Current runtime `defense-runtime-p5-v1`; plan `defense-plan-p5-v1`.
+Updated September 28, 2026. Current runtime `defense-runtime-p6-v1`; plan `defense-plan-p6-v1`.
 
-`verified` means the owning phase's supported scope passed its behavioral gate. P1–P5 verify 60 of 98 rules for base/nickel man and spot zones in Debug development mode. Normal gameplay remains legacy until P10. Pressure fixtures use fixed entries until P6; P5 supplies coordinated carrier response. Match, dime/front expansion and CPU strategy remain in their roadmap phases.
+`verified` means the owning phase's supported scope passed its behavioral gate. P1–P6 verify 74 of 98 rules for base/nickel man and spot zones in Debug development mode. Normal gameplay remains legacy until P10. P6 verifies fixed, zone, simulated and conditional pressure with coordinated carrier response. Match, dime/front expansion and CPU strategy remain in their roadmap phases.
 
-Evidence: [P0](defense-redesign-p00-verification.md), [P1](defense-redesign-p01-verification.md), [P2](defense-redesign-p02-verification.md), [P3](defense-redesign-p03-verification.md), [P4](defense-redesign-p04-verification.md), and [P5](defense-redesign-p05-verification.md) reports. The phase reports state exact fixture, scenario and implementation limits. The 20 DM definitions alone do not verify new behavior.
+Evidence: [P0](defense-redesign-p00-verification.md), [P1](defense-redesign-p01-verification.md), [P2](defense-redesign-p02-verification.md), [P3](defense-redesign-p03-verification.md), [P4](defense-redesign-p04-verification.md), [P5](defense-redesign-p05-verification.md), and [P6](defense-redesign-p06-verification.md) reports. The phase reports state exact fixture, scenario and implementation limits. The 20 DM definitions alone do not verify new behavior.
 
 | Rule | Owner | Status | Evidence / remaining work |
 | --- | --- | --- | --- |
@@ -29,7 +29,7 @@ Evidence: [P0](defense-redesign-p00-verification.md), [P1](defense-redesign-p01-
 | ALIGN-05 | P1 | verified | DM01_FivePrimariesTwoSafetiesAndExplicitLegalLinebackerMismatch; ALIGN05_FiveDetachedThreatsSuggestNickelButRetainExplicitBase |
 | ALIGN-06 | P1 | verified | ALIGN06_HeavyUsesActualLineGapsAndAssignsSurplusHelper |
 | ALIGN-07 | P1 | verified | ALIGN07_FlipRecompilesAndTwoFlipsRestoreWithoutRandomDraws; ALIGN07_CacheUsesVisibleGeometryAndEverySupportedAdjustment |
-| ALIGN-08 | P6 | planned | Await owning phase's live behavioral tests. |
+| ALIGN-08 | P6 | verified | PressureTests, PressureInputTests, ZonePressureTests, ConditionalPressureTests; P6 report and 2,736 production plays. |
 | MAN-01 | P3 | verified | ManDefensiveRuntimeTests; P3 report and P4 man requalification. |
 | MAN-02 | P2 | verified | DefensiveRuntimeTests; P2 report and P4 man requalification. |
 | MAN-03 | P2 | verified | DefensiveRuntimeTests; P2 report and P4 man requalification. |
@@ -72,21 +72,21 @@ Evidence: [P0](defense-redesign-p00-verification.md), [P1](defense-redesign-p01-
 | XFER-04 | P4 | verified | SpotZoneCoverageTests.XFER04_DM16_HumanReachabilityUsesVelocityAndRecordsLaterAbandonment; XFER04_AwayVelocityAndContactCanInvalidateOtherwiseNearbyAcceptance |
 | MOVE-01 | P2 | verified | DefensiveRuntimeTests; P2 report and P4 man requalification. |
 | MOVE-02 | P2 | verified | DefensiveRuntimeTests; P2 report and P4 man requalification. |
-| MOVE-03 | P6 | planned | Await owning phase's live behavioral tests. |
+| MOVE-03 | P6 | verified | PressureTests, PressureInputTests, ZonePressureTests, ConditionalPressureTests; P6 report and 2,736 production plays. |
 | MOVE-04 | P2 | verified | DefensiveRuntimeTests; P2 report and P4 man requalification. |
 | MOVE-05 | P2 | verified | DefensiveRuntimeTests; P2 report and P4 man requalification. |
 | PRESS-01 | P2 | verified | DefensiveRuntimeTests; P2 report and P4 man requalification. |
-| PRESS-02 | P6 | planned | Await owning phase's live behavioral tests. |
-| PRESS-03 | P6 | planned | Await owning phase's live behavioral tests. |
-| PRESS-04 | P6 | planned | Await owning phase's live behavioral tests. |
-| PRESS-05 | P6 | planned | Await owning phase's live behavioral tests. |
-| PRESS-06 | P6 | planned | Await owning phase's live behavioral tests. |
-| PRESS-07 | P6 | planned | Await owning phase's live behavioral tests. |
-| PRESS-08 | P6 | planned | Await owning phase's live behavioral tests. |
-| PRESS-09 | P6 | planned | Await owning phase's live behavioral tests. |
-| PRESS-10 | P6 | planned | Await owning phase's live behavioral tests. |
+| PRESS-02 | P6 | verified | PressureTests, PressureInputTests, ZonePressureTests, ConditionalPressureTests; P6 report and 2,736 production plays. |
+| PRESS-03 | P6 | verified | PressureTests, PressureInputTests, ZonePressureTests, ConditionalPressureTests; P6 report and 2,736 production plays. |
+| PRESS-04 | P6 | verified | PressureTests, PressureInputTests, ZonePressureTests, ConditionalPressureTests; P6 report and 2,736 production plays. |
+| PRESS-05 | P6 | verified | PressureTests, PressureInputTests, ZonePressureTests, ConditionalPressureTests; P6 report and 2,736 production plays. |
+| PRESS-06 | P6 | verified | PressureTests, PressureInputTests, ZonePressureTests, ConditionalPressureTests; P6 report and 2,736 production plays. |
+| PRESS-07 | P6 | verified | PressureTests, PressureInputTests, ZonePressureTests, ConditionalPressureTests; P6 report and 2,736 production plays. |
+| PRESS-08 | P6 | verified | PressureTests, PressureInputTests, ZonePressureTests, ConditionalPressureTests; P6 report and 2,736 production plays. |
+| PRESS-09 | P6 | verified | PressureTests, PressureInputTests, ZonePressureTests, ConditionalPressureTests; P6 report and 2,736 production plays. |
+| PRESS-10 | P6 | verified | PressureTests, PressureInputTests, ZonePressureTests, ConditionalPressureTests; P6 report and 2,736 production plays. |
 | PRESS-11 | P5 | verified | RunFitTests; P5 report and 1,728 production fit cases. |
-| PRESS-12 | P6 | planned | Await owning phase's live behavioral tests. |
+| PRESS-12 | P6 | verified | PressureTests, PressureInputTests, ZonePressureTests, ConditionalPressureTests; P6 report and 2,736 production plays. |
 | RUN-01 | P5 | verified | RunFitTests; P5 report and 1,728 production fit cases. |
 | RUN-02 | P5 | verified | RunFitTests; P5 report and 1,728 production fit cases. |
 | RUN-03 | P5 | verified | RunFitTests; P5 report and 1,728 production fit cases. |
@@ -103,6 +103,6 @@ Evidence: [P0](defense-redesign-p00-verification.md), [P1](defense-redesign-p01-
 | CALL-06 | P9 | planned | Await owning phase's live behavioral tests. |
 | CALL-07 | P9 | planned | Await owning phase's live behavioral tests. |
 | CALL-08 | P9 | planned | Await owning phase's live behavioral tests. |
-| HUMAN-01 | P6 | planned | Await owning phase's live behavioral tests. |
-| HUMAN-02 | P6 | planned | Await owning phase's live behavioral tests. |
+| HUMAN-01 | P6 | verified | PressureTests, PressureInputTests, ZonePressureTests, ConditionalPressureTests; P6 report and 2,736 production plays. |
+| HUMAN-02 | P6 | verified | PressureTests, PressureInputTests, ZonePressureTests, ConditionalPressureTests; P6 report and 2,736 production plays. |
 | HUMAN-03 | P4 | verified | SpotZoneCoverageTests.XFER04_DM16_HumanReachabilityUsesVelocityAndRecordsLaterAbandonment; ZoneRuntimeKeepsHumanIdleAndFreezesBoardForPauseWhistleAndReplay |

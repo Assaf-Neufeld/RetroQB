@@ -57,7 +57,7 @@ public sealed class PlayExecutionController
         float dt)
     {
         if (DefenseRuntime != null && dt == 0) return;
-        var decision = DefenseRuntime?.Decide(DefensiveSighting.Capture(qb, ball, receivers, defenders), dt,
+        var decision = DefenseRuntime?.Decide(DefensiveSighting.Capture(qb, ball, receivers, defenders, blockers), dt,
             human: Control.ControlledDefender(defenders)?.Slot, speedMultiplier: playManager.DefenderSpeedMultiplier);
         if (DefenseRuntime?.Stopped == true) return;
         if (decision != null)

@@ -40,7 +40,6 @@ public sealed class RunFitCoordinator
         {
             _wasConfirmed = false; _tackler = _force = _cutback = _last = null; _direction = 0;
             _relief = null; _stationarySeconds = 0; _reliefStage = 0;
-            _relief = null; _stationarySeconds = 0; _reliefStage = 0;
             if (run.Read != RunRead.Mesh) _readAnchors.Clear();
             if (run.Read == RunRead.Mesh)
             foreach (var assignment in _plan.Assignments.Where(a => a.Pass is not RushResponsibility && !RunFitCompiler.DeepPass(a.Pass)))
@@ -121,11 +120,12 @@ public sealed class RunFitCoordinator
         Vector2 cutbackPoint = DefenderMotor.Clamp(new(run.Position.Y < los + 6 ? center - side * 4 : lead.X - side * 4,
             MathF.Max(los + 1, lead.Y + 2)));
         DefenderSlot force = namedForce;
-        if (_force is { } prior && prior != farEdge && prior != last && prior != cutback
-            && CanReach(actors[prior], forcePoint, RunTuning.PursuitHorizon, human == prior)) force = prior;
+        // Keep the committed force owner until a real replacement accepts. Resetting
+        // to the original owner during contact repeatedly steals the recovery actor.
+        if (_force is { } prior && prior != farEdge && prior != last && prior != cutback && prior != _relief) force = prior;
         if (force == last || force == cutback || actors[force].Contact || !CanReach(actors[force], forcePoint, RunTuning.PursuitHorizon, human == force))
         {
-            var replacement = actors.Values.Where(d => d.Id != last && d.Id != cutback && d.Id != farEdge && d.Id != force
+            var replacement = actors.Values.Where(d => d.Id != last && d.Id != cutback && d.Id != farEdge && d.Id != force && d.Id != _relief
                 && CanReach(d, forcePoint, RunTuning.PursuitHorizon, human == d.Id))
                 .OrderBy(d => TravelSeconds(d, forcePoint)).ThenBy(d => d.Id).FirstOrDefault();
             if (replacement != null) { Change(RunDuty.Force, force, replacement.Id, "RUN-03:ReachableOutsideReplacement"); force = replacement.Id; }
@@ -155,14 +155,6 @@ public sealed class RunFitCoordinator
         var candidates = intercepts.Where(p => p.Actor != last && p.Actor != cutback && p.Actor != forceOwner
             && (p.Actor != farEdge || stopped && forceOwner != null)
             || p.Intercept.Seconds <= .10f).ToArray();
-        // The opposite edge may close a trapped carrier when the other layers still own
-        // force, cutback and last support. Requiring contact before allowing this approach
-        // strands a stationary runner just beyond tackle range indefinitely.
-        if (candidates.Length == 0 && forceOwner != null && cutback != farEdge && last != farEdge)
-        {
-            candidates = intercepts.Where(p => p.Actor == farEdge).ToArray();
-            if (candidates.Length != 0) concessions.Add("RUN-08:BacksideEdgeCloses;ForceCutbackAndLastSupportRetained");
-        }
         // The opposite edge may close a trapped carrier when the other layers still own
         // force, cutback and last support. Requiring contact before allowing this approach
         // strands a stationary runner just beyond tackle range indefinitely.

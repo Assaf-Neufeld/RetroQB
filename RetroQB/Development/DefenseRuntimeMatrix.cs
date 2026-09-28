@@ -47,7 +47,7 @@ internal static class DefenseRuntimeMatrix
     }
 
     internal static RuntimeSample Exercise(string play, string call, int seed, int hz, bool humanDefense,
-        DefenseInputMode mode, DefensiveEngineMode engine, float yard = 50, bool flipped = false)
+        DefenseInputMode mode, DefensiveEngineMode engine, float yard = 50, bool flipped = false, PressureSelection? pressure = null)
     {
         var input = new ScriptedInput(); var user = TeamCatalog.Get("ballers"); var cpu = TeamCatalog.Get("scarlet-guard");
         var frames = new List<DefensiveDecisionFrame>(); DefensiveDrive? drive = null; string? failure = null;
@@ -57,6 +57,7 @@ internal static class DefenseRuntimeMatrix
                 start: new(yard, 1, MathF.Min(10, 100 - yard))), engine: engine);
             if (flipped) drive.FlipOffensiveFormationForDevelopment();
             if (!drive.SelectCompiledDefenseForDevelopment(call)) throw new InvalidOperationException("Unsupported development call.");
+            if (pressure != null && !drive.SelectCompiledPressureForDevelopment(pressure)) throw new InvalidOperationException(drive.SelectionRejection ?? "Unsupported pressure.");
             if (mode == DefenseInputMode.FullAI && humanDefense) drive.Execution.Control = new(true) { AutomateDefense = true };
             if (!drive.Snap()) throw new InvalidOperationException("Snap rejected.");
             for (int tick = 0; drive.Live && tick < hz * 30; tick++)
@@ -80,9 +81,15 @@ internal static class DefenseRuntimeMatrix
                         throw new InvalidOperationException("Invalid decision frame.");
                     var primaries = current.Decisions.Where(i => i.Primary != null).Select(i => i.Primary!.Value.Value).ToArray();
                     if (primaries.Distinct().Count() != primaries.Length) throw new InvalidOperationException("Duplicate primary ownership.");
-                    if (drive.CompiledPlan!.Call.Zone == SpotZoneFamily.None && !current.Observation.ConfirmedCarrier && !primaries.Order()
-                        .SequenceEqual(drive.CompiledPlan!.Offense.Skills.Select(s => s.Id.Value).Order()))
+                    var conditional = drive.CompiledPlan!.Pressure.Conditional;
+                    // Only the declared green-dog release key can lose live man ownership during its rush cue.
+                    var conceded = conditional?.ReleaseKey != null && current.Decisions.Any(d => d.Actor == conditional.Actor && d.Kind == DefensiveIntentKind.Rush)
+                        ? conditional.ReleaseKey : null;
+                    if (drive.CompiledPlan.Call.Zone == SpotZoneFamily.None && !current.Observation.ConfirmedCarrier && !primaries.Order()
+                        .SequenceEqual(drive.CompiledPlan.Offense.Skills.Where(s => s.Id != conceded).Select(s => s.Id.Value).Order()))
                         throw new InvalidOperationException("Primary ownership lost or duplicated.");
+                    if (current.Pressure?.ActualCount != current.Decisions.Count(d => d.ActiveRusher))
+                        throw new InvalidOperationException("Pressure participation disagrees with executed intents.");
                     if (current.Observation.ConfirmedCarrier && (primaries.Length != 0 || current.Run?.Jobs.Count != 11
                         || current.Run.Jobs.Select(j => j.Actor).Distinct().Count() != 11
                         || current.Decisions.Any(i => i.ActiveRusher))) throw new InvalidOperationException("Contradictory carrier/coverage jobs.");

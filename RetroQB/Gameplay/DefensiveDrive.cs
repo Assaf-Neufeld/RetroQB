@@ -193,8 +193,11 @@ public sealed class DefensiveDrive
     }
 
     public bool SelectPressure(PressureSelection selection)
+        => HumanOnDefense && SelectCompiledPressureForDevelopment(selection);
+
+    internal bool SelectCompiledPressureForDevelopment(PressureSelection selection)
     {
-        if (Engine == DefensiveEngineMode.Legacy || !HumanOnDefense || Live || LastResult != null || Complete || CompiledPlan == null) return false;
+        if (Engine == DefensiveEngineMode.Legacy || Live || LastResult != null || Complete || CompiledPlan == null) return false;
         try
         {
             var plan = DefensivePlanCompiler.Compile(CompiledPlan.Offense, CompiledPlan.Call, CompiledPlan.Package,

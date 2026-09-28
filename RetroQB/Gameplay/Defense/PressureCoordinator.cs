@@ -3,13 +3,13 @@ using RetroQB.Entities;
 
 namespace RetroQB.Gameplay.Defense;
 
-public enum PressureStage { Approach, Engage, Counter, Contain, Close, Released }
+public enum PressureStage { Approach, Engage, Counter, Contain, Close, Released, Staging, Screen }
 public sealed record PressureJob(DefenderSlot Actor, int Gap, PressureStage Stage, Vector2 Target,
     ContainRole Contain, bool Planned, bool Participating, bool Manual, string Reason);
 public sealed record PressureBoard(int PlannedCount, int ActualCount, IReadOnlyList<PressureJob> Jobs);
 
 /// <summary>Coordinates rush lanes from one observation; all progress still passes through motor and blocking physics.</summary>
-public sealed class PressureCoordinator
+public sealed partial class PressureCoordinator
 {
     private sealed class State(int gap)
     {
@@ -27,6 +27,7 @@ public sealed class PressureCoordinator
     public IReadOnlyList<DefensiveIntent> Decide(DefensiveObservationFrame frame, DefenderSlot? human)
     {
         float dt = MathF.Max(0, frame.Seconds - _seconds); _seconds = frame.Seconds;
+        ResolveStunt(frame);
         var jobs = new List<PressureJob>(); var intents = new List<DefensiveIntent>();
         var occupied = _states.Values.Select(s => s.Gap).ToHashSet();
         foreach (var entry in _plan.Pressure.Entries)
@@ -70,7 +71,8 @@ public sealed class PressureCoordinator
                 }
                 else if (actor.Position.Y <= los - 1)
                 { target = qb; stage = PressureStage.Close; reason = "EntryCleared;CompressPocket"; }
-                else if (state.Stall >= .55f && !state.Counter && entry.AlternateGap is { } alternate && !occupied.Contains(alternate) && actor.Id != human)
+                else if (state.Stall >= .55f && !state.Counter && _plan.Pressure.Stunt == null
+                    && entry.AlternateGap is { } alternate && !occupied.Contains(alternate) && actor.Id != human)
                 {
                     occupied.Remove(state.Gap); occupied.Add(alternate); state.Gap = alternate; state.Counter = true;
                     state.Stall = 0; state.BestDistance = float.PositiveInfinity;
@@ -80,9 +82,13 @@ public sealed class PressureCoordinator
                 else if (actor.Contact) reason = "MOVE-03:Engaged;SharedShedRules;NoFreeCounter";
             }
             else { stage = PressureStage.Released; reason = "ThrowOrCarrier;PressureEnds"; }
+            bool waiting = !release && _plan.Pressure.Stunt?.Looper == actor.Id && !_stuntResolved;
+            if (waiting) { target = _plan.Assignments.Single(a => a.ActorId == actor.Id).Alignment; stage = PressureStage.Staging; reason = "PRESS-10:WaitForObservedClearPath"; }
+            else if (!release && _plan.Pressure.Stunt?.Looper == actor.Id)
+                reason = _stuntFallback ? "PRESS-10:WaitExpired;DeclaredFallback" : "PRESS-10:PathClear;LoopEntry";
             target = DefenderMotor.Clamp(target);
             bool manual = actor.Id == human;
-            bool participating = !release && (!manual || actor.Contact || Vector2.Dot(actor.Velocity, target - actor.Position) > .5f);
+            bool participating = !release && !waiting && Participating(actor, target, human);
             string rule = _plan.Pressure.Selection.Kind switch { PressureKind.Mike => "PRESS-02", PressureKind.Edge => "PRESS-03",
                 PressureKind.Nickel => "PRESS-04", PressureKind.Zero => "PRESS-05", PressureKind.ZoneFive => "PRESS-06",
                 PressureKind.Simulated => "PRESS-07", _ => "PRESS-01" };

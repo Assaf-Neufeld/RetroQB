@@ -61,6 +61,13 @@ public sealed class DefensiveRuntime
         foreach (var assignment in Plan.Assignments.Where(a => a.Pass is HelpResponsibility))
         {
             var helper = (HelpResponsibility)assignment.Pass;
+            if (Plan.Pressure.Conditional is { ReleaseKey: null } delayed && delayed.Actor == assignment.ActorId)
+            {
+                // A staged rusher cannot justify another defender surrendering his own top.
+                decisions[assignment.ActorId] = new(assignment.ActorId, DefensiveIntentKind.Spy, assignment.Alignment,
+                    null, null, "PRESS-09", "HoldAuthoredStagingRole;NoCoverageCredit", false);
+                continue;
+            }
             if (helper.Role == HelperRole.Spy)
             {
                 decisions[assignment.ActorId] = new(assignment.ActorId, DefensiveIntentKind.Spy, assignment.Alignment, null, null, "RUN-05", "CalledSpy;ConsumesLowHelper", false);
@@ -159,6 +166,7 @@ public sealed class DefensiveRuntime
             }
             decisions[assignment.ActorId] = current;
         }
+        _pressure.ApplyConditionalAndScreens(frame, decisions, human, events);
         _run.Apply(frame, decisions, human, speedMultiplier, events);
         Current = new(Version, frame.Seconds, frame, Array.AsReadOnly(decisions.Values.OrderBy(d => d.Actor).ToArray()), events.AsReadOnly())
             { Coverage = frame.ConfirmedCarrier ? null : _coverage?.Current, Run = _run.Current, Pressure = _pressure.Current };

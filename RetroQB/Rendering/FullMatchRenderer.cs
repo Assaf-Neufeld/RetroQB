@@ -113,8 +113,8 @@ public sealed class FullMatchRenderer
             var plan = recorded?.CompiledPlan ?? (frame == null ? d.CompiledPlan : null);
             if (plan != null)
             {
-                Text(Gameplay.Defense.DefensivePlanPresentation.PressureSummary(plan, decision), 20, 625, 14);
-                if (!d.Live && frame == null && (plan.Pressure.Entries.Count > 4 || plan.Call.Zone == Gameplay.Defense.SpotZoneFamily.Cover3)) Text("Q/E: variant | X: pressure side", 20, 670, 14);
+                Text(Gameplay.Defense.DefensivePlanPresentation.PressureSummary(plan, decision), 20, 620, 14);
+                if (!d.Live && frame == null && (plan.Pressure.Entries.Count > 4 || plan.Call.Zone == Gameplay.Defense.SpotZoneFamily.Cover3 || plan.Call.Id == "def.cover1")) Text("Q/E: variant | X: pressure side", 20, 675, 14);
             }
             if (decision != null) Text(Gameplay.Defense.DefensivePlanPresentation.Describe(decision.Decisions.Single(x => x.Actor == assignment.ControlledSlot)), 20, 555, 14);
             if (decision?.Coverage is { } board) Text(DefensivePlayRenderer.CoverageCue(board, assignment.ControlledSlot), 20, 590, 13);

@@ -42,6 +42,9 @@ internal static class DefenseScenarioLauncher
                 frame = new(Call: !drive.Live && tick % 20 == 0 ? tick / 20 % 10 : null, Timeout: tick == 100,
                     Pause: tick is 140 or 170, Replay: showReplay);
             }
+            if (automated && options.Definition.Name == "defense-pressure-controls")
+                frame = new(Call: tick == 0 ? 0 : null, VariantStep: tick is 20 or 40 or 60 ? 1 : tick == 80 ? -1 : 0,
+                    Flip: tick is 100 or 120);
             session.Update(ScenarioDefinition.FixedStep, frame); tick++;
             if (drive.LiveSeconds > 30) failure = "Live play exceeded 30 seconds; no production whistle forced.";
             if (tick > 60 * 600) failure = "Drive exceeded ten simulated minutes.";
@@ -90,7 +93,7 @@ internal static class DefenseScenarioLauncher
                     Raylib.BeginDrawing(); draw(); Raylib.EndDrawing();
                     if (options.Capture)
                     {
-                        string key = $"{drive.Match.History.Count}-{drive.SelectedDefense.Definition.Id}-{session.Clock.StopReason}-{session.Clock.Suspension}-{drive.Actors.Ball.State}-{drive.Live}";
+                        string key = $"{drive.Match.History.Count}-{drive.SelectedDefense.Definition.Id}-{drive.CompiledPlan?.Pressure.Selection.Kind}-{drive.CompiledPlan?.Pressure.Selection.Side}-{session.Clock.StopReason}-{session.Clock.Suspension}-{drive.Actors.Ball.State}-{drive.Live}";
                         if (captured.Add(key))
                         {
                             var texture = Raylib.LoadRenderTexture(1440, 900);

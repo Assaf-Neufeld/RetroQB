@@ -40,6 +40,19 @@ public static class DefensivePlanValidator
             if (!OffensiveAlignmentSnapshot.InField(entry.Entry) || entry.AlternateGap is { } alternate
                 && (rushJobs.Any(r => r.GapIndex == alternate) || !plan.Surface.Gaps.Any(g => g.Index == alternate && !g.Outside)
                     || Math.Abs(alternate - entry.Gap) != 1 || entry.Contain != ContainRole.None)) errors.Add("Illegal pressure alternate lane.");
+        if (plan.Pressure.Conditional is { } conditional)
+        {
+            var owner = plan.Assignments.SingleOrDefault(a => a.ActorId == conditional.Actor);
+            if (rushers.Any(a => a.ActorId == conditional.Actor) || rushJobs.Any(r => r.GapIndex == conditional.Gap)
+                || !plan.Surface.Gaps.Any(g => g.Index == conditional.Gap && !g.Outside)
+                || (conditional.ReleaseKey is { } key ? owner?.Pass != new ManResponsibility(key)
+                    : owner?.Pass is not HelpResponsibility { Role: HelperRole.LowMiddle, BracketTarget: null })) errors.Add("Invalid conditional pressure or preceding coverage job.");
+        }
+        if (plan.Pressure.Stunt is { } stunt && (stunt.Penetrator == stunt.Looper
+            || !plan.Pressure.Entries.Any(e => e.Actor == stunt.Penetrator && e.Contain == ContainRole.None)
+            || !plan.Pressure.Entries.Any(e => e.Actor == stunt.Looper && e.Contain == ContainRole.None)
+            || rushJobs.Any(r => r.GapIndex == stunt.FallbackGap)
+            || !plan.Surface.Gaps.Any(g => g.Index == stunt.FallbackGap && !g.Outside))) errors.Add("Invalid stunt participants/fallback.");
         if (plan.Call.Zone == SpotZoneFamily.None)
         {
         if (plan.Assignments.Any(a => a.Pass is ZoneResponsibility)) errors.Add("Man call contains zone jobs.");

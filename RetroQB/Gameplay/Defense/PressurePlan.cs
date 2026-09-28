@@ -3,7 +3,7 @@ using RetroQB.Entities;
 
 namespace RetroQB.Gameplay.Defense;
 
-public enum PressureKind { Base, Mike, Edge, Nickel, Zero, ZoneFive, Simulated }
+public enum PressureKind { Base, Mike, Edge, Nickel, Zero, ZoneFive, Simulated, GreenDog, Delayed, Stunt }
 public sealed record PressureSelection(PressureKind Kind, FieldSide Side = FieldSide.Left)
 {
     public static PressureSelection For(DefensiveCallDefinition call) => new(call.Id == "def.edge" ? PressureKind.Edge
@@ -13,7 +13,13 @@ public sealed record PressureSelection(PressureKind Kind, FieldSide Side = Field
 
 public sealed record PressureEntry(DefenderSlot Actor, int Gap, int? AlternateGap, ContainRole Contain, Vector2 Entry);
 public sealed record PressureDrop(DefenderSlot Actor, Vector2 Home, float ArrivalWindow);
-public sealed record PressurePlan(PressureSelection Selection, IReadOnlyList<PressureEntry> Entries, IReadOnlyList<PressureDrop> Drops);
+public sealed record ConditionalPressure(DefenderSlot Actor, int Gap, ReceiverId? ReleaseKey, float Delay);
+public sealed record StuntPressure(DefenderSlot Penetrator, DefenderSlot Looper, int FallbackGap, float MaxWait);
+public sealed record PressurePlan(PressureSelection Selection, IReadOnlyList<PressureEntry> Entries, IReadOnlyList<PressureDrop> Drops)
+{
+    public ConditionalPressure? Conditional { get; init; }
+    public StuntPressure? Stunt { get; init; }
+}
 
 /// <summary>Authors a complete rush budget before coverage pairing; no receiver owner is borrowed at runtime.</summary>
 internal static class PressureCompiler
@@ -24,7 +30,8 @@ internal static class PressureCompiler
         if (!Enum.IsDefined(selection.Kind) || selection.Side is not (FieldSide.Left or FieldSide.Right))
             throw new ArgumentException("Unknown pressure package or side.");
         bool zonePressure = call.Zone == SpotZoneFamily.Cover3 && selection.Kind is PressureKind.ZoneFive or PressureKind.Simulated;
-        if (!zonePressure && (call.RushCount == 4 && selection.Kind != PressureKind.Base
+        bool conditional = call.Id == "def.cover1" && selection.Kind is PressureKind.GreenDog or PressureKind.Delayed or PressureKind.Stunt;
+        if (!zonePressure && !conditional && (call.RushCount == 4 && selection.Kind != PressureKind.Base
             || call.RushCount == 5 && selection.Kind is not (PressureKind.Mike or PressureKind.Edge or PressureKind.Nickel)
             || call.RushCount == 6 && selection.Kind != PressureKind.Zero))
             throw new ArgumentException("Pressure variant does not fit the called coverage budget.");
@@ -46,10 +53,16 @@ internal static class PressureCompiler
             if (selection.Kind == PressureKind.ZoneFive) Add(package == DefensePackage.Base ? DefenderSlot.MLB : DefenderSlot.NB, ordered[2]);
             return;
         }
-        if (selection.Kind == PressureKind.Base)
+        if (selection.Kind == PressureKind.Base || conditional)
         {
             Add(nearEnd, ordered[0], left ? ContainRole.LeftEdge : ContainRole.RightEdge);
-            Add(nearTackle, ordered[1]); Add(farTackle, ordered[^2]); return;
+            Add(nearTackle, ordered[1]); Add(farTackle, ordered[^2]);
+            if (selection.Kind == PressureKind.Stunt)
+            {
+                jobs[nearTackle] = jobs[nearTackle] with { Pass = new RushResponsibility(ordered[2].Index, ContainRole.None) };
+                jobs[farTackle] = jobs[farTackle] with { Pass = new RushResponsibility(ordered[1].Index, ContainRole.None) };
+            }
+            return;
         }
         DefenderSlot extra = selection.Kind == PressureKind.Nickel ? DefenderSlot.NB
             : selection.Kind == PressureKind.Mike ? package == DefensePackage.Base ? DefenderSlot.MLB : DefenderSlot.OLB1
@@ -85,15 +98,35 @@ internal static class PressureCompiler
     {
         var rushers = assignments.Where(a => a.Pass is RushResponsibility).ToArray();
         var occupied = rushers.Select(a => ((RushResponsibility)a.Pass).GapIndex).ToHashSet();
-        return new(selection, Array.AsReadOnly(rushers.Select(a =>
+        ConditionalPressure? conditional = null;
+        if (selection.Kind is PressureKind.GreenDog or PressureKind.Delayed)
+        {
+            ReceiverId? back = selection.Kind == PressureKind.GreenDog ? surface.Threats.Where(t => t.Backfield)
+                .OrderBy(t => Vector2.Distance(offense.Skills.Single(r => r.Id == t.ActorId).Position, offense.Quarterback))
+                .Select(t => (ReceiverId?)t.ActorId).FirstOrDefault() : null;
+            var actor = assignments.FirstOrDefault(a => selection.Kind == PressureKind.GreenDog
+                ? back != null && a.Pass == new ManResponsibility(back.Value)
+                : a.Pass is HelpResponsibility { Role: HelperRole.LowMiddle, BracketTarget: null });
+            if (actor == null) throw new ArgumentException("Conditional pressure needs its declared back owner or an uncommitted low helper.");
+            var gap = surface.Gaps.Where(g => !occupied.Contains(g.Index) && !g.Outside)
+                .OrderBy(g => g.Side == selection.Side ? 0 : 1).ThenBy(g => MathF.Abs(g.X - actor.Alignment.X)).First();
+            conditional = new(actor.ActorId, gap.Index, back, selection.Kind == PressureKind.Delayed ? .45f : 0);
+        }
+        return new PressurePlan(selection, Array.AsReadOnly(rushers.Select(a =>
         {
             var r = (RushResponsibility)a.Pass; var gap = surface.Gaps.Single(g => g.Index == r.GapIndex);
-            var alternate = r.Contain == ContainRole.None ? surface.Gaps.Where(g => !occupied.Contains(g.Index) && !g.Outside
+            var alternate = r.Contain == ContainRole.None ? surface.Gaps.Where(g => !occupied.Contains(g.Index) && g.Index != conditional?.Gap && !g.Outside
                 && Math.Abs(g.Index - gap.Index) == 1).OrderBy(g => MathF.Abs(g.X - gap.X)).ThenBy(g => g.Index).FirstOrDefault() : null;
             return new PressureEntry(a.ActorId, gap.Index, alternate?.Index, r.Contain,
                 DefenderMotor.Clamp(new(gap.X, offense.LineOfScrimmage - 1.5f)));
         }).OrderBy(e => e.Actor).ToArray()), Array.AsReadOnly(assignments.Where(a => a.Pass is ZoneResponsibility && a.PositionRole == DefensivePosition.DE)
-            .Select(a => new PressureDrop(a.ActorId, ((ZoneResponsibility)a.Pass).Home, 2.5f)).ToArray()));
+            .Select(a => new PressureDrop(a.ActorId, ((ZoneResponsibility)a.Pass).Home, 2.5f)).ToArray()))
+        {
+            Conditional = conditional,
+            Stunt = selection.Kind == PressureKind.Stunt ? new(selection.Side == FieldSide.Left ? DefenderSlot.DT1 : DefenderSlot.DT2,
+                selection.Side == FieldSide.Left ? DefenderSlot.DT2 : DefenderSlot.DT1,
+                selection.Side == FieldSide.Left ? surface.Gaps[^2].Index : surface.Gaps[1].Index, .5f) : null
+        };
     }
 
     public static void ValidateDrops(ResolvedDefensivePlan plan, IEnumerable<Defender> actors)
@@ -114,6 +147,7 @@ public static class PressureVariants
     public static IReadOnlyList<PressureSelection> Available(ResolvedDefensivePlan plan, DefensiveTeamAttributes? team = null)
     {
         var kinds = plan.Call.Zone == SpotZoneFamily.Cover3 ? new[] { PressureKind.Base, PressureKind.ZoneFive, PressureKind.Simulated }
+            : plan.Call.Id == "def.cover1" ? new[] { PressureKind.Base, PressureKind.GreenDog, PressureKind.Delayed, PressureKind.Stunt }
             : plan.Call.RushCount == 5 ? new[] { PressureKind.Mike, PressureKind.Edge, PressureKind.Nickel }
             : new[] { PressureSelection.For(plan.Call).Kind };
         var result = new List<PressureSelection>();

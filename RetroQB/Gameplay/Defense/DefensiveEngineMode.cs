@@ -23,9 +23,12 @@ public static class DefensivePlanPresentation
         {
             PressureKind.Base => "Four-man rush", PressureKind.ZoneFive => $"Zone pressure / {plan.Pressure.Selection.Side}",
             PressureKind.Simulated => $"Simulated / {plan.Pressure.Selection.Side}",
+            PressureKind.GreenDog => $"Green dog / {plan.Pressure.Selection.Side}",
+            PressureKind.Delayed => $"Delayed / {plan.Pressure.Selection.Side}", PressureKind.Stunt => $"Stunt / {plan.Pressure.Selection.Side}",
             _ => $"{plan.Pressure.Selection.Kind} / {plan.Pressure.Selection.Side}"
         };
-        return $"{plan.Package} | {name}\nRush: {plan.Pressure.Entries.Count} called" + (frame?.Pressure is { } p ? $", {p.ActualCount} active" : "");
+        return $"{plan.Package} | {name}\nRush: {plan.Pressure.Entries.Count}" + (plan.Pressure.Conditional != null ? " + 1 conditional" : " called")
+            + (frame?.Pressure is { } p ? $"\nActive rushers: {p.ActualCount}" : "");
     }
     public static string Describe(DefensiveIntent intent) => intent.Kind == DefensiveIntentKind.Pursuit ? "Pursue on a cutoff angle"
         : intent.Kind == DefensiveIntentKind.Tackle ? "Attack the ball carrier"
