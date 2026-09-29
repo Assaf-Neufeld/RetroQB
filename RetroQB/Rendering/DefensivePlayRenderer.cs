@@ -40,11 +40,11 @@ public sealed class DefensivePlayRenderer
         Raylib.DrawCircleLines((int)center.X, (int)center.Y, 13, Palette.Gold);
         Raylib.DrawText("CALL DEFENSE", 20, 28, 25, Palette.Gold);
         Raylib.DrawText("1-9 / 0: select    Space: ready", 20, 65, 15, Palette.White);
-        for (int i = 0; i < DefensivePlaybook.All.Count; i++)
+        for (int i = 0; i < drive.Calls.Count; i++)
         {
-            var call = DefensivePlaybook.All[i];
+            var call = drive.Calls[i];
             bool supported = drive.SupportsDefense(call.Id);
-            bool selected = call.Id == displayedCall.Definition.Id;
+            bool selected = call.Id == (replay == null ? drive.CompiledPlan?.RequestedCall.Id ?? displayedCall.Definition.Id : displayedCall.Definition.Id);
             int y = 110 + i * 33;
             if (selected) Raylib.DrawRectangle(14, y - 6, 300, 29, new Color(40, 48, 63, 255));
             Raylib.DrawText($"{(i + 1) % 10}  {call.Name}{(supported ? "" : " (unavailable)")}", 22, y, supported ? 17 : 13,
@@ -53,9 +53,10 @@ public sealed class DefensivePlayRenderer
         Text(displayedCall.Definition.Coaching, 20, 455);
         var job = displayedCall.Assignments.Single(a => a.Slot == displayedCall.ControlledSlot);
         Raylib.DrawText($"YOU: {displayedCall.ControlledSlot}", 20, 525, 20, Palette.Gold);
-        var liveCue = (replay?.DefensiveDecision ?? (replay == null ? drive.Execution.DefenseRuntime?.Current : null))?.Decisions.Single(d => d.Actor == displayedCall.ControlledSlot);
-        Text(liveCue == null ? job.Responsibility : Gameplay.Defense.DefensivePlanPresentation.Describe(liveCue), 20, 555);
         var displayedPlan = session.Replay.Clip?.MatchContext?.CompiledPlan ?? (replay == null ? drive.CompiledPlan : null);
+        var liveCue = (replay?.DefensiveDecision ?? (replay == null ? drive.Execution.DefenseRuntime?.Current : null))?.Decisions.Single(d => d.Actor == displayedCall.ControlledSlot);
+        Text(liveCue == null ? Gameplay.Defense.DefensivePlanPresentation.DescribeAssignment(displayedPlan, displayedCall.ControlledSlot, job.Responsibility)
+            : Gameplay.Defense.DefensivePlanPresentation.Describe(liveCue), 20, 555);
         if (displayedPlan != null)
         {
             Text(Gameplay.Defense.DefensivePlanPresentation.PressureSummary(displayedPlan, replay?.DefensiveDecision ?? (replay == null ? drive.Execution.DefenseRuntime?.Current : null)), 20, 590);
@@ -119,6 +120,13 @@ public sealed class DefensivePlayRenderer
             var runIntent = frame.Decisions.Single(i => i.Actor == plan.ControlledActor);
             var actor = frame.Observation.Visible.Defenders.Single(a => a.Id == plan.ControlledActor);
             Raylib.DrawLineEx(Constants.WorldToScreen(actor.Position), Constants.WorldToScreen(runIntent.Target), 2, Palette.Gold);
+            return;
+        }
+        if (plan?.Match != null && frame != null)
+        {
+            var matchIntent = frame.Decisions.Single(i => i.Actor == plan.ControlledActor);
+            var actor = frame.Observation.Visible.Defenders.Single(a => a.Id == plan.ControlledActor);
+            Raylib.DrawLineEx(Constants.WorldToScreen(actor.Position), Constants.WorldToScreen(matchIntent.Target), 2, Palette.Gold);
             return;
         }
         if (plan == null || plan.Call.Zone == Gameplay.Defense.SpotZoneFamily.None) return;

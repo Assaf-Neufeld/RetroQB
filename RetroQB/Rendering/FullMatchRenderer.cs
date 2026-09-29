@@ -102,12 +102,15 @@ public sealed class FullMatchRenderer
         }
         else if (defending)
         {
+            string selectedCall = recorded?.CompiledPlan?.RequestedCall.Id ?? (frame == null ? d.CompiledPlan?.RequestedCall.Id : null) ?? assignment.Definition.Id;
             for (int i = 0; i < 10; i++)
-                Text($"{(i + 1) % 10} {DefensivePlaybook.All[i].Name}{(d.SupportsDefense(DefensivePlaybook.All[i].Id) ? "" : " (unavailable)")}", 20, 95 + i * 29, 16,
-                    assignment.Definition == DefensivePlaybook.All[i] ? Palette.Gold : d.SupportsDefense(DefensivePlaybook.All[i].Id) ? Palette.White : new Color(110, 110, 110, 255));
+                Text($"{(i + 1) % 10} {d.Calls[i].Name}{(d.SupportsDefense(d.Calls[i].Id) ? "" : " (unavailable)")}", 20, 95 + i * 29, 16,
+                    selectedCall == d.Calls[i].Id ? Palette.Gold : d.SupportsDefense(d.Calls[i].Id) ? Palette.White : new Color(110, 110, 110, 255));
+            Text(assignment.Definition.Name, 20, 387, 14, Palette.Gold);
             Text($"YOU: {assignment.ControlledSlot}", 20, 415, 20, Palette.Gold);
             var cue = (frame?.DefensiveDecision ?? (frame == null ? d.Execution.DefenseRuntime?.Current : null))?.Decisions.Single(i => i.Actor == assignment.ControlledSlot);
-            Text(cue == null ? assignment.Assignments.Single(a => a.Slot == assignment.ControlledSlot).Responsibility : Gameplay.Defense.DefensivePlanPresentation.Describe(cue), 20, 450);
+            Text(cue == null ? Gameplay.Defense.DefensivePlanPresentation.DescribeAssignment(recorded?.CompiledPlan ?? d.CompiledPlan, assignment.ControlledSlot,
+                assignment.Assignments.Single(a => a.Slot == assignment.ControlledSlot).Responsibility) : Gameplay.Defense.DefensivePlanPresentation.Describe(cue), 20, 450);
             if (frame == null) Text($"CPU snap in {Math.Max(0, session.SnapRemaining):0.0}s", 20, 520);
             var decision = frame?.DefensiveDecision ?? (frame == null ? d.Execution.DefenseRuntime?.Current : null);
             var plan = recorded?.CompiledPlan ?? (frame == null ? d.CompiledPlan : null);

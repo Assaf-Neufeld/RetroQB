@@ -17,13 +17,13 @@ public static class DefensivePlanValidator
         {
             if (job.PositionRole != job.ActorId.GetPositionType()) errors.Add($"{job.ActorId}: wrong personnel type.");
             if (!DefensivePlanCompiler.LegalAlignment(job.Alignment, plan.Offense.LineOfScrimmage)) errors.Add($"{job.ActorId}: illegal alignment.");
-            if (job.Pass is not (ManResponsibility or HelpResponsibility or RushResponsibility or ZoneResponsibility)) errors.Add($"{job.ActorId}: missing/unsupported pass job.");
+            if (job.Pass is not (ManResponsibility or HelpResponsibility or RushResponsibility or ZoneResponsibility or MatchResponsibility)) errors.Add($"{job.ActorId}: missing/unsupported pass job.");
             if (job.Run == null || !Enum.IsDefined(job.Run.Role) || !Enum.IsDefined(job.Run.Side) || !Enum.IsDefined(job.Run.Trigger))
                 errors.Add($"{job.ActorId}: invalid conditional run job.");
             else if (job.Run.GapIndex is { } runGap && !plan.Surface.Gaps.Any(g => g.Index == runGap)) errors.Add($"{job.ActorId}: unknown run gap.");
         }
         var owners = plan.Assignments.Select(a => a.Pass).OfType<ManResponsibility>().Select(m => m.Target.Value).Order();
-        if (plan.Call.Zone == SpotZoneFamily.None && !owners.SequenceEqual(plan.Offense.Skills.Select(p => p.Id.Value).Order())) errors.Add("Every potential receiver needs exactly one primary man owner.");
+        if (plan.Call.Zone == SpotZoneFamily.None && plan.Match == null && !owners.SequenceEqual(plan.Offense.Skills.Select(p => p.Id.Value).Order())) errors.Add("Every potential receiver needs exactly one primary man owner.");
         var rushers = plan.Assignments.Where(a => a.Pass is RushResponsibility).ToArray();
         int rushBudget = plan.Pressure.Selection.Kind == PressureKind.ZoneFive ? 5 : plan.Call.RushCount;
         if (rushers.Length != rushBudget) errors.Add("Wrong rush budget.");
@@ -53,7 +53,26 @@ public static class DefensivePlanValidator
             || !plan.Pressure.Entries.Any(e => e.Actor == stunt.Looper && e.Contain == ContainRole.None)
             || rushJobs.Any(r => r.GapIndex == stunt.FallbackGap)
             || !plan.Surface.Gaps.Any(g => g.Index == stunt.FallbackGap && !g.Outside))) errors.Add("Invalid stunt participants/fallback.");
-        if (plan.Call.Zone == SpotZoneFamily.None)
+        if (plan.Call.Match != MatchFamily.None)
+        {
+            var matchJobs = plan.Assignments.Where(a => a.Pass is MatchResponsibility).ToArray();
+            var matchOwners = matchJobs.Select(a => ((MatchResponsibility)a.Pass).Provisional).Where(id => id != null).Select(id => id!.Value.Value).Order();
+            if (plan.Match == null || matchJobs.Length != 7 || plan.Match.Roles.Count != 7
+                || plan.Match.Roles.Select(b => b.Actor).Distinct().Count() != 7
+                || plan.Match.Roles.Select(b => b.Role).Distinct().Count() != 7
+                || !matchOwners.SequenceEqual(plan.Offense.Skills.Select(s => s.Id.Value).Order())) errors.Add("Invalid match roles/initial ownership.");
+            if (plan.Match != null)
+            {
+                if (!plan.Match.Releases.Select(r => r.Receiver.Value).Order().SequenceEqual(plan.Offense.Skills.Select(s => s.Id.Value).Order())) errors.Add("Match release table must account for every receiver.");
+                foreach (var rule in plan.Match.Releases)
+                    if (!matchJobs.Any(a => a.ActorId == rule.InitialOwner && ((MatchResponsibility)a.Pass).Provisional == rule.Receiver)
+                        || rule.VerticalDestination is { } dest && !matchJobs.Any(a => a.ActorId == dest)
+                        || rule.ShallowDestinations.Any(d => d == rule.InitialOwner || !matchJobs.Any(a => a.ActorId == d))) errors.Add("Illegal match release binding.");
+                foreach (var binding in plan.Match.Roles)
+                    if (!matchJobs.Any(a => a.ActorId == binding.Actor && ((MatchResponsibility)a.Pass).Role == binding.Role)) errors.Add("Match role disagrees with actor job.");
+            }
+        }
+        else if (plan.Call.Zone == SpotZoneFamily.None)
         {
         if (plan.Assignments.Any(a => a.Pass is ZoneResponsibility)) errors.Add("Man call contains zone jobs.");
         var helpers = plan.Assignments.Where(a => a.Pass is HelpResponsibility).ToArray();

@@ -22,6 +22,11 @@ public static class DefensivePlanCompiler
         var jobs = new Dictionary<DefenderSlot, DefensiveAssignment>();
         pressure ??= PressureSelection.For(call);
         PressureCompiler.Bind(offense, surface, personnel, call, pressure, jobs);
+        if (call.Match != MatchFamily.None)
+        {
+            if (!adjustments.Equivalent(ManCoverageAdjustments.None)) throw new ArgumentException("Man adjustments cannot modify match checks.");
+            return MatchCoverageCompiler.Compile(offense, call, surface, personnel, resolutionSeed, jobs.Values);
+        }
         if (call.Zone != SpotZoneFamily.None)
         {
             if (!adjustments.Equivalent(ManCoverageAdjustments.None)) throw new ArgumentException("Man adjustments cannot modify spot zones.");

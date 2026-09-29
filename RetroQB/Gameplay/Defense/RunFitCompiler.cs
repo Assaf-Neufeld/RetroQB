@@ -10,6 +10,7 @@ public sealed record RunFitPlan(IReadOnlyList<GapFit> Gaps, DefenderSlot LeftFor
 internal static class RunFitCompiler
 {
     internal static bool DeepPass(PassResponsibility pass) => pass is ZoneResponsibility { IsDeep: true }
+        or MatchResponsibility { Deep: true }
         or HelpResponsibility { Role: HelperRole.DeepLeft or HelperRole.DeepMiddle or HelperRole.DeepRight };
 
     internal static (IReadOnlyList<DefensiveAssignment> Assignments, RunFitPlan Fits) Bind(

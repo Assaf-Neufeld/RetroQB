@@ -62,6 +62,7 @@ public sealed record ConditionalRunResponsibility(RunRole Role, FieldSide Side, 
 [JsonDerivedType(typeof(HelpResponsibility), "help")]
 [JsonDerivedType(typeof(RushResponsibility), "rush")]
 [JsonDerivedType(typeof(ZoneResponsibility), "zone")]
+[JsonDerivedType(typeof(MatchResponsibility), "match")]
 public abstract record PassResponsibility;
 public sealed record ManResponsibility(ReceiverId Target) : PassResponsibility;
 public sealed record HelpResponsibility(HelperRole Role, ReceiverId? BracketTarget = null) : PassResponsibility;
@@ -70,7 +71,7 @@ public sealed record DefensiveAssignment(DefenderSlot ActorId, DefensivePosition
     PassResponsibility Pass, ConditionalRunResponsibility Run);
 
 /// <summary>Versioned supported budgets, with separate man and spot-zone catalogs.</summary>
-public sealed record DefensiveCallDefinition(string Id, int Version, ManShell Shell, int RushCount, SpotZoneFamily Zone = SpotZoneFamily.None)
+public sealed record DefensiveCallDefinition(string Id, int Version, ManShell Shell, int RushCount, SpotZoneFamily Zone = SpotZoneFamily.None, MatchFamily Match = MatchFamily.None)
 {
     public int RequiredDeepHelpers => Shell == ManShell.TwoHigh ? 2 : Shell == ManShell.Zero ? 0 : 1;
     public static IReadOnlyList<DefensiveCallDefinition> Supported { get; } = Array.AsReadOnly(new[]
@@ -88,16 +89,25 @@ public sealed record DefensiveCallDefinition(string Id, int Version, ManShell Sh
         new DefensiveCallDefinition("def.cover3-match", 1, ManShell.SingleHigh, 4, SpotZoneFamily.Buzz),
         new DefensiveCallDefinition("def.cover4", 1, ManShell.TwoHigh, 4, SpotZoneFamily.Cover4)
     });
-    public static IEnumerable<DefensiveCallDefinition> All => Supported.Concat(SpotZones);
+    // v1 IDs remain historical spot-zone semantics. Match uses new IDs and never rewrites recordings.
+    public static IReadOnlyList<DefensiveCallDefinition> Matches { get; } = Array.AsReadOnly(new[]
+    {
+        new DefensiveCallDefinition("def.cover3-match.v2", 2, ManShell.SingleHigh, 4, Match: MatchFamily.Cover3),
+        new DefensiveCallDefinition("def.quarters-match.v2", 2, ManShell.TwoHigh, 4, Match: MatchFamily.Quarters)
+    });
+    public static IEnumerable<DefensiveCallDefinition> All => Supported.Concat(SpotZones).Concat(Matches);
     public static DefensiveCallDefinition Get(string id) => All.SingleOrDefault(c => c.Id == id)
         ?? throw new NotSupportedException($"'{id}' has no compiled plan; use the legacy engine until its phase is implemented.");
 }
 
 public sealed class ResolvedDefensivePlan
 {
-    public const string RulesVersion = "defense-plan-p6-v1";
+    public const string RulesVersion = "defense-plan-p7-v1";
     public string RuleVersion => RulesVersion;
     public DefensiveCallDefinition Call { get; }
+    public DefensiveCallDefinition RequestedCall { get; }
+    public string? FallbackReason { get; }
+    public MatchCoveragePlan? Match { get; }
     public OffensiveAlignmentSnapshot Offense { get; }
     public OffensiveSurface Surface { get; }
     public DefensePackage Package { get; }
@@ -109,14 +119,16 @@ public sealed class ResolvedDefensivePlan
     public double PairingCost { get; }
     public ManCoverageAdjustments Adjustments { get; }
     public IReadOnlyList<BunchSwitchGroup> SwitchGroups { get; }
-    public string TripsCheck => "LockAllPrimaries";
+    public string TripsCheck => Match?.Check ?? "LockAllPrimaries";
     public string BunchCheck => SwitchGroups.Count == 0 ? "LockActorIds" : "SwitchPairsOnce;OtherGroupsLock";
 
     internal ResolvedDefensivePlan(DefensiveCallDefinition call, OffensiveAlignmentSnapshot offense,
         OffensiveSurface surface, DefensePackage package, int seed, IEnumerable<DefensiveAssignment> assignments, double pairingCost,
-        ManCoverageAdjustments? adjustments = null, PressureSelection? pressure = null)
+        ManCoverageAdjustments? adjustments = null, PressureSelection? pressure = null, MatchCoveragePlan? match = null,
+        DefensiveCallDefinition? requestedCall = null, string? fallbackReason = null)
     {
         Call = call; Offense = offense; Surface = surface; Package = package; ResolutionSeed = seed;
+        Match = match; RequestedCall = requestedCall ?? call; FallbackReason = fallbackReason;
         // Keep caller-supplied jobs intact so validation can detect corruption. Compilers bind fits before construction.
         Assignments = Array.AsReadOnly(assignments.OrderBy(a => a.ActorId).ToArray()); PairingCost = pairingCost;
         Pressure = PressureCompiler.Describe(offense, surface, Assignments, pressure ?? PressureSelection.For(call));

@@ -288,7 +288,7 @@ public sealed class RunFitTests
         foreach (var call in DefensiveCallDefinition.All)
         foreach (string play in new[] { "run.hb-dive", "run.counter-left", "run.counter-right", "run.stretch-right" })
         {
-            var sample = DefenseRuntimeMatrix.Exercise(play, call.Id, 101, hz, false, DefenseInputMode.Stationary, DefensiveEngineMode.ZoneDevelopment);
+            var sample = DefenseRuntimeMatrix.Exercise(play, call.Id, 101, hz, false, DefenseInputMode.Stationary, DefensiveEngineMode.MatchDevelopment);
             Assert.True(sample.Failure == null, $"{play}/{call.Id}/{hz}: {sample.Failure}\n{JsonSerializer.Serialize(sample.Decisions.Last(), DefenseRedesignMatrix.Json)}");
             Assert.NotNull(sample.Outcome);
         }

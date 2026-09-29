@@ -45,6 +45,12 @@ internal static class DefenseScenarioLauncher
             if (automated && options.Definition.Name == "defense-pressure-controls")
                 frame = new(Call: tick == 0 ? 0 : null, VariantStep: tick is 20 or 40 or 60 ? 1 : tick == 80 ? -1 : 0,
                     Flip: tick is 100 or 120);
+            if (automated && options.Definition.Name is "defense-match-controls" or "defense-match-fallback")
+            {
+                bool showReplay = drive.LastReplay != null && !replayShown;
+                replayShown |= showReplay;
+                frame = new(Call: tick == 0 ? 6 : tick == 20 ? 7 : null, Ready: tick == 40, Replay: showReplay);
+            }
             session.Update(ScenarioDefinition.FixedStep, frame); tick++;
             if (drive.LiveSeconds > 30) failure = "Live play exceeded 30 seconds; no production whistle forced.";
             if (tick > 60 * 600) failure = "Drive exceeded ten simulated minutes.";

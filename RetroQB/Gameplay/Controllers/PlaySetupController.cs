@@ -96,7 +96,7 @@ public sealed class PlaySetupController
             actor.IsRusher = assignment.Pass is Defense.RushResponsibility;
             // Offense's existing matchup effect compares this value to Receiver.Index, never subscripts it.
             // New defensive movement never consumes the legacy targeting path.
-            actor.CoverageReceiverIndex = (assignment.Pass as Defense.ManResponsibility)?.Target.Value ?? -1;
+            actor.CoverageReceiverIndex = (assignment.Pass as Defense.ManResponsibility)?.Target.Value ?? (assignment.Pass as Defense.MatchResponsibility)?.Provisional?.Value ?? -1;
         }
         return new(preview.Offense.Qb, preview.Offense.Ball, preview.Offense.Receivers, preview.Offense.Blockers,
             actors, false, true, actors.Where(d => d.IsRusher && d.PositionRole is not (DefensivePosition.DL or DefensivePosition.DE)).Select(d => d.Slot.ToString()).ToList(),

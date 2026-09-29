@@ -10,7 +10,7 @@ public sealed class DefensivePlanCache
     public ResolvedDefensivePlan Resolve(OffensiveAlignmentSnapshot offense, DefensiveCallDefinition call,
         DefensePackage? package = null, int resolutionSeed = 101, ManCoverageAdjustments? adjustments = null, PressureSelection? pressure = null)
     {
-        if (_last != null && _last.Call == call && _requestedPackage == package
+        if (_last != null && _last.RequestedCall == call && _requestedPackage == package
             && _last.ResolutionSeed == resolutionSeed && _last.Offense.SameGeometry(offense)
             && _last.Pressure.Selection == (pressure ?? PressureSelection.For(call))
             && _last.Adjustments.Equivalent(adjustments ?? ManCoverageAdjustments.None)) return _last;

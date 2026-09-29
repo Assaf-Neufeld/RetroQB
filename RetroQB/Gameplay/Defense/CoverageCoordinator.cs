@@ -16,7 +16,7 @@ public sealed record CoverageBoard(int OwnershipVersion, IReadOnlyList<ZoneCommi
     IReadOnlyList<CoverageTransfer> Transfers, IReadOnlyList<string> Concessions);
 
 /// <summary>All zone ownership changes commit before any actor receives an intent. No physical movement or hidden offensive reads.</summary>
-public sealed class CoverageCoordinator
+public sealed partial class CoverageCoordinator
 {
     private sealed class State
     {
@@ -25,7 +25,7 @@ public sealed class CoverageCoordinator
         public string Status = "Home";
         public bool Abandoned;
     }
-    private sealed record Offer(DefenderSlot Source, DefenderSlot Destination, ReceiverId Receiver, int Priority, double Urgency);
+    private sealed record Offer(DefenderSlot Source, DefenderSlot Destination, ReceiverId Receiver, int Priority, double Urgency, int Bundle = 0);
     private sealed record Declined(float Until, string Evidence);
     private readonly ResolvedDefensivePlan _plan;
     private readonly Dictionary<DefenderSlot, ZoneResponsibility> _zones;
@@ -39,12 +39,14 @@ public sealed class CoverageCoordinator
     public CoverageCoordinator(ResolvedDefensivePlan plan)
     {
         _plan = plan;
-        _zones = plan.Assignments.Where(a => a.Pass is ZoneResponsibility).ToDictionary(a => a.ActorId, a => (ZoneResponsibility)a.Pass);
-        _states = _zones.Keys.ToDictionary(a => a, _ => new State());
+        _zones = plan.Assignments.Where(a => a.Pass is ZoneResponsibility or MatchResponsibility).ToDictionary(a => a.ActorId,
+            a => a.Pass is ZoneResponsibility zone ? zone : MatchZone((MatchResponsibility)a.Pass));
+        _states = _zones.Keys.ToDictionary(a => a, a => new State { Primary = (plan.Assignments.Single(j => j.ActorId == a).Pass as MatchResponsibility)?.Provisional });
     }
 
     public IReadOnlyList<DefensiveIntent> Decide(DefensiveObservationFrame frame, DefenderSlot? human)
     {
+        if (_plan.Match != null) return DecideMatch(frame, human);
         var transfers = new List<CoverageTransfer>(); var concessions = new List<string>();
         var receivers = frame.Receivers.ToDictionary(r => r.Id);
         var actors = frame.Visible.Defenders.ToDictionary(d => d.Id);
@@ -73,38 +75,7 @@ public sealed class CoverageCoordinator
                 Log(actor, dest, id, "Offer", human == dest ? "XFER-04:ActualHumanState" : "ZONE-01:DeclaredNeighbor");
                 _declined[key] = new(frame.Seconds + ZoneTuning.OfferSeconds, evidence);
             }
-            // One incoming reservation per destination. A complete chain/cycle can move together; partial chains cannot steal primaries.
-            var selected = new Dictionary<DefenderSlot, Offer>();
-            foreach (var offer in offers.OrderByDescending(o => o.Priority).ThenByDescending(o => o.Urgency)
-                .ThenBy(o => _states[o.Destination].Primary == o.Receiver ? 0 : 1).ThenBy(o => o.Receiver.Value).ThenBy(o => o.Source))
-            {
-                if (!Reachable(actors[offer.Destination], receivers[offer.Receiver], _zones[offer.Destination], human == offer.Destination))
-                { Decline(offer, "XFER-02:Unreachable"); continue; }
-                if (!selected.TryAdd(offer.Destination, offer)) { Decline(offer, "XFER-03:DestinationReserved"); continue; }
-                Log(offer.Source, offer.Destination, offer.Receiver, "Reserve", "XFER-01:OneIncomingPrimary");
-            }
-            var outgoing = selected.Values.ToDictionary(o => o.Source);
-            bool Complete(Offer o, HashSet<DefenderSlot> path)
-            {
-                if (!path.Add(o.Source)) return true; // A fully reserved cycle closes legally.
-                if (_states[o.Destination].Primary == null) return true;
-                return outgoing.TryGetValue(o.Destination, out var next) && Complete(next, path);
-            }
-            var accepted = selected.Values.Where(o => Complete(o, new())).OrderBy(o => o.Source).ToArray();
-            foreach (var o in selected.Values.Except(accepted)) Decline(o, "XFER-02:Occupied;NoCompleteExchange");
-            if (accepted.Length > 0)
-            {
-                foreach (var o in accepted) Log(o.Source, o.Destination, o.Receiver, "Accept", "DEC-04:CompleteTransaction");
-                foreach (var o in accepted)
-                {
-                    var source = _states[o.Source]; source.Primary = null; source.Helping = o.Receiver;
-                    source.HelpUntil = frame.Seconds + ZoneTuning.HelpOverlapSeconds; source.ExitedAt = -1;
-                    source.Status = "Accepted;RecoverHome"; source.Abandoned = false;
-                }
-                foreach (var o in accepted) Assign(o.Destination, o.Receiver, "AcceptedTransfer");
-                _version++;
-                foreach (var o in accepted) Log(o.Source, o.Destination, o.Receiver, "Commit", "XFER-01:AtomicOwnership");
-            }
+            CommitOffers(frame, human, offers, transfers);
             foreach (var (actor, state) in _states.OrderBy(p => p.Key))
             {
                 if (state.Primary is not { } id || state.ExitedAt < 0) continue;
@@ -265,7 +236,7 @@ public sealed class CoverageCoordinator
         }
         void Log(DefenderSlot from, DefenderSlot to, ReceiverId id, string stage, string reason)
             => transfers.Add(new(_transaction, _version, _plan.RuleVersion, frame.Seconds, from, to, id, stage, reason));
-        void Decline(Offer o, string reason) => Log(o.Source, o.Destination, o.Receiver, "Decline", reason);
+
     }
 
     // A post/curl that has reached the deep window remains a threat after its vertical velocity disappears.

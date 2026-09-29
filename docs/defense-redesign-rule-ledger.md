@@ -1,10 +1,10 @@
 # Defensive redesign rule implementation ledger
 
-Updated September 28, 2026. Current runtime `defense-runtime-p6-v1`; plan `defense-plan-p6-v1`.
+Updated September 29, 2026. Current runtime `defense-runtime-p7-v1`; plan `defense-plan-p7-v1`.
 
-`verified` means the owning phase's supported scope passed its behavioral gate. P1–P6 verify 74 of 98 rules for base/nickel man and spot zones in Debug development mode. Normal gameplay remains legacy until P10. P6 verifies fixed, zone, simulated and conditional pressure with coordinated carrier response. Match, dime/front expansion and CPU strategy remain in their roadmap phases.
+`verified` means the owning phase's supported scope passed its behavioral gate. P1–P7 verify 90 of 98 rules for base/nickel man, spot zones and authored match checks in Debug development mode. Normal gameplay remains legacy until P10. P6 verifies fixed, zone, simulated and conditional pressure with coordinated carrier response. P7 verifies declared Cover 3 Match/Quarters Match checks and explicit unsupported-geometry fallbacks. Dime/front expansion and CPU strategy remain in their roadmap phases.
 
-Evidence: [P0](defense-redesign-p00-verification.md), [P1](defense-redesign-p01-verification.md), [P2](defense-redesign-p02-verification.md), [P3](defense-redesign-p03-verification.md), [P4](defense-redesign-p04-verification.md), [P5](defense-redesign-p05-verification.md), and [P6](defense-redesign-p06-verification.md) reports. The phase reports state exact fixture, scenario and implementation limits. The 20 DM definitions alone do not verify new behavior.
+Evidence: [P0](defense-redesign-p00-verification.md), [P1](defense-redesign-p01-verification.md), [P2](defense-redesign-p02-verification.md), [P3](defense-redesign-p03-verification.md), [P4](defense-redesign-p04-verification.md), [P5](defense-redesign-p05-verification.md), [P6](defense-redesign-p06-verification.md), and [P7](defense-redesign-p07-verification.md) reports. The phase reports state exact fixture, scenario and implementation limits. The 20 DM definitions alone do not verify new behavior.
 
 | Rule | Owner | Status | Evidence / remaining work |
 | --- | --- | --- | --- |
@@ -50,22 +50,22 @@ Evidence: [P0](defense-redesign-p00-verification.md), [P1](defense-redesign-p01-
 | Z4-02 | P4 | verified | SpotZoneCoverageTests.Z4_OutsideVerticalAndInsideSeamRemainSeparateWhileShallowOutStaysUnderneath (observed wheel restoration) |
 | Z4-03 | P4 | verified | SpotZoneCoverageTests.Z403_ShallowCrossersNeverCollapseEmptyQuarterStructure |
 | ZONE-01 | P4 | verified | SpotZoneCoverageTests.ZONE01_DeclinedUnderneathCarryEndsAtTimeOrLateralLimitWithExplicitConcession; DM06_UnreachablePostDestinationDeclinesWithoutDroppingDeepOwnerOrSpammingOffers |
-| M3-01 | P7 | planned | Await owning phase's live behavioral tests. |
-| M3-02 | P7 | planned | Await owning phase's live behavioral tests. |
-| M3-03 | P7 | planned | Await owning phase's live behavioral tests. |
-| M3-04 | P7 | planned | Await owning phase's live behavioral tests. |
-| M3-05 | P7 | planned | Await owning phase's live behavioral tests. |
-| M3-06 | P7 | planned | Await owning phase's live behavioral tests. |
-| M3-07 | P7 | planned | Await owning phase's live behavioral tests. |
-| QM-01 | P7 | planned | Await owning phase's live behavioral tests. |
-| QM-02 | P7 | planned | Await owning phase's live behavioral tests. |
-| QM-03 | P7 | planned | Await owning phase's live behavioral tests. |
-| QM-04 | P7 | planned | Await owning phase's live behavioral tests. |
-| QM-05 | P7 | planned | Await owning phase's live behavioral tests. |
-| QM-06 | P7 | planned | Await owning phase's live behavioral tests. |
-| QM-07 | P7 | planned | Await owning phase's live behavioral tests. |
-| QM-08 | P7 | planned | Await owning phase's live behavioral tests. |
-| QM-09 | P7 | planned | Await owning phase's live behavioral tests. |
+| M3-01 | P7 | verified | AuthoredMatchCoverageTests; Outside vertical locks, apex seam ownership; cuts/stops retained. P7 report. |
+| M3-02 | P7 | verified | AuthoredMatchCoverageTests; Short out/wheel retains apex until a declared reachable transfer. P7 report. |
+| M3-03 | P7 | verified | AuthoredMatchCoverageTests; Shallow carry and occupied-back refusal beyond home. P7 report. |
+| M3-04 | P7 | verified | AuthoredMatchCoverageTests; Complete two-receiver exchange; failed chain retains both owners. P7 report. |
+| M3-05 | P7 | verified | AuthoredMatchCoverageTests; Trips five owners/two helpers; inside deep help priority. P7 report. |
+| M3-06 | P7 | verified | AuthoredMatchCoverageTests; Trips shallow #3 to available weak apex; opposite back retained. P7 report. |
+| M3-07 | P7 | verified | AuthoredMatchCoverageTests; Closed-side TE numbering and corner ownership across flips. P7 report. |
+| QM-01 | P7 | verified | AuthoredMatchCoverageTests; Safeties accept vertical #2 at 30/60/120 Hz; later cuts retain owner. P7 report. |
+| QM-02 | P7 | verified | AuthoredMatchCoverageTests; Wheel waits for actual safety acceptance; existing help retained meanwhile. P7 report. |
+| QM-03 | P7 | verified | AuthoredMatchCoverageTests; Shallow handoff cannot consume the occupied back owner. P7 report. |
+| QM-04 | P7 | verified | AuthoredMatchCoverageTests; Shallow outside exchange requires an available destination; vertical #2 retained. P7 report. |
+| QM-05 | P7 | verified | AuthoredMatchCoverageTests; Trips distinct #2/#3/back owners; reachable poach acceptance. P7 report. |
+| QM-06 | P7 | verified | AuthoredMatchCoverageTests; Shallow #3 exchange and later wheel acceptance; inside-only safety help. P7 report. |
+| QM-07 | P7 | verified | AuthoredMatchCoverageTests; Isolated weak corner retains primary; no promised poach-safety help. P7 report. |
+| QM-08 | P7 | verified | AuthoredMatchCoverageTests; Catalog fallback checks preserve requested/actual IDs before preview. P7 report. |
+| QM-09 | P7 | verified | AuthoredMatchCoverageTests; Closed-side TE ownership and local deep help roles. P7 report. |
 | XFER-01 | P4 | verified | SpotZoneCoverageTests.DM06_PostTransferCommitsOnceThenOverlapExpiresAndCornerRecovers (30/60/120 Hz) |
 | XFER-02 | P4 | verified | SpotZoneCoverageTests.DeclinedOfferReevaluatesChangedReachabilityAndOccupiedDestinationCannotDropItsPrimary |
 | XFER-03 | P4 | verified | SpotZoneCoverageTests.DM04_FourVerticalsKeepOutsideOwnersAndBothSeamCarriersUntilOneSafetyAccepts; DEC04_ChainedExchangeCommitsAtomicallyWithoutDuplicateOwnership |

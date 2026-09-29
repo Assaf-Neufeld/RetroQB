@@ -10,7 +10,11 @@ internal static class DefenseRuntimeMatrix
 {
     internal sealed record RuntimeSample(string Play, string Call, int Seed, int Hz, bool HumanDefense,
         DefenseInputMode InputMode, float Seconds, string? Outcome, string? Failure, int Switches,
-        IReadOnlyList<DefensiveDecisionFrame> Decisions);
+        IReadOnlyList<DefensiveDecisionFrame> Decisions)
+    {
+        public string? ResolvedCall { get; init; }
+        public string? Check { get; init; }
+    }
 
     public static int Run(ScenarioLaunchOptions options)
     {
@@ -103,6 +107,7 @@ internal static class DefenseRuntimeMatrix
         }
         catch (Exception error) { failure = error.ToString(); }
         return new(play, call, seed, hz, humanDefense, mode, drive?.LiveSeconds ?? 0,
-            drive?.LastResult?.Event.Reason.ToString(), failure, drive?.Execution.DefenseRuntime?.SwitchCommitCount ?? 0, frames.AsReadOnly());
+            drive?.LastResult?.Event.Reason.ToString(), failure, drive?.Execution.DefenseRuntime?.SwitchCommitCount ?? 0, frames.AsReadOnly())
+            { ResolvedCall = drive?.CompiledPlan?.Call.Id, Check = drive?.CompiledPlan?.Match?.Check ?? drive?.CompiledPlan?.FallbackReason };
     }
 }

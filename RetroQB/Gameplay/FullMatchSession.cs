@@ -157,7 +157,7 @@ public sealed class FullMatchSession
         }
         if (HumanOnDefense)
         {
-            if (input.Call is >= 0 and < 10) Drive.SelectDefense(DefensivePlaybook.All[input.Call.Value].Id);
+            if (input.Call is >= 0 and < 10) Drive.SelectDefense(Drive.Calls[input.Call.Value].Id);
             if (Action == MatchAction.Scrimmage)
             {
                 if (input.Flip) Drive.FlipPressure();

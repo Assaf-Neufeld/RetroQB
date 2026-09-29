@@ -51,7 +51,7 @@ public sealed class DefensivePlaySession
             if (_resultSeconds >= 1.25 && Drive.Continue()) { _resultSeconds = 0; SetDeadline(); }
             return;
         }
-        if (input.Call is >= 0 and < 10) Drive.SelectDefense(DefensivePlaybook.All[input.Call.Value].Id);
+        if (input.Call is >= 0 and < 10) Drive.SelectDefense(Drive.Calls[input.Call.Value].Id);
         if (input.Flip) Drive.FlipPressure();
         if (input.VariantStep != 0) Drive.CyclePressure(input.VariantStep);
         if (input.Ready) SnapRemaining = Math.Min(SnapRemaining, .35);

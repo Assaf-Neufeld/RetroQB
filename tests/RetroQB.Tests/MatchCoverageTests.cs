@@ -8,6 +8,7 @@ using RetroQB.Routes;
 
 namespace RetroQB.Tests;
 
+// Historical v1 IDs are spot schemes. AuthoredMatchCoverageTests owns the v2 match contracts.
 public sealed class MatchCoverageTests
 {
     private static readonly DefensiveContext Context = new(30, 10, 1, 0, 0, SeasonStage.RegularSeason);
@@ -17,7 +18,7 @@ public sealed class MatchCoverageTests
     [InlineData("def.quarters-match", true)]
     [InlineData("def.cover3-match", false)]
     [InlineData("def.cover3-match", true)]
-    public void SlotUsesNickelAndEveryCoverageDefenderKeepsALocalZone(string call, bool flipped)
+    public void LegacyV1SlotUsesNickelAndEveryCoverageDefenderKeepsALocalZone(string call, bool flipped)
     {
         var receivers = new List<Receiver>
         {

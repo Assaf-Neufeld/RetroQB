@@ -106,9 +106,9 @@ public sealed class DefensiveDrive
             foreach (var call in DefensiveEngineCalls.For(Engine))
                 _compiledCalls.Add(call.Id, DefensivePlanCompiler.Compile(snapshot, call,
                     resolutionSeed: unchecked(_defenseSeed + Match.History.Count * 7919),
-                    adjustments: (Engine is DefensiveEngineMode.ManDevelopment or DefensiveEngineMode.ZoneDevelopment) && call.Zone == SpotZoneFamily.None ? new(switchPairs: true) : null));
-            string chosen = HumanOnDefense && CompiledPlan != null && _compiledCalls.ContainsKey(CompiledPlan.Call.Id)
-                ? CompiledPlan.Call.Id : "def.cover1";
+                    adjustments: (Engine is DefensiveEngineMode.ManDevelopment or DefensiveEngineMode.ZoneDevelopment or DefensiveEngineMode.MatchDevelopment) && call.Zone == SpotZoneFamily.None && call.Match == MatchFamily.None ? new(switchPairs: true) : null));
+            string chosen = HumanOnDefense && CompiledPlan != null && _compiledCalls.ContainsKey(CompiledPlan.RequestedCall.Id)
+                ? CompiledPlan.RequestedCall.Id : "def.cover1";
             ApplyCompiledPlan(_compiledCalls[chosen], retainOffense: false);
             ResetActors(); return;
         }
@@ -133,6 +133,8 @@ public sealed class DefensiveDrive
         _ball.Reset(Plays.LineOfScrimmage); _priorities.AssignPriorities(Actors.Receivers);
         LiveSeconds = SecondsWithoutProgress = 0; _furthestY = Actors.Qb.Position.Y;
     }
+
+    public IReadOnlyList<DefensivePlayDefinition> Calls => DefensivePlaybook.ForEngine(Engine);
 
     public bool SelectDefense(string id)
     {
@@ -170,7 +172,7 @@ public sealed class DefensiveDrive
                     var job = plan.Assignments.Single(a => a.ActorId == actor.Slot);
                     actor.Position = job.Alignment; actor.Velocity = Vector2.Zero;
                     actor.IsRusher = job.Pass is RushResponsibility;
-                    actor.CoverageReceiverIndex = (job.Pass as ManResponsibility)?.Target.Value ?? -1;
+                    actor.CoverageReceiverIndex = (job.Pass as ManResponsibility)?.Target.Value ?? (job.Pass as MatchResponsibility)?.Provisional?.Value ?? -1;
                 }
             }
             setup = new(Actors.Qb, Actors.Ball, Actors.Receivers, Actors.Blockers, defenders,
@@ -183,7 +185,7 @@ public sealed class DefensiveDrive
 
     public bool SelectManAdjustments(ManCoverageAdjustments adjustments)
     {
-        if (Engine is not (DefensiveEngineMode.ManDevelopment or DefensiveEngineMode.ZoneDevelopment) || Live || LastResult != null || Complete || CompiledPlan == null) return false;
+        if (Engine is not (DefensiveEngineMode.ManDevelopment or DefensiveEngineMode.ZoneDevelopment or DefensiveEngineMode.MatchDevelopment) || Live || LastResult != null || Complete || CompiledPlan == null) return false;
         try
         {
             var plan = DefensivePlanCompiler.Compile(CompiledPlan.Offense, CompiledPlan.Call, CompiledPlan.Package, CompiledPlan.ResolutionSeed, adjustments, CompiledPlan.Pressure.Selection);

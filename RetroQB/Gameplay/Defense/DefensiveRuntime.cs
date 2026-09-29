@@ -14,7 +14,7 @@ public sealed record DefensiveDecisionFrame(string Version, float Seconds, Defen
 /// <summary>One team decision authority. All reads use the same immutable observation; only the motor/contact layer moves actors.</summary>
 public sealed class DefensiveRuntime
 {
-    public const string Version = "defense-runtime-p6-v1";
+    public const string Version = "defense-runtime-p7-v1";
     private sealed class State
     {
         public ReceiverId? Primary, Helping;
@@ -35,7 +35,7 @@ public sealed class DefensiveRuntime
     {
         DefensivePlanValidator.ThrowIfInvalid(plan); Plan = plan; _observer = new(plan);
         _run = new(plan); _pressure = new(plan);
-        if (plan.Call.Zone != SpotZoneFamily.None) _coverage = new(plan);
+        if (plan.Call.Zone != SpotZoneFamily.None || plan.Match != null) _coverage = new(plan);
         _states = plan.Assignments.ToDictionary(a => a.ActorId, a => new State { Primary = (a.Pass as ManResponsibility)?.Target });
     }
 
@@ -209,7 +209,7 @@ public sealed class DefensiveRuntime
     private static bool ReachableHelp(DefenderMotion helper, ObservedReceiver receiver)
         => helper.Position.Y >= receiver.Position.Y && Vector2.Distance(helper.Position, Project(receiver, .8f)) <= helper.Speed * .8f + 1.5f;
     public static float RecognitionDelay(DefenderMotion defender) => Math.Clamp(DefensiveTuning.ThrowRecognitionSeconds / Math.Clamp(defender.RecognitionRating, .7f, 1.4f), .08f, .25f);
-    private static bool TryIntercept(DefenderMotion self, ObservedReceiver r, out Vector2 target)
+    internal static bool TryIntercept(DefenderMotion self, ObservedReceiver r, out Vector2 target)
     {
         for (float t = .2f; t <= 1.5f; t += .1f)
         {

@@ -23,7 +23,14 @@ public static class DefensivePlaybook
         new("def.edge", "Cover 1 Edge Pressure", CoverageScheme.Cover1, DefensivePressure.Edge, "Five rush; single-high man behind it."),
         new("def.zero", "Cover 0 Pressure", CoverageScheme.Cover0, DefensivePressure.Zero, "Six rush; five man matchups, no deep help.")
     });
-    public static DefensivePlayDefinition Get(string id) => All.Single(p => p.Id == id);
+    private static readonly DefensivePlayDefinition[] MatchCalls =
+    [
+        new("def.cover3-match.v2", "Cover 3 Match", CoverageScheme.Cover3Match, DefensivePressure.Four, "Numbered match; carry until a legal handoff."),
+        new("def.quarters-match.v2", "Quarters Match", CoverageScheme.QuartersMatch, DefensivePressure.Four, "Vertical match; declared Trips Poach.")
+    ];
+    public static IReadOnlyList<DefensivePlayDefinition> ForEngine(Defense.DefensiveEngineMode engine) => engine == Defense.DefensiveEngineMode.MatchDevelopment
+        ? Array.AsReadOnly(All.Take(6).Concat(MatchCalls).Concat(All.Skip(8)).ToArray()) : All;
+    public static DefensivePlayDefinition Get(string id) => All.Concat(MatchCalls).Single(p => p.Id == id);
 }
 
 /// <summary>The preview contract deliberately contains no routes, eligibility changes, or offensive call ID.</summary>
