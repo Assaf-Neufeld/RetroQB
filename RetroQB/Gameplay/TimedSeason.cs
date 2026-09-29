@@ -31,15 +31,16 @@ public sealed class TimedSeason
     public LeaderboardSummary Leaderboard { get; private set; } = LeaderboardSummary.Empty;
     public string StorageMessage => _store.StatusMessage;
 
-    public TimedSeason(IGameInput input, int seed, TeamDefinition team, string playerName, PlayerRecordStore store, double quarterSeconds = 180, bool arcadeRules = false)
+    private readonly Defense.DefensiveEngineMode _engine;
+    public TimedSeason(IGameInput input, int seed, TeamDefinition team, string playerName, PlayerRecordStore store, double quarterSeconds = 180, bool arcadeRules = false, Defense.DefensiveEngineMode engine = Defense.DefensiveEngineMode.Legacy)
     {
         if (store.Ruleset != MatchRuleset.TwoSidedTimed) throw new ArgumentException("Timed seasons need a timed leaderboard.");
-        _input = input; _seed = seed; Team = team; PlayerName = PlayerRecordStore.NormalizeName(playerName);
+        _engine = engine; _input = input; _seed = seed; Team = team; PlayerName = PlayerRecordStore.NormalizeName(playerName);
         _store = store; _arcadeRules = arcadeRules; _quarterSeconds = arcadeRules ? 120 : quarterSeconds; Current = CreateMatch();
     }
 
     private FullMatchSession CreateMatch()
-        => new(_input, unchecked(_seed + (int)Stage * 7919), new(Team, TeamCatalog.ForStage(Stage), Team.Id, Stage, quarterSeconds: _quarterSeconds, regulationPeriods: _arcadeRules ? 2 : 4, specialTeams: _arcadeRules));
+        => new(_input, unchecked(_seed + (int)Stage * 7919), new(Team, TeamCatalog.ForStage(Stage), Team.Id, Stage, quarterSeconds: _quarterSeconds, regulationPeriods: _arcadeRules ? 2 : 4, specialTeams: _arcadeRules), _engine);
 
     public void EditName(string text, bool backspace)
     {

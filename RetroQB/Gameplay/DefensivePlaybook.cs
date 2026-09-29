@@ -28,7 +28,7 @@ public static class DefensivePlaybook
         new("def.cover3-match.v2", "Cover 3 Match", CoverageScheme.Cover3Match, DefensivePressure.Four, "Numbered match; carry until a legal handoff."),
         new("def.quarters-match.v2", "Quarters Match", CoverageScheme.QuartersMatch, DefensivePressure.Four, "Vertical match; declared Trips Poach.")
     ];
-    public static IReadOnlyList<DefensivePlayDefinition> ForEngine(Defense.DefensiveEngineMode engine) => engine == Defense.DefensiveEngineMode.MatchDevelopment
+    public static IReadOnlyList<DefensivePlayDefinition> ForEngine(Defense.DefensiveEngineMode engine) => engine is Defense.DefensiveEngineMode.MatchDevelopment or Defense.DefensiveEngineMode.StrategyDevelopment
         ? Array.AsReadOnly(All.Take(6).Concat(MatchCalls).Concat(All.Skip(8)).ToArray()) : All;
     public static DefensivePlayDefinition Get(string id) => All.Concat(MatchCalls).Single(p => p.Id == id);
 }

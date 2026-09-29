@@ -66,7 +66,9 @@ public sealed class MatchState
         if (result.ScoringTeamId != null) Team(result.ScoringTeamId).Score += result.Points;
         if (result.NextSeries != null) Series = result.NextSeries;
         PendingPossession = result.NextPossession;
-        if (ended.Coverage is { } coverage)
+        if (ended.DefenseOutcome is { } defenseOutcome)
+            Defense.DefenseStrategy.Record(ended.PlayId, defenseOutcome, result.Gain, ended.Reason);
+        else if (ended.Coverage is { } coverage)
             Defense.DefensiveMemory.RecordOutcome(new PlayRecord
             {
                 CoverageScheme = coverage, Down = play.Series.Down, Distance = play.Series.Distance,

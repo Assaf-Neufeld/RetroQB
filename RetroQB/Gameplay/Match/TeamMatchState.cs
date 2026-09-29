@@ -17,6 +17,7 @@ public sealed class TeamMatchState
     public OffensiveTeamAttributes OffensiveAttributes => Definition.Offense;
     public DefensiveTeamAttributes DefensiveAttributes { get; }
     public DefensiveMemory DefensiveMemory { get; } = new();
+    public Defense.DefensiveStrategyMemory DefenseStrategy { get; } = new();
     public float DifficultyMultiplier { get; }
     public CpuTendencies Tendencies { get; }
     public int Score { get; internal set; }
@@ -40,6 +41,7 @@ public sealed class TeamMatchState
         Statistics.Reset();
         DefensiveStatistics.Reset();
         DefensiveMemory.Reset();
+        DefenseStrategy.Reset();
         _calls.Clear();
     }
 }

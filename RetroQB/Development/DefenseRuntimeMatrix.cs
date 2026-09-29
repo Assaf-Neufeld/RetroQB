@@ -14,6 +14,8 @@ internal static class DefenseRuntimeMatrix
     {
         public string? ResolvedCall { get; init; }
         public string? Check { get; init; }
+        public DefensiveCallScore? StrategyScore { get; init; }
+        public DefensiveOutcome? OutcomeMetadata { get; init; }
     }
 
     public static int Run(ScenarioLaunchOptions options)
@@ -51,7 +53,7 @@ internal static class DefenseRuntimeMatrix
     }
 
     internal static RuntimeSample Exercise(string play, string call, int seed, int hz, bool humanDefense,
-        DefenseInputMode mode, DefensiveEngineMode engine, float yard = 50, bool flipped = false, PressureSelection? pressure = null, DefensePackage? package = null, DefensiveFront front = DefensiveFront.Even, bool advanceHumanRunner = false)
+        DefenseInputMode mode, DefensiveEngineMode engine, float yard = 50, bool flipped = false, PressureSelection? pressure = null, DefensePackage? package = null, DefensiveFront front = DefensiveFront.Even, bool advanceHumanRunner = false, bool selectCpuDefense = false)
     {
         var input = new ScriptedInput(); var user = TeamCatalog.Get("ballers"); var cpu = TeamCatalog.Get("scarlet-guard");
         var frames = new List<DefensiveDecisionFrame>(); DefensiveDrive? drive = null; string? failure = null;
@@ -60,7 +62,8 @@ internal static class DefenseRuntimeMatrix
             drive = new(input, seed, fixedCall: play, match: new(user, cpu, humanDefense ? cpu.Id : user.Id,
                 start: new(yard, 1, MathF.Min(10, 100 - yard))), engine: engine);
             if (flipped) drive.FlipOffensiveFormationForDevelopment();
-            if (!drive.SelectCompiledDefenseForDevelopment(call)) throw new InvalidOperationException("Unsupported development call.");
+            if (selectCpuDefense && (humanDefense || drive.CpuSelection == null)) throw new InvalidOperationException("Expected live CPU strategy selection.");
+            if (!selectCpuDefense && !drive.SelectCompiledDefenseForDevelopment(call)) throw new InvalidOperationException("Unsupported development call.");
             if ((package != null || front != DefensiveFront.Even) && !drive.SelectFormationForDevelopment(package, front)) throw new InvalidOperationException(drive.SelectionRejection ?? "Unsupported formation.");
             if (pressure != null && !drive.SelectCompiledPressureForDevelopment(pressure)) throw new InvalidOperationException(drive.SelectionRejection ?? "Unsupported pressure.");
             if (mode == DefenseInputMode.FullAI && humanDefense) drive.Execution.Control = new(true) { AutomateDefense = true };
@@ -106,10 +109,14 @@ internal static class DefenseRuntimeMatrix
             }
             if (drive.Live) failure = "No production whistle within 30 seconds.";
             else if (drive.Match.History.Count != 1) failure = "Missing/duplicate resolution.";
+            else if (selectCpuDefense && (drive.LastResult?.Event.DefenseOutcome?.PackageId != DefensivePlaycaller.PackageId(drive.CompiledPlan!)
+                || drive.Match.Opponent.DefenseStrategy.CompletedPlays != 1 || drive.Match.User.DefenseStrategy.CompletedPlays != 0)) failure = "Strategy outcome/memory identity mismatch.";
         }
         catch (Exception error) { failure = error.ToString(); }
         return new(play, call, seed, hz, humanDefense, mode, drive?.LiveSeconds ?? 0,
             drive?.LastResult?.Event.Reason.ToString(), failure, drive?.Execution.DefenseRuntime?.SwitchCommitCount ?? 0, frames.AsReadOnly())
-            { ResolvedCall = drive?.CompiledPlan?.Call.Id, Check = drive?.CompiledPlan?.Match?.Check ?? drive?.CompiledPlan?.FallbackReason };
+            { ResolvedCall = drive?.CompiledPlan?.Call.Id, Check = drive?.CompiledPlan?.Match?.Check ?? drive?.CompiledPlan?.FallbackReason,
+                OutcomeMetadata = drive?.LastResult?.Event.DefenseOutcome,
+                StrategyScore = drive?.CpuSelection?.Candidates.Single(c => c.PackageId == DefensivePlaycaller.PackageId(drive.CpuSelection.Plan)) };
     }
 }

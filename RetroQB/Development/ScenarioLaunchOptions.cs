@@ -31,8 +31,8 @@ internal sealed record ScenarioLaunchOptions(ScenarioDefinition Definition, int 
                 case "--engine": engine = args[i] switch
                 {
                     "legacy" => DefensiveEngineMode.Legacy, "cover1" => DefensiveEngineMode.Cover1Development,
-                    "man" => DefensiveEngineMode.ManDevelopment, "zone" => DefensiveEngineMode.ZoneDevelopment, "match" => DefensiveEngineMode.MatchDevelopment,
-                    _ => throw new ArgumentException("--engine must be legacy, cover1, man, zone or match.")
+                    "man" => DefensiveEngineMode.ManDevelopment, "zone" => DefensiveEngineMode.ZoneDevelopment, "match" => DefensiveEngineMode.MatchDevelopment, "strategy" => DefensiveEngineMode.StrategyDevelopment,
+                    _ => throw new ArgumentException("--engine must be legacy, cover1, man, zone, match or strategy.")
                 }; break;
                 case "--hz":
                     if (!int.TryParse(args[i], NumberStyles.Integer, CultureInfo.InvariantCulture, out hz) || hz is not (30 or 60 or 120))
@@ -46,9 +46,9 @@ internal sealed record ScenarioLaunchOptions(ScenarioDefinition Definition, int 
         }
         if (name == null) throw new ArgumentException("--scenario is required for development arguments.");
         if (headless && capture) throw new ArgumentException("--capture renders a hidden window; it cannot be combined with --headless.");
-        if (seen.Contains("--hz") && name is not ("defense-formation-matrix" or "defense-match-matrix" or "defense-pressure-matrix" or "defense-redesign-matrix" or "defense-runtime-matrix" or "defense-fit-matrix")) throw new ArgumentException("--hz is supported only by defense matrix scenarios.");
+        if (seen.Contains("--hz") && name is not ("defense-strategy-matrix" or "defense-formation-matrix" or "defense-match-matrix" or "defense-pressure-matrix" or "defense-redesign-matrix" or "defense-runtime-matrix" or "defense-fit-matrix")) throw new ArgumentException("--hz is supported only by defense matrix scenarios.");
         var definition = ScenarioDefinition.Get(name);
-        if (seen.Contains("--engine") && !definition.Defending && name is not ("defense-formation-matrix" or "defense-match-matrix" or "defense-pressure-matrix" or "defense-runtime-matrix" or "defense-fit-matrix"))
+        if (seen.Contains("--engine") && !definition.Defending && !definition.FullMatch && name is not ("defense-strategy-matrix" or "defense-formation-matrix" or "defense-match-matrix" or "defense-pressure-matrix" or "defense-runtime-matrix" or "defense-fit-matrix"))
             throw new ArgumentException("--engine requires a defensive live scenario or defense-runtime-matrix.");
         return new(definition, seed, headless, output, capture, hz, engine);
     }

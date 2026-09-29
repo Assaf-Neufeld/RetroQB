@@ -8,4 +8,5 @@ public sealed record ReplayMatchContext(string OffenseId, string DefenseId, Seas
 {
     public Defense.ResolvedDefensivePlan? CompiledPlan { get; init; }
     public string? DefensiveRuntimeVersion { get; init; }
+    public Defense.DefensiveCallSelection? CpuSelection { get; init; }
 }

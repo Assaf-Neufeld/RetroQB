@@ -13,6 +13,13 @@ public static class MatchRules
             || ended.ControlledDefender.HasValue && !Enum.IsDefined(ended.ControlledDefender.Value)
             || ended.Coverage.HasValue && !Enum.IsDefined(ended.Coverage.Value))
             throw new ArgumentException("Invalid terminal reason/spot.");
+        if (ended.DefenseOutcome is { } defense && (defense.DefenseId != defenseId
+            || string.IsNullOrWhiteSpace(defense.PackageId) || !Enum.IsDefined(defense.Personnel)
+            || defense.ActualRushers.Any(a => !Enum.IsDefined(a)) || defense.ActualRushers.Distinct().Count() != defense.ActualRushers.Count
+            || defense.HumanAbandonments.Any(a => !Enum.IsDefined(a))
+            || defense.PressureArrivalSeconds is { } arrival && (!float.IsFinite(arrival) || arrival < 0)
+            || defense.ThrowSeconds is { } release && (!float.IsFinite(release) || release < 0)))
+            throw new ArgumentException("Invalid defensive outcome identity/observations.");
         var stats = ended.Stats ?? new();
         if (!Enum.IsDefined(stats.Rush) || stats.Target.HasValue && !Enum.IsDefined(stats.Target.Value)
             || stats.Target.HasValue && !stats.PassAttempt

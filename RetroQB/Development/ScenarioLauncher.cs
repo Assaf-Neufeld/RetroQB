@@ -8,6 +8,7 @@ internal static class ScenarioLauncher
     public static int Run(ScenarioLaunchOptions options)
     {
         if (options.Definition.Name == "defense-formation-matrix") return DefenseFormationMatrix.Run(options);
+        if (options.Definition.Name == "defense-strategy-matrix") return DefenseStrategyMatrix.Run(options);
         if (options.Definition.Name == "defense-match-matrix") return DefenseMatchMatrix.Run(options);
         if (options.Definition.Name == "defense-pressure-matrix") return DefensePressureMatrix.Run(options);
         if (options.Definition.Name is "defense-runtime-matrix" or "defense-fit-matrix") return DefenseRuntimeMatrix.Run(options);

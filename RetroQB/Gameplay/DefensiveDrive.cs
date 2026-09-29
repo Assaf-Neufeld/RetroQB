@@ -38,6 +38,8 @@ public sealed class DefensiveDrive
     private DefensePackage? _requestedPackage;
     private DefensiveFront _selectedFront;
     private readonly Dictionary<string, string> _unavailableCalls = new();
+    public DefensiveCallSelection? CpuSelection { get; private set; }
+    private DefensiveOutcomeTracker? _defenseOutcome;
     public string PersonnelSelection => _requestedPackage?.ToString() ?? "Auto";
     public bool SupportsDefense(string id) => Engine == DefensiveEngineMode.Legacy || _compiledCalls.ContainsKey(id);
     public TimedMatch Timed { get; }
@@ -113,13 +115,28 @@ public sealed class DefensiveDrive
             {
                 _compiledCalls.Add(call.Id, DefensivePlanCompiler.Compile(snapshot, call, HumanOnDefense ? _requestedPackage : null,
                     resolutionSeed: unchecked(_defenseSeed + Match.History.Count * 7919),
-                    adjustments: (Engine is DefensiveEngineMode.ManDevelopment or DefensiveEngineMode.ZoneDevelopment or DefensiveEngineMode.MatchDevelopment) && call.Zone == SpotZoneFamily.None && call.Match == MatchFamily.None ? new(switchPairs: true) : null,
+                    adjustments: (Engine is DefensiveEngineMode.ManDevelopment or DefensiveEngineMode.ZoneDevelopment or DefensiveEngineMode.MatchDevelopment or DefensiveEngineMode.StrategyDevelopment) && call.Zone == SpotZoneFamily.None && call.Match == MatchFamily.None ? new(switchPairs: true) : null,
                     front: HumanOnDefense ? _selectedFront : DefensiveFront.Even));
             }
             catch (ArgumentException error) { _unavailableCalls[call.Id] = error.Message; }
             string chosen = HumanOnDefense && CompiledPlan != null && _compiledCalls.ContainsKey(CompiledPlan.RequestedCall.Id)
                 ? CompiledPlan.RequestedCall.Id : "def.cover1";
-            ApplyCompiledPlan(_compiledCalls[chosen], retainOffense: false);
+            var selected = _compiledCalls[chosen];
+            CpuSelection = null;
+            if (Engine == DefensiveEngineMode.StrategyDevelopment && !HumanOnDefense)
+            {
+                // A dedicated per-play draw: browsing previews never consumes/re-rolls the stream.
+                int choiceSeed = unchecked(_defenseSeed ^ (int)(Match.History.Count * 7919) ^ 0x4d37);
+                foreach (char ch in Match.Defense.Definition.Id) choiceSeed = unchecked(choiceSeed * 31 + ch);
+                var situation = new DefensiveCallContext(Match.Series.Down, Match.Series.Distance, Match.Series.OwnYardLine,
+                    Match.Defense.Score - Match.Offense.Score, Timed.Clock.RemainingSeconds,
+                    Timed.Clock.IsOvertime || Timed.Clock.Quarter == Timed.Clock.RegulationPeriods,
+                    Timed.Clock.Timeouts(Match.Offense.Definition.Id), Timed.Clock.Timeouts(Match.Defense.Definition.Id));
+                CpuSelection = DefensivePlaycaller.Select(snapshot, situation, Match.Defense.DefensiveAttributes,
+                    Match.Defense.DefenseStrategy, selected.ResolutionSeed, new Random(choiceSeed).NextDouble());
+                selected = CpuSelection.Plan;
+            }
+            ApplyCompiledPlan(selected, retainOffense: false);
             ResetActors(); return;
         }
         var visible = VisibleOffense.From(formation);
@@ -195,7 +212,7 @@ public sealed class DefensiveDrive
 
     public bool SelectManAdjustments(ManCoverageAdjustments adjustments)
     {
-        if (Engine is not (DefensiveEngineMode.ManDevelopment or DefensiveEngineMode.ZoneDevelopment or DefensiveEngineMode.MatchDevelopment) || Live || LastResult != null || Complete || CompiledPlan == null) return false;
+        if (Engine is not (DefensiveEngineMode.ManDevelopment or DefensiveEngineMode.ZoneDevelopment or DefensiveEngineMode.MatchDevelopment or DefensiveEngineMode.StrategyDevelopment) || Live || LastResult != null || Complete || CompiledPlan == null) return false;
         try
         {
             var plan = DefensivePlanCompiler.Compile(CompiledPlan.Offense, CompiledPlan.Call, CompiledPlan.Package, CompiledPlan.ResolutionSeed, adjustments, CompiledPlan.Pressure.Selection, CompiledPlan.Front);
@@ -306,13 +323,14 @@ public sealed class DefensiveDrive
         if (Live || Complete) return false;
         if (Timed.Advance(0, Plays.SelectedPlay.Id) == null) return false;
         Plays.StartPlay(); LastResult = null;
+        _defenseOutcome = CompiledPlan == null ? null : new(CompiledPlan, Match.Defense.Definition.Id);
         Match.Defense.RecordCall(SelectedDefense.Definition.Id);
         _recorder.Begin(Match.History.Count + 1);
         var controlled = Execution.Control.ControlledDefender(Actors.Defenders);
         _replayContext = new(Match.PossessionId, Match.Defense.Definition.Id, Match.Stage, Timed.Clock.Snapshot(),
             Match.User.Score, Match.Opponent.Score, Match.User.Definition.Id, Match.Opponent.Definition.Id,
             controlled?.Slot, controlled == null ? -1 : Actors.Defenders.IndexOf(controlled), SelectedDefense, Plays.SelectedPlay.Name)
-            { CompiledPlan = CompiledPlan, DefensiveRuntimeVersion = Execution.DefenseRuntime == null ? null : DefensiveRuntime.Version };
+            { CompiledPlan = CompiledPlan, CpuSelection = CpuSelection, DefensiveRuntimeVersion = Execution.DefenseRuntime == null ? null : DefensiveRuntime.Version };
         CaptureReplay(0);
         return true;
     }
@@ -401,7 +419,7 @@ public sealed class DefensiveDrive
         var controlled = Execution.Control.ControlledDefender(Actors.Defenders);
         LastReplayControlledIndex = controlled == null ? -1 : Actors.Defenders.IndexOf(controlled);
         LastResult = Timed.Resolve(contact.ToEvent(Match.ActivePlay!, stats, Actors.CoverageScheme) with
-            { ControlledDefender = controlled?.Slot });
+            { ControlledDefender = controlled?.Slot, DefenseOutcome = _defenseOutcome?.Complete() });
         LastReplay = _recorder.FinalizeClip(contact.Reason switch
         {
             PlayEndReason.Touchdown => PlayOutcome.Touchdown, PlayEndReason.Interception => PlayOutcome.Interception,
@@ -411,8 +429,13 @@ public sealed class DefensiveDrive
         if (LastReplay != null) LastReplay.MatchContext = _replayContext;
     }
 
-    private void CaptureReplay(float dt) => _recorder.Capture(Actors.Qb, Actors.Ball, Actors.Receivers,
-        Actors.Blockers, Actors.Defenders, Plays.LineOfScrimmage, Plays.FirstDownLine, dt, Plays.Down, Execution.DefenseRuntime?.Current);
+    private void CaptureReplay(float dt)
+    {
+        if (Execution.DefenseRuntime?.Current is { } frame)
+            _defenseOutcome?.Observe(frame, Actors.Ball.State, Execution.Control.ControlledDefender(Actors.Defenders)?.Slot);
+        _recorder.Capture(Actors.Qb, Actors.Ball, Actors.Receivers, Actors.Blockers, Actors.Defenders,
+            Plays.LineOfScrimmage, Plays.FirstDownLine, dt, Plays.Down, Execution.DefenseRuntime?.Current);
+    }
 
     private void Clamp(Entity actor)
     {

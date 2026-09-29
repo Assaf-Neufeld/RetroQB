@@ -2,7 +2,7 @@
 
 Updated September 29, 2026. Current runtime `defense-runtime-p8-v1`; plan `defense-plan-p8-v1`.
 
-`verified` means the owning phase's supported scope passed its behavioral gate. P1–P7 verify 90 of 98 rules for base/nickel man, spot zones and authored match checks in Debug development mode. Normal gameplay remains legacy until P10. P6 verifies fixed, zone, simulated and conditional pressure with coordinated carrier response. P7 verifies declared Cover 3 Match/Quarters Match checks and explicit unsupported-geometry fallbacks. P8 requalifies these rules for dime and declared fronts; CPU strategy remains P9. See the [P8 report](defense-redesign-p08-verification.md), including retained stationary-runner limits.
+`verified` means the owning phase's supported scope passed its behavioral gate. P1–P9 verify 98 of 98 rules for base/nickel man, spot zones and authored match checks in Debug development mode. Normal gameplay remains legacy until P10. P6 verifies fixed, zone, simulated and conditional pressure with coordinated carrier response. P7 verifies declared Cover 3 Match/Quarters Match checks and explicit unsupported-geometry fallbacks. P8 requalifies these rules for dime and declared fronts; P9 verifies CPU strategy and bounded exact-package memory. See the [P9 report](defense-redesign-p09-verification.md). See the [P8 report](defense-redesign-p08-verification.md), including retained stationary-runner limits.
 
 Evidence: [P0](defense-redesign-p00-verification.md), [P1](defense-redesign-p01-verification.md), [P2](defense-redesign-p02-verification.md), [P3](defense-redesign-p03-verification.md), [P4](defense-redesign-p04-verification.md), [P5](defense-redesign-p05-verification.md), [P6](defense-redesign-p06-verification.md), and [P7](defense-redesign-p07-verification.md) reports. The phase reports state exact fixture, scenario and implementation limits. The 20 DM definitions alone do not verify new behavior.
 
@@ -95,14 +95,14 @@ Evidence: [P0](defense-redesign-p00-verification.md), [P1](defense-redesign-p01-
 | RUN-06 | P5 | verified | RunFitTests; P5 report and 1,728 production fit cases. |
 | RUN-07 | P5 | verified | RunFitTests; P5 report and 1,728 production fit cases. |
 | RUN-08 | P5 | verified | RunFitTests; P5 report and 1,728 production fit cases. |
-| CALL-01 | P9 | planned | Await owning phase's live behavioral tests. |
-| CALL-02 | P9 | planned | Await owning phase's live behavioral tests. |
-| CALL-03 | P9 | planned | Await owning phase's live behavioral tests. |
-| CALL-04 | P9 | planned | Await owning phase's live behavioral tests. |
-| CALL-05 | P9 | planned | Await owning phase's live behavioral tests. |
-| CALL-06 | P9 | planned | Await owning phase's live behavioral tests. |
-| CALL-07 | P9 | planned | Await owning phase's live behavioral tests. |
-| CALL-08 | P9 | planned | Await owning phase's live behavioral tests. |
+| CALL-01 | P9 | verified | DefensiveStrategyTests; Short/heavy compact-front and personnel preference with shell preserved. P9 report and live strategy scenarios. |
+| CALL-02 | P9 | verified | DefensiveStrategyTests; Long-yardage deep/pressure terms require observed slow-release history. P9 report and live strategy scenarios. |
+| CALL-03 | P9 | verified | DefensiveStrategyTests; DB personnel, supported trips checks and explicit LB mismatch costs. P9 report and live strategy scenarios. |
+| CALL-04 | P9 | verified | DefensiveStrategyTests; Observed escape rates; legal SS spy consumes a real low helper. P9 report and live strategy scenarios. |
+| CALL-05 | P9 | verified | DefensiveStrategyTests; Past quick/screen evidence reduces delayed/stunt pressure. P9 report and live strategy scenarios. |
+| CALL-06 | P9 | verified | DefensiveStrategyTests; Late-lead deep/sideline terms and timeout context. P9 report and live strategy scenarios. |
+| CALL-07 | P9 | verified | DefensiveStrategyTests; Urgent/critical conversion response overrides generic lead protection. P9 report and live strategy scenarios. |
+| CALL-08 | P9 | verified | DefensiveStrategyTests; Exact keys, actual arrival/escape evidence, bounded learning, once-only team updates. P9 report and live strategy scenarios. |
 | HUMAN-01 | P6 | verified | PressureTests, PressureInputTests, ZonePressureTests, ConditionalPressureTests; P6 report and 2,736 production plays. |
 | HUMAN-02 | P6 | verified | PressureTests, PressureInputTests, ZonePressureTests, ConditionalPressureTests; P6 report and 2,736 production plays. |
 | HUMAN-03 | P4 | verified | SpotZoneCoverageTests.XFER04_DM16_HumanReachabilityUsesVelocityAndRecordsLaterAbandonment; ZoneRuntimeKeepsHumanIdleAndFreezesBoardForPauseWhistleAndReplay |

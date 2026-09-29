@@ -3,13 +3,13 @@ using RetroQB.Entities;
 
 namespace RetroQB.Gameplay.Defense;
 
-public enum DefensiveEngineMode { Legacy, Cover1Development, ManDevelopment, ZoneDevelopment, MatchDevelopment }
+public enum DefensiveEngineMode { Legacy, Cover1Development, ManDevelopment, ZoneDevelopment, MatchDevelopment, StrategyDevelopment }
 
 public static class DefensiveEngineCalls
 {
     public static IEnumerable<DefensiveCallDefinition> For(DefensiveEngineMode mode) => mode switch
     {
-        DefensiveEngineMode.MatchDevelopment => DefensiveCallDefinition.All,
+        DefensiveEngineMode.MatchDevelopment or DefensiveEngineMode.StrategyDevelopment => DefensiveCallDefinition.All,
         DefensiveEngineMode.ZoneDevelopment => DefensiveCallDefinition.Supported.Concat(DefensiveCallDefinition.SpotZones),
         DefensiveEngineMode.ManDevelopment => DefensiveCallDefinition.Supported,
         _ => DefensiveCallDefinition.Supported.Where(c => c.Id == "def.cover1")

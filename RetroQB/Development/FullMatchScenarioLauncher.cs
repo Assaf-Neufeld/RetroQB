@@ -41,11 +41,12 @@ internal static class FullMatchScenarioLauncher
         if (options.Definition.Name.StartsWith("timed-season"))
             game.StartTimedSeason(options.Seed, automated ? "Phase5" : "",
                 new PlayerRecordStore(Path.Combine(output, "isolated-records.json"), MatchRuleset.TwoSidedTimed),
-                options.Definition.Name == "timed-season" ? 180 : 15);
-        else game.StartTimedMatch(options.Seed, match: Create(options.Definition.Name));
+                options.Definition.Name == "timed-season" ? 180 : 15, engine: options.Engine);
+        else game.StartTimedMatch(options.Seed, match: Create(options.Definition.Name), engine: options.Engine);
         var session = game.FullMatch!;
         int ticks = 0; string? failure = null;
         var periods = new HashSet<int>(); var possessions = new HashSet<string>();
+        var choices = new List<object>(); long lastChoice = -1;
         void Step(MatchInput? input = null)
         {
             var drive = session.Drive;
@@ -63,6 +64,12 @@ internal static class FullMatchScenarioLauncher
             try { game.UpdateTimedMatch(ScenarioDefinition.FixedStep, input ?? new(), automated && game.TimedSeason is { } season && (season.Pregame || session.Timed.Finished)); }
             catch (Exception error) { failure = $"Tick {ticks}: {error}"; }
             session = game.FullMatch!;
+            if (session.Match.ActivePlay is { } active && active.Id != lastChoice && session.Drive.CpuSelection is { } choice)
+            {
+                lastChoice = active.Id;
+                choices.Add(new { active.Id, active.OffenseId, DefenseId = session.Match.Defense.Definition.Id, choice.Version, choice.Draw,
+                    Score = choice.Candidates.Single(c => c.PackageId == Gameplay.Defense.DefensivePlaycaller.PackageId(choice.Plan)) });
+            }
             ticks++;
             periods.Add(session.Clock.Quarter); possessions.Add(session.Match.PossessionId);
             if (ticks > 60 * 3600) failure = "Exceeded one simulated hour.";
@@ -121,7 +128,7 @@ internal static class FullMatchScenarioLauncher
             finally { Raylib.CloseWindow(); }
         }
         string report = Path.Combine(output, "report.json");
-        File.WriteAllText(report, JsonSerializer.Serialize(new { options.Definition.Name, options.Seed, Ticks = ticks, Failure = failure,
+        File.WriteAllText(report, JsonSerializer.Serialize(new { options.Definition.Name, options.Seed, options.Engine, Ticks = ticks, Failure = failure, Choices = choices,
             session.Timed.WinnerId, session.Timed.OvertimePair, Periods = periods.Order().ToArray(), Possessions = possessions.Order().ToArray(),
             UserScore = session.Match.User.Score, CpuScore = session.Match.Opponent.Score, Clock = session.Clock.Snapshot(), Plays = session.Match.History,
             Season = game.TimedSeason?.Completed, Saved = game.TimedSeason?.Saved },
