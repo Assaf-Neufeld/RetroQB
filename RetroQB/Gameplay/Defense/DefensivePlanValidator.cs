@@ -8,6 +8,8 @@ public static class DefensivePlanValidator
     {
         var errors = new List<string>();
         if (!Enum.IsDefined(plan.Package) || !DefensiveCallDefinition.All.Contains(plan.Call)) errors.Add("Unsupported package/call version.");
+        if (!Enum.IsDefined(plan.Front)) errors.Add("Unknown front.");
+        if (plan.Front != DefensiveFront.Even && plan.Pressure.Selection.Kind != PressureKind.Base) errors.Add("Pressure requires Even front.");
         var expected = DefensivePlanCompiler.ActiveSlots(plan.Package);
         if (plan.Assignments.Count != 11 || !plan.Assignments.Select(a => a.ActorId).Order().SequenceEqual(expected.Order()))
             errors.Add("Defense must contain exactly the eleven selected roster identities.");

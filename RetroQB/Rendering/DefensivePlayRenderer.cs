@@ -62,6 +62,7 @@ public sealed class DefensivePlayRenderer
             Text(Gameplay.Defense.DefensivePlanPresentation.PressureSummary(displayedPlan, replay?.DefensiveDecision ?? (replay == null ? drive.Execution.DefenseRuntime?.Current : null)), 20, 590);
             if (!drive.Live && replay == null && (displayedPlan.Pressure.Entries.Count > 4 || displayedPlan.Call.Zone == Gameplay.Defense.SpotZoneFamily.Cover3 || displayedPlan.Call.Id == "def.cover1")) Text("Q/E: variant   X: pressure side", 20, 790);
         }
+        if (displayedPlan != null && !drive.Live && replay == null) Text($"H: personnel ({drive.PersonnelSelection})\nJ: front", 20, 830);
         Raylib.DrawText("WASD / arrows: move\nC: timeout    P: pause\nF: replay     Esc: close", 20, 700, 17, Palette.White);
         int right = Raylib.GetScreenWidth() - 310;
         int seconds = (int)Math.Ceiling(clock.RemainingSeconds);

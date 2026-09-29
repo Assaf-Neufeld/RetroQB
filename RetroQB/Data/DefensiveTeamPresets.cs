@@ -36,7 +36,8 @@ public static class DefensiveTeamPresets
                 [DefenderSlot.CB2] = new DefenderProfile("Shadow", 1.02f, 0.92f, 1.05f, 0.88f),
                 [DefenderSlot.FS] = new DefenderProfile("Patrol", 1.05f, 0.9f, 1.1f, 0.85f),
                 [DefenderSlot.SS] = new DefenderProfile("Enforcer", 1.0f, 1.0f, 1.0f, 0.95f),
-                [DefenderSlot.NB] = new DefenderProfile("Slot", 1.08f, 0.88f, 1.05f, 0.82f)
+                [DefenderSlot.NB] = new DefenderProfile("Slot", 1.08f, 0.88f, 1.05f, 0.82f),
+                [DefenderSlot.DB6] = new DefenderProfile("Dime", 1.08f, 0.88f, 1.05f, 0.82f)
             },
             PositionBaselines = PositionBaselineAttributes.Default
         },
@@ -56,7 +57,8 @@ public static class DefensiveTeamPresets
             [DefenderSlot.CB2] = 0.35f,
             [DefenderSlot.FS] = 0.20f,
             [DefenderSlot.SS] = 0.45f,
-            [DefenderSlot.NB] = 0.40f
+            [DefenderSlot.NB] = 0.40f,
+            [DefenderSlot.DB6] = 0.40f
         }
     };
 
@@ -84,7 +86,8 @@ public static class DefensiveTeamPresets
                 [DefenderSlot.CB2] = new DefenderProfile("Gamble", 0.98f, 0.88f, 0.92f, 0.82f),
                 [DefenderSlot.FS] = new DefenderProfile("Dive", 1.02f, 0.95f, 0.9f, 0.88f),
                 [DefenderSlot.SS] = new DefenderProfile("Crash", 1.05f, 1.05f, 0.88f, 1.0f),
-                [DefenderSlot.NB] = new DefenderProfile("Dart", 1.05f, 0.85f, 0.9f, 0.8f)
+                [DefenderSlot.NB] = new DefenderProfile("Dart", 1.05f, 0.85f, 0.9f, 0.8f),
+                [DefenderSlot.DB6] = new DefenderProfile("Dime", 1.05f, 0.85f, 0.9f, 0.8f)
             },
             PositionBaselines = new PositionBaselineAttributes
             {
@@ -112,7 +115,8 @@ public static class DefensiveTeamPresets
             [DefenderSlot.CB2] = 0.60f,
             [DefenderSlot.FS] = 0.45f,
             [DefenderSlot.SS] = 0.90f,
-            [DefenderSlot.NB] = 0.85f
+            [DefenderSlot.NB] = 0.85f,
+            [DefenderSlot.DB6] = 0.85f
         }
     };
 
@@ -140,7 +144,8 @@ public static class DefensiveTeamPresets
                 [DefenderSlot.CB2] = new DefenderProfile("Blanket", 1.12f, 0.88f, 1.22f, 0.82f),
                 [DefenderSlot.FS] = new DefenderProfile("Hawk", 1.10f, 0.85f, 1.24f, 0.8f, true),
                 [DefenderSlot.SS] = new DefenderProfile("Range", 1.1f, 0.92f, 1.2f, 0.88f),
-                [DefenderSlot.NB] = new DefenderProfile("Stick", 1.2f, 0.82f, 1.25f, 0.78f)
+                [DefenderSlot.NB] = new DefenderProfile("Stick", 1.2f, 0.82f, 1.25f, 0.78f),
+                [DefenderSlot.DB6] = new DefenderProfile("Dime", 1.2f, 0.82f, 1.25f, 0.78f)
             },
             PositionBaselines = new PositionBaselineAttributes
             {
@@ -172,7 +177,8 @@ public static class DefensiveTeamPresets
             [DefenderSlot.CB2] = 0.20f,
             [DefenderSlot.FS] = 0.15f,
             [DefenderSlot.SS] = 0.25f,
-            [DefenderSlot.NB] = 0.20f
+            [DefenderSlot.NB] = 0.20f,
+            [DefenderSlot.DB6] = 0.20f
         }
     };
 
@@ -200,7 +206,8 @@ public static class DefensiveTeamPresets
                 [DefenderSlot.CB2] = new DefenderProfile("Chase", 0.92f, 0.95f, 0.92f, 0.88f),
                 [DefenderSlot.FS] = new DefenderProfile("Support", 0.95f, 1.0f, 0.9f, 0.92f),
                 [DefenderSlot.SS] = new DefenderProfile("Box", 0.92f, 1.1f, 0.85f, 1.05f),
-                [DefenderSlot.NB] = new DefenderProfile("Fill", 0.9f, 1.0f, 0.88f, 0.95f)
+                [DefenderSlot.NB] = new DefenderProfile("Fill", 0.9f, 1.0f, 0.88f, 0.95f),
+                [DefenderSlot.DB6] = new DefenderProfile("Dime", 0.9f, 1.0f, 0.88f, 0.95f)
             },
             PositionBaselines = new PositionBaselineAttributes
             {
@@ -237,7 +244,8 @@ public static class DefensiveTeamPresets
             [DefenderSlot.CB2] = 0.25f,
             [DefenderSlot.FS] = 0.18f,
             [DefenderSlot.SS] = 0.55f,
-            [DefenderSlot.NB] = 0.40f
+            [DefenderSlot.NB] = 0.40f,
+            [DefenderSlot.DB6] = 0.40f
         }
     };
 

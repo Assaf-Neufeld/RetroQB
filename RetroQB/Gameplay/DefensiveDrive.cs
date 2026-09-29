@@ -35,6 +35,10 @@ public sealed class DefensiveDrive
     public ResolvedDefensivePlan? CompiledPlan { get; private set; }
     public string? SelectionRejection { get; private set; }
     private readonly Dictionary<string, ResolvedDefensivePlan> _compiledCalls = new();
+    private DefensePackage? _requestedPackage;
+    private DefensiveFront _selectedFront;
+    private readonly Dictionary<string, string> _unavailableCalls = new();
+    public string PersonnelSelection => _requestedPackage?.ToString() ?? "Auto";
     public bool SupportsDefense(string id) => Engine == DefensiveEngineMode.Legacy || _compiledCalls.ContainsKey(id);
     public TimedMatch Timed { get; }
     public MatchState Match => Timed.Match;
@@ -102,11 +106,17 @@ public sealed class DefensiveDrive
         if (Engine != DefensiveEngineMode.Legacy)
         {
             _compiledCalls.Clear();
+            _unavailableCalls.Clear();
             var snapshot = OffensiveAlignmentSnapshot.From(formation, context.LineOfScrimmage);
             foreach (var call in DefensiveEngineCalls.For(Engine))
-                _compiledCalls.Add(call.Id, DefensivePlanCompiler.Compile(snapshot, call,
+            try
+            {
+                _compiledCalls.Add(call.Id, DefensivePlanCompiler.Compile(snapshot, call, HumanOnDefense ? _requestedPackage : null,
                     resolutionSeed: unchecked(_defenseSeed + Match.History.Count * 7919),
-                    adjustments: (Engine is DefensiveEngineMode.ManDevelopment or DefensiveEngineMode.ZoneDevelopment or DefensiveEngineMode.MatchDevelopment) && call.Zone == SpotZoneFamily.None && call.Match == MatchFamily.None ? new(switchPairs: true) : null));
+                    adjustments: (Engine is DefensiveEngineMode.ManDevelopment or DefensiveEngineMode.ZoneDevelopment or DefensiveEngineMode.MatchDevelopment) && call.Zone == SpotZoneFamily.None && call.Match == MatchFamily.None ? new(switchPairs: true) : null,
+                    front: HumanOnDefense ? _selectedFront : DefensiveFront.Even));
+            }
+            catch (ArgumentException error) { _unavailableCalls[call.Id] = error.Message; }
             string chosen = HumanOnDefense && CompiledPlan != null && _compiledCalls.ContainsKey(CompiledPlan.RequestedCall.Id)
                 ? CompiledPlan.RequestedCall.Id : "def.cover1";
             ApplyCompiledPlan(_compiledCalls[chosen], retainOffense: false);
@@ -141,7 +151,7 @@ public sealed class DefensiveDrive
         if (Live || Complete || LastResult != null || !HumanOnDefense) return false;
         if (Engine != DefensiveEngineMode.Legacy)
         {
-            if (!_compiledCalls.TryGetValue(id, out var plan)) { SelectionRejection = "This call is unavailable in the selected development engine."; return false; }
+            if (!_compiledCalls.TryGetValue(id, out var plan)) { SelectionRejection = _unavailableCalls.GetValueOrDefault(id) ?? "This call is unavailable in the selected development engine."; return false; }
             ApplyCompiledPlan(plan, retainOffense: true); return true;
         }
         SelectedDefense = _defensiveCalls[id];
@@ -170,7 +180,7 @@ public sealed class DefensiveDrive
                 foreach (var actor in defenders)
                 {
                     var job = plan.Assignments.Single(a => a.ActorId == actor.Slot);
-                    actor.Position = job.Alignment; actor.Velocity = Vector2.Zero;
+                    actor.SetAlignment(job.Alignment); actor.Velocity = Vector2.Zero;
                     actor.IsRusher = job.Pass is RushResponsibility;
                     actor.CoverageReceiverIndex = (job.Pass as ManResponsibility)?.Target.Value ?? (job.Pass as MatchResponsibility)?.Provisional?.Value ?? -1;
                 }
@@ -188,7 +198,7 @@ public sealed class DefensiveDrive
         if (Engine is not (DefensiveEngineMode.ManDevelopment or DefensiveEngineMode.ZoneDevelopment or DefensiveEngineMode.MatchDevelopment) || Live || LastResult != null || Complete || CompiledPlan == null) return false;
         try
         {
-            var plan = DefensivePlanCompiler.Compile(CompiledPlan.Offense, CompiledPlan.Call, CompiledPlan.Package, CompiledPlan.ResolutionSeed, adjustments, CompiledPlan.Pressure.Selection);
+            var plan = DefensivePlanCompiler.Compile(CompiledPlan.Offense, CompiledPlan.Call, CompiledPlan.Package, CompiledPlan.ResolutionSeed, adjustments, CompiledPlan.Pressure.Selection, CompiledPlan.Front);
             ApplyCompiledPlan(plan, retainOffense: true); return true;
         }
         catch (ArgumentException error) { SelectionRejection = error.Message; return false; }
@@ -203,7 +213,7 @@ public sealed class DefensiveDrive
         try
         {
             var plan = DefensivePlanCompiler.Compile(CompiledPlan.Offense, CompiledPlan.Call, CompiledPlan.Package,
-                CompiledPlan.ResolutionSeed, CompiledPlan.Adjustments, selection);
+                CompiledPlan.ResolutionSeed, CompiledPlan.Adjustments, selection, CompiledPlan.Front);
             ApplyCompiledPlan(plan, retainOffense: true); return true;
         }
         catch (ArgumentException error) { SelectionRejection = error.Message; return false; }
@@ -221,6 +231,44 @@ public sealed class DefensiveDrive
         int current = variants.ToList().FindIndex(v => v == CompiledPlan.Pressure.Selection);
         return SelectPressure(variants[(Math.Max(0, current) + Math.Sign(step) + variants.Count) % variants.Count]);
     }
+
+    public bool SelectFormation(DefensePackage? package, DefensiveFront front)
+        => HumanOnDefense && SelectFormationForDevelopment(package, front);
+
+    internal bool SelectFormationForDevelopment(DefensePackage? package, DefensiveFront front)
+    {
+        if (Engine == DefensiveEngineMode.Legacy || Live || Complete || LastResult != null || CompiledPlan == null) return false;
+        try
+        {
+            var prior = CompiledPlan;
+            var selected = DefensivePlanCompiler.Compile(prior.Offense, prior.RequestedCall, package, prior.ResolutionSeed,
+                prior.RequestedCall.Match == MatchFamily.None ? prior.Adjustments : null, prior.Pressure.Selection, front);
+            var available = new Dictionary<string, ResolvedDefensivePlan>(); var rejected = new Dictionary<string, string>();
+            foreach (var call in DefensiveEngineCalls.For(Engine))
+            {
+                try { available[call.Id] = DefensivePlanCompiler.Compile(prior.Offense, call, package, prior.ResolutionSeed,
+                    call.Match == MatchFamily.None && call.Zone == SpotZoneFamily.None ? new(switchPairs: true) : null, front: front); }
+                catch (ArgumentException error) { rejected[call.Id] = error.Message; }
+            }
+            ApplyCompiledPlan(selected, retainOffense: true);
+            _compiledCalls.Clear(); foreach (var pair in available) _compiledCalls.Add(pair.Key, pair.Value);
+            _unavailableCalls.Clear(); foreach (var pair in rejected) _unavailableCalls.Add(pair.Key, pair.Value);
+            if (HumanOnDefense) { _requestedPackage = package; _selectedFront = front; }
+            return true;
+        }
+        catch (ArgumentException error) { SelectionRejection = error.Message; return false; }
+        catch (InvalidOperationException error) { SelectionRejection = error.Message; return false; }
+    }
+
+    public bool CyclePersonnel()
+    {
+        DefensePackage? next = _requestedPackage switch { null => DefensePackage.Base, DefensePackage.Base => DefensePackage.Nickel,
+            DefensePackage.Nickel => DefensePackage.Dime, _ => null };
+        return CompiledPlan != null && SelectFormation(next, CompiledPlan.Front);
+    }
+
+    public bool CycleFront() => CompiledPlan != null && SelectFormation(_requestedPackage,
+        (DefensiveFront)(((int)CompiledPlan.Front + 1) % Enum.GetValues<DefensiveFront>().Length));
 
     internal bool SelectCompiledDefenseForDevelopment(string id)
     {
@@ -241,7 +289,7 @@ public sealed class DefensiveDrive
     public void Restart()
     {
         Timed.Restart(); LastResult = null; LastReplay = null; LastReplayDefense = null; Throws = 0;
-        SelectedDefense = null!; CompiledPlan = null; Prepare();
+        SelectedDefense = null!; CompiledPlan = null; _requestedPackage = null; _selectedFront = DefensiveFront.Even; Prepare();
     }
 
     internal void PrepareSpecialTeams() { Prepare(); LastResult = null; }

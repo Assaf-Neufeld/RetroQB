@@ -57,6 +57,8 @@ public sealed class InputManager : IGameInput
     public bool IsStatisticsPressed() => _pressed(KeyboardKey.Tab);
     public int? GetDefensivePlaySelection() => GetPassPlaySelection();
     public int GetDefensiveVariantStep() => _pressed(KeyboardKey.Q) ? -1 : _pressed(KeyboardKey.E) ? 1 : 0;
+    public bool IsDefensivePersonnelPressed() => _pressed(KeyboardKey.H);
+    public bool IsDefensiveFrontPressed() => _pressed(KeyboardKey.J);
     public bool IsReplaySkipPressed() => _pressed(KeyboardKey.Space);
     public bool IsRestartPressed() => _pressed(KeyboardKey.Z);
     public bool IsLeaderboardPressed() => _pressed(KeyboardKey.L);

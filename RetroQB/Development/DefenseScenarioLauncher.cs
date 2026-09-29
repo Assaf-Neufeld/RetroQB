@@ -51,6 +51,12 @@ internal static class DefenseScenarioLauncher
                 replayShown |= showReplay;
                 frame = new(Call: tick == 0 ? 6 : tick == 20 ? 7 : null, Ready: tick == 40, Replay: showReplay);
             }
+            if (automated && options.Definition.Name == "defense-formation-controls")
+            {
+                bool showReplay = drive.LastReplay != null && !replayShown; replayShown |= showReplay;
+                frame = new(Call: tick == 0 ? 7 : null, Personnel: tick is 10 or 20 or 30, Front: tick == 40,
+                    Ready: tick == 60, Replay: showReplay);
+            }
             session.Update(ScenarioDefinition.FixedStep, frame); tick++;
             if (drive.LiveSeconds > 30) failure = "Live play exceeded 30 seconds; no production whistle forced.";
             if (tick > 60 * 600) failure = "Drive exceeded ten simulated minutes.";
@@ -89,7 +95,8 @@ internal static class DefenseScenarioLauncher
                         pending = new(keyboard.GetDefensivePlaySelection() ?? pending.Call,
                             pending.Ready || keyboard.IsSpacePressed(), pending.Timeout || keyboard.IsTimeoutPressed(),
                             pending.Pause || keyboard.IsPausePressed(), pending.Replay || keyboard.IsReplayPressed(), focused,
-                            pending.Flip || keyboard.IsFlipPlayPressed(), keyboard.GetDefensiveVariantStep() is var variant && variant != 0 ? variant : pending.VariantStep);
+                            pending.Flip || keyboard.IsFlipPlayPressed(), keyboard.GetDefensiveVariantStep() is var variant && variant != 0 ? variant : pending.VariantStep,
+                            pending.Personnel || keyboard.IsDefensivePersonnelPressed(), pending.Front || keyboard.IsDefensiveFrontPressed());
                         if (focused && !wasFocused) accumulator = 0;
                         else accumulator += Math.Min(Raylib.GetFrameTime(), .1f);
                         wasFocused = focused;
@@ -99,7 +106,7 @@ internal static class DefenseScenarioLauncher
                     Raylib.BeginDrawing(); draw(); Raylib.EndDrawing();
                     if (options.Capture)
                     {
-                        string key = $"{drive.Match.History.Count}-{drive.SelectedDefense.Definition.Id}-{drive.CompiledPlan?.Pressure.Selection.Kind}-{drive.CompiledPlan?.Pressure.Selection.Side}-{session.Clock.StopReason}-{session.Clock.Suspension}-{drive.Actors.Ball.State}-{drive.Live}";
+                        string key = $"{drive.Match.History.Count}-{drive.SelectedDefense.Definition.Id}-{drive.CompiledPlan?.Package}-{drive.CompiledPlan?.Front}-{drive.CompiledPlan?.Pressure.Selection.Kind}-{drive.CompiledPlan?.Pressure.Selection.Side}-{session.Clock.StopReason}-{session.Clock.Suspension}-{drive.Actors.Ball.State}-{drive.Live}";
                         if (captured.Add(key))
                         {
                             var texture = Raylib.LoadRenderTexture(1440, 900);

@@ -145,7 +145,8 @@ public sealed class DefensiveTeamAttributes : TeamAttributes
             [DefenderSlot.CB2] = 1.0f,
             [DefenderSlot.FS] = 1.0f,
             [DefenderSlot.SS] = 1.0f,
-            [DefenderSlot.NB] = 1.0f
+            [DefenderSlot.NB] = 1.0f,
+            [DefenderSlot.DB6] = 1.0f
         };
 
     /// <summary>

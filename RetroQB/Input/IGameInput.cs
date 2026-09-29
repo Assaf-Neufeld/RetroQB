@@ -18,6 +18,8 @@ public interface IGameInput : IPlayerMovementInput
     bool IsStatisticsPressed() => false;
     int? GetDefensivePlaySelection() => GetPassPlaySelection();
     int GetDefensiveVariantStep() => 0;
+    bool IsDefensivePersonnelPressed() => false;
+    bool IsDefensiveFrontPressed() => false;
     bool IsReplaySkipPressed() => false;
     bool IsRestartPressed() => false;
     bool IsLeaderboardPressed() => false;

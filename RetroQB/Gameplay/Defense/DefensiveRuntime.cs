@@ -14,7 +14,7 @@ public sealed record DefensiveDecisionFrame(string Version, float Seconds, Defen
 /// <summary>One team decision authority. All reads use the same immutable observation; only the motor/contact layer moves actors.</summary>
 public sealed class DefensiveRuntime
 {
-    public const string Version = "defense-runtime-p7-v1";
+    public const string Version = "defense-runtime-p8-v1";
     private sealed class State
     {
         public ReceiverId? Primary, Helping;

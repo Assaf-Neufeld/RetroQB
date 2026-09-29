@@ -358,7 +358,7 @@ public sealed class GameSession : IDisposable
                 Kneel: _input.IsKneelPressed(), Flip: _input.IsFlipPlayPressed(), Timeout: _input.IsTimeoutPressed(),
                 Pause: _input.IsEscapePressed(), Replay: _input.IsReplayPressed(), Restart: _input.IsRestartPressed(),
                 Statistics: _input.IsStatisticsPressed(), SummaryScroll: _input.IsDriveSummaryScrollOlderPressed() ? 1 : _input.IsDriveSummaryScrollNewerPressed() ? -1 : 0, Focused: focused,
-                DefensiveVariantStep: _input.GetDefensiveVariantStep());
+                DefensiveVariantStep: _input.GetDefensiveVariantStep(), DefensivePersonnel: _input.IsDefensivePersonnelPressed(), DefensiveFront: _input.IsDefensiveFrontPressed());
             bool accept = focused && _input.IsEnterPressed();
             // Consume edges once; bounded physics steps prevent a slow frame from skipping contact.
             float remaining = Math.Clamp(float.IsFinite(dt) ? dt : 0, 0, .1f);

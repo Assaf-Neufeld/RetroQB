@@ -51,7 +51,7 @@ internal static class DefenseRuntimeMatrix
     }
 
     internal static RuntimeSample Exercise(string play, string call, int seed, int hz, bool humanDefense,
-        DefenseInputMode mode, DefensiveEngineMode engine, float yard = 50, bool flipped = false, PressureSelection? pressure = null)
+        DefenseInputMode mode, DefensiveEngineMode engine, float yard = 50, bool flipped = false, PressureSelection? pressure = null, DefensePackage? package = null, DefensiveFront front = DefensiveFront.Even, bool advanceHumanRunner = false)
     {
         var input = new ScriptedInput(); var user = TeamCatalog.Get("ballers"); var cpu = TeamCatalog.Get("scarlet-guard");
         var frames = new List<DefensiveDecisionFrame>(); DefensiveDrive? drive = null; string? failure = null;
@@ -61,12 +61,14 @@ internal static class DefenseRuntimeMatrix
                 start: new(yard, 1, MathF.Min(10, 100 - yard))), engine: engine);
             if (flipped) drive.FlipOffensiveFormationForDevelopment();
             if (!drive.SelectCompiledDefenseForDevelopment(call)) throw new InvalidOperationException("Unsupported development call.");
+            if ((package != null || front != DefensiveFront.Even) && !drive.SelectFormationForDevelopment(package, front)) throw new InvalidOperationException(drive.SelectionRejection ?? "Unsupported formation.");
             if (pressure != null && !drive.SelectCompiledPressureForDevelopment(pressure)) throw new InvalidOperationException(drive.SelectionRejection ?? "Unsupported pressure.");
             if (mode == DefenseInputMode.FullAI && humanDefense) drive.Execution.Control = new(true) { AutomateDefense = true };
             if (!drive.Snap()) throw new InvalidOperationException("Snap rejected.");
             for (int tick = 0; drive.Live && tick < hz * 30; tick++)
             {
                 Vector2 movement = Vector2.Zero;
+                if (advanceHumanRunner && !humanDefense && drive.Actors.Ball.State == BallState.HeldByReceiver) movement = Vector2.UnitY;
                 var manual = drive.Execution.Control.ControlledDefender(drive.Actors.Defenders);
                 if (manual != null && mode is DefenseInputMode.AssignmentFollowing or DefenseInputMode.Abandonment)
                 {

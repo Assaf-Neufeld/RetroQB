@@ -35,8 +35,8 @@ internal static class PressureCompiler
             || call.RushCount == 5 && selection.Kind is not (PressureKind.Mike or PressureKind.Edge or PressureKind.Nickel)
             || call.RushCount == 6 && selection.Kind != PressureKind.Zero))
             throw new ArgumentException("Pressure variant does not fit the called coverage budget.");
-        if (selection.Kind == PressureKind.Nickel && package != DefensePackage.Nickel)
-            throw new ArgumentException("Nickel pressure requires the nickel roster.");
+        if (selection.Kind == PressureKind.Nickel && package == DefensePackage.Base)
+            throw new ArgumentException("Nickel pressure requires a nickel or dime roster.");
 
         var gaps = surface.Gaps.OrderBy(g => g.X).ToArray();
         bool left = selection.Side == FieldSide.Left;
@@ -48,9 +48,9 @@ internal static class PressureCompiler
         Add(farEnd, ordered[^1], left ? ContainRole.RightEdge : ContainRole.LeftEdge);
         if (zonePressure)
         {
-            Add(left ? DefenderSlot.OLB1 : DefenderSlot.OLB2, ordered[0], left ? ContainRole.LeftEdge : ContainRole.RightEdge);
+            Add(DefensivePersonnelRoles.Apex(package, left), ordered[0], left ? ContainRole.LeftEdge : ContainRole.RightEdge);
             Add(nearTackle, ordered[1]); Add(farTackle, ordered[^2]);
-            if (selection.Kind == PressureKind.ZoneFive) Add(package == DefensePackage.Base ? DefenderSlot.MLB : DefenderSlot.NB, ordered[2]);
+            if (selection.Kind == PressureKind.ZoneFive) Add(DefensivePersonnelRoles.Middle(package), ordered[2]);
             return;
         }
         if (selection.Kind == PressureKind.Base || conditional)
@@ -65,8 +65,8 @@ internal static class PressureCompiler
             return;
         }
         DefenderSlot extra = selection.Kind == PressureKind.Nickel ? DefenderSlot.NB
-            : selection.Kind == PressureKind.Mike ? package == DefensePackage.Base ? DefenderSlot.MLB : DefenderSlot.OLB1
-            : left ? DefenderSlot.OLB1 : DefenderSlot.OLB2;
+            : selection.Kind == PressureKind.Mike ? DefensivePersonnelRoles.Controlled(package)
+            : DefensivePersonnelRoles.Apex(package, left);
         if (selection.Kind is PressureKind.Edge or PressureKind.Nickel)
         {
             Add(extra, ordered[0], left ? ContainRole.LeftEdge : ContainRole.RightEdge);
@@ -80,7 +80,7 @@ internal static class PressureCompiler
             Add(extra, free.MinBy(g => MathF.Abs(g.X - surface.CenterX))!);
             if (selection.Kind == PressureKind.Zero)
             {
-                var second = package == DefensePackage.Base ? DefenderSlot.MLB : left ? DefenderSlot.OLB2 : DefenderSlot.OLB1;
+                var second = package == DefensePackage.Nickel ? DefensivePersonnelRoles.Apex(package, !left) : DefenderSlot.MLB;
                 Add(second, ordered.First(g => jobs.Values.All(j => ((RushResponsibility)j.Pass).GapIndex != g.Index)));
             }
         }
@@ -156,7 +156,7 @@ public static class PressureVariants
             var selection = new PressureSelection(kind, plan.Pressure.Selection.Side);
             try
             {
-                var candidate = DefensivePlanCompiler.Compile(plan.Offense, plan.Call, plan.Package, plan.ResolutionSeed, plan.Adjustments, selection);
+                var candidate = DefensivePlanCompiler.Compile(plan.Offense, plan.Call, plan.Package, plan.ResolutionSeed, plan.Adjustments, selection, plan.Front);
                 PressureCompiler.ValidateDrops(candidate, candidate.Assignments.Select(a => new Defender(a.Alignment, a.PositionRole, a.ActorId, team)));
                 result.Add(selection);
             }

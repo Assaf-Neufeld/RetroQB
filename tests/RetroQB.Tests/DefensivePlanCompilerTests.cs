@@ -37,11 +37,11 @@ public sealed class DefensivePlanCompilerTests
             var plan = DefensivePlanCompiler.Compile(OffensiveAlignmentSnapshot.From(formation, los), call, package);
             Assert.Empty(DefensivePlanValidator.Validate(plan));
             Assert.Equal(formation.Receivers.Count, plan.Assignments.Count(a => a.Pass is ManResponsibility));
-            Assert.Equal(package == DefensePackage.Base ? DefenderSlot.MLB : DefenderSlot.OLB1, plan.ControlledActor);
+            Assert.Equal(DefensivePersonnelRoles.Controlled(package), plan.ControlledActor);
             Assert.Equal(call.RushCount, plan.Assignments.Count(a => a.Pass is RushResponsibility));
             heavy |= formation.Receivers.Count < 5; count++;
         }
-        Assert.True(heavy); Assert.Equal(2000, count);
+        Assert.True(heavy); Assert.Equal(3000, count);
     }
 
     [Fact]

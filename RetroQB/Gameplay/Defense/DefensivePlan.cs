@@ -47,7 +47,7 @@ public sealed class OffensiveAlignmentSnapshot
         && p.X >= 0 && p.X <= Constants.FieldWidth && p.Y >= 0 && p.Y <= Constants.FieldLength;
 }
 
-public enum DefensePackage { Base, Nickel }
+public enum DefensePackage { Base, Nickel, Dime }
 public enum ManShell { Zero, SingleHigh, TwoHigh, Robber }
 public enum FieldSide { Left = -1, Balanced = 0, Right = 1 }
 public enum HelperRole { DeepMiddle, DeepLeft, DeepRight, LowMiddle, Robber, Spy }
@@ -102,7 +102,7 @@ public sealed record DefensiveCallDefinition(string Id, int Version, ManShell Sh
 
 public sealed class ResolvedDefensivePlan
 {
-    public const string RulesVersion = "defense-plan-p7-v1";
+    public const string RulesVersion = "defense-plan-p8-v1";
     public string RuleVersion => RulesVersion;
     public DefensiveCallDefinition Call { get; }
     public DefensiveCallDefinition RequestedCall { get; }
@@ -111,8 +111,10 @@ public sealed class ResolvedDefensivePlan
     public OffensiveAlignmentSnapshot Offense { get; }
     public OffensiveSurface Surface { get; }
     public DefensePackage Package { get; }
+    public DefensiveFront Front { get; }
+    public string FrontId => "front." + Front.ToString().ToLowerInvariant() + ".v1";
     public int ResolutionSeed { get; }
-    public DefenderSlot ControlledActor => Package == DefensePackage.Base ? DefenderSlot.MLB : DefenderSlot.OLB1;
+    public DefenderSlot ControlledActor => DefensivePersonnelRoles.Controlled(Package);
     public IReadOnlyList<DefensiveAssignment> Assignments { get; }
     public RunFitPlan Fits { get; }
     public PressurePlan Pressure { get; }
@@ -125,9 +127,9 @@ public sealed class ResolvedDefensivePlan
     internal ResolvedDefensivePlan(DefensiveCallDefinition call, OffensiveAlignmentSnapshot offense,
         OffensiveSurface surface, DefensePackage package, int seed, IEnumerable<DefensiveAssignment> assignments, double pairingCost,
         ManCoverageAdjustments? adjustments = null, PressureSelection? pressure = null, MatchCoveragePlan? match = null,
-        DefensiveCallDefinition? requestedCall = null, string? fallbackReason = null)
+        DefensiveCallDefinition? requestedCall = null, string? fallbackReason = null, DefensiveFront front = DefensiveFront.Even)
     {
-        Call = call; Offense = offense; Surface = surface; Package = package; ResolutionSeed = seed;
+        Front = front; Call = call; Offense = offense; Surface = surface; Package = package; ResolutionSeed = seed;
         Match = match; RequestedCall = requestedCall ?? call; FallbackReason = fallbackReason;
         // Keep caller-supplied jobs intact so validation can detect corruption. Compilers bind fits before construction.
         Assignments = Array.AsReadOnly(assignments.OrderBy(a => a.ActorId).ToArray()); PairingCost = pairingCost;

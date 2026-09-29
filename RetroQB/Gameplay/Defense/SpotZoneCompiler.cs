@@ -19,18 +19,18 @@ public sealed record ZoneResponsibility(SpotZoneRole Role, ZoneArea Area, Vector
 internal static class SpotZoneCompiler
 {
     public static ResolvedDefensivePlan Compile(OffensiveAlignmentSnapshot offense, DefensiveCallDefinition call,
-        OffensiveSurface surface, DefensePackage package, int seed, IEnumerable<DefensiveAssignment> front, PressureSelection? pressure = null)
+        OffensiveSurface surface, DefensePackage package, int seed, IEnumerable<DefensiveAssignment> front, PressureSelection? pressure = null, DefensiveFront selectedFront = DefensiveFront.Even)
     {
         var jobs = front.ToList(); float width = Constants.FieldWidth, los = offense.LineOfScrimmage;
         float scale = FieldGeometry.CoverageDepthScale(los);
         float Y(float depth) => Math.Clamp(los + depth * scale, los + .1f, Constants.FieldLength - Constants.DefenderRadius);
-        DefenderSlot middle = package == DefensePackage.Base ? DefenderSlot.MLB : DefenderSlot.NB;
+        DefenderSlot middle = DefensivePersonnelRoles.Middle(package);
         pressure ??= PressureSelection.For(call);
         if (pressure.Kind is PressureKind.ZoneFive or PressureKind.Simulated)
         {
             bool left = pressure.Side == FieldSide.Left;
             var drop = left ? DefenderSlot.DE1 : DefenderSlot.DE2;
-            var farLinebacker = left ? DefenderSlot.OLB2 : DefenderSlot.OLB1;
+            var farLinebacker = DefensivePersonnelRoles.Apex(package, !left);
             Add(DefenderSlot.CB1, SpotZoneRole.DeepThird, 0, width / 3, 12);
             Add(DefenderSlot.FS, SpotZoneRole.DeepThird, width / 3, width * 2 / 3, 16);
             Add(DefenderSlot.CB2, SpotZoneRole.DeepThird, width * 2 / 3, width, 12);
@@ -49,9 +49,9 @@ internal static class SpotZoneCompiler
             Add(DefenderSlot.FS, SpotZoneRole.DeepHalf, 0, width / 2, 14);
             Add(DefenderSlot.SS, SpotZoneRole.DeepHalf, width / 2, width, 14);
             Add(DefenderSlot.CB1, SpotZoneRole.Flat, 0, 10, 4);
-            Add(DefenderSlot.OLB1, SpotZoneRole.Hook, 10, 21, 7);
+            Add(DefensivePersonnelRoles.Apex(package, true), SpotZoneRole.Hook, 10, 21, 7);
             Add(middle, SpotZoneRole.Hook, 21, width - 21, 8);
-            Add(DefenderSlot.OLB2, SpotZoneRole.Hook, width - 21, width - 10, 7);
+            Add(DefensivePersonnelRoles.Apex(package, false), SpotZoneRole.Hook, width - 21, width - 10, 7);
             Add(DefenderSlot.CB2, SpotZoneRole.Flat, width - 10, width, 4);
         }
         else if (call.Zone is SpotZoneFamily.Cover3 or SpotZoneFamily.Buzz)
@@ -59,9 +59,9 @@ internal static class SpotZoneCompiler
             Add(DefenderSlot.CB1, SpotZoneRole.DeepThird, 0, width / 3, 12);
             Add(DefenderSlot.FS, SpotZoneRole.DeepThird, width / 3, width * 2 / 3, 16);
             Add(DefenderSlot.CB2, SpotZoneRole.DeepThird, width * 2 / 3, width, 12);
-            Add(DefenderSlot.OLB1, SpotZoneRole.CurlFlat, 0, width / 4, 6);
+            Add(DefensivePersonnelRoles.Apex(package, true), SpotZoneRole.CurlFlat, 0, width / 4, 6);
             Add(middle, SpotZoneRole.Hook, width / 4, width / 2, 8);
-            Add(DefenderSlot.OLB2, SpotZoneRole.Hook, width / 2, width * 3 / 4, 8);
+            Add(DefensivePersonnelRoles.Apex(package, false), SpotZoneRole.Hook, width / 2, width * 3 / 4, 8);
             Add(DefenderSlot.SS, SpotZoneRole.CurlFlat, width * 3 / 4, width, 6, call.Zone == SpotZoneFamily.Buzz);
         }
         else
@@ -70,9 +70,9 @@ internal static class SpotZoneCompiler
             Add(DefenderSlot.FS, SpotZoneRole.DeepQuarter, width / 4, width / 2, 14);
             Add(DefenderSlot.SS, SpotZoneRole.DeepQuarter, width / 2, width * 3 / 4, 14);
             Add(DefenderSlot.CB2, SpotZoneRole.DeepQuarter, width * 3 / 4, width, 12);
-            Add(DefenderSlot.OLB1, SpotZoneRole.CurlFlat, 0, width / 3, 6);
+            Add(DefensivePersonnelRoles.Apex(package, true), SpotZoneRole.CurlFlat, 0, width / 3, 6);
             Add(middle, SpotZoneRole.Hook, width / 3, width * 2 / 3, 7);
-            Add(DefenderSlot.OLB2, SpotZoneRole.CurlFlat, width * 2 / 3, width, 6);
+            Add(DefensivePersonnelRoles.Apex(package, false), SpotZoneRole.CurlFlat, width * 2 / 3, width, 6);
         }
         // Neighbors share an area boundary or overlap at a different depth. Copy the table into the immutable plan.
         var zones = jobs.Where(a => a.Pass is ZoneResponsibility).ToArray();
@@ -98,7 +98,7 @@ internal static class SpotZoneCompiler
             }
             placed.Add(job with { Alignment = p });
         }
-        var plan = new ResolvedDefensivePlan(call, offense, surface, package, seed, RunFitCompiler.Bind(surface, placed).Assignments, 0, pressure: pressure);
+        var plan = new ResolvedDefensivePlan(call, offense, surface, package, seed, RunFitCompiler.Bind(surface, placed).Assignments, 0, pressure: pressure, front: selectedFront);
         DefensivePlanValidator.ThrowIfInvalid(plan); return plan;
 
         void Add(DefenderSlot slot, SpotZoneRole role, float left, float right, float depth, bool rotates = false)

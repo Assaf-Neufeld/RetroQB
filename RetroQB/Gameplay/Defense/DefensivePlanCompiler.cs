@@ -9,7 +9,7 @@ public static class DefensivePlanCompiler
     public const float MinimumSpacing = 2.25f;
 
     public static ResolvedDefensivePlan Compile(OffensiveAlignmentSnapshot offense, DefensiveCallDefinition call,
-        DefensePackage? package = null, int resolutionSeed = 101, ManCoverageAdjustments? adjustments = null, PressureSelection? pressure = null)
+        DefensePackage? package = null, int resolutionSeed = 101, ManCoverageAdjustments? adjustments = null, PressureSelection? pressure = null, DefensiveFront front = DefensiveFront.Even)
     {
         ArgumentNullException.ThrowIfNull(offense); ArgumentNullException.ThrowIfNull(call);
         adjustments ??= ManCoverageAdjustments.None;
@@ -21,16 +21,18 @@ public static class DefensivePlanCompiler
         var active = ActiveSlots(personnel);
         var jobs = new Dictionary<DefenderSlot, DefensiveAssignment>();
         pressure ??= PressureSelection.For(call);
+        DefensiveFrontCompiler.Validate(front, pressure);
         PressureCompiler.Bind(offense, surface, personnel, call, pressure, jobs);
+        DefensiveFrontCompiler.Bind(offense, surface, front, jobs);
         if (call.Match != MatchFamily.None)
         {
             if (!adjustments.Equivalent(ManCoverageAdjustments.None)) throw new ArgumentException("Man adjustments cannot modify match checks.");
-            return MatchCoverageCompiler.Compile(offense, call, surface, personnel, resolutionSeed, jobs.Values);
+            return MatchCoverageCompiler.Compile(offense, call, surface, personnel, resolutionSeed, jobs.Values, front);
         }
         if (call.Zone != SpotZoneFamily.None)
         {
             if (!adjustments.Equivalent(ManCoverageAdjustments.None)) throw new ArgumentException("Man adjustments cannot modify spot zones.");
-            return SpotZoneCompiler.Compile(offense, call, surface, personnel, resolutionSeed, jobs.Values, pressure);
+            return SpotZoneCompiler.Compile(offense, call, surface, personnel, resolutionSeed, jobs.Values, pressure, front);
         }
         if (call.Shell == ManShell.TwoHigh)
         {
@@ -103,7 +105,7 @@ public static class DefensivePlanCompiler
             }
             placed.Add(job with { Alignment = p });
         }
-        var plan = new ResolvedDefensivePlan(call, offense, surface, personnel, resolutionSeed, RunFitCompiler.Bind(surface, placed).Assignments, pairing.TotalCost, adjustments, pressure);
+        var plan = new ResolvedDefensivePlan(call, offense, surface, personnel, resolutionSeed, RunFitCompiler.Bind(surface, placed).Assignments, pairing.TotalCost, adjustments, pressure, front: front);
         DefensivePlanValidator.ThrowIfInvalid(plan);
         return plan;
 
@@ -121,7 +123,13 @@ public static class DefensivePlanCompiler
     }
 
     internal static DefenderSlot[] ActiveSlots(DefensePackage package) => Enum.GetValues<DefenderSlot>()
-        .Where(s => s != (package == DefensePackage.Base ? DefenderSlot.NB : DefenderSlot.MLB)).ToArray();
+        .Where(s => package switch
+        {
+            DefensePackage.Base => s is not (DefenderSlot.NB or DefenderSlot.DB6),
+            DefensePackage.Nickel => s is not (DefenderSlot.MLB or DefenderSlot.DB6),
+            DefensePackage.Dime => s is not (DefenderSlot.OLB1 or DefenderSlot.OLB2),
+            _ => false
+        }).ToArray();
 
     internal static bool LegalAlignment(Vector2 p, float los) => OffensiveAlignmentSnapshot.InField(p)
         && p.X >= Constants.DefenderRadius && p.X <= Constants.FieldWidth - Constants.DefenderRadius
@@ -131,8 +139,9 @@ public static class DefensivePlanCompiler
     {
         var threat = surface.Threats.Single(t => t.ActorId == player.Id);
         float side = slot is DefenderSlot.CB1 or DefenderSlot.OLB1 ? -1 : slot is DefenderSlot.CB2 or DefenderSlot.OLB2 ? 1
-            : slot == DefenderSlot.NB ? surface.Strength == FieldSide.Left ? -1 : 1 : 0;
-        float offset = slot is DefenderSlot.CB1 or DefenderSlot.CB2 ? 17 : slot == DefenderSlot.NB ? 10 : 6;
+            : slot == DefenderSlot.NB ? surface.Strength == FieldSide.Left ? -1 : 1
+            : slot == DefenderSlot.DB6 ? surface.Strength == FieldSide.Left ? 1 : -1 : 0;
+        float offset = slot is DefenderSlot.CB1 or DefenderSlot.CB2 ? 17 : slot is DefenderSlot.NB or DefenderSlot.DB6 ? 10 : 6;
         float home = surface.CenterX + side * offset;
         bool db = slot.GetPositionType() == DefensivePosition.DB;
         // Locality and travel matter; personnel preference is soft so legal LB/WR mismatches remain visible.

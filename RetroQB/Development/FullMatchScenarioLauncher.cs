@@ -90,7 +90,7 @@ internal static class FullMatchScenarioLauncher
                             Kneel: keyboard.IsKneelPressed(), Flip: keyboard.IsFlipPlayPressed(), Timeout: keyboard.IsTimeoutPressed(),
                             Pause: keyboard.IsEscapePressed(), Replay: keyboard.IsReplayPressed(), Restart: keyboard.IsRestartPressed(), Focused: Raylib.IsWindowFocused(),
                             Statistics: keyboard.IsStatisticsPressed(), SummaryScroll: keyboard.IsDriveSummaryScrollOlderPressed() ? 1 : keyboard.IsDriveSummaryScrollNewerPressed() ? -1 : 0,
-                            DefensiveVariantStep: keyboard.GetDefensiveVariantStep());
+                            DefensiveVariantStep: keyboard.GetDefensiveVariantStep(), DefensivePersonnel: keyboard.IsDefensivePersonnelPressed(), DefensiveFront: keyboard.IsDefensiveFrontPressed());
                         game.TimedSeason?.EditName(keyboard.ReadTextInput(18), keyboard.IsBackspacePressed());
                         bool accept = keyboard.IsEnterPressed();
                         float remaining = Math.Min(Raylib.GetFrameTime(), .1f);

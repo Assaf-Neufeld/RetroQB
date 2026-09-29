@@ -3,7 +3,7 @@ using RetroQB.Gameplay.Replay;
 namespace RetroQB.Gameplay;
 
 public sealed record DefensiveInput(int? Call = null, bool Ready = false, bool Timeout = false,
-    bool Pause = false, bool Replay = false, bool Focused = true, bool Flip = false, int VariantStep = 0);
+    bool Pause = false, bool Replay = false, bool Focused = true, bool Flip = false, int VariantStep = 0, bool Personnel = false, bool Front = false);
 
 /// <summary>Defensive pre-snap cadence and presentation; all simulation clocks remain owned by TimedMatch.</summary>
 public sealed class DefensivePlaySession
@@ -54,6 +54,8 @@ public sealed class DefensivePlaySession
         if (input.Call is >= 0 and < 10) Drive.SelectDefense(Drive.Calls[input.Call.Value].Id);
         if (input.Flip) Drive.FlipPressure();
         if (input.VariantStep != 0) Drive.CyclePressure(input.VariantStep);
+        if (input.Personnel) Drive.CyclePersonnel();
+        if (input.Front) Drive.CycleFront();
         if (input.Ready) SnapRemaining = Math.Min(SnapRemaining, .35);
         int quarter = Clock.Quarter;
         Drive.AdvancePreSnap(dt); // Expiry always wins over snap input on the same tick.

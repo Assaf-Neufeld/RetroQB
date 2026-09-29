@@ -18,20 +18,21 @@ internal sealed record ScenarioDefinition(string Name, string PlayId, DriveStart
     public static IReadOnlyList<string> Names { get; } = Array.AsReadOnly(new[]
     {
         "offense-pass", "offense-run", "offense-play-action", "offense-field-goal", "offense-replay",
-        "defense-match-matrix", "defense-pressure-matrix", "defense-fit-matrix", "defense-runtime-matrix", "defense-redesign-matrix", "defense-plan-matrix", "defense-drive", "defense-calls", "defense-control-base", "defense-control-nickel",
-        "defense-match-controls", "defense-match-fallback", "defense-pressure-controls", "defense-quick", "defense-deep", "defense-play-action",
+        "defense-formation-matrix", "defense-match-matrix", "defense-pressure-matrix", "defense-fit-matrix", "defense-runtime-matrix", "defense-redesign-matrix", "defense-plan-matrix", "defense-drive", "defense-calls", "defense-control-base", "defense-control-nickel",
+        "defense-formation-controls", "defense-match-controls", "defense-match-fallback", "defense-pressure-controls", "defense-quick", "defense-deep", "defense-play-action",
         "timed-game", "timed-short", "late-tying-kick", "late-protect-lead", "overtime-pairs", "timed-season", "timed-season-short", "timed-layout", "release-catalog", "release-matches", "release-default"
     });
 
     public static ScenarioDefinition Get(string name) => name switch
     {
-        "defense-match-matrix" or "defense-pressure-matrix" or "defense-fit-matrix" or "defense-runtime-matrix" or "defense-redesign-matrix" or "defense-plan-matrix" => new(name, "", new()),
+        "defense-formation-matrix" or "defense-match-matrix" or "defense-pressure-matrix" or "defense-fit-matrix" or "defense-runtime-matrix" or "defense-redesign-matrix" or "defense-plan-matrix" => new(name, "", new()),
         "release-catalog" or "release-matches" or "release-default" => new(name, "", new()),
         "timed-game" or "timed-short" or "late-tying-kick" or "late-protect-lead" or "overtime-pairs" or "timed-season" or "timed-season-short" or "timed-layout"
             => new(name, "", new()) { FullMatch = true },
         "defense-drive" => new(name, "", new()) { Defending = true },
         "defense-calls" => new(name, "", new()) { Defending = true },
         "defense-match-controls" => new(name, "pass.gun-trips.mills", new()) { Defending = true },
+        "defense-formation-controls" => new(name, "pass.gun-trips.mills", new()) { Defending = true },
         "defense-match-fallback" => new(name, "pass.bunch-quick", new()) { Defending = true },
         "defense-pressure-controls" => new(name, "pass.gun-doubles.pa-cross", new()) { Defending = true },
         "defense-quick" => new(name, "pass.mesh", new()) { Defending = true },

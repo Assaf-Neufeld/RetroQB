@@ -21,7 +21,7 @@ public sealed record MatchCoveragePlan(string Check, FieldSide StrongSide, IRead
 internal static class MatchCoverageCompiler
 {
     public static ResolvedDefensivePlan Compile(OffensiveAlignmentSnapshot offense, DefensiveCallDefinition call,
-        OffensiveSurface surface, DefensePackage package, int seed, IEnumerable<DefensiveAssignment> front)
+        OffensiveSurface surface, DefensePackage package, int seed, IEnumerable<DefensiveAssignment> front, DefensiveFront selectedFront = DefensiveFront.Even)
     {
         var left = surface.Threats.Where(t => !t.Backfield && t.Side == FieldSide.Left).OrderBy(t => t.OutsideIn).ToArray();
         var right = surface.Threats.Where(t => !t.Backfield && t.Side == FieldSide.Right).OrderBy(t => t.OutsideIn).ToArray();
@@ -35,21 +35,21 @@ internal static class MatchCoverageCompiler
             : surface.Threats.Any(t => !t.Backfield && t.Side == FieldSide.Balanced) ? "Unnumbered center threat: Lock Man" : null;
         if (unsupported != null)
         {
-            var fallback = DefensivePlanCompiler.Compile(offense, DefensiveCallDefinition.Get(call.Match == MatchFamily.Cover3 ? "def.cover1" : "def.cover2-man"), package, seed);
+            var fallback = DefensivePlanCompiler.Compile(offense, DefensiveCallDefinition.Get(call.Match == MatchFamily.Cover3 ? "def.cover1" : "def.cover2-man"), package, seed, front: selectedFront);
             return new(fallback.Call, offense, surface, package, seed, fallback.Assignments, fallback.PairingCost,
-                requestedCall: call, fallbackReason: unsupported);
+                requestedCall: call, fallbackReason: unsupported, front: selectedFront);
         }
         bool strongLeft = surface.Strength != FieldSide.Right;
         var strongSide = strongLeft ? FieldSide.Left : FieldSide.Right;
         var weakSide = strongLeft ? FieldSide.Right : FieldSide.Left;
         var strong = strongLeft ? left : right; var weak = strongLeft ? right : left;
-        var middle = package == DefensePackage.Base ? DefenderSlot.MLB : DefenderSlot.NB;
+        var middle = DefensivePersonnelRoles.Middle(package);
         var bindings = new Dictionary<MatchRole, DefenderSlot>
         {
             [MatchRole.StrongCorner] = strongLeft ? DefenderSlot.CB1 : DefenderSlot.CB2,
             [MatchRole.WeakCorner] = strongLeft ? DefenderSlot.CB2 : DefenderSlot.CB1,
-            [MatchRole.StrongApex] = strongLeft ? DefenderSlot.OLB1 : DefenderSlot.OLB2,
-            [MatchRole.WeakApex] = strongLeft ? DefenderSlot.OLB2 : DefenderSlot.OLB1
+            [MatchRole.StrongApex] = DefensivePersonnelRoles.Apex(package, strongLeft),
+            [MatchRole.WeakApex] = DefensivePersonnelRoles.Apex(package, !strongLeft)
         };
         if (call.Match == MatchFamily.Cover3)
         { bindings[MatchRole.MiddleSafety] = DefenderSlot.FS; bindings[MatchRole.StrongHook] = middle; bindings[MatchRole.WeakHook] = DefenderSlot.SS; }
@@ -119,7 +119,7 @@ internal static class MatchCoverageCompiler
         }
         var match = new MatchCoveragePlan(trips ? call.Match == MatchFamily.Cover3 ? "Trips Five Owners" : "Trips Poach" : "Numbered Vertical Match",
             strongSide, Array.AsReadOnly(bindings.Select(b => new MatchRoleBinding(b.Key, b.Value)).ToArray()), Array.AsReadOnly(releases.OrderBy(r => r.Receiver.Value).ToArray()));
-        var plan = new ResolvedDefensivePlan(call, offense, surface, package, seed, RunFitCompiler.Bind(surface, placed).Assignments, 0, match: match);
+        var plan = new ResolvedDefensivePlan(call, offense, surface, package, seed, RunFitCompiler.Bind(surface, placed).Assignments, 0, match: match, front: selectedFront);
         DefensivePlanValidator.ThrowIfInvalid(plan); return plan;
     }
 }

@@ -56,7 +56,7 @@ public sealed class TeamBalanceTests
         {
             Assert.True(CountOffensiveStars(team) + team.Defense.Roster.Defenders.Count(p => p.Value.IsStarPlayer) >= 2);
             Assert.Contains(team.Defense.Roster.Defenders, player => player.Value.IsStarPlayer);
-            Assert.Equal(12, team.Defense.Roster.Defenders.Count);
+            Assert.Equal(13, team.Defense.Roster.Defenders.Count);
             Assert.Equal(TeamDefinition.CalculateScore(team.Offense.Skills, team.Defense), team.Offense.TeamScore);
         }
         Assert.Equal(2, CountOffensiveStars(TeamCatalog.Get("lightning")));

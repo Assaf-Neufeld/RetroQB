@@ -6,7 +6,7 @@ namespace RetroQB.Gameplay;
 
 public sealed record MatchInput(int? Call = null, int? Run = null, bool Ready = false, bool Kick = false,
     bool Punt = false, bool Kneel = false, bool Flip = false, bool Timeout = false, bool Pause = false,
-    bool Replay = false, bool Restart = false, bool Focused = true, bool Statistics = false, int SummaryScroll = 0, int DefensiveVariantStep = 0);
+    bool Replay = false, bool Restart = false, bool Focused = true, bool Statistics = false, int SummaryScroll = 0, int DefensiveVariantStep = 0, bool DefensivePersonnel = false, bool DefensiveFront = false);
 
 /// <summary>Both possessions share the same actors, contact detection, clock and exactly-once resolver.</summary>
 public sealed class FullMatchSession
@@ -162,6 +162,8 @@ public sealed class FullMatchSession
             {
                 if (input.Flip) Drive.FlipPressure();
                 if (input.DefensiveVariantStep != 0) Drive.CyclePressure(input.DefensiveVariantStep);
+                if (input.DefensivePersonnel) Drive.CyclePersonnel();
+                if (input.DefensiveFront) Drive.CycleFront();
             }
             if (input.Ready) SnapRemaining = 0;
         }

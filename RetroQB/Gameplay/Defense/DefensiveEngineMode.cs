@@ -32,7 +32,7 @@ public static class DefensivePlanPresentation
             PressureKind.Delayed => $"Delayed / {plan.Pressure.Selection.Side}", PressureKind.Stunt => $"Stunt / {plan.Pressure.Selection.Side}",
             _ => $"{plan.Pressure.Selection.Kind} / {plan.Pressure.Selection.Side}"
         };
-        return $"{plan.Package} | {name}\nRush: {plan.Pressure.Entries.Count}" + (plan.Pressure.Conditional != null ? " + 1 conditional" : " called")
+        return $"{DefensivePersonnelRoles.Label(plan.Package)} | {plan.Front}\n{name}\nRush: {plan.Pressure.Entries.Count}" + (plan.Pressure.Conditional != null ? " + 1 conditional" : " called")
             + (frame?.Pressure is { } p ? $"\nActive rushers: {p.ActualCount}" : "");
     }
     public static string Describe(DefensiveIntent intent) => intent.Kind == DefensiveIntentKind.Pursuit ? "Pursue on a cutoff angle"

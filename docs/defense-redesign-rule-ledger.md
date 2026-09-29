@@ -1,8 +1,8 @@
 # Defensive redesign rule implementation ledger
 
-Updated September 29, 2026. Current runtime `defense-runtime-p7-v1`; plan `defense-plan-p7-v1`.
+Updated September 29, 2026. Current runtime `defense-runtime-p8-v1`; plan `defense-plan-p8-v1`.
 
-`verified` means the owning phase's supported scope passed its behavioral gate. P1–P7 verify 90 of 98 rules for base/nickel man, spot zones and authored match checks in Debug development mode. Normal gameplay remains legacy until P10. P6 verifies fixed, zone, simulated and conditional pressure with coordinated carrier response. P7 verifies declared Cover 3 Match/Quarters Match checks and explicit unsupported-geometry fallbacks. Dime/front expansion and CPU strategy remain in their roadmap phases.
+`verified` means the owning phase's supported scope passed its behavioral gate. P1–P7 verify 90 of 98 rules for base/nickel man, spot zones and authored match checks in Debug development mode. Normal gameplay remains legacy until P10. P6 verifies fixed, zone, simulated and conditional pressure with coordinated carrier response. P7 verifies declared Cover 3 Match/Quarters Match checks and explicit unsupported-geometry fallbacks. P8 requalifies these rules for dime and declared fronts; CPU strategy remains P9. See the [P8 report](defense-redesign-p08-verification.md), including retained stationary-runner limits.
 
 Evidence: [P0](defense-redesign-p00-verification.md), [P1](defense-redesign-p01-verification.md), [P2](defense-redesign-p02-verification.md), [P3](defense-redesign-p03-verification.md), [P4](defense-redesign-p04-verification.md), [P5](defense-redesign-p05-verification.md), [P6](defense-redesign-p06-verification.md), and [P7](defense-redesign-p07-verification.md) reports. The phase reports state exact fixture, scenario and implementation limits. The 20 DM definitions alone do not verify new behavior.
 

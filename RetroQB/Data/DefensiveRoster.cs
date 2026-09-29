@@ -43,7 +43,8 @@ public enum DefenderSlot
     CB2,
     FS,
     SS,
-    NB  // Nickel back
+    NB, // Nickel back (11); preserve existing stored values
+    DB6 // Dime back (12), appended
 }
 
 /// <summary>
@@ -84,6 +85,7 @@ public static class DefenderSlotExtensions
             DefenderSlot.FS => "FS",
             DefenderSlot.SS => "SS",
             DefenderSlot.NB => "NB",
+            DefenderSlot.DB6 => "DB6",
             _ => slot.ToString()
         };
     }
@@ -101,7 +103,7 @@ public static class DefenderSlotExtensions
     /// </summary>
     public static bool IsDefensiveBack(this DefenderSlot slot)
     {
-        return slot is DefenderSlot.CB1 or DefenderSlot.CB2 or DefenderSlot.FS or DefenderSlot.SS or DefenderSlot.NB;
+        return slot is DefenderSlot.CB1 or DefenderSlot.CB2 or DefenderSlot.FS or DefenderSlot.SS or DefenderSlot.NB or DefenderSlot.DB6;
     }
     
     /// <summary>
@@ -149,7 +151,8 @@ public sealed class DefensiveRoster
             [DefenderSlot.CB2] = new DefenderProfile("CB2"),
             [DefenderSlot.FS] = new DefenderProfile("FS"),
             [DefenderSlot.SS] = new DefenderProfile("SS"),
-            [DefenderSlot.NB] = new DefenderProfile("NB")
+            [DefenderSlot.NB] = new DefenderProfile("NB"),
+            [DefenderSlot.DB6] = new DefenderProfile("DB6")
         }
     };
 
