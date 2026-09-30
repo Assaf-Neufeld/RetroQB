@@ -210,6 +210,35 @@ public sealed class RunFitTests
         Assert.Contains(board.Jobs, j => j.Duty == RunDuty.LastSupport && j.Target.Y > tackle.Target.Y);
     }
 
+    [Theory] [InlineData(30)] [InlineData(60)] [InlineData(120)]
+    public void LastDefensiveBackClosesOnReceiverInsteadOfEscortingToEndZone(int hz)
+    {
+        var (plan, offense, defenders) = DefensiveRuntimeTests.Setup();
+        var runtime = new DefensiveRuntime(plan);
+        var receiver = offense.Receivers.Single(r => r.Slot == ReceiverSlot.WR1);
+        receiver.Position = new(26, 90); receiver.Velocity = new(0, 6);
+        foreach (var defender in defenders) { defender.Position = new(2, 30); defender.Velocity = Vector2.Zero; }
+        var safety = defenders.Single(d => d.Slot == plan.Fits.LastSupport);
+        safety.Position = new(26, 96); safety.Velocity = new(0, 6);
+        offense.Ball.SetInAir(receiver.Position, Vector2.Zero, 20, 40, 0);
+        runtime.Decide(DefensiveRuntimeTests.Sight(offense, defenders), 1f / hz);
+        offense.Ball.SetHeld(receiver, BallState.HeldByReceiver);
+        var contact = new RetroQB.Gameplay.Controllers.TackleController(new Random(101), new());
+        bool closed = false;
+        for (int tick = 0; tick < hz * 4 && contact.LastTerminal == null; tick++)
+        {
+            var frame = runtime.Decide(DefensiveRuntimeTests.Sight(offense, defenders), 1f / hz)!;
+            closed |= frame.Run?.Tackler == safety.Slot;
+            safety.Velocity = DefenderMotor.Velocity(frame.Observation.Visible.Defenders.Single(d => d.Id == safety.Slot),
+                frame.Decisions.Single(i => i.Actor == safety.Slot), frame.Observation.Visible.Defenders, 1, 1f / hz);
+            safety.Update(1f / hz); receiver.Update(1f / hz);
+            contact.CheckTackleOrScore(offense.Ball, offense.Qb, defenders, OffensiveTeamAttributes.Default, _ => { }, plan.Offense.LineOfScrimmage);
+        }
+        Assert.True(closed, "The only reachable DB must commit to a physical intercept.");
+        Assert.Equal(PlayEndReason.Tackle, contact.LastTerminal?.Reason);
+        Assert.Equal(safety.Slot, contact.LastTerminal?.Defender);
+    }
+
     [Fact]
     public void UnreachableOrHumanAbandonedRunSupportCannotGainSpeedOrInventAStop()
     {

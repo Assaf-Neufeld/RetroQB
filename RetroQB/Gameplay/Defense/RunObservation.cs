@@ -14,6 +14,7 @@ public static class RunTuning
     public const float MeshRadius = 3.5f, MeshWindow = .35f, ReadStep = .8f, ReadRecoverySeconds = .45f;
     public const float PredictionSeconds = .65f, PursuitHorizon = 1.5f, HumanHorizon = .75f;
     public const float CutbackRecognitionSeconds = .12f, ReplacementMarginSeconds = .10f;
+    public const float SupportCommitSeconds = 1.25f;
 }
 
 /// <summary>Possession and geometry only. It never receives a BackfieldController, route or play-action flag.</summary>

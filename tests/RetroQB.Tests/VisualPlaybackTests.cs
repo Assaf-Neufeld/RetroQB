@@ -11,6 +11,32 @@ namespace RetroQB.Tests;
 
 public sealed class VisualPlaybackTests
 {
+    [Fact]
+    public void SpecialTeamsDoNotDisplayScrimmageCoverageOrDefensiveSwitchingControls()
+    {
+        var user = TeamCatalog.Get("ballers"); var cpu = TeamCatalog.Get("scarlet-guard");
+        var kickoff = new FullMatchSession(new RetroQB.Development.ScriptedInput(), 101,
+            new(user, cpu, user.Id, specialTeams: true));
+        Assert.NotNull(kickoff.Drive.CompiledPlan);
+        Assert.Equal(RetroQB.AI.MatchAction.Kickoff, kickoff.Action);
+        Assert.False(FullMatchRenderer.ShowsScrimmageCoverage(kickoff));
+        Assert.DoesNotContain("switch defense", FullMatchRenderer.SidebarControls(kickoff, true));
+        Assert.DoesNotContain("throw", FullMatchRenderer.SidebarControls(kickoff, true));
+
+        var defense = new FullMatchSession(new RetroQB.Development.ScriptedInput(), 101, new(user, cpu, cpu.Id));
+        Assert.True(FullMatchRenderer.ShowsScrimmageCoverage(defense));
+        var controls = FullMatchRenderer.SidebarControls(defense, true);
+        foreach (string key in new[] { "1-9 / 0", "Q/E", "X:", "H:", "J:", "Space:" }) Assert.Contains(key, controls);
+        Assert.DoesNotContain("throw", controls);
+        Assert.True(defense.Drive.Snap());
+        Assert.DoesNotContain("switch defense", FullMatchRenderer.SidebarControls(defense, true));
+
+        var punt = new FullMatchSession(new RetroQB.Development.ScriptedInput(), 101,
+            new(user, cpu, user.Id, start: new(30, 4, 5)));
+        Assert.True(punt.SelectAction(RetroQB.AI.MatchAction.Punt));
+        Assert.False(FullMatchRenderer.ShowsScrimmageCoverage(punt));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

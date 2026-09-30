@@ -76,7 +76,7 @@ public sealed class FullMatchRenderer
             }
         }
         float scale = Math.Min(1, Raylib.GetScreenHeight() / 900f);
-        if (defending) DefensivePlayRenderer.DrawCoverage(recorded?.CompiledPlan ?? (frame == null ? d.CompiledPlan : null),
+        if (defending && ShowsScrimmageCoverage(session)) DefensivePlayRenderer.DrawCoverage(recorded?.CompiledPlan ?? (frame == null ? d.CompiledPlan : null),
             frame?.DefensiveDecision ?? (frame == null ? d.Execution.DefenseRuntime?.Current : null));
         int right = Raylib.GetScreenWidth() - 310;
         void Text(string text, int x, int y, int size = 17, Color? color = null)
@@ -102,6 +102,7 @@ public sealed class FullMatchRenderer
         }
         else if (defending)
         {
+            if (frame == null) Text("1-9 / 0: switch defensive call", 20, 65, 14);
             string selectedCall = recorded?.CompiledPlan?.RequestedCall.Id ?? (frame == null ? d.CompiledPlan?.RequestedCall.Id : null) ?? assignment.Definition.Id;
             for (int i = 0; i < 10; i++)
                 Text($"{(i + 1) % 10} {d.Calls[i].Name}{(d.SupportsDefense(d.Calls[i].Id) ? "" : " (unavailable)")}", 20, 95 + i * 29, 16,
@@ -117,8 +118,6 @@ public sealed class FullMatchRenderer
             if (plan != null)
             {
                 Text(Gameplay.Defense.DefensivePlanPresentation.PressureSummary(plan, decision), 20, 610, 14);
-                if (!d.Live && frame == null) Text($"H: personnel ({d.PersonnelSelection}) | J: front", 20, 710, 14);
-                if (!d.Live && frame == null && (plan.Pressure.Entries.Count > 4 || plan.Call.Zone == Gameplay.Defense.SpotZoneFamily.Cover3 || plan.Call.Id == "def.cover1")) Text("Q/E: variant | X: pressure side", 20, 690, 14);
             }
             if (decision != null) Text(Gameplay.Defense.DefensivePlanPresentation.Describe(decision.Decisions.Single(x => x.Actor == assignment.ControlledSlot)), 20, 555, 14);
             if (decision?.Coverage is { } board) Text(DefensivePlayRenderer.CoverageCue(board, assignment.ControlledSlot), 20, 590, 13);
@@ -136,7 +135,7 @@ public sealed class FullMatchRenderer
             for (int i = 0; i < d.Plays.RunPlays.Count; i++) Text($"{keys[i]} {d.Plays.RunPlays[i].Name}", 20, 320 + i * 22, 13);
             Text(session.Action == MatchAction.Scrimmage ? d.Plays.SelectedPlay.Name : session.Action.ToString(), 20, 570, 16, Palette.Gold);
         }
-        Text("Space: snap / continue\nWASD / arrows: move | Shift: sprint\n1-5 live: throw | X: flip\nK: kick  B: punt  V: kneel\nC: timeout  Esc: pause\nZ: restart\nTab: statistics | PgUp/PgDn: history", 20, 695, 15);
+        Text(SidebarControls(session, defending), 20, 695, 15);
         _scoreboard.Draw(session);
         bool superBowlVictory = season?.SuperBowlVictory == true && frame == null && c.Suspension == ClockSuspension.None;
         bool stageVictory = season?.StageVictory == true && frame == null && c.Suspension == ClockSuspension.None;
@@ -150,6 +149,20 @@ public sealed class FullMatchRenderer
         if (season?.Pregame == true || season?.Complete == true) DrawSeason(season, returnToMenu);
         else if (!stageVictory && !superBowlVictory && season != null && session.Timed.Finished) Text("Enter: accept result\nZ: restart this matchup\nTab: inspect statistics", right, 820, 15, Palette.Gold);
         if (session.ShowStatistics) DrawStatistics(session, season);
+    }
+
+    internal static bool ShowsScrimmageCoverage(FullMatchSession session)
+        => session.Replay.CurrentFrame != null || session.Action == MatchAction.Scrimmage
+            && session.SpecialTeams == null && session.Kick == null;
+
+    internal static string SidebarControls(FullMatchSession session, bool defending)
+    {
+        if (session.Replay.CurrentFrame != null) return "Space / F: return\nTab: statistics | Esc: pause";
+        const string common = "WASD / arrows: move | Shift: sprint\nC: timeout | Esc: pause | Z: restart\nTab: statistics | PgUp/PgDn: history";
+        if (session.SpecialTeams != null) return "Space: kick / ready / continue\n" + common;
+        if (defending && session.Action == MatchAction.Scrimmage)
+            return (session.Drive.Live ? "Space: continue\n" : "1-9 / 0: switch defense\nQ/E: pressure variants | X: flip side\nH: personnel (" + session.Drive.PersonnelSelection + ")\nJ: front | Space: ready\n") + common;
+        return "Space: snap / continue\n1-5 live: throw | X: flip\nK: kick  B: punt  V: kneel\n" + common;
     }
 
     private static void DrawDriveSummary(FullMatchSession session)

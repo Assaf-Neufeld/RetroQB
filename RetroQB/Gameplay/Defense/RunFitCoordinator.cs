@@ -169,10 +169,15 @@ public sealed class RunFitCoordinator
         var intercepts = actors.Values.Where(d => !d.Contact && (!_failedUntil.TryGetValue(d.Id, out var until) || until <= frame.Seconds))
             .Select(d => (Actor: d.Id, Intercept: Intercept(d, run, human == d.Id)))
             .Where(p => p.Intercept.Reachable).OrderBy(p => p.Intercept.Seconds).ThenBy(p => p.Actor).ToArray();
-        // Protected roles commit only at a real immediate opportunity. Other defenders are evaluated as a team.
+        // In the open field, protected support must close a reachable intercept.
+        // Waiting until almost-contact while moving ahead of the runner can turn
+        // the last defender into an escort all the way to the end zone.
+        bool openField = run.Read == RunRead.AfterCatch || run.Position.Y >= los + 3;
         var candidates = intercepts.Where(p => p.Actor != last && p.Actor != cutback && p.Actor != forceOwner
             && (p.Actor != farEdge || stopped && forceOwner != null)
-            || p.Intercept.Seconds <= .10f).ToArray();
+            || p.Intercept.Seconds <= .10f
+            || openField && p.Intercept.Seconds <= RunTuning.SupportCommitSeconds).ToArray();
+        if (openField && candidates.Length == 0) candidates = intercepts;
         // Once a runner has been visibly stationary behind the line, goal-side
         // support may close rather than wait indefinitely at its original depth.
         if (_stationarySeconds >= 2f && run.Position.Y < los && !actors[last].Contact
@@ -208,7 +213,7 @@ public sealed class RunFitCoordinator
         if (tackler == forceOwner) { forceOwner = null; concessions.Add("RUN-03:ForceCommitsAtContact"); }
         DefenderSlot? cutbackOwner = tackler == cutback ? null : cutback;
         DefenderSlot? lastOwner = tackler == last ? null : last;
-        if (lastOwner == null) concessions.Add("RUN-08:LastSupportCommitsAtContact");
+        if (lastOwner == null) concessions.Add("RUN-08:LastSupportCommitsToReachableIntercept");
         // A stopped runner behind the line can leave the direct pursuit lanes occupied
         // by blockers. Send one free support actor around the observed offensive surface,
         // retaining the force/cutback/last-support layers and ordinary contact physics.
