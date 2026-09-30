@@ -32,7 +32,7 @@ public sealed class TimedSeason
     public string StorageMessage => _store.StatusMessage;
 
     private readonly Defense.DefensiveEngineMode _engine;
-    public TimedSeason(IGameInput input, int seed, TeamDefinition team, string playerName, PlayerRecordStore store, double quarterSeconds = 180, bool arcadeRules = false, Defense.DefensiveEngineMode engine = Defense.DefensiveEngineMode.Legacy)
+    public TimedSeason(IGameInput input, int seed, TeamDefinition team, string playerName, PlayerRecordStore store, double quarterSeconds = 180, bool arcadeRules = false, Defense.DefensiveEngineMode engine = Defense.DefensiveEngineMode.Production)
     {
         if (store.Ruleset != MatchRuleset.TwoSidedTimed) throw new ArgumentException("Timed seasons need a timed leaderboard.");
         _engine = engine; _input = input; _seed = seed; Team = team; PlayerName = PlayerRecordStore.NormalizeName(playerName);

@@ -294,6 +294,21 @@ public sealed class RunFitTests
         }
     }
 
+    [Theory]
+    [InlineData(30, "def.cover1", DefensePackage.Dime, DefensiveFront.Wide, false)]
+    [InlineData(60, "def.cover2-man", DefensePackage.Nickel, DefensiveFront.ShortYardage, false)]
+    [InlineData(120, "def.robber", DefensePackage.Base, DefensiveFront.Over, true)]
+    public void StationaryRunnerBehindExpandedFrontFinishesByPhysicalContact(int hz, string call,
+        DefensePackage package, DefensiveFront front, bool flipped)
+    {
+        var sample = DefenseRuntimeMatrix.Exercise("run.stretch-right", call, 101, hz, false,
+            DefenseInputMode.Stationary, DefensiveEngineMode.MatchDevelopment,
+            flipped: flipped, package: package, front: front);
+        Assert.Null(sample.Failure);
+        Assert.Equal("Tackle", sample.Outcome);
+        Assert.Contains(sample.Decisions, d => d.Run?.Read == RunRead.Handoff);
+    }
+
     [Theory] [InlineData(30)] [InlineData(60)] [InlineData(120)]
     public void ActualAbortedFakeAllowsLateThrowWithoutPrematureCoverageCollapse(int hz)
     {

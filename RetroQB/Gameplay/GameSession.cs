@@ -26,7 +26,7 @@ public sealed class GameSession : IDisposable
     public FullMatchSession? FullMatch => TimedSeason?.Current ?? _fullMatch;
     public TimedSeason? TimedSeason { get; private set; }
     private readonly FullMatchRenderer _fullMatchRenderer = new();
-    public void StartTimedMatch(int seed, double quarterSeconds = 180, TimedMatch? match = null, Defense.DefensiveEngineMode engine = Defense.DefensiveEngineMode.Legacy)
+    public void StartTimedMatch(int seed, double quarterSeconds = 180, TimedMatch? match = null, Defense.DefensiveEngineMode engine = Defense.DefensiveEngineMode.Production)
     {
         var user = TeamCatalog.Get("ballers"); var cpu = TeamCatalog.ForStage(SeasonStage.RegularSeason);
         TimedSeason = null;
@@ -34,7 +34,7 @@ public sealed class GameSession : IDisposable
     }
 
     public void StartTimedSeason(int seed, string playerName, PlayerRecordStore? store = null, double quarterSeconds = 180,
-        TeamDefinition? team = null, Defense.DefensiveEngineMode engine = Defense.DefensiveEngineMode.Legacy)
+        TeamDefinition? team = null, Defense.DefensiveEngineMode engine = Defense.DefensiveEngineMode.Production)
         => TimedSeason = new(_input, seed, team ?? TeamCatalog.Get("ballers"), playerName,
             store ?? new PlayerRecordStore(MatchRuleset.TwoSidedTimed), quarterSeconds, arcadeRules: _timedDefault, engine: engine);
 

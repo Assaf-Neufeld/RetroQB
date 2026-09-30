@@ -8,7 +8,7 @@ using RetroQB.Gameplay.Defense;
 
 namespace RetroQB.Gameplay;
 
-/// <summary>Development drive orchestration over the production controllers and match rules.</summary>
+/// <summary>Drive orchestration over the production controllers and match rules.</summary>
 public sealed class DefensiveDrive
 {
     private readonly Random _random;
@@ -69,7 +69,8 @@ public sealed class DefensiveDrive
         DefensiveEngineMode engine = DefensiveEngineMode.Legacy)
     {
 #if !DEBUG
-        if (engine != DefensiveEngineMode.Legacy) throw new NotSupportedException("The compiled defense is development-only until P10.");
+        if (engine is not (DefensiveEngineMode.Legacy or DefensiveEngineMode.Production))
+            throw new NotSupportedException("Partial defense engines are available only in Debug builds.");
 #endif
         Engine = engine;
         _random = new(seed); _coordinator = new(_random); _fixedCall = fixedCall; _scriptedOffense = scriptedOffense;

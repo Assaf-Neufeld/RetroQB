@@ -25,6 +25,7 @@ public sealed class RunFitCoordinator
     private float _stationarySeconds, _reliefX;
     private float _reliefProgressY, _reliefStall;
     private int _reliefStage;
+    private float _tackleStallSeconds, _bestTackleDistance = float.PositiveInfinity;
     public RunBoard? Current { get; private set; }
     public RunFitCoordinator(ResolvedDefensivePlan plan) => _plan = plan;
 
@@ -40,6 +41,7 @@ public sealed class RunFitCoordinator
         {
             _wasConfirmed = false; _tackler = _force = _cutback = _last = null; _direction = 0;
             _relief = null; _stationarySeconds = 0; _reliefStage = 0;
+            _tackleStallSeconds = 0; _bestTackleDistance = float.PositiveInfinity;
             if (run.Read != RunRead.Mesh) _readAnchors.Clear();
             if (run.Read == RunRead.Mesh)
             foreach (var assignment in _plan.Assignments.Where(a => a.Pass is not RushResponsibility && !RunFitCompiler.DeepPass(a.Pass)))
@@ -147,6 +149,22 @@ public sealed class RunFitCoordinator
                 _failedUntil[previous] = frame.Seconds + .30f;
                 concessions.Add($"RUN-08:{previous}:{(actor.Contact ? "BlockedFirstTackler" : "BeatenFirstTackler")}");
             }
+            // A stationary carrier can be screened by a blocker even while the chosen
+            // tackler remains nominally unblocked. Rotate a real pursuit assignment
+            // after measured lack of progress; never award a tackle without contact.
+            if (stopped && distance > actor.Radius + 2f)
+            {
+                if (distance < _bestTackleDistance - .25f)
+                { _bestTackleDistance = distance; _tackleStallSeconds = 0; }
+                else _tackleStallSeconds += dt;
+                if (_tackleStallSeconds >= 1.25f)
+                {
+                    _failedUntil[previous] = frame.Seconds + 1.5f;
+                    concessions.Add($"RUN-08:{previous}:StationaryCarrierPursuitStalled");
+                    _tackleStallSeconds = 0;
+                }
+            }
+            else { _tackleStallSeconds = 0; _bestTackleDistance = distance; }
         }
         var intercepts = actors.Values.Where(d => !d.Contact && (!_failedUntil.TryGetValue(d.Id, out var until) || until <= frame.Seconds))
             .Select(d => (Actor: d.Id, Intercept: Intercept(d, run, human == d.Id)))
@@ -155,6 +173,12 @@ public sealed class RunFitCoordinator
         var candidates = intercepts.Where(p => p.Actor != last && p.Actor != cutback && p.Actor != forceOwner
             && (p.Actor != farEdge || stopped && forceOwner != null)
             || p.Intercept.Seconds <= .10f).ToArray();
+        // Once a runner has been visibly stationary behind the line, goal-side
+        // support may close rather than wait indefinitely at its original depth.
+        if (_stationarySeconds >= 2f && run.Position.Y < los && !actors[last].Contact
+            && !candidates.Any(p => p.Actor == last))
+            candidates = candidates.Concat(intercepts.Where(p => p.Actor == last))
+                .OrderBy(p => p.Intercept.Seconds).ThenBy(p => p.Actor).ToArray();
         // The opposite edge may close a trapped carrier when the other layers still own
         // force, cutback and last support. Requiring contact before allowing this approach
         // strands a stationary runner just beyond tackle range indefinitely.
@@ -175,6 +199,8 @@ public sealed class RunFitCoordinator
         if (tackler != _tackler)
         {
             _version++; _tacklerSince = frame.Seconds;
+            _tackleStallSeconds = 0;
+            _bestTackleDistance = tackler is { } next ? Vector2.Distance(actors[next].Position, run.Position) : float.PositiveInfinity;
             if (_tackler == human && _tackler != null && !candidates.Any(p => p.Actor == human)) concessions.Add("RUN-08:HumanTacklerOutOfReach;NoAutomaticSteering");
             if (_tackler is { } previousOwner) Change(RunDuty.Tackle, previousOwner, tackler, "RUN-08:NextReachableTackler");
         }

@@ -35,6 +35,9 @@ public sealed class NormalTimedGameTests : IDisposable
         game.Update(0); input.Enter = false;
         Assert.False(game.TimedSeason.Pregame); Assert.Empty(game.TimedSeason.PlayerName);
         Assert.Equal(120, game.FullMatch!.Clock.RemainingSeconds); Assert.Equal(2, game.FullMatch.Clock.RegulationPeriods);
+        Assert.Equal(RetroQB.Gameplay.Defense.DefensiveEngineMode.Production, game.FullMatch.Drive.Engine);
+        Assert.NotNull(game.FullMatch.Drive.CompiledPlan);
+        Assert.NotNull(game.FullMatch.Drive.Execution.DefenseRuntime);
         for (int tick = 0; game.FullMatch.Drive.LastResult == null && tick < 1800; tick++) game.Update(1f / 60);
         Assert.NotNull(game.FullMatch.Drive.LastResult);
         input.Space = true; game.Update(0); input.Space = false;

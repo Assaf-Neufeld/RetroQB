@@ -3,7 +3,7 @@ using RetroQB.Entities;
 
 namespace RetroQB.Gameplay.Defense;
 
-public enum DefensiveEngineMode { Legacy, Cover1Development, ManDevelopment, ZoneDevelopment, MatchDevelopment, StrategyDevelopment }
+public enum DefensiveEngineMode { Legacy, Cover1Development, ManDevelopment, ZoneDevelopment, MatchDevelopment, StrategyDevelopment, Production = StrategyDevelopment }
 
 public static class DefensiveEngineCalls
 {

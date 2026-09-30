@@ -1,6 +1,6 @@
 # Defensive gameplay: engineering execution roadmap
 
-Updated September 29, 2026. Status: **P0–P9 implemented and verified in their scoped development modes; milestone C complete**. P10 validation and production cutover are next. See the [P0 report](defense-redesign-p00-verification.md), [P1 report](defense-redesign-p01-verification.md), [P2 report](defense-redesign-p02-verification.md), [P3 report](defense-redesign-p03-verification.md), [P4 report](defense-redesign-p04-verification.md), [P5 report](defense-redesign-p05-verification.md), [P6 report](defense-redesign-p06-verification.md), [P7 report](defense-redesign-p07-verification.md), [P8 report](defense-redesign-p08-verification.md), [P9 report](defense-redesign-p09-verification.md), and [rule implementation ledger](defense-redesign-rule-ledger.md).
+Updated September 29, 2026. Status: **P0–P9 implemented and verified in their scoped development modes; milestone C complete**. P10 is in progress; normal timed games now use the compiled strategy engine at the September 30 playable checkpoint. Full release validation remains pending. See the [P0 report](defense-redesign-p00-verification.md), [P1 report](defense-redesign-p01-verification.md), [P2 report](defense-redesign-p02-verification.md), [P3 report](defense-redesign-p03-verification.md), [P4 report](defense-redesign-p04-verification.md), [P5 report](defense-redesign-p05-verification.md), [P6 report](defense-redesign-p06-verification.md), [P7 report](defense-redesign-p07-verification.md), [P8 report](defense-redesign-p08-verification.md), [P9 report](defense-redesign-p09-verification.md), and [rule implementation ledger](defense-redesign-rule-ledger.md).
 
 This roadmap turns the [defensive redesign plan](defensive-gameplay-redesign-plan.md) into ordered engineering work. The design document owns football behavior, including section 12's 98 decision rules and DM-01 through DM-20 acceptance scenarios. This document owns implementation order, work packages, code responsibilities, and completion evidence. Change the corresponding design rule whenever implementation exposes an ambiguity; do not let code and specification silently diverge.
 
@@ -245,6 +245,8 @@ Exit gate: milestone C. All 98 rules have an implemented owner and passing phase
 
 <a id="p10"></a>
 **P10 — Validate gameplay, optimize, and cut over**
+
+September 30 playable checkpoint: normal timed matches and seasons now use the complete compiled strategy engine. The three retained P8 stationary-runner cases pass physical-contact regressions. See [P10 playable evidence](defense-redesign-p10-playable.md). The full P10 release gate remains open for broad balance/profile evidence, legacy retirement and hands-on review.
 
 User-visible outcome: the new defense becomes the normal game experience with verified tradeoffs, stable controls, and no new regression failures.
 

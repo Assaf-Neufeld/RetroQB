@@ -33,7 +33,7 @@ public sealed class FullMatchSession
         : Clock.IsOvertime ? $"OT {Timed.OvertimePair} | attempt {Timed.OvertimeAttempt}/2"
         : Clock.Phase == ClockPhase.PeriodBreak ? Clock.Quarter == Clock.HalftimePeriod ? "HALFTIME" : Clock.PeriodLabel : "";
 
-    public FullMatchSession(IGameInput input, int seed, TimedMatch match, Defense.DefensiveEngineMode engine = Defense.DefensiveEngineMode.Legacy)
+    public FullMatchSession(IGameInput input, int seed, TimedMatch match, Defense.DefensiveEngineMode engine = Defense.DefensiveEngineMode.Production)
     {
         _input = input; _random = new(seed ^ 0x42319); Drive = new(input, seed, match: match, engine: engine); Prepare();
     }

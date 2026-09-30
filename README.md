@@ -24,7 +24,11 @@ Each game has two two-minute halves (H1 and H2), a 20-second play clock, and thr
 
 On offense, choose from ten situational pass calls and ten run calls drawn from the 100-call catalog. Route and blocking previews show the selected assignment. The CPU uses that catalog too. See the [playbook guide](docs/playbook-expansion.md).
 
-On defense, choose one of ten coverage/pressure calls. The highlighted player is always your linebacker: MLB in base personnel or OLB1 in nickel. Move and sprint to cover, contain, or pursue; contact handles tackles and pass interactions. The CPU snaps after its cadence, or Space signals that you are ready.
+On defense, choose one of ten coverage/pressure calls, including Cover 3 Match and Quarters Match. The highlighted player is always your linebacker: MLB in base or dime personnel, or OLB1 in nickel. Move and sprint to cover, contain, or pursue; contact handles tackles and pass interactions. The CPU snaps after its cadence, or Space signals that you are ready.
+
+Normal timed games now use the compiled defense engine. Man coverage assigns receivers by formation geometry; zones coordinate ownership and handoffs; match coverage follows observed releases. CPU calling considers down, distance, visible formation, game situation, team strengths, and bounded history from completed plays. Humans and the CPU execute the same defensive plans.
+
+H cycles Auto/Base/Nickel/Dime personnel and J cycles Even/Over/Under/Wide/Short Yardage fronts. Base keeps more linebackers; dime adds a sixth defensive back. Over/Under shift the interior gaps, Wide spreads the edge players, and Short Yardage compresses the front. Added and conditional pressure requires Even; unavailable combinations explain why before changing your selection.
 
 A completed drive shows its outcome, play count, yards, points, and next possession. Press Space to continue; F replays the last play and Tab opens statistics.
 
@@ -38,6 +42,9 @@ At a final result, Enter accepts the game and advances after a win. After a loss
 | Offensive pass call / defensive call before snap | 1–9, 0 |
 | Offensive run call before snap | Q W E R T Y U I O P |
 | Flip offensive call | X |
+| Flip defensive pressure before snap | X |
+| Cycle defensive pressure variant | Q / E |
+| Cycle defensive personnel / front before snap | H / J |
 | Snap / ready / continue a drive or period summary | Space |
 | Throw to receiver during a live offensive pass | 1–5 |
 | Select field goal / punt / kneel | K / B / V |
