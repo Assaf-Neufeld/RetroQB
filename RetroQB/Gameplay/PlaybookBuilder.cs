@@ -54,12 +54,12 @@ public static class PlaybookBuilder
         {
             [WR1] = R(Slant), [WR2] = R(Slant), [WR3] = R(Flat), [TE1] = R(Go), [RB1] = R(Flat, 1)
         }),
-        new("pass.pa-deep", "PA Deep", PlayType.Pass, FormationCatalog.Get(FormationType.BaseSplit),
+        PassingConceptAuthor.Author("pass.pa-deep", "PA Deep", FormationCatalog.Get(FormationType.BaseSplit),
+            new("Split", "PA Deep", PlayCategory.PlayAction, "Fake the handoff, then read the post over the dig."),
             new Dictionary<ReceiverSlot, PlayerAssignment>
         {
             [WR1] = R(Go), [WR2] = R(PostDeep), [WR3] = R(InDeep), [TE1] = R(DoubleMove), [RB1] = R(Flat, 1)
-        }, backfield: new BackfieldSequence(BackfieldAction.PlayAction, RB1, new(.7f, -.5f), speedMultiplier: .9f),
-            info: new("Split", "PA Deep", PlayCategory.PlayAction, "Fake the handoff, then read the post over the dig.")),
+        }, new BackfieldSequence(BackfieldAction.PlayAction, RB1, new(.7f, -.5f), speedMultiplier: .9f)),
         Pass("pass.combo", "Combo", FormationType.BaseSplit, new()
         {
             [WR1] = R(InShallow), [WR2] = R(Go), [WR3] = R(InDeep), [TE1] = R(InShallow), [RB1] = R(Flat, 1)
@@ -83,7 +83,7 @@ public static class PlaybookBuilder
         Run("run.draw", "Draw", FormationType.RunPistolStrongRight, RunConcept.Draw, 0, Heavy(Go, Flat))
     ];
 
-    public static PlayCatalog BuildCatalog() => new(BuildPassPlays().Concat(BuildRunPlays()).Concat(ExpandedPlaybook.Build()));
+    public static PlayCatalog BuildCatalog() => new(BuildPassPlays().Concat(BuildRunPlays()).Concat(ExpandedPlaybook.Build()).Concat(DesignedPlaybook.Build()));
 
     public static PlayDefinition CreatePassWildcardPlay(Random rng)
     {
@@ -149,7 +149,8 @@ public static class PlaybookBuilder
     }
 
     private static PlayDefinition Pass(string id, string name, FormationType formation, Dictionary<ReceiverSlot, PlayerAssignment> assignments) =>
-        new(id, name, PlayType.Pass, FormationCatalog.Get(formation), assignments);
+        PassingConceptAuthor.Author(id, name, FormationCatalog.Get(formation),
+            PlaybookInfo.Legacy(name, PlayType.Pass, FormationCatalog.Get(formation), RunConcept.None, false), assignments);
     private static PlayDefinition Run(string id, string name, FormationType formation, RunConcept concept, int side,
         Dictionary<ReceiverSlot, PlayerAssignment> assignments) =>
         new(id, name, PlayType.Run, FormationCatalog.Get(formation), assignments, concept, side);

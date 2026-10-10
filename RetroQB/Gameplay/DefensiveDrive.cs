@@ -86,16 +86,26 @@ public sealed class DefensiveDrive
         Prepare();
     }
 
+    private float _pressureSeconds, _tightSeconds, _observationSeconds;
+    public OffensiveCallContext OffensiveContext() => new(
+        new(Match.Series.Down, Match.Series.Distance, Plays.LineOfScrimmage, Plays.FirstDownLine),
+        Match.Offense.Score - Match.Defense.Score, Timed.Clock.RemainingSeconds,
+        Timed.Clock.Quarter == Timed.Clock.RegulationPeriods || Timed.Clock.IsOvertime,
+        Timed.Clock.IsOvertime, Timed.Clock.Timeouts(Match.Offense.Definition.Id));
+
     private void Prepare(bool retainOffensiveCall = false)
     {
         string? retained = retainOffensiveCall ? Plays.SelectedPlay.Id : null;
         Plays.StartNewDrive(Match.Series);
+        Plays.RecommendationRoster = Match.Offense.OffensiveAttributes;
+        Plays.RecommendationMemory = Match.Offense.OffenseStrategy;
+        Plays.RecommendationContext = OffensiveContext;
         if (!HumanOnDefense && _fixedCall == null && !retainOffensiveCall)
             Plays.SetCallSheet(SituationalCallSheet.Build(Plays.Catalog,
-                new(Match.Series.Down, Match.Series.Distance, Plays.LineOfScrimmage, Plays.FirstDownLine),
-                unchecked(_defenseSeed + Match.History.Count * 7919), Match.Offense.GetCallCount));
+                OffensiveContext(), Match.Offense.OffensiveAttributes,
+                unchecked(_defenseSeed + Match.History.Count * 7919), Match.Offense.OffenseStrategy));
         Plays.SelectCatalogPlay(retained ?? _fixedCall ?? (HumanOnDefense
-            ? _coordinator.Select(Match.Series, Match.Offense.Tendencies) : Plays.CallSheet.PassIds[0]), _random);
+            ? _coordinator.Select(OffensiveContext(), Match.Offense.Tendencies, Match.Offense.OffensiveAttributes, Match.Offense.OffenseStrategy) : Plays.CallSheet.PassIds[0]), _random, rerollWildcard: retained == null);
         PrepareActors();
     }
 
@@ -159,6 +169,7 @@ public sealed class DefensiveDrive
     {
         Execution.Reset(); _quarterback.Reset(); _carrier.Reset(); _tackle.Reset();
         _ball.Reset(Plays.LineOfScrimmage); _priorities.AssignPriorities(Actors.Receivers);
+        _pressureSeconds = _tightSeconds = _observationSeconds = 0;
         LiveSeconds = SecondsWithoutProgress = 0; _furthestY = Actors.Qb.Position.Y;
     }
 
@@ -304,9 +315,18 @@ public sealed class DefensiveDrive
         return true;
     }
 
+    public bool SelectOffenseById(string id, bool flipped)
+    {
+        if (HumanOnDefense || Live || Complete || LastResult != null) return false;
+        Plays.SelectCatalogPlay(id, _random, rerollWildcard: false);
+        if (Plays.SelectedPlay.IsFlipped != flipped) Plays.FlipSelectedPlay();
+        PrepareActors(); return true;
+    }
+
     public void Restart()
     {
         Timed.Restart(); LastResult = null; LastReplay = null; LastReplayDefense = null; Throws = 0;
+        Plays.StartNewGame(); LastReplayControlledIndex = -1;
         SelectedDefense = null!; CompiledPlan = null; _requestedPackage = null; _selectedFront = DefensiveFront.Even; Prepare();
     }
 
@@ -323,7 +343,7 @@ public sealed class DefensiveDrive
     {
         if (Live || Complete) return false;
         if (Timed.Advance(0, Plays.SelectedPlay.Id) == null) return false;
-        Plays.StartPlay(); LastResult = null;
+        Plays.StartPlay(recordStrategy: false); LastResult = null;
         _defenseOutcome = CompiledPlan == null ? null : new(CompiledPlan, Match.Defense.Definition.Id);
         Match.Defense.RecordCall(SelectedDefense.Definition.Id);
         _recorder.Begin(Match.History.Count + 1);
@@ -364,10 +384,11 @@ public sealed class DefensiveDrive
         OffensiveIntent intent;
         if (Actors.Ball.State == BallState.HeldByReceiver && Actors.Ball.Holder is Receiver receiver)
         {
-            Vector2? entry = Plays.SelectedPlay.Family == PlayType.Run
-                ? new Vector2(Constants.FieldWidth / 2 + Plays.SelectedPlay.RunningBackSide * 6, Plays.LineOfScrimmage + 4) : null;
-            intent = new(_carrier.Decide(receiver.Position, Actors.Defenders.Select(d => d.Position).ToArray(),
-                Actors.Blockers.Select(b => b.Position).ToArray(), entry, dt), true);
+            var threats = Actors.Defenders.Select(d => d.Position).ToArray();
+            var blocks = Actors.Blockers.Select(b => b.Position).ToArray();
+            intent = new(Plays.SelectedPlay.RunPlan is { } run
+                ? _carrier.DecideRun(receiver.Position, threats, blocks, run.At(Plays.LineOfScrimmage), dt)
+                : _carrier.Decide(receiver.Position, threats, blocks, null, dt), true);
         }
         else if (Plays.SelectedPlay.Family == PlayType.Run)
             intent = new(Execution.Backfield.Phase == BackfieldPhase.Aborted ? Vector2.UnitY : Vector2.Zero);
@@ -375,14 +396,28 @@ public sealed class DefensiveDrive
             intent = new(Vector2.Zero, ReceiverIndex: LiveSeconds >= 1 ? _priorities.GetFirstReceiverIndex() : null);
         else
         {
-            var reads = _priorities.GetPriorityIndices().Select(i => Actors.Receivers[i])
-                .Select(r => new ReceiverRead(r.Index, r.Position, r.Velocity, r.Eligible, r.IsBlocking,
-                    Plays.SelectedPlay.Id == "pass.four-verts" ? 10 : 2)).ToArray();
+            var reads = Plays.SelectedPlay.Reads.Select(read =>
+            {
+                var r = Actors.Receivers.Single(r => r.Slot == read.Slot);
+                return new ReceiverRead(r.Index, r.Position, r.Velocity, r.Eligible, r.IsBlocking,
+                    Plays.SelectedPlay.Screen?.Target == read.Slot ? -10 : r.RouteDefinition == null ? 2 : 0,
+                    LiveSeconds >= read.EarliestSeconds && r.RouteState.StepIndex >= read.AfterStep, read.Checkdown);
+            }).ToArray();
             // The authored fake must start before any throw is considered.
             bool ready = Execution.Backfield.AllowsThrow
                 && (Plays.SelectedPlay.Backfield.Action != BackfieldAction.PlayAction || LiveSeconds > dt);
             intent = _quarterback.Decide(new(Actors.Qb.Position, Plays.LineOfScrimmage, ready, reads,
-                Actors.Defenders.Select(d => d.Position).ToArray()), dt);
+                Actors.Defenders.Select(d => d.Position).ToArray(),
+                Actors.Defenders.Select(d => new DefenderRead(d.Position, d.Velocity, d.IsBeingBlocked)).ToArray(),
+                Math.Clamp(Constants.BallMaxSpeed * Match.Offense.OffensiveAttributes.GetQbArmStrengthMultiplier(),
+                    Constants.BallMinSpeed, Constants.BallMaxSpeed * Constants.QbArmStrengthMax)), dt);
+        }
+        if (Plays.SelectedPlay.Family == PlayType.Pass && Actors.Ball.State == BallState.HeldByQB)
+        {
+            _observationSeconds += dt;
+            if (Actors.Defenders.Any(d => !d.IsBeingBlocked && Vector2.Distance(d.Position, Actors.Qb.Position) < 6)) _pressureSeconds += dt;
+            var eligible = Actors.Receivers.Where(r => r.Eligible && !r.IsBlocking).ToArray();
+            if (eligible.Length > 0) _tightSeconds += dt * eligible.Count(r => Actors.Defenders.Any(d => Vector2.Distance(d.Position, r.Position) < 3)) / eligible.Length;
         }
         Execution.CpuIntent = intent;
         Execution.UpdatePlay(Actors.Qb, Actors.Ball, Actors.Receivers, Actors.Defenders, Actors.Blockers,
@@ -410,6 +445,7 @@ public sealed class DefensiveDrive
 
     private void Finish(PlayContact contact)
     {
+        Execution.Design.Stop();
         Execution.DefenseRuntime?.Stop();
         ReceiverSlot? target = _ball.PassCatcher?.Slot ?? _ball.ThrowTargetSlot;
         var stats = new OffensivePlayStats(_ball.PassAttemptedThisPlay, _ball.PassCompletedThisPlay, target,
@@ -419,8 +455,12 @@ public sealed class DefensiveDrive
         LastReplayDefense = SelectedDefense;
         var controlled = Execution.Control.ControlledDefender(Actors.Defenders);
         LastReplayControlledIndex = controlled == null ? -1 : Actors.Defenders.IndexOf(controlled);
+        var observedOffense = Match.Offense;
+        long observedPlay = Match.ActivePlay!.Id;
         LastResult = Timed.Resolve(contact.ToEvent(Match.ActivePlay!, stats, Actors.CoverageScheme) with
             { ControlledDefender = controlled?.Slot, DefenseOutcome = _defenseOutcome?.Complete() });
+        if (_observationSeconds > 0)
+            observedOffense.OffenseStrategy.ObserveCompleted(observedPlay, _pressureSeconds / _observationSeconds, _tightSeconds / _observationSeconds);
         LastReplay = _recorder.FinalizeClip(contact.Reason switch
         {
             PlayEndReason.Touchdown => PlayOutcome.Touchdown, PlayEndReason.Interception => PlayOutcome.Interception,

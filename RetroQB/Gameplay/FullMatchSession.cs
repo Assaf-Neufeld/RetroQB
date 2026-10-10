@@ -6,7 +6,8 @@ namespace RetroQB.Gameplay;
 
 public sealed record MatchInput(int? Call = null, int? Run = null, bool Ready = false, bool Kick = false,
     bool Punt = false, bool Kneel = false, bool Flip = false, bool Timeout = false, bool Pause = false,
-    bool Replay = false, bool Restart = false, bool Focused = true, bool Statistics = false, int SummaryScroll = 0, int DefensiveVariantStep = 0, bool DefensivePersonnel = false, bool DefensiveFront = false);
+    bool Replay = false, bool Restart = false, bool Focused = true, bool Statistics = false, int SummaryScroll = 0, int DefensiveVariantStep = 0, bool DefensivePersonnel = false, bool DefensiveFront = false,
+    BrowserInput? Browser = null);
 
 /// <summary>Both possessions share the same actors, contact detection, clock and exactly-once resolver.</summary>
 public sealed class FullMatchSession
@@ -16,6 +17,7 @@ public sealed class FullMatchSession
     private double _presentation, _actionSeconds;
     private bool _cpuKickGood;
     public DefensiveDrive Drive { get; }
+    public PlaybookBrowser Browser { get; }
     public TimedMatch Timed => Drive.Timed;
     public MatchClock Clock => Timed.Clock;
     public MatchState Match => Timed.Match;
@@ -33,9 +35,11 @@ public sealed class FullMatchSession
         : Clock.IsOvertime ? $"OT {Timed.OvertimePair} | attempt {Timed.OvertimeAttempt}/2"
         : Clock.Phase == ClockPhase.PeriodBreak ? Clock.Quarter == Clock.HalftimePeriod ? "HALFTIME" : Clock.PeriodLabel : "";
 
-    public FullMatchSession(IGameInput input, int seed, TimedMatch match, Defense.DefensiveEngineMode engine = Defense.DefensiveEngineMode.Production)
+    public FullMatchSession(IGameInput input, int seed, TimedMatch match, Defense.DefensiveEngineMode engine = Defense.DefensiveEngineMode.Production,
+        PlaybookFavorites? favorites = null)
     {
-        _input = input; _random = new(seed ^ 0x42319); Drive = new(input, seed, match: match, engine: engine); Prepare();
+        _input = input; _random = new(seed ^ 0x42319); Drive = new(input, seed, match: match, engine: engine);
+        Browser = new(Drive.Plays, favorites); Prepare();
     }
 
     public StrategyContext Context()
@@ -46,6 +50,7 @@ public sealed class FullMatchSession
 
     private void Prepare()
     {
+        Browser.Close();
         _presentation = _actionSeconds = 0; Kick = null; SpecialTeams = null;
         if (Timed.KickoffReceiverId != null && Clock.Phase == ClockPhase.PreSnap)
         {
@@ -71,6 +76,7 @@ public sealed class FullMatchSession
 
     public void Restart()
     {
+        Browser.Close();
         Replay.Unload(); Drive.Restart(); SummaryOffset = 0; Prepare();
     }
 
@@ -79,6 +85,11 @@ public sealed class FullMatchSession
         if (!float.IsFinite(dt) || dt < 0) throw new ArgumentOutOfRangeException(nameof(dt));
         input ??= new();
         if (input.Restart) { Restart(); return; }
+        bool browsing = !HumanOnDefense && !Drive.Live && Drive.LastResult == null && Action == MatchAction.Scrimmage
+            && Clock.Phase == ClockPhase.PreSnap && (Browser.IsOpen || input.Browser?.Toggle == true);
+        if (browsing) input = input with { Call = null, Run = null, Ready = false, Kick = false, Punt = false,
+            Kneel = false, Flip = false, Timeout = false, Replay = false, Statistics = false, SummaryScroll = 0,
+            Pause = input.Browser?.Close == true ? false : input.Pause };
         if (input.Statistics)
         {
             if (ShowStatistics) Clock.Resume(ClockSuspension.Statistics); else Clock.Suspend(ClockSuspension.Statistics);
@@ -90,19 +101,36 @@ public sealed class FullMatchSession
             if ((Clock.Suspension & ClockSuspension.Pause) != 0) Clock.Resume(ClockSuspension.Pause);
             else Clock.Suspend(ClockSuspension.Pause);
         }
-        bool showingDriveResult = Drive.LastResult?.DriveEnded == true && !ShowStatistics;
-        if (input.Replay && showingDriveResult)
+        bool canReplay = !Drive.Live && !ShowStatistics && (Clock.Suspension & ~ClockSuspension.Replay) == 0;
+        if (input.Replay && canReplay && (Replay.IsPlaying || Drive.LastReplay != null))
         {
             if (Replay.IsPlaying) { Replay.Unload(); Clock.Resume(ClockSuspension.Replay); }
             else if (Drive.LastReplay is { } clip) { Replay.Load(clip, ReplayPlaybackPolicy.GetSpeed(clip)); Clock.Suspend(ClockSuspension.Replay); }
+            return; // Replay edges cannot also acknowledge a result or snap the next play.
         }
         if (Replay.IsPlaying)
         {
-            if ((Clock.Suspension & ~ClockSuspension.Replay) == 0) Replay.Update(dt);
-            if (Replay.IsComplete || input.Ready) { Replay.Unload(); Clock.Resume(ClockSuspension.Replay); }
+            if ((Clock.Suspension & ~ClockSuspension.Replay) == 0)
+            {
+                Replay.Update(dt);
+                if (Replay.IsComplete || input.Ready) { Replay.Unload(); Clock.Resume(ClockSuspension.Replay); }
+            }
             return;
         }
         if (Clock.Suspension != ClockSuspension.None || Timed.Finished) return;
+        if (browsing)
+        {
+            if (MatchStrategy.DefensiveTimeout(Context())) Clock.TryTimeout(Match.Opponent.Definition.Id);
+            Browser.Team = Match.Offense.OffensiveAttributes;
+            string? id = Browser.Update(input.Browser ?? new());
+            if (id != null) Drive.SelectOffenseById(id, Browser.Preview!.IsFlipped);
+            float previewLos = Drive.Plays.LineOfScrimmage;
+            int previewQuarter = Clock.Quarter;
+            Drive.AdvancePreSnap(dt); // Browsing consumes the normal play clock.
+            if (Drive.Live || HumanOnDefense || Clock.Quarter != previewQuarter || Clock.Phase != ClockPhase.PreSnap) Browser.Close();
+            else if (Drive.Plays.LineOfScrimmage != previewLos) Browser.RebasePreview();
+            return;
+        }
         if (input.Timeout) Clock.TryTimeout(Match.User.Definition.Id);
         if (!HumanOnDefense && MatchStrategy.DefensiveTimeout(Context())) Clock.TryTimeout(Match.Opponent.Definition.Id);
         if (Drive.Live && SpecialTeams is { } special)

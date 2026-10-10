@@ -6,7 +6,8 @@ namespace RetroQB.Development;
 internal sealed record InputFrame(Vector2 Movement = default, bool Sprint = false,
     bool Space = false, bool Enter = false, bool FieldGoal = false, bool Replay = false,
     bool Escape = false, bool Restart = false, int? ThrowTarget = null,
-    int? PassSelection = null, int? RunSelection = null, bool Flip = false, int DefensiveVariantStep = 0, bool DefensivePersonnel = false, bool DefensiveFront = false);
+    int? PassSelection = null, int? RunSelection = null, bool Flip = false, int DefensiveVariantStep = 0, bool DefensivePersonnel = false, bool DefensiveFront = false,
+    RetroQB.Gameplay.BrowserInput? Browser = null);
 
 internal sealed class ScriptedInput : IGameInput
 {
@@ -28,4 +29,5 @@ internal sealed class ScriptedInput : IGameInput
     public bool IsDefensiveFrontPressed() => Frame.DefensiveFront;
     public bool IsFlipPlayPressed() => Frame.Flip;
     public int? GetRunPlaySelection() => Frame.RunSelection;
+    public RetroQB.Gameplay.BrowserInput GetBrowserInput() => Frame.Browser ?? new();
 }

@@ -17,7 +17,7 @@ internal sealed record ScenarioDefinition(string Name, string PlayId, DriveStart
     public bool FullMatch { get; init; }
     public static IReadOnlyList<string> Names { get; } = Array.AsReadOnly(new[]
     {
-        "offense-pass", "offense-run", "offense-play-action", "offense-field-goal", "offense-replay",
+        "offense-pass", "offense-run", "offense-play-action", "offense-field-goal", "offense-replay", "offense-passing-matrix", "offense-passing-preview", "offense-designed-matrix", "offense-designed-preview", "offense-designed-controls", "offense-balance", "offense-browser-preview",
         "defense-strategy-matrix", "defense-formation-matrix", "defense-match-matrix", "defense-pressure-matrix", "defense-fit-matrix", "defense-runtime-matrix", "defense-redesign-matrix", "defense-plan-matrix", "defense-drive", "defense-calls", "defense-control-base", "defense-control-nickel",
         "defense-formation-controls", "defense-match-controls", "defense-match-fallback", "defense-pressure-controls", "defense-quick", "defense-deep", "defense-play-action",
         "timed-game", "timed-short", "late-tying-kick", "late-protect-lead", "overtime-pairs", "timed-season", "timed-season-short", "timed-layout", "release-catalog", "release-matches", "release-default"
@@ -25,8 +25,9 @@ internal sealed record ScenarioDefinition(string Name, string PlayId, DriveStart
 
     public static ScenarioDefinition Get(string name) => name switch
     {
+        "offense-balance" or "offense-browser-preview" => new(name, "", new()),
         "defense-strategy-matrix" or "defense-formation-matrix" or "defense-match-matrix" or "defense-pressure-matrix" or "defense-fit-matrix" or "defense-runtime-matrix" or "defense-redesign-matrix" or "defense-plan-matrix" => new(name, "", new()),
-        "release-catalog" or "release-matches" or "release-default" => new(name, "", new()),
+        "release-catalog" or "release-matches" or "release-default" or "offense-passing-matrix" or "offense-passing-preview" or "offense-designed-matrix" or "offense-designed-preview" or "offense-designed-controls" => new(name, "", new()),
         "timed-game" or "timed-short" or "late-tying-kick" or "late-protect-lead" or "overtime-pairs" or "timed-season" or "timed-season-short" or "timed-layout"
             => new(name, "", new()) { FullMatch = true },
         "defense-drive" => new(name, "", new()) { Defending = true },

@@ -13,7 +13,8 @@ public sealed record PlayerAssignment(
     bool SlantInside = true,
     RouteDefinition? RouteDefinition = null,
     BlockingAssignment? Blocking = null,
-    float ReleaseAfterSeconds = 0);
+    float ReleaseAfterSeconds = 0,
+    ProtectionRelease? ProtectionRelease = null);
 
 public enum RunConcept
 {
@@ -77,12 +78,19 @@ public sealed class PlayDefinition
     public IReadOnlyList<BlockingAssignment>? LineBlocking { get; }
     public IReadOnlyList<BlockingAssignment>? OpeningLineBlocking { get; }
     public BackfieldSequence Backfield { get; }
+    public IReadOnlyList<PassRead> Reads { get; }
+    public ProtectionPlan Protection { get; }
+    public RunPlan? RunPlan { get; }
+    public ScreenPlan? Screen { get; }
+    public QuarterbackPath? QuarterbackPath { get; }
 
     public PlayDefinition(string id, string name, PlayType family, FormationDefinition formation,
         IReadOnlyDictionary<ReceiverSlot, PlayerAssignment> assignments,
         RunConcept runConcept = RunConcept.None, int runningBackSide = 0, bool isWildcard = false,
         IReadOnlyList<BlockingAssignment>? lineBlocking = null, IReadOnlyList<BlockingAssignment>? openingLineBlocking = null,
-        BackfieldSequence? backfield = null, PlaybookInfo? info = null)
+        BackfieldSequence? backfield = null, PlaybookInfo? info = null,
+        IEnumerable<PassRead>? reads = null, ProtectionPlan? protection = null,
+        RunPlan? runPlan = null, ScreenPlan? screen = null, QuarterbackPath? quarterbackPath = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -102,6 +110,9 @@ public sealed class PlayDefinition
                 || (assignment.Role == AssignmentRole.BallCarrier && assignment.Blocking != null)
                 || (assignment.Role == AssignmentRole.Route && assignment.Blocking != null && assignment.ReleaseAfterSeconds == 0))
                 throw new ArgumentException($"{id}: block-and-release needs a route, a blocking job, and a positive release delay.");
+            if (assignment.ProtectionRelease is { } release && (assignment.ReleaseAfterSeconds <= 0
+                || !float.IsFinite(release.DecisionTimeout) || release.DecisionTimeout < assignment.ReleaseAfterSeconds))
+                throw new ArgumentException($"{id}: safe release requires a valid protection interval and timeout.");
         }
         var carriers = assignments.Where(a => a.Value.Role == AssignmentRole.BallCarrier).Select(a => a.Key).ToArray();
         if (family == PlayType.Run && (carriers.Length != 1 || runConcept == RunConcept.None))
@@ -117,15 +128,40 @@ public sealed class PlayDefinition
         Family = family;
         Formation = formation;
         Assignments = new ReadOnlyDictionary<ReceiverSlot, PlayerAssignment>(assignments.ToDictionary());
+        var progression = (reads ?? assignments.Where(a => a.Value.Role == AssignmentRole.Route)
+            .OrderBy(a => a.Key.GetPriorityOrder()).Select(a => new PassRead(a.Key))).ToArray();
+        if (progression.Any(r => r == null || !assignments.TryGetValue(r.Slot, out var a) || a.Role != AssignmentRole.Route
+            || !float.IsFinite(r.EarliestSeconds) || r.EarliestSeconds < 0 || r.AfterStep < 0
+            || r.AfterStep > (a.RouteDefinition?.Steps.Count ?? int.MaxValue))
+            || progression.Select(r => r.Slot).Distinct().Count() != progression.Length
+            || (family == PlayType.Pass && !progression.Select(r => r.Slot).ToHashSet()
+                .SetEquals(assignments.Where(a => a.Value.Role == AssignmentRole.Route).Select(a => a.Key))))
+            throw new ArgumentException($"{id}: progression must reference each eligible route once with valid gates.");
+        Reads = Array.AsReadOnly(progression);
+        Protection = protection ?? new();
+        if (!Enum.IsDefined(Protection.Mode) || (family != PlayType.Pass && Protection.Mode != ProtectionMode.Balanced))
+            throw new ArgumentException($"{id}: invalid protection mode.");
+        if (Protection.HelpSlot is { } help && (family != PlayType.Pass || !assignments.TryGetValue(help, out var helper)
+            || helper.Role != AssignmentRole.Block || helper.Blocking is not { IsRunBlock: false }))
+            throw new ArgumentException($"{id}: protection helper must be a permanent pass protector.");
         RunConcept = runConcept;
         RunningBackSide = runningBackSide;
         IsWildcard = isWildcard;
         BallCarrierSlot = carriers.Length == 1 ? carriers[0] : null;
+        RunPlan = runPlan ?? (family == PlayType.Run ? global::RetroQB.Gameplay.RunPlan.For(this) : null);
+        Screen = screen; QuarterbackPath = quarterbackPath;
+        if ((RunPlan != null && (family != PlayType.Run || RunPlan.Combinations.Any(c =>
+                c.AnchorSlot >= Personnel.LinemanCount || c.ReleaseSlot >= Personnel.LinemanCount)))
+            || (screen != null && (family != PlayType.Pass || !Assignments.TryGetValue(screen.Target, out var target)
+                || target.Role != AssignmentRole.Route || screen.LineEscorts.Keys.Any(i => i >= Personnel.LinemanCount)
+                || screen.SkillEscorts.Keys.Any(s => !Assignments.TryGetValue(s, out var a) || a.Role != AssignmentRole.Block)))
+            || (quarterbackPath != null && (family != PlayType.Pass || screen != null)))
+            throw new ArgumentException($"{id}: offensive design must match personnel and play family.");
         Backfield = backfield ?? (BallCarrierSlot is ReceiverSlot carrier
             ? BackfieldSequence.ForRun(runConcept, carrier, runningBackSide) : new BackfieldSequence());
         if ((family == PlayType.Run && (Backfield.Action != BackfieldAction.Handoff || Backfield.Participant != BallCarrierSlot))
             || (family == PlayType.Pass && Backfield.Action == BackfieldAction.Handoff)
-            || (openingLineBlocking != null && Backfield.Action == BackfieldAction.None)
+            || (openingLineBlocking != null && Backfield.Action == BackfieldAction.None && screen == null)
             || (Backfield.Participant.HasValue && !Assignments.ContainsKey(Backfield.Participant.Value)))
             throw new ArgumentException($"{id}: exchange participant must match the play's personnel and carrier.");
         LineBlocking = CopyLinePlan(lineBlocking);

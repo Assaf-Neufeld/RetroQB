@@ -24,6 +24,11 @@ public sealed class ResolvedPlay
     public IReadOnlyList<BlockingAssignment> LineBlocking { get; }
     public IReadOnlyList<BlockingAssignment> OpeningLineBlocking { get; }
     public BackfieldSequence Backfield { get; }
+    public IReadOnlyList<PassRead> Reads => Definition.Reads;
+    public ProtectionPlan Protection { get; }
+    public RunPlan? RunPlan { get; }
+    public ScreenPlan? Screen { get; }
+    public QuarterbackPath? QuarterbackPath { get; }
     public IReadOnlyList<ResolvedPlayer> Players { get; }
     public IReadOnlyDictionary<ReceiverSlot, PlayerAssignment> Assignments { get; }
     public IReadOnlyDictionary<ReceiverSlot, RouteType> Routes { get; }
@@ -33,6 +38,10 @@ public sealed class ResolvedPlay
         Definition = definition;
         IsFlipped = flipped;
         Backfield = flipped ? definition.Backfield.Flip() : definition.Backfield;
+        Protection = flipped ? definition.Protection.Flip() : definition.Protection;
+        RunPlan = flipped ? definition.RunPlan?.Flip() : definition.RunPlan;
+        Screen = flipped ? definition.Screen?.Flip() : definition.Screen;
+        QuarterbackPath = flipped ? definition.QuarterbackPath?.Flip() : definition.QuarterbackPath;
         int direction = flipped ? -1 : 1;
         RunningBackSide = definition.RunningBackSide * direction;
         var alignment = definition.Formation.Alignment;

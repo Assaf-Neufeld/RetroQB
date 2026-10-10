@@ -7,8 +7,26 @@ public sealed class BallCarrierAI
 {
     private Vector2 _direction = Vector2.UnitY;
     private float? _escapeX;
+    private int _runStep;
+    private float _pressSeconds;
     public int SteeringChanges { get; private set; }
-    public void Reset() { _direction = Vector2.UnitY; _escapeX = null; SteeringChanges = 0; }
+    public void Reset() { _direction = Vector2.UnitY; _escapeX = null; _runStep = 0; _pressSeconds = 0; SteeringChanges = 0; }
+    public Vector2 DecideRun(Vector2 position, IReadOnlyList<Vector2> defenders, IReadOnlyList<Vector2> blockers,
+        IReadOnlyList<Vector2> path, float dt)
+    {
+        _pressSeconds += MathF.Max(0, dt);
+        while (_runStep < path.Count - 1 && (Vector2.Distance(position, path[_runStep]) < 1.1f
+            || position.Y > path[_runStep].Y + 1.5f)) _runStep++;
+        Vector2 delta = path[_runStep] - position;
+        bool penetration = defenders.Any(d => Vector2.Distance(d, position) < 2.8f);
+        // Press the authored track first; live penetration always permits an immediate cut.
+        if (_pressSeconds < 1.2f && !penetration && delta.LengthSquared() > .01f)
+        {
+            _direction = Vector2.Normalize(delta);
+            return _direction;
+        }
+        return Decide(position, defenders, blockers, path[_runStep], dt);
+    }
     public Vector2 Decide(Vector2 position, IReadOnlyList<Vector2> defenders, IReadOnlyList<Vector2> blockers,
         Vector2? entry, float dt)
     {

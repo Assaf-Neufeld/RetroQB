@@ -18,10 +18,19 @@ public sealed class FieldGoalTests
     [Fact]
     public void OutOfRangeCannotSnap()
     {
-        var kick = new FieldGoalAttempt(FieldGeometry.OpponentGoalLine - 44);
+        var kick = new FieldGoalAttempt(FieldGeometry.OpponentGoalLine - 64); // 81 yards including snap/end zone.
         kick.PressSpace();
         kick.Update(10);
         Assert.Equal(KickPhase.Setup, kick.Phase);
+    }
+
+    [Theory]
+    [InlineData(61)] [InlineData(80)]
+    public void ExtendedRangeThroughTheMaximumCanSnap(float distance)
+    {
+        var kick = new FieldGoalAttempt(FieldGeometry.OpponentGoalLine - (distance - 17));
+        kick.PressSpace(); kick.Update(FieldGoalAttempt.SnapDuration);
+        Assert.Equal(KickPhase.Ready, kick.Phase);
     }
 
     [Theory]

@@ -1,4 +1,5 @@
 using RetroQB.Entities;
+using RetroQB.AI;
 
 namespace RetroQB.Gameplay;
 
@@ -87,6 +88,15 @@ public static class PlaySuggestion
             ? (PlayType.Pass, bestPass.Index)
             : (PlayType.Run, bestRun.Index);
     }
+
+    public static (PlayType Type, int Index) GetSuggestedPlay(OffensiveCallContext context,
+        OffensiveTeamAttributes roster, OffensiveStrategyMemory memory,
+        IReadOnlyList<ResolvedPlay> passPlays, IReadOnlyList<ResolvedPlay> runPlays)
+        => passPlays.Select((p, i) => (Type: PlayType.Pass, Index: i, Play: p))
+            .Concat(runPlays.Select((p, i) => (Type: PlayType.Run, Index: i, Play: p)))
+            .OrderByDescending(p => GetFamilyWeight(p.Type, context.Situation)
+                * OffensiveCallScoring.Weight(p.Play, context, roster, memory))
+            .Select(p => (p.Type, p.Index)).First();
 
     /// <summary>
     /// Gets weighted list of play types for random selection.
@@ -323,16 +333,22 @@ public static class PlaySuggestion
     private static float GetPassProtectionFit(ResolvedPlay play, PlaySituation situation)
     {
         float weight = 1f;
-        if (play.Assignments.Any(a => a.Key.IsRunningBackSlot() && a.Value.Role == AssignmentRole.Block))
+        if (play.Assignments.Any(a => a.Key.IsRunningBackSlot() && a.Value.Blocking is { IsRunBlock: false }))
         {
             weight += situation.IsLongYardage ? 0.18f : 0.1f;
         }
 
-        if (play.Assignments.Any(a => a.Key.IsTightEndSlot() && a.Value.Role == AssignmentRole.Block))
+        if (play.Assignments.Any(a => a.Key.IsTightEndSlot() && a.Value.Blocking is { IsRunBlock: false }))
         {
             weight += situation.IsLongYardage ? 0.14f : 0.08f;
         }
 
+        if (situation.IsShortYardage && play.Reads.Count > 0)
+        {
+            int delayed = play.Reads.Count(r => play.Assignments[r.Slot].ReleaseAfterSeconds > .5f
+                || r.EarliestSeconds > .5f || (play.Assignments[r.Slot].RouteDefinition?.DelaySeconds ?? 0) > .5f);
+            weight *= 1 - .2f * delayed / play.Reads.Count;
+        }
         return weight;
     }
 
@@ -427,7 +443,7 @@ public static class PlaySuggestion
         {
             if (assignment.RouteDefinition is RouteDefinition custom)
             {
-                float depth = custom.Steps.Max(step => step.Offset.Y);
+                float depth = custom.Steps.Max(step => step.Offset.Y) - custom.OriginDepth;
                 if (depth <= 5) profile.QuickRoutes++;
                 else if (depth <= 12) profile.IntermediateRoutes++;
                 else profile.DeepRoutes++;

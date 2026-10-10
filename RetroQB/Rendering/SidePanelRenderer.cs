@@ -62,20 +62,28 @@ public sealed class SidePanelRenderer
             var info = play.SelectedPlay.Definition.Info;
             FitText($"{info.CategoryLabel} | {play.SelectedPlay.Personnel.DisplayLabel}{(play.SelectedPlay.IsFlipped ? " | Flipped" : "")}", x, y, 12, Palette.Gold);
             y += 15;
-            // Two short lines of coaching guidance for the selected call.
-            string[] words = info.Description.Split(' ');
-            string line = "";
-            foreach (string word in words)
+            // Keep passing guidance within the existing two-line coaching area.
+            if (play.SelectedPlay.Family == PlayType.Pass)
             {
-                if (Raylib.MeasureText(line + word, 11) > PanelWidth - 32)
-                {
-                    Raylib.DrawText(line, x, y, 11, Palette.Muted);
-                    y += 13;
-                    line = "";
-                }
-                line += word + " ";
+                FitText(PassingGuidance.Reads(play.SelectedPlay), x, y, 11, Palette.Gold);
+                FitText(PassingGuidance.Protection(play.SelectedPlay), x, y + 13, 11, Palette.Muted);
             }
-            Raylib.DrawText(line, x, y, 11, Palette.Muted);
+            else
+            {
+                string[] words = info.Description.Split(' ');
+                string line = "";
+                foreach (string word in words)
+                {
+                    if (Raylib.MeasureText(line + word, 11) > PanelWidth - 32)
+                    {
+                        Raylib.DrawText(line, x, y, 11, Palette.Muted);
+                        y += 13;
+                        line = "";
+                    }
+                    line += word + " ";
+                }
+                Raylib.DrawText(line, x, y, 11, Palette.Muted);
+            }
 
             void DrawBank(IReadOnlyList<ResolvedPlay> calls, PlayType family, string title, string[] keys, Color color)
             {
@@ -149,7 +157,7 @@ public sealed class SidePanelRenderer
         Raylib.DrawText("CONTROLS", x, y, 14, Palette.Yellow);
         y += 18;
         string replayControl = replayAvailable && state != GameState.PlayActive ? "Replay: F | Restart game: Z" : "Restart game: Z";
-        string[] controls = ["Move: Arrows | Sprint: Shift", "Snap: Space | Flip play: X", "Pass: 1-9,0 | Run: Q-P", "Throw: 1-5 | Field goal: K", replayControl, "Pause: Esc"];
+        string[] controls = ["Move: Arrows | Sprint: Shift", "Snap: Space | Flip play: X", "Pass: 1-9,0 | Run: Q-P", "Throw: 1-5 | Field goal: K", replayControl, "Pause: Esc | Playbook: L"];
         if (state == GameState.FieldGoal)
             controls = ["Snap / Start meter: Space", "Lock power / Kick: Space", "Continue after kick: Enter", "Restart game: Z", "Esc: Back before snap", "Esc: Pause after snap"];
         foreach (string control in controls)

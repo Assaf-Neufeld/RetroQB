@@ -60,6 +60,8 @@ public sealed class GameSession : IDisposable
     private readonly OverlapResolver _overlapResolver;
     private readonly ReceiverPriorityManager _receiverPriorityManager;
     private readonly DrawingController _drawingController;
+    private readonly PlaybookBrowser _playbookBrowser;
+    internal PlaybookBrowser LegacyBrowser => _playbookBrowser;
     private readonly MenuController _menuController;
     private readonly ReplayRecorder _replayRecorder;
     private readonly ReplayClipStore _replayClipStore;
@@ -173,6 +175,7 @@ public sealed class GameSession : IDisposable
         _playerRecordStore = recordStore ?? new PlayerRecordStore();
         _stateManager = stateManager;
         _playManager = playManager;
+        _playbookBrowser = new(playManager);
         _statsTracker = statsTracker;
         _input = input;
         _replayRecorder = replayRecorder;
@@ -277,6 +280,7 @@ public sealed class GameSession : IDisposable
 
     private void ResetPlayState()
     {
+        _playbookBrowser.Close();
         _fieldGoal = null;
         _lastPlayText = string.Empty;
         ClearDriveOverBanner();
@@ -358,8 +362,10 @@ public sealed class GameSession : IDisposable
                 Kneel: _input.IsKneelPressed(), Flip: _input.IsFlipPlayPressed(), Timeout: _input.IsTimeoutPressed(),
                 Pause: _input.IsEscapePressed(), Replay: _input.IsReplayPressed(), Restart: _input.IsRestartPressed(),
                 Statistics: _input.IsStatisticsPressed(), SummaryScroll: _input.IsDriveSummaryScrollOlderPressed() ? 1 : _input.IsDriveSummaryScrollNewerPressed() ? -1 : 0, Focused: focused,
-                DefensiveVariantStep: _input.GetDefensiveVariantStep(), DefensivePersonnel: _input.IsDefensivePersonnelPressed(), DefensiveFront: _input.IsDefensiveFrontPressed());
-            bool accept = focused && _input.IsEnterPressed();
+                DefensiveVariantStep: _input.GetDefensiveVariantStep(), DefensivePersonnel: _input.IsDefensivePersonnelPressed(), DefensiveFront: _input.IsDefensiveFrontPressed(),
+                Browser: _input.GetBrowserInput());
+            bool accept = focused && _input.IsEnterPressed()
+                && (TimedSeason?.Pregame == true || FullMatch.Timed.Finished || TimedSeason?.Complete == true);
             // Consume edges once; bounded physics steps prevent a slow frame from skipping contact.
             float remaining = Math.Clamp(float.IsFinite(dt) ? dt : 0, 0, .1f);
             do
@@ -376,7 +382,7 @@ public sealed class GameSession : IDisposable
             return;
         }
 
-        if (_input.IsEscapePressed())
+        if (_input.IsEscapePressed() && !(_stateManager.State == GameState.PreSnap && _playbookBrowser.IsOpen))
         {
             if (!_stateManager.IsPaused && _stateManager.State == GameState.FieldGoal && _fieldGoal?.Phase == KickPhase.Setup)
             {
@@ -575,6 +581,21 @@ public sealed class GameSession : IDisposable
 
     private void HandlePreSnap()
     {
+        _playManager.RecommendationRoster = _offensiveTeam;
+        var browserInput = _input.GetBrowserInput();
+        if (browserInput.Toggle && !_playbookBrowser.IsOpen && _playManager.EnsureSituationCallSheet()) SetupEntities();
+        if (_playbookBrowser.IsOpen || browserInput.Toggle)
+        {
+            _playbookBrowser.Team = _offensiveTeam;
+            string? id = _playbookBrowser.Update(browserInput);
+            if (id != null)
+            {
+                _playManager.SelectCatalogPlay(id, _sessionRng, rerollWildcard: false);
+                if (_playManager.SelectedPlay.IsFlipped != _playbookBrowser.Preview!.IsFlipped) _playManager.FlipSelectedPlay();
+                _manualPlaySelection = true; SetupEntities();
+            }
+            return;
+        }
         if (_input.IsFieldGoalPressed())
         {
             _fieldGoal = new FieldGoalAttempt(_playManager.LineOfScrimmage);
@@ -1087,7 +1108,7 @@ public sealed class GameSession : IDisposable
             _currentStage,
             _seasonSummary,
             replayAvailable,
-            BuildCrowdBackdropState(), _playExecutionController, _fieldGoal);
+            BuildCrowdBackdropState(), _playExecutionController, _fieldGoal, _playbookBrowser);
     }
 
     private IReadOnlyList<OffensiveTeamAttributes> GetMenuTeams()

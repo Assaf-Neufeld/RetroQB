@@ -7,6 +7,9 @@ internal static class ScenarioLauncher
 {
     public static int Run(ScenarioLaunchOptions options)
     {
+        if (options.Definition.Name == "offense-browser-preview") return PlaybookBrowserPreview.Run(options);
+        if (options.Definition.Name == "offense-balance") return OffensiveBalanceVerification.Run(options);
+        if (options.Definition.Name is "offense-passing-preview" or "offense-designed-preview") return OffensivePassingPreview.Run(options);
         if (options.Definition.Name == "defense-formation-matrix") return DefenseFormationMatrix.Run(options);
         if (options.Definition.Name == "defense-strategy-matrix") return DefenseStrategyMatrix.Run(options);
         if (options.Definition.Name == "defense-match-matrix") return DefenseMatchMatrix.Run(options);
@@ -14,7 +17,8 @@ internal static class ScenarioLauncher
         if (options.Definition.Name is "defense-runtime-matrix" or "defense-fit-matrix") return DefenseRuntimeMatrix.Run(options);
         if (options.Definition.Name == "defense-redesign-matrix") return DefenseRedesignMatrix.Run(options);
         if (options.Definition.Name == "defense-plan-matrix") return DefensePlanMatrix.Run(options);
-        if (options.Definition.Name.StartsWith("release-")) return ReleaseVerification.Run(options);
+        if (options.Definition.Name.StartsWith("release-") || options.Definition.Name is "offense-passing-matrix" or "offense-designed-matrix" or "offense-designed-controls")
+            return ReleaseVerification.Run(options);
         if (options.Definition.FullMatch) return FullMatchScenarioLauncher.Run(options);
         if (options.Definition.Defending) return DefenseScenarioLauncher.Run(options);
         using var run = new ScenarioRun(options.Definition, options.Seed, options.OutputDirectory);

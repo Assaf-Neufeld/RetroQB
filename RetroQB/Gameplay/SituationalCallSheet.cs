@@ -1,3 +1,5 @@
+using RetroQB.AI;
+
 namespace RetroQB.Gameplay;
 
 /// <summary>Builds a reproducible, diverse call sheet once per situation, never per frame.</summary>
@@ -8,8 +10,13 @@ public static class SituationalCallSheet
         s.IsMustConvert && s.IsLongYardage ? "Long conversion" : s.IsMustConvert ? "Conversion down" :
         s.IsLongYardage ? "Open field / long yardage" : "Balanced field";
 
-    public static PlayCallSheet Build(PlayCatalog catalog, PlaySituation situation, int seed, Func<string, int>? usage = null)
+    public static PlayCallSheet Build(PlayCatalog catalog, PlaySituation situation, int seed)
+        => Build(catalog, new OffensiveCallContext(situation), OffensiveTeamAttributes.Default, seed);
+
+    public static PlayCallSheet Build(PlayCatalog catalog, OffensiveCallContext context, OffensiveTeamAttributes roster,
+        int seed, OffensiveStrategyMemory? memory = null)
     {
+        var situation = context.Situation;
         var rng = new Random(seed);
         return new(catalog, Pick(PlayType.Pass), Pick(PlayType.Run));
 
@@ -17,7 +24,7 @@ public static class SituationalCallSheet
         {
             var pool = catalog.Plays.Where(p => p.Family == family).ToList();
             var selected = new List<PlayDefinition>();
-            var fits = pool.ToDictionary(p => p.Id, p => PlaySuggestion.GetPlayWeight(PlayResolver.Resolve(p), situation));
+            var fits = pool.ToDictionary(p => p.Id, p => OffensiveCallScoring.Weight(PlayResolver.Resolve(p), context, roster, memory));
             while (selected.Count < PlayCallSheet.PlaysPerFamily)
             {
                 float Weight(PlayDefinition p)
@@ -32,8 +39,7 @@ public static class SituationalCallSheet
                     };
                     float diversity = 1f / (1 + selected.Count(x => x.Info.Formation == p.Info.Formation));
                     diversity /= 1 + selected.Count(x => x.Info.Concept == p.Info.Concept) * 2;
-                    float recency = 1f / (1 + (usage?.Invoke(p.Id) ?? 0) * .3f);
-                    return MathF.Max(.001f, fit * categoryFit * diversity * recency * (p.IsWildcard ? .2f : 1));
+                    return MathF.Max(.001f, fit * categoryFit * diversity);
                 }
                 // Six strongest fits, then four weighted alternatives. All catalog calls remain reachable.
                 PlayDefinition choice;

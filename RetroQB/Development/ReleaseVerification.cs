@@ -3,6 +3,7 @@ using System.Numerics;
 using System.Text.Json;
 using RetroQB.Gameplay;
 using RetroQB.Entities;
+using RetroQB.Gameplay.Defense;
 
 namespace RetroQB.Development;
 
@@ -11,7 +12,9 @@ internal static class ReleaseVerification
 {
     private static readonly int[] Seeds = [101, 202, 303];
     private sealed record Sample(string Call, float Yard, SeasonStage Stage, int Seed, int Hz, string Defense,
-        double Seconds, string? Failure, PlayResolution? Result, int Throws, string Controlled);
+        double Seconds, string? Failure, PlayResolution? Result, int Throws, string Controlled,
+        bool Flipped = false, double? FirstThrowSeconds = null, int ProtectionBreakdowns = 0, bool HumanDefense = true, bool ScreenReleased = false, bool ScreenCaught = false,
+        int CombinationReleases = 0, double QuarterbackTravel = 0);
 
     public static int Run(ScenarioLaunchOptions options)
     {
@@ -19,7 +22,39 @@ internal static class ReleaseVerification
         var timer = Stopwatch.StartNew();
         var samples = new List<Sample>();
         var catalog = new PlayManager().Catalog.Plays;
-        if (options.Definition.Name == "release-catalog")
+        if (options.Definition.Name is "offense-designed-matrix" or "offense-designed-controls")
+        {
+            if (options.Definition.Name == "offense-designed-matrix")
+            foreach (var play in catalog)
+            foreach (float yard in new[] { 1f, 50f, 95f })
+            foreach (var stage in Enum.GetValues<SeasonStage>())
+            foreach (bool flipped in new[] { false, true })
+            foreach (int hz in new[] { 30, 60, 120 })
+                Add(play.Id, yard, stage, hz, flipped, true);
+            foreach (var play in catalog.Where(p => p.Family == PlayType.Run || p.Screen != null || p.QuarterbackPath != null))
+            foreach (float yard in new[] { 1f, 50f, 95f })
+            foreach (bool flipped in new[] { false, true })
+            foreach (int hz in new[] { 30, 60, 120 })
+                Add(play.Id, yard, SeasonStage.RegularSeason, hz, flipped, false);
+            void Add(string id, float yard, SeasonStage stage, int hz, bool flip, bool humanDefense)
+            {
+                samples.Add(Exercise(id, yard, stage, options.Seed, hz, samples.Count % 10, flip, DefensiveEngineMode.Production, humanDefense));
+                if (samples.Count % 100 == 0) Console.WriteLine($"Designed offense: {samples.Count} cases, {samples.Count(s => s.Failure != null)} failures");
+            }
+        }
+        else if (options.Definition.Name == "offense-passing-matrix")
+        {
+            foreach (var play in catalog.Where(p => p.Family == PlayType.Pass && !p.IsWildcard))
+            foreach (float yard in new[] { 1f, 50f, 95f })
+            foreach (var stage in Enum.GetValues<SeasonStage>())
+            foreach (bool flipped in new[] { false, true })
+            foreach (int hz in new[] { 30, 60, 120 })
+            {
+                samples.Add(Exercise(play.Id, yard, stage, options.Seed, hz, samples.Count % 10, flipped, DefensiveEngineMode.Production));
+                if (samples.Count % 100 == 0) Console.WriteLine($"Passing: {samples.Count} plays, {samples.Count(s => s.Failure != null)} failures");
+            }
+        }
+        else if (options.Definition.Name == "release-catalog")
         {
             foreach (var play in catalog)
             foreach (float yard in new[] { 20f, 50f, 90f })
@@ -37,37 +72,66 @@ internal static class ReleaseVerification
             foreach (int seed in Seeds) samples.Add(Exercise(id, 50, SeasonStage.Playoff, seed, hz, seed % 10));
         }
         else return RunMatches(output, options.Definition.Name == "release-default");
-        var report = new { Matrix = "phase6-v1", Seeds, FramesPerSecond = new[] { 30, 60, 120 }, CatalogCalls = catalog.Count,
+        var report = new { Matrix = options.Definition.Name is "offense-designed-matrix" or "offense-designed-controls" ? "offense-step2-v1" : options.Definition.Name == "offense-passing-matrix" ? "offense-step1-v1" : "phase6-v1",
+            Seeds = options.Definition.Name is "offense-passing-matrix" or "offense-designed-matrix" or "offense-designed-controls" ? new[] { options.Seed } : Seeds,
+            FramesPerSecond = new[] { 30, 60, 120 }, CatalogCalls = catalog.Count,
             WallSeconds = timer.Elapsed.TotalSeconds, Failures = samples.Count(s => s.Failure != null), Samples = samples };
-        File.WriteAllText(Path.Combine(output, "catalog.json"), JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
+        File.WriteAllText(Path.Combine(output, options.Definition.Name == "offense-designed-controls" ? "controls.json" : options.Definition.Name == "offense-designed-matrix" ? "designed.json" : options.Definition.Name == "offense-passing-matrix" ? "passing.json" : "catalog.json"),
+            JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
         Console.WriteLine($"Catalog complete: {samples.Count} cases; {report.Failures} failures; {timer.Elapsed.TotalSeconds:0.0}s wall time");
         return report.Failures == 0 ? 0 : 1;
     }
 
-    private static Sample Exercise(string call, float yard, SeasonStage stage, int seed, int hz, int defense)
+    private static Sample Exercise(string call, float yard, SeasonStage stage, int seed, int hz, int defense, bool flipped = false,
+        DefensiveEngineMode engine = DefensiveEngineMode.Legacy, bool humanDefense = true)
     {
         DefensiveDrive? drive = null; string? failure = null; int ticks = 0;
+        double? firstThrow = null; bool screenReleased = false, screenCaught = false; int combos = 0; double qbTravel = 0;
+        var breakdowns = new HashSet<DefenderSlot>();
+        string defenseId = DefensivePlaybook.ForEngine(engine)[defense].Id;
         try
         {
             var input = new ScriptedInput(); var user = TeamCatalog.Get("ballers"); var cpu = TeamCatalog.ForStage(stage);
-            drive = new(input, seed, fixedCall: call, match: new(user, cpu, cpu.Id, stage, new(yard)));
-            drive.SelectDefense(DefensivePlaybook.All[defense].Id); var controlled = drive.Linebacker;
+            drive = new(input, seed, fixedCall: call, match: new(user, cpu, humanDefense ? cpu.Id : user.Id, stage, new(yard, Distance: MathF.Min(10, 100 - yard))), engine: engine);
+            if (flipped) drive.FlipOffensiveFormationForDevelopment();
+            if (humanDefense ? !drive.SelectDefense(defenseId) : !drive.SelectCompiledDefenseForDevelopment(defenseId))
+                throw new InvalidOperationException("Development defense selection rejected.");
+            var controlled = humanDefense ? drive.Linebacker : null;
+            var qbStart = drive.Actors.Qb.Position;
             if (!drive.Snap()) throw new InvalidOperationException("Snap rejected.");
             while (drive.Live && ticks < hz * 30)
             {
-                var delta = (drive.Actors.Ball.Holder?.Position ?? drive.Actors.Ball.Position) - controlled.Position;
-                input.Frame = new(Movement: delta.LengthSquared() > .01f ? Vector2.Normalize(delta) : Vector2.Zero, Sprint: true);
+                var delta = controlled == null ? Vector2.Zero
+                    : (drive.Actors.Ball.Holder?.Position ?? drive.Actors.Ball.Position) - controlled.Position;
+                int? throwKey = null;
+                var primary = drive.Plays.SelectedPlay.Reads.FirstOrDefault();
+                if (!humanDefense && drive.Plays.SelectedPlay.Family == PlayType.Pass && primary != null
+                    && drive.LiveSeconds >= primary.EarliestSeconds
+                    && drive.Actors.Receivers.Single(r => r.Slot == primary.Slot).RouteState.StepIndex >= primary.AfterStep)
+                    throwKey = drive.Actors.Receivers.Where(r => r.Eligible).OrderBy(r => r.Slot.GetPriorityOrder())
+                        .Select(r => r.Slot).ToList().IndexOf(primary.Slot);
+                input.Frame = new(Movement: humanDefense ? delta.LengthSquared() > .01f ? Vector2.Normalize(delta) : Vector2.Zero
+                    : drive.Actors.Ball.State == BallState.HeldByReceiver ? Vector2.UnitY : Vector2.Zero, Sprint: true, ThrowTarget: throwKey);
                 drive.Update(1f / hz); ticks++;
-                if (!ReferenceEquals(controlled, drive.Execution.Control.ControlledDefender(drive.Actors.Defenders))) throw new InvalidOperationException("Controlled actor changed.");
+                if (drive.Throws > 0) firstThrow ??= ticks / (double)hz;
+                if (drive.Actors.Ball.State == BallState.HeldByQB)
+                    foreach (var threat in drive.Actors.Defenders.Where(d => d.IsRusher && !d.IsBeingBlocked
+                        && Vector2.Distance(d.Position, drive.Actors.Qb.Position) < 3)) breakdowns.Add(threat.Slot);
+                screenReleased |= drive.Execution.Design.ScreenReleased;
+                screenCaught |= drive.Actors.Ball.Holder is Receiver caught && caught.Slot == drive.Plays.SelectedPlay.Screen?.Target;
+                combos = Math.Max(combos, drive.Actors.Blockers.Count(b => b.CombinationReleased));
+                qbTravel = Math.Max(qbTravel, Vector2.Distance(qbStart, drive.Actors.Qb.Position));
+                if (humanDefense && !ReferenceEquals(controlled, drive.Execution.Control.ControlledDefender(drive.Actors.Defenders))) throw new InvalidOperationException("Controlled actor changed.");
                 Validate(drive, hz);
             }
             if (drive.Live) throw new InvalidOperationException($"No terminal event in 30s; ball={drive.Actors.Ball.State}, holder={drive.Actors.Ball.Holder?.Position}, exchange={drive.Execution.Backfield.Phase}, stalled={drive.SecondsWithoutProgress}");
             if (drive.Match.History.Count != 1) throw new InvalidOperationException("Missing/duplicate terminal result.");
-            if (drive.LastResult!.Event.OffenseId != cpu.Id) throw new InvalidOperationException("Wrong result owner.");
+            if (drive.LastResult!.Event.OffenseId != (humanDefense ? cpu.Id : user.Id)) throw new InvalidOperationException("Wrong result owner.");
         }
         catch (Exception error) { failure = error.Message; }
-        return new(call, yard, stage, seed, hz, DefensivePlaybook.All[defense].Id, ticks / (double)hz,
-            failure, drive?.LastResult, drive?.Throws ?? 0, drive?.SelectedDefense.ControlledSlot.ToString() ?? "");
+        return new(call, yard, stage, seed, hz, drive?.SelectedDefense.Definition.Id ?? defenseId, ticks / (double)hz,
+            failure, drive?.LastResult, drive?.Throws ?? 0, humanDefense ? drive?.SelectedDefense.ControlledSlot.ToString() ?? "" : "Offense",
+            flipped, firstThrow, breakdowns.Count, humanDefense, screenReleased, screenCaught, combos, qbTravel);
     }
 
     private static void Validate(DefensiveDrive d, int hz)

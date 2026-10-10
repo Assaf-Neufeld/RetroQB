@@ -80,8 +80,10 @@ public sealed class DrawingController
         SeasonStage currentStage,
         SeasonSummary seasonSummary,
         bool replayAvailable,
-        CrowdBackdropState crowdState, PlayExecutionController? execution = null, FieldGoalAttempt? fieldGoal = null)
+        CrowdBackdropState crowdState, PlayExecutionController? execution = null, FieldGoalAttempt? fieldGoal = null, PlaybookBrowser? browser = null)
     {
+        bool previewing = gameState == GameState.PreSnap && browser?.IsOpen == true && browser.Actors != null;
+        if (previewing) { qb = browser!.Actors!.Qb; ball = browser.Actors.Ball; receivers = browser.Actors.Receivers; blockers = browser.Actors.Blockers; }
         // Apply camera shake offset
         Vector2 shake = _screenEffects.ShakeOffset;
         if (shake != Vector2.Zero)
@@ -120,7 +122,7 @@ public sealed class DrawingController
 
             if (gameState == GameState.PreSnap)
             {
-                DrawRouteOverlay(receivers, blockers, playManager);
+                DrawRouteOverlay(receivers, blockers, previewing ? browser!.Preview! : playManager.SelectedPlay, playManager.LineOfScrimmage);
             }
 
             foreach (var receiver in receivers)
@@ -129,7 +131,7 @@ public sealed class DrawingController
             }
 
             if ((gameState is GameState.PreSnap or GameState.PlayActive) && playManager.SelectedPlay.Family == PlayType.Pass && ball.State != BallState.HeldByReceiver)
-                DrawReceiverPriorityLabels(receivers);
+                if (!previewing) DrawReceiverPriorityLabels(receivers);
 
             foreach (var blocker in blockers)
             {
@@ -173,6 +175,7 @@ public sealed class DrawingController
         string targetLabel = GetSelectedReceiverPriorityLabel(playManager.SelectedReceiver, receivers);
         _hudRenderer.DrawScoreboard(playManager, lastPlayText, gameState, offensiveTeam, defensiveTeam, currentStage, driveSummaryScrollOffsetFromLatest);
         _hudRenderer.DrawSidePanel(playManager, lastPlayText, targetLabel, gameState, currentStage, replayAvailable, execution?.ExchangeStatus ?? "");
+        if (browser?.IsOpen == true && gameState == GameState.PreSnap) PlaybookBrowserRenderer.Draw(browser, playManager.SelectedPlay, timed: false);
         if (gameState == GameState.FieldGoal && fieldGoal is { } activeKick)
             FieldGoalRenderer.DrawHud(activeKick);
 
@@ -295,15 +298,20 @@ public sealed class DrawingController
     }
 
     internal static void DrawRouteOverlay(IReadOnlyList<Receiver> receivers, IReadOnlyList<Blocker> blockers, PlayManager playManager)
+        => DrawRouteOverlay(receivers, blockers, playManager.SelectedPlay, playManager.LineOfScrimmage);
+
+    internal static void DrawRouteOverlay(IReadOnlyList<Receiver> receivers, IReadOnlyList<Blocker> blockers, ResolvedPlay selected, float los)
     {
+
+        Vector2? screenOrigin = selected.Screen is { } screen ? OffensiveGeometry.At(screen.CatchOffset, los) : null;
         foreach (var receiver in receivers)
         {
-            var job = playManager.SelectedPlay.Assignments[receiver.Slot].Blocking;
+            var job = selected.Screen?.SkillEscorts.GetValueOrDefault(receiver.Slot) ?? selected.Assignments[receiver.Slot].Blocking;
             if (job != null)
             {
                 Vector2 start = receiver.Position;
                 foreach (var target in BlockingSteering.GetLandmarks(job, receiver.RouteStart.X,
-                    playManager.LineOfScrimmage, playManager.SelectedPlay.Quarterback.AtLineOfScrimmage(playManager.LineOfScrimmage)))
+                    los, selected.Quarterback.AtLineOfScrimmage(los), screenOrigin))
                 {
                     Vector2 a = Constants.WorldToScreen(start);
                     Vector2 b = Constants.WorldToScreen(target);
@@ -319,28 +327,37 @@ public sealed class DrawingController
             }
             if (!receiver.Eligible || receiver.HasBall) continue;
 
-            if (playManager.SelectedPlay.Assignments[receiver.Slot].Role == AssignmentRole.Block) continue;
-            var points = RouteVisualizer.GetRouteWaypoints(receiver, playManager.SelectedPlay, playManager.LineOfScrimmage);
+            if (selected.Assignments[receiver.Slot].Role == AssignmentRole.Block) continue;
+            var points = RouteVisualizer.GetRouteWaypoints(receiver, selected, los);
             if (points.Count < 2) continue;
+            bool settles = RouteGeometry.GetPath(receiver).Definition.Finish == RouteFinish.Settle;
 
             for (int i = 0; i < points.Count - 1; i++)
             {
                 Vector2 a = Constants.WorldToScreen(points[i]);
                 Vector2 b = Constants.WorldToScreen(points[i + 1]);
-                var play = playManager.SelectedPlay;
+                var play = selected;
                 bool exchange = i == 0 && play.Backfield.Action != BackfieldAction.None && play.Backfield.Participant == receiver.Slot;
                 bool run = play.BallCarrierSlot == receiver.Slot && play.Family == PlayType.Run;
                 Color color = exchange ? PlayDiagramStyle.Exchange : run ? PlayDiagramStyle.Run : PlayDiagramStyle.Pass;
-                DrawRetroRouteSegment(a, b, !exchange && i == points.Count - 2, color, run ? 4 : 2,
+                DrawRetroRouteSegment(a, b, !exchange && !settles && i == points.Count - 2, color, run ? 4 : 2,
                     exchange);
+                if (settles && i == points.Count - 2) Raylib.DrawCircleLines((int)b.X, (int)b.Y, 4, color);
                 if (exchange) Raylib.DrawCircleLines((int)b.X, (int)b.Y, 5, PlayDiagramStyle.Exchange);
             }
         }
 
         OffensiveLinemanAI.DrawRoutes(
             blockers.ToList(),
-            playManager.SelectedPlay,
-            playManager.LineOfScrimmage);
+            selected,
+            los);
+        if (selected.QuarterbackPath is { } pocket)
+        {
+            var points = pocket.At(los).Prepend(selected.Quarterback.AtLineOfScrimmage(los)).ToArray();
+            for (int i = 1; i < points.Length; i++)
+                DrawRetroRouteSegment(Constants.WorldToScreen(points[i - 1]), Constants.WorldToScreen(points[i]),
+                    i == points.Length - 1, PlayDiagramStyle.Exchange, 3, true);
+        }
     }
 
     private static void DrawRetroRouteSegment(Vector2 a, Vector2 b, bool drawArrow, Color color, float thickness, bool dotted)

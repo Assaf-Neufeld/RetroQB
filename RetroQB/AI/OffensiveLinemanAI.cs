@@ -11,21 +11,31 @@ public static class OffensiveLinemanAI
 {
     public static void UpdateBlockers(IReadOnlyList<Blocker> blockers, IReadOnlyList<Defender> defenders,
         ResolvedPlay play, float lineOfScrimmage, float dt, bool runBlockingBoost,
-        Action<Blocker> clampToField, Vector2? ballCarrierPosition, Vector2? quarterbackPosition = null, bool? openingComplete = null)
+        Action<Blocker> clampToField, Vector2? ballCarrierPosition, Vector2? quarterbackPosition = null, bool? openingComplete = null,
+        IReadOnlyDictionary<Entity, Defender>? sharedProtection = null, DesignedOffenseController? design = null, Ball? ball = null)
     {
         if (dt <= 0) return;
         Vector2 qb = quarterbackPosition ?? play.Quarterback.AtLineOfScrimmage(lineOfScrimmage);
-        var protection = PassProtectionPlanner.Assign(blockers, defenders, openingComplete ?? runBlockingBoost);
+        var protection = sharedProtection ?? PassProtectionPlanner.Assign(blockers, defenders, openingComplete ?? runBlockingBoost, play.Protection)
+            .ToDictionary(p => (Entity)p.Key, p => p.Value);
+        var combinations = (openingComplete ?? runBlockingBoost) ? CombinationBlocking.Decide(blockers, defenders, play, lineOfScrimmage, dt)
+            : new Dictionary<Blocker, RunBlockDecision>();
         foreach (var blocker in blockers)
         {
             var assignment = ((openingComplete ?? runBlockingBoost) ? blocker.BlockingAssignment : blocker.OpeningAssignment)
                 ?? throw new InvalidOperationException("Lineman has no resolved blocking assignment.");
+            bool coordinatedRun = false;
+            Defender? comboTarget = null;
+            if (combinations.TryGetValue(blocker, out var combo))
+            { assignment = combo.Assignment; comboTarget = combo.Target; coordinatedRun = combo.Coordinated; }
+            assignment = design?.LineJob(blocker.LineSlot) ?? assignment;
             float radius = Constants.BlockEngageRadius * blocker.TeamAttributes.BlockingStrength;
             if (IsTacklePosition(blocker.HomeX)) radius *= 1.15f;
             protection.TryGetValue(blocker, out var assignedRusher);
             var decision = BlockingSteering.Decide(assignment, blocker.BlockingState, blocker.Position,
-                blocker.HomeX, lineOfScrimmage, qb, defenders, radius, assignedRusher,
-                coordinatedProtection: !assignment.IsRunBlock);
+                blocker.HomeX, lineOfScrimmage, qb, defenders, radius, coordinatedRun ? comboTarget : assignedRusher,
+                coordinatedProtection: !assignment.IsRunBlock, carrier: ball == null ? ballCarrierPosition
+                    : design?.EscortOrigin(ball, lineOfScrimmage) ?? ballCarrierPosition, coordinatedRun: coordinatedRun);
             if (decision.Target is Defender target)
             {
                 blocker.Velocity = ComputeApproachVelocity(blocker, target, assignment, qb, dt);
@@ -46,15 +56,18 @@ public static class OffensiveLinemanAI
     {
         foreach (var blocker in blockers)
         {
-            var job = blocker.BlockingAssignment;
+            var job = play.Screen?.LineEscorts.GetValueOrDefault(blocker.LineSlot) ?? blocker.BlockingAssignment;
             if (job == null) continue;
             Vector2 start = blocker.Position;
             foreach (var end in BlockingSteering.GetLandmarks(job, blocker.HomeX, lineOfScrimmage,
-                play.Quarterback.AtLineOfScrimmage(lineOfScrimmage)))
+                play.Quarterback.AtLineOfScrimmage(lineOfScrimmage), play.Screen is { } screen
+                    ? OffensiveGeometry.At(screen.CatchOffset, lineOfScrimmage) : null))
             {
                 DrawRoute(start, end);
                 start = end;
             }
+            if (play.RunPlan?.Combinations.SingleOrDefault(c => c.ReleaseSlot == blocker.LineSlot) is { } combo)
+                DrawRoute(start, OffensiveGeometry.At(combo.SecondLevel, lineOfScrimmage));
         }
     }
 

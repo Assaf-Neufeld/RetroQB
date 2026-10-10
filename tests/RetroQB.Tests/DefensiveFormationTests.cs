@@ -40,7 +40,7 @@ public sealed class DefensiveFormationTests
             Assert.Equal(DefensivePersonnelRoles.Controlled(package), plan.ControlledActor); legal++;
         }
         }
-        Assert.Equal(28200, legal); Assert.Equal(4800, rejected);
+        Assert.Equal(30456, legal); Assert.Equal(5184, rejected);
     }
 
     [Theory] [InlineData(false)] [InlineData(true)]

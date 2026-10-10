@@ -26,7 +26,7 @@ public sealed class DefensivePlanCompilerTests
     public void ALIGN01_05_06_07_AllCatalogFlipsPackagesAndBudgetsAreLegal(float los)
     {
         var catalog = new PlayManager().Catalog;
-        Assert.Equal(100, catalog.Plays.Count);
+        Assert.Equal(108, catalog.Plays.Count);
         int count = 0; bool heavy = false;
         foreach (var definition in catalog.Plays)
         foreach (bool flip in new[] { false, true })
@@ -41,7 +41,7 @@ public sealed class DefensivePlanCompilerTests
             Assert.Equal(call.RushCount, plan.Assignments.Count(a => a.Pass is RushResponsibility));
             heavy |= formation.Receivers.Count < 5; count++;
         }
-        Assert.True(heavy); Assert.Equal(3000, count);
+        Assert.True(heavy); Assert.Equal(3240, count);
     }
 
     [Fact]

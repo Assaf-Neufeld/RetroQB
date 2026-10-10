@@ -1,6 +1,6 @@
 namespace RetroQB.Gameplay;
 
-public enum PlayCategory { Quick, Crossers, Intermediate, Vertical, PlayAction, InsideRun, GapRun, EdgeRun, Draw, Surprise }
+public enum PlayCategory { Quick, Crossers, Intermediate, Vertical, PlayAction, InsideRun, GapRun, EdgeRun, Draw, Surprise, Screen, MovingPocket }
 
 /// <summary>Human-readable organization, independent of permanent IDs and hotkeys.</summary>
 public sealed record PlaybookInfo(string Formation, string Concept, PlayCategory Category, string Description)
@@ -8,7 +8,7 @@ public sealed record PlaybookInfo(string Formation, string Concept, PlayCategory
     public string CategoryLabel => Category switch
     {
         PlayCategory.PlayAction => "Play action", PlayCategory.InsideRun => "Inside run",
-        PlayCategory.GapRun => "Gap run", PlayCategory.EdgeRun => "Edge run", _ => Category.ToString()
+        PlayCategory.MovingPocket => "Moving pocket", PlayCategory.GapRun => "Gap run", PlayCategory.EdgeRun => "Edge run", _ => Category.ToString()
     };
 
     public static PlaybookInfo Legacy(string name, PlayType family, FormationDefinition formation, RunConcept run, bool wildcard) =>
@@ -27,7 +27,7 @@ public sealed record PlaybookInfo(string Formation, string Concept, PlayCategory
                 "Four Verts" => "Read the safeties and attack an open vertical lane.",
                 "Deep Ins" => "Look for the deep inside break behind the linebackers.",
                 "Flood" => "Work the sideline from the deep out to the flat.",
-                "Smash" => "Read the deep out above the short inside route.",
+                "Smash" => "Read the corner above the outside hitch.",
                 "Slant Flat" => "Read the flat defender and throw to the open level.",
                 _ => "Read the coverage and work through the routes."
             } : "Follow the blocking toward the called gap.");

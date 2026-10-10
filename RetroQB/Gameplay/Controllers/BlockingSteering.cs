@@ -16,11 +16,13 @@ public readonly record struct BlockingDecision(Vector2 Landmark, Defender? Targe
 /// <summary>Assignment-based target selection shared by skill blockers and linemen. Contact physics stays separate.</summary>
 public static class BlockingSteering
 {
-    public static IReadOnlyList<Vector2> GetLandmarks(BlockingAssignment assignment, float homeX, float los, Vector2 qb)
+    public static IReadOnlyList<Vector2> GetLandmarks(BlockingAssignment assignment, float homeX, float los, Vector2 qb,
+        Vector2? carrier = null)
     {
         Vector2 origin = assignment.Anchor switch
         {
             BlockingAnchor.Quarterback => qb,
+            BlockingAnchor.BallCarrier => carrier ?? new(Constants.FieldWidth / 2, los),
             BlockingAnchor.FieldCenter => new(Constants.FieldWidth * 0.5f, los),
             _ => new(homeX, los)
         };
@@ -31,10 +33,16 @@ public static class BlockingSteering
 
     public static BlockingDecision Decide(BlockingAssignment assignment, BlockingState state, Vector2 position,
         float homeX, float los, Vector2 qb, IReadOnlyList<Defender> defenders, float radius,
-        Defender? protectionTarget = null, bool coordinatedProtection = false)
+        Defender? protectionTarget = null, bool coordinatedProtection = false, Vector2? carrier = null,
+        bool coordinatedRun = false)
     {
         if (!ReferenceEquals(state.Assignment, assignment)) { state.Reset(); state.Assignment = assignment; }
-        var landmarks = GetLandmarks(assignment, homeX, los, qb);
+        var landmarks = GetLandmarks(assignment, homeX, los, qb, carrier);
+        if (coordinatedRun)
+        {
+            state.Target = protectionTarget;
+            return new(landmarks[^1], protectionTarget, false);
+        }
         if (assignment.IsRunBlock)
         {
             // A landmark is a destination, not permission to run past a defender.

@@ -11,6 +11,9 @@ public sealed class Blocker : Entity
     public float Speed { get; }
     public float HomeX { get; }
     public float HomeY { get; }
+    public int LineSlot { get; init; } = -1;
+    public float AssignmentElapsed { get; internal set; }
+    public bool CombinationReleased { get; internal set; }
     public BlockingAssignment? BlockingAssignment { get; init; }
     public BlockingAssignment? OpeningAssignment { get; init; }
     public BlockingState BlockingState { get; } = new();

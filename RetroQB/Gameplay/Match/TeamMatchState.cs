@@ -18,11 +18,16 @@ public sealed class TeamMatchState
     public DefensiveTeamAttributes DefensiveAttributes { get; }
     public DefensiveMemory DefensiveMemory { get; } = new();
     public Defense.DefensiveStrategyMemory DefenseStrategy { get; } = new();
+    public OffensiveStrategyMemory OffenseStrategy { get; } = new();
     public float DifficultyMultiplier { get; }
     public CpuTendencies Tendencies { get; }
     public int Score { get; internal set; }
     public int GetCallCount(string id) => _calls.GetValueOrDefault(id);
-    internal void RecordCall(string id) => _calls[id] = GetCallCount(id) + 1;
+    internal void RecordCall(string id)
+    {
+        _calls[id] = GetCallCount(id) + 1;
+        if (!id.StartsWith("def.") && !id.StartsWith("special.")) OffenseStrategy.RecordCall(id);
+    }
 
     internal TeamMatchState(TeamDefinition definition, bool opponent, SeasonStage stage)
     {
@@ -42,6 +47,7 @@ public sealed class TeamMatchState
         DefensiveStatistics.Reset();
         DefensiveMemory.Reset();
         DefenseStrategy.Reset();
+        OffenseStrategy.Reset();
         _calls.Clear();
     }
 }

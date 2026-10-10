@@ -15,12 +15,17 @@ public sealed class RouteDefinition
     public RouteFinish Finish { get; }
     public float DelaySeconds { get; }
     public int ReadAfterStep { get; }
+    public bool CompressToField { get; }
+    public float FieldDepthBudget { get; }
+    public float OriginDepth { get; }
 
     public RouteDefinition(IEnumerable<RouteStep> steps, RouteFinish finish = RouteFinish.Continue,
-        float delaySeconds = 0, int? readAfterStep = null)
+        float delaySeconds = 0, int? readAfterStep = null, bool compressToField = false,
+        float fieldDepthBudget = 0, float originDepth = 0)
     {
         var copy = steps.ToArray();
         if (copy.Length == 0 || !Enum.IsDefined(finish) || !float.IsFinite(delaySeconds) || delaySeconds < 0
+            || !float.IsFinite(fieldDepthBudget) || fieldDepthBudget < 0 || !float.IsFinite(originDepth) || originDepth < 0
             || copy.Any(s => !float.IsFinite(s.Offset.X) || !float.IsFinite(s.Offset.Y)
                 || !float.IsFinite(s.HoldSeconds) || s.HoldSeconds < 0))
             throw new ArgumentException("Routes need finite waypoints and non-negative timing.");
@@ -30,6 +35,9 @@ public sealed class RouteDefinition
         Finish = finish;
         DelaySeconds = delaySeconds;
         ReadAfterStep = read;
+        CompressToField = compressToField;
+        FieldDepthBudget = fieldDepthBudget;
+        OriginDepth = originDepth;
     }
 }
 
@@ -41,7 +49,13 @@ public sealed class RoutePath
     internal RoutePath(RouteDefinition definition, Vector2 origin, int side)
     {
         Definition = definition;
-        Points = Array.AsReadOnly(definition.Steps.Select(s => Clamp(origin + new Vector2(s.Offset.X * side, s.Offset.Y)))
+        float deepest = definition.Steps.Max(s => s.Offset.Y);
+        float referenceY = origin.Y + definition.OriginDepth;
+        float budget = definition.FieldDepthBudget > 0 ? definition.FieldDepthBudget : deepest;
+        float scale = definition.CompressToField && deepest > 0
+            ? Math.Clamp((Constants.FieldLength - Constants.ReceiverRadius - referenceY) / budget, 0, 1) : 1;
+        Points = Array.AsReadOnly(definition.Steps.Select(s => Clamp(new(origin.X + s.Offset.X * side,
+                referenceY + (s.Offset.Y - definition.OriginDepth) * scale)))
             .Prepend(origin).ToArray());
     }
 

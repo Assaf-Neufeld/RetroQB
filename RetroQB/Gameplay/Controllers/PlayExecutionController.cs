@@ -17,6 +17,7 @@ public sealed class PlayExecutionController
     private readonly IPlayerMovementInput _input;
     private readonly ReceiverUpdateController _receiverController;
     public BackfieldController Backfield { get; } = new();
+    public DesignedOffenseController Design { get; } = new();
     public PossessionControl Possession { get; } = new();
     private Vector2 _lastInput;
     private float _passReadyRemaining;
@@ -28,6 +29,7 @@ public sealed class PlayExecutionController
     public void Reset()
     {
         Backfield.Reset();
+        Design.Reset();
         Possession.Reset();
         _lastInput = Vector2.Zero;
         _passReadyRemaining = 0;
@@ -86,6 +88,9 @@ public sealed class PlayExecutionController
         Backfield.Update(playManager.SelectedPlay, ball, qb, receivers, dt,
             cancelPlayAction: !Control.HumanOnDefense && inputDir.LengthSquared() > 0.001f);
         if (wasLocked && Backfield.AllowsThrow) _passReadyRemaining = .6f;
+        Design.Update(playManager.SelectedPlay, ball, qb, Backfield,
+            !Control.HumanOnDefense && inputDir.LengthSquared() > .001f,
+            Control.HumanOnDefense && intent.Sprint, dt, playManager.LineOfScrimmage);
         Receiver? controlledReceiver = ball.State == BallState.HeldByReceiver ? ball.Holder as Receiver : null;
 
         // Reset per-frame blocking contact state before any blocker logic runs
@@ -96,13 +101,15 @@ public sealed class PlayExecutionController
                 * manual.Speed * playManager.DefenderSpeedMultiplier;
 
         // Update QB
-        UpdateQuarterback(qb, ball, defenders, inputDir, sprint, dt, clampToField);
+        Vector2 qbInput = ball.State == BallState.HeldByQB
+            ? Design.QuarterbackMovement(qb.Position, playManager.LineOfScrimmage, qb.TeamAttributes.GetQbMaxSpeed(), dt) ?? inputDir : inputDir;
+        UpdateQuarterback(qb, ball, defenders, qbInput, sprint, dt, clampToField);
 
         // Update receivers
         _receiverController.UpdateAll(receivers, qb, ball, defenders, controlledReceiver,
             controlledReceiver == null || Control.HumanOnDefense ? inputDir : Possession.Resolve(inputDir), sprint,
             qbPastLos, isUnderneathManCoverage, playManager, dt, clampToField, Backfield, blockers,
-            Control.HumanOnDefense || Possession.SuppressTurnBoost);
+            Control.HumanOnDefense || Possession.SuppressTurnBoost, Design);
         Backfield.TryHandoff(playManager.SelectedPlay, ball, qb, receivers);
         ObservePossession(ball, playManager);
 
@@ -132,7 +139,7 @@ public sealed class PlayExecutionController
         if (ball.State == BallState.HeldByQB)
         {
             qb.ApplyInput(inputDir, sprint, false, dt);
-            if (Control.HumanOnDefense && CpuIntent?.PocketMovement == true && qb.Velocity.Length() > 3.2f)
+            if (Control.HumanOnDefense && CpuIntent?.PocketMovement == true && Design.PocketPhase is not (PocketPhase.Moving or PocketPhase.Holding) && qb.Velocity.Length() > 3.2f)
                 qb.Velocity = Vector2.Normalize(qb.Velocity) * 3.2f;
         }
         else if (ball.State == BallState.HeldByReceiver)
@@ -259,7 +266,8 @@ public sealed class PlayExecutionController
             dt,
             runBlockingBoost,
             clampToField,
-            ballCarrierPosition, qb.Position, Backfield.OpeningComplete);
+                    ballCarrierPosition, qb.Position, Backfield.OpeningComplete, _receiverController.ProtectionAssignments,
+                    Design, ball);
     }
 
     /// <summary>

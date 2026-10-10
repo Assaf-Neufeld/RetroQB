@@ -20,8 +20,7 @@ public static class RouteVisualizer
         if (plan.Action == BackfieldAction.Handoff)
         {
             // Show the called lane after the exchange; possession gives the player control.
-            Vector2 lane = RoutePath.Clamp(mesh + RouteRunner.GetBallCarrierDirection(receiver, play) * 14);
-            return new[] { start, mesh, lane };
+            return new[] { start, mesh }.Concat(play.RunPlan!.At(lineOfScrimmage)).ToArray();
         }
 
         var release = new RoutePath(RouteGeometry.GetPath(receiver).Definition, mesh, receiver.RouteSide);

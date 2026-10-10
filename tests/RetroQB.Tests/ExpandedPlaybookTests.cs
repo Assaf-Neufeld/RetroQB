@@ -12,7 +12,7 @@ public sealed class ExpandedPlaybookTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void PassRoutesRemainMovingUnlessTheyAreComebacks(bool flipped)
+    public void PassRoutesFollowTheirAuthoredFinishPolicy(bool flipped)
     {
         foreach (var definition in PlaybookBuilder.BuildCatalog().Plays.Where(p => p.Family == PlayType.Pass))
         {
@@ -34,7 +34,7 @@ public sealed class ExpandedPlaybookTests
                     RouteRunner.UpdateRoute(receiver, 1f / 60);
                     receiver.Update(1f / 60);
                 }
-                if (receiver.Route == RouteType.Comeback)
+                if (RouteGeometry.GetPath(receiver).Definition.Finish == RouteFinish.Settle)
                 {
                     Assert.Equal(RoutePhase.Settled, receiver.RouteState.Phase);
                     Assert.Equal(position, receiver.Position);
@@ -60,13 +60,13 @@ public sealed class ExpandedPlaybookTests
         }
     }
     [Fact]
-    public void ProductionCatalogHasOneHundredCallsAndRealPersonnelVariety()
+    public void ProductionCatalogPreservesExistingCallsAndAddsDesignedPressureAnswers()
     {
         var catalog = PlaybookBuilder.BuildCatalog();
-        Assert.Equal(100, catalog.Plays.Count);
-        Assert.Equal(50, catalog.Plays.Count(p => p.Family == PlayType.Pass));
+        Assert.Equal(108, catalog.Plays.Count);
+        Assert.Equal(58, catalog.Plays.Count(p => p.Family == PlayType.Pass));
         Assert.Equal(50, catalog.Plays.Count(p => p.Family == PlayType.Run));
-        Assert.Equal(100, catalog.Plays.Select(p => p.Id).Distinct().Count());
+        Assert.Equal(108, catalog.Plays.Select(p => p.Id).Distinct().Count());
         foreach (string personnel in new[] { "11", "12", "21", "20" })
         // The offensive catalog contains pass/run formations; kicks use their own setup.
         foreach (var family in new[] { PlayType.Pass, PlayType.Run })
@@ -102,7 +102,7 @@ public sealed class ExpandedPlaybookTests
                 seen.UnionWith(sheet.PassIds.Concat(sheet.RunIds));
             }
         }
-        Assert.Equal(100, seen.Count);
+        Assert.Equal(108, seen.Count);
         Assert.NotEqual(SituationalCallSheet.Build(catalog, situations[0], 1).PassIds,
             SituationalCallSheet.Build(catalog, situations[3], 1).PassIds);
         var shortSheet = SituationalCallSheet.Build(catalog, situations[1], 1);

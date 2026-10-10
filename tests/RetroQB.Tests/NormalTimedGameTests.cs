@@ -16,6 +16,8 @@ public sealed class NormalTimedGameTests : IDisposable
         public bool Enter, Space, Focused = true;
         public int? Team;
         public string Text = "";
+        public BrowserInput Browser = new();
+        public BrowserInput GetBrowserInput() => Browser;
         public Vector2 GetMovementDirection() => Vector2.Zero;
         public bool IsSprintHeld() => false;
         public bool IsEnterPressed() => Enter;
@@ -42,6 +44,24 @@ public sealed class NormalTimedGameTests : IDisposable
         Assert.NotNull(game.FullMatch.Drive.LastResult);
         input.Space = true; game.Update(0); input.Space = false;
         return (game, input, records);
+    }
+
+    [Fact]
+    public void BrowserEnterSelectsCallThroughNormalSeasonInputWithoutAcceptingOrSnapping()
+    {
+        var (game, input, _) = Start(); using (game)
+        {
+            var s = game.FullMatch!;
+            input.Browser = new(Toggle: true); input.Space = true; game.Update(0);
+            Assert.True(s.Browser.IsOpen); Assert.False(s.Drive.Live);
+            input.Browser = new(Jump: 1); input.Space = false; game.Update(0);
+            string id = s.Browser.Preview!.Id;
+            input.Browser = new(Select: true); input.Enter = true; game.Update(0);
+            Assert.False(s.Browser.IsOpen); Assert.Equal(id, s.Drive.Plays.SelectedPlay.Id);
+            Assert.False(s.Drive.Live); Assert.Empty(game.TimedSeason!.Completed);
+            input.Enter = false; input.Browser = new(); input.Space = true; game.Update(0);
+            Assert.True(s.Drive.Live); Assert.Equal(1, s.Match.User.GetCallCount(id));
+        }
     }
 
     [Fact]

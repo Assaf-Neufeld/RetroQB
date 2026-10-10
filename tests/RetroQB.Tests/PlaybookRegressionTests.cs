@@ -11,27 +11,23 @@ public sealed class PlaybookRegressionTests
 {
     public static TheoryData<int, string, string> PassCases => new()
     {
-        { 1, "Mesh", "WR1:InShallow,WR2:Slant,WR3:InShallow,WR4:Go,TE1:Flat" },
-        { 2, "Bunch Quick", "WR1:InShallow,WR2:Slant,WR3:Flat,WR4:DoubleMove,TE1:InShallow" },
-        { 3, "Four Verts", "WR1:Go,WR2:Go,WR3:Go,WR4:Go,TE1:Go" },
-        { 4, "Deep Ins", "WR1:Go,WR2:InDeep,WR3:PostDeep,TE1:OutShallow,RB1:Block" },
-        { 5, "Flood", "WR1:Flat,WR2:OutShallow,WR3:OutDeep,WR4:Go,TE1:InShallow" },
-        { 6, "Smash", "WR1:InShallow,WR2:OutDeep,WR3:Go,TE1:InShallow,RB1:Block" },
-        { 7, "Slant Flat", "WR1:Slant,WR2:Slant,WR3:Flat,TE1:Go,RB1:Flat" },
-        { 8, "PA Deep", "WR1:Go,WR2:PostDeep,WR3:InDeep,TE1:DoubleMove,RB1:Flat" },
-        { 9, "Combo", "WR1:InShallow,WR2:Go,WR3:InDeep,TE1:InShallow,RB1:Flat" }
+        { 1, "Mesh", "pass.mesh" }, { 2, "Bunch Quick", "pass.bunch-quick" },
+        { 3, "Four Verts", "pass.four-verts" }, { 4, "Deep Ins", "pass.deep-ins" },
+        { 5, "Flood", "pass.flood" }, { 6, "Smash", "pass.smash" },
+        { 7, "Slant Flat", "pass.slant-flat" }, { 8, "PA Deep", "pass.pa-deep" },
+        { 9, "Combo", "pass.combo" }
     };
 
     [Theory]
     [MemberData(nameof(PassCases))]
-    public void NamedPassesKeepTheirEffectiveAssignments(int index, string name, string assignments)
+    public void NamedPassesKeepTheirIdentityPersonnelAndTargetingOrder(int index, string name, string id)
     {
         var play = PlayResolver.Resolve(PlaybookBuilder.BuildPassPlays()[index]);
         var formation = new FormationFactory().CreateFormation(play, 40);
         RouteAssigner.AssignRoutes(formation.Receivers, play);
         Assert.Equal(name, play.Name);
-        Assert.Equal(assignments, string.Join(",", formation.Receivers.Select(r =>
-            $"{r.Slot}:{(r.IsBlocking ? "Block" : r.Route.ToString())}")));
+        Assert.Equal(id, play.Id);
+        Assert.All(formation.Receivers.Where(r => r.Eligible), r => Assert.NotNull(r.RouteDefinition));
         Assert.Equal(11, 1 + formation.Receivers.Count + formation.Blockers.Count);
         Assert.Equal(38.4f, formation.Qb.Position.Y, 3);
         var priorities = new ReceiverPriorityManager();

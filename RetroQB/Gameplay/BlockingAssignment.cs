@@ -3,7 +3,7 @@ using System.Numerics;
 namespace RetroQB.Gameplay;
 
 public enum BlockingJob { PassProtection, Drive, SealEdge, Lead, KickOut, Pull }
-public enum BlockingAnchor { Home, FieldCenter, Quarterback }
+public enum BlockingAnchor { Home, FieldCenter, Quarterback, BallCarrier }
 
 /// <summary>Landmarks are relative to home X/LOS, field center/LOS, or the live quarterback.</summary>
 public sealed record BlockingAssignment

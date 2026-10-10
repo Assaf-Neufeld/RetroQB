@@ -182,10 +182,12 @@ public sealed class HalvesAndSpecialTeamsTests
 
     [Theory]
     [InlineData(10, 10, MatchAction.Punt)]
-    [InlineData(10, 2, MatchAction.Scrimmage)]
-    [InlineData(20, 10, MatchAction.Scrimmage)]
-    [InlineData(40, 8, MatchAction.Scrimmage)]
-    public void CpuPuntsOnlyWhenPinnedBackWithLongYardage(float yard, float distance, MatchAction expected)
+    [InlineData(10, 2, MatchAction.Punt)]
+    [InlineData(20, 10, MatchAction.Punt)]
+    [InlineData(40, 8, MatchAction.Punt)]
+    [InlineData(10, .5f, MatchAction.Scrimmage)]
+    [InlineData(45, 2, MatchAction.Scrimmage)]
+    public void CpuPuntsOnOrdinaryFourthDownOutsideUsefulKickRangeExceptInchesOrShortMidfield(float yard, float distance, MatchAction expected)
         => Assert.Equal(expected, MatchStrategy.Choose(new(2, 100, false, 0, 4, yard, distance, 3, 20, false)));
 
     [Fact]

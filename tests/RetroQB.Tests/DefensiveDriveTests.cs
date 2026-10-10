@@ -138,7 +138,9 @@ public sealed class DefensiveDriveTests
         }
         Assert.True(drive.Complete);
         Assert.NotEmpty(drive.Match.History);
-        Assert.True(drive.Throws > 0);
+        // A weighted call can score on the opening run; require throws only when a pass was called.
+        if (drive.Match.History.Any(h => drive.Match.StartOf(h.Event.PlayId).CallId.StartsWith("pass.")))
+            Assert.True(drive.Throws > 0);
     }
 
     [Fact]

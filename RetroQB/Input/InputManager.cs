@@ -19,6 +19,14 @@ public sealed class InputManager : IGameInput
     public InputManager() : this(key => Raylib.IsKeyPressed(key)) { }
     internal InputManager(Func<KeyboardKey, bool> pressed) => _pressed = pressed;
     public bool IsFocused() => Raylib.IsWindowFocused();
+    public RetroQB.Gameplay.BrowserInput GetBrowserInput() => new(
+        Toggle: _pressed(KeyboardKey.L), Move: _pressed(KeyboardKey.Up) ? -1 : _pressed(KeyboardKey.Down) ? 1 : 0,
+        Page: _pressed(KeyboardKey.PageUp) ? -1 : _pressed(KeyboardKey.PageDown) ? 1 : 0,
+        Jump: _pressed(KeyboardKey.Home) ? -1 : _pressed(KeyboardKey.End) ? 1 : 0,
+        Family: _pressed(KeyboardKey.T), Formation: _pressed(KeyboardKey.RightBracket),
+        Category: _pressed(KeyboardKey.C), Concept: _pressed(KeyboardKey.D),
+        Favorites: _pressed(KeyboardKey.F), Star: _pressed(KeyboardKey.G),
+        Select: _pressed(KeyboardKey.Enter), Close: _pressed(KeyboardKey.Escape), Flip: _pressed(KeyboardKey.X), Reset: _pressed(KeyboardKey.Backspace));
 
     public Vector2 GetMovementDirection()
     {

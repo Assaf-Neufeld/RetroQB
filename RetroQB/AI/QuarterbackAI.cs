@@ -3,9 +3,12 @@ using RetroQB.Gameplay;
 
 namespace RetroQB.AI;
 
-public sealed record ReceiverRead(int Index, Vector2 Position, Vector2 Velocity, bool Eligible, bool Blocking, float MinimumDepth = 0);
+public sealed record ReceiverRead(int Index, Vector2 Position, Vector2 Velocity, bool Eligible, bool Blocking, float MinimumDepth = 0,
+    bool Developed = true, bool Checkdown = true);
+public sealed record DefenderRead(Vector2 Position, Vector2 Velocity, bool Engaged = false);
 public sealed record QuarterbackObservation(Vector2 Position, float LineOfScrimmage, bool AllowsThrow,
-    IReadOnlyList<ReceiverRead> Reads, IReadOnlyList<Vector2> Defenders);
+    IReadOnlyList<ReceiverRead> Reads, IReadOnlyList<Vector2> Defenders,
+    IReadOnlyList<DefenderRead>? Movement = null, float ThrowSpeed = Constants.BallMaxSpeed);
 
 /// <summary>Observes public positions and its own read order only. Never receives defensive calls or user input.</summary>
 public sealed class QuarterbackAI(float readInterval = .25f)
@@ -18,7 +21,9 @@ public sealed class QuarterbackAI(float readInterval = .25f)
     {
         _elapsed += dt;
         if (!view.AllowsThrow) return new(Vector2.Zero);
-        float pressure = view.Defenders.Count == 0 ? 100 : view.Defenders.Min(p => Vector2.Distance(p, view.Position));
+        float pressure = view.Movement == null ? view.Defenders.Count == 0 ? 100 : view.Defenders.Min(p => Vector2.Distance(p, view.Position))
+            : view.Movement.Where(d => !d.Engaged).Select(d => Math.Min(Vector2.Distance(d.Position, view.Position),
+                Vector2.Distance(d.Position + d.Velocity * .3f, view.Position))).DefaultIfEmpty(100).Min();
         if (_elapsed > 4 && pressure < 6 && MathF.Abs(view.Position.X - Constants.FieldWidth / 2) > 9
             && view.Position.Y <= view.LineOfScrimmage)
             return new(Vector2.Zero, ThrowAway: true);
@@ -26,14 +31,15 @@ public sealed class QuarterbackAI(float readInterval = .25f)
         {
             _nextRead = _elapsed + MathF.Max(.1f, readInterval);
             var read = view.Reads[_read++ % view.Reads.Count];
-            if (read.Eligible && !read.Blocking && read.Position.Y >= view.LineOfScrimmage + read.MinimumDepth
-                && IsOpen(view.Position, read, view.Defenders))
+            if (read.Eligible && !read.Blocking && read.Developed && read.Position.Y >= view.LineOfScrimmage + read.MinimumDepth
+                && Open(view, read))
                 return new(Vector2.Zero, ReceiverIndex: read.Index);
             // Under pressure, search the short outlet without waiting for another progression cycle.
             if (pressure < 5)
                 foreach (var outlet in view.Reads.OrderBy(r => Vector2.DistanceSquared(r.Position, view.Position)))
-                    if (outlet.Eligible && !outlet.Blocking && outlet.Position.Y >= view.LineOfScrimmage
-                        && IsOpen(view.Position, outlet, view.Defenders))
+                    if (outlet.Eligible && !outlet.Blocking && outlet.Checkdown && outlet.Developed
+                        && outlet.Position.Y >= view.LineOfScrimmage + outlet.MinimumDepth
+                        && Open(view, outlet))
                         return new(Vector2.Zero, ReceiverIndex: outlet.Index);
         }
         if (pressure < 4 || _elapsed > 4f || view.Position.Y > view.LineOfScrimmage || view.Reads.Count == 0 && _elapsed > 2.5f)
@@ -71,5 +77,27 @@ public sealed class QuarterbackAI(float readInterval = .25f)
             bool underneath = lane.Length() > 14 && t < .65f;
             return Vector2.Distance(p, target) > 2.8f && (t < .12f || underneath || Vector2.Distance(p, qb + lane * t) > 2.2f);
         });
+    }
+
+    private static bool Open(QuarterbackObservation view, ReceiverRead receiver)
+        => view.Movement == null ? IsOpen(view.Position, receiver, view.Defenders)
+            : IsOpen(view.Position, receiver, view.Movement, view.ThrowSpeed);
+
+    public static bool IsOpen(Vector2 qb, ReceiverRead receiver, IReadOnlyList<DefenderRead> defenders, float throwSpeed)
+    {
+        float travel = Math.Clamp(Vector2.Distance(qb, receiver.Position) / MathF.Max(10, throwSpeed), .1f, .9f);
+        Vector2 target = receiver.Position + receiver.Velocity * MathF.Min(travel, .5f);
+        Vector2 lane = target - qb;
+        float length = lane.LengthSquared();
+        foreach (var defender in defenders)
+        {
+            float t = length < .01f ? 1 : Math.Clamp(Vector2.Dot(defender.Position - qb, lane) / length, 0, 1);
+            Vector2 catchPosition = defender.Position + defender.Velocity * MathF.Min(travel, .6f);
+            Vector2 crossing = defender.Position + defender.Velocity * MathF.Min(travel * t, .5f);
+            bool underneath = length > 14 * 14 && t < .65f;
+            if (Vector2.Distance(catchPosition, target) <= 3.4f
+                || t >= .12f && !underneath && Vector2.Distance(crossing, qb + lane * t) <= 2.6f) return false;
+        }
+        return true;
     }
 }

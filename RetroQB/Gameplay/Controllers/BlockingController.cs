@@ -30,15 +30,19 @@ public sealed class BlockingController
         float lineOfScrimmage,
         float dt,
         Func<Vector2, float, bool, Defender?> getClosestDefender,
-        Action<Entity> clampToField)
+        Action<Entity> clampToField, IReadOnlyDictionary<Entity, Defender>? protection = null,
+        BlockingAssignment? overrideJob = null, Vector2? escortOrigin = null)
     {
-        var job = selectedPlay.Assignments[receiver.Slot].Blocking;
+        var job = overrideJob ?? selectedPlay.Assignments[receiver.Slot].Blocking;
         Vector2? carrier = BlockingUtils.GetBallCarrierPosition(ball, qb);
         if (job != null)
         {
+            Defender? assigned = null;
+            protection?.TryGetValue(receiver, out assigned);
             var decision = BlockingSteering.Decide(job, receiver.BlockingState, receiver.Position,
                 receiver.RouteStart.X, lineOfScrimmage, qb.Position, defenders,
-                Constants.BlockEngageRadius + (job.IsRunBlock ? 2.2f : 8f));
+                Constants.BlockEngageRadius + (job.IsRunBlock ? 2.2f : 8f), assigned,
+                coordinatedProtection: !job.IsRunBlock && protection != null, carrier: escortOrigin ?? carrier);
             if (decision.Target is Defender target)
             {
                 var profile = job.IsRunBlock

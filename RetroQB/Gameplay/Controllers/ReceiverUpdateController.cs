@@ -14,6 +14,7 @@ public sealed class ReceiverUpdateController
 {
     private readonly BlockingController _blockingController;
     private readonly BackfieldController _backfield = new();
+    public IReadOnlyDictionary<Entity, Defender> ProtectionAssignments { get; private set; } = new Dictionary<Entity, Defender>();
 
     public ReceiverUpdateController(BlockingController blockingController)
     {
@@ -36,7 +37,7 @@ public sealed class ReceiverUpdateController
         PlayManager playManager,
         float dt,
         Action<Entity> clampToField, BackfieldController? backfield = null,
-        IReadOnlyList<Blocker>? blockers = null, bool suppressTurnBoost = false)
+        IReadOnlyList<Blocker>? blockers = null, bool suppressTurnBoost = false, DesignedOffenseController? design = null)
     {
         var exchange = backfield ?? _backfield;
         if (backfield == null) exchange.Update(playManager.SelectedPlay, ball, qb, receivers, dt);
@@ -45,13 +46,27 @@ public sealed class ReceiverUpdateController
         bool isPassCompletion = isBallHeldByReceiver && !isRunPlayWithRb;
         int selectedReceiver = playManager.SelectedReceiver;
 
+        foreach (var receiver in receivers) receiver.AssignmentElapsed += MathF.Max(0, dt);
+        var line = blockers ?? Array.Empty<Blocker>();
+        var protection = PassProtectionPlanner.AssignAll(line, receivers, defenders, playManager.SelectedPlay, exchange.OpeningComplete, design);
+        bool released = false;
         foreach (var receiver in receivers)
         {
-            receiver.AssignmentElapsed += MathF.Max(0, dt);
             var assignment = playManager.SelectedPlay.Assignments[receiver.Slot];
-            if (assignment.Role == AssignmentRole.Route && assignment.ReleaseAfterSeconds > 0
-                && receiver.AssignmentElapsed >= assignment.ReleaseAfterSeconds)
+            if (receiver.IsBlocking && assignment.Role == AssignmentRole.Route && assignment.ReleaseAfterSeconds > 0
+                && !exchange.ControlsParticipant(receiver.Slot)
+                && (ball.State != BallState.HeldByQB || PassProtectionPlanner.CanRelease(receiver, assignment, qb.Position, defenders, protection)))
+            {
                 receiver.IsBlocking = false;
+                receiver.BlockingState.Reset();
+                released = true;
+            }
+        }
+        ProtectionAssignments = released
+            ? PassProtectionPlanner.AssignAll(line, receivers, defenders, playManager.SelectedPlay, exchange.OpeningComplete, design) : protection;
+
+        foreach (var receiver in receivers)
+        {
             bool isBallCarrier = isBallHeldByReceiver && ball.Holder == receiver;
             if (exchange.ControlsParticipant(receiver.Slot))
             {
@@ -66,7 +81,7 @@ public sealed class ReceiverUpdateController
                     playManager.SelectedPlay, playManager.SelectedPlayType,
                     playManager.LineOfScrimmage, dt,
                     (pos, radius, preferRushers) => BlockingUtils.GetClosestDefender(defenders, pos, radius, preferRushers),
-                    clampToField);
+                    clampToField, ProtectionAssignments, design?.SkillJob(receiver.Slot), design?.EscortOrigin(ball, playManager.LineOfScrimmage));
                 continue;
             }
 

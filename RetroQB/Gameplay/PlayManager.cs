@@ -26,14 +26,17 @@ public enum PlayOutcome
 /// <summary>Coordinates the drive and selects resolved catalog calls through a separate call sheet.</summary>
 public sealed class PlayManager
 {
-    private const int RecentCallLimit = 4;
+    public OffensiveTeamAttributes RecommendationRoster { get; set; } = OffensiveTeamAttributes.Default;
+    public OffensiveStrategyMemory RecommendationMemory { get; set; } = new();
+    public Func<OffensiveCallContext>? RecommendationContext { get; set; }
+    private OffensiveCallContext CallContext => RecommendationContext?.Invoke()
+        ?? new(GetPlaySituation(), Score - AwayScore);
     public const int PassPlayCount = PlayCallSheet.PlaysPerFamily;
     public const int RunPlayCount = PlayCallSheet.PlaysPerFamily;
     private readonly DriveState _driveState = new();
     private readonly Dictionary<string, ResolvedPlay> _resolvedCalls;
     private readonly Dictionary<string, int> _callCounts = new(StringComparer.Ordinal);
-    private readonly Queue<string> _recentPassCalls = new();
-    private readonly Queue<string> _recentRunCalls = new();
+
     private string _selectedPassId = string.Empty;
     private string _selectedRunId = string.Empty;
 
@@ -43,7 +46,7 @@ public sealed class PlayManager
     {
         var key = (GetPlaySituation(), PlayNumber, Score, AwayScore);
         if (_sheetSituation == key) return false;
-        SetCallSheet(SituationalCallSheet.Build(Catalog, key.Item1, PlayNumber * 7919 + Score * 31 + AwayScore, GetCallCount));
+        SetCallSheet(SituationalCallSheet.Build(Catalog, CallContext, RecommendationRoster, PlayNumber * 7919 + Score * 31 + AwayScore, RecommendationMemory));
         _sheetSituation = key;
         return true;
     }
@@ -88,7 +91,6 @@ public sealed class PlayManager
         _driveState.Reset(start);
         _sheetSituation = null;
         SelectedPlayType = PlayType.Pass;
-        ClearCallRecency();
     }
 
     public void StartNewGame()
@@ -97,23 +99,23 @@ public sealed class PlayManager
         _sheetSituation = null;
         SelectedPlayType = PlayType.Pass;
         _callCounts.Clear();
-        ClearCallRecency();
+        RecommendationMemory.Reset();
     }
 
-    public void StartPlay()
+    public void StartPlay(bool recordStrategy = true)
     {
         SelectedReceiver = 0;
         // Count actual snaps, including manual calls, rather than pre-snap browsing.
         string id = SelectedPlay.Id;
         _callCounts[id] = GetCallCount(id) + 1;
-        var recent = SelectedPlayType == PlayType.Pass ? _recentPassCalls : _recentRunCalls;
-        recent.Enqueue(id);
-        while (recent.Count > RecentCallLimit) recent.Dequeue();
+        if (recordStrategy) RecommendationMemory.RecordCall(id);
     }
 
     public int GetCallCount(string playId) => _callCounts.GetValueOrDefault(playId);
+    public ResolvedPlay Resolved(string id) => _resolvedCalls.TryGetValue(id, out var play)
+        ? play : throw new ArgumentException($"Unknown play ID: {id}");
 
-    internal void SelectCatalogPlay(string playId, Random rng)
+    internal void SelectCatalogPlay(string playId, Random rng, bool rerollWildcard = true)
     {
         var play = _resolvedCalls.TryGetValue(playId, out var resolved)
             ? resolved : throw new ArgumentException($"Unknown play ID: {playId}", nameof(playId));
@@ -125,13 +127,7 @@ public sealed class PlayManager
                 play.Family == PlayType.Pass ? selectedIds : CallSheet.PassIds,
                 play.Family == PlayType.Run ? selectedIds : CallSheet.RunIds));
         }
-        ActivatePlay(play.IsWildcard ? GenerateWildcard(play, rng) : play);
-    }
-
-    private void ClearCallRecency()
-    {
-        _recentPassCalls.Clear();
-        _recentRunCalls.Clear();
+        ActivatePlay(play.IsWildcard && rerollWildcard ? GenerateWildcard(play, rng) : play);
     }
 
     public bool SelectPassPlay(int index, Random rng) => SelectPlay(PlayType.Pass, index, rng);
@@ -197,22 +193,10 @@ public sealed class PlayManager
             {
                 // Score the exact generated assignments that will execute if selected.
                 var play = plays[i].IsWildcard ? GenerateWildcard(plays[i], rng) : plays[i];
-                float weight = familyWeight * PlaySuggestion.GetPlayWeight(play, situation)
-                    * GetDiversityWeight(play) * (play.IsWildcard ? 0.85f : 1f);
+                float weight = familyWeight * OffensiveCallScoring.Weight(play, CallContext, RecommendationRoster, RecommendationMemory);
                 if (weight > 0f) candidates.Add((play, weight));
             }
         }
-    }
-
-    private float GetDiversityWeight(ResolvedPlay play)
-    {
-        var familyIds = Catalog.Plays.Where(p => p.Family == play.Family).Select(p => p.Id).ToArray();
-        float average = familyIds.Average(id => (float)GetCallCount(id));
-        float weight = Math.Clamp(1f + ((average - GetCallCount(play.Id)) * 0.22f), 0.65f, 1.7f);
-        var recent = (play.Family == PlayType.Pass ? _recentPassCalls : _recentRunCalls).Reverse().ToArray();
-        int offset = Array.IndexOf(recent, play.Id);
-        weight *= offset switch { 0 => 0.18f, 1 => 0.35f, >= 2 => 0.6f, _ => 1f };
-        return MathF.Max(weight, 0.05f);
     }
 
     public PlayType GetSuggestedPlayType() => GetSuggestedPlaySelection().Type;
@@ -225,7 +209,7 @@ public sealed class PlayManager
     }
 
     private (PlayType Type, int Index) GetSuggestedPlaySelection() =>
-        PlaySuggestion.GetSuggestedPlay(GetPlaySituation(), PassPlays, RunPlays);
+        PlaySuggestion.GetSuggestedPlay(CallContext, RecommendationRoster, RecommendationMemory, PassPlays, RunPlays);
 
     private PlaySituation GetPlaySituation() => new(Down, Distance, LineOfScrimmage, FirstDownLine);
 

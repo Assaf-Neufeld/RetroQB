@@ -8,7 +8,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationIcon>RetroQB\Assets\helmet.ico</ApplicationIcon>
 
-    <DefaultItemExcludes>$(DefaultItemExcludes);RetroQB\obj\**;RetroQB\bin\**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);RetroQB\obj\**;RetroQB\bin\**;artifacts\**</DefaultItemExcludes>
 
     <!-- Publish defaults -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
