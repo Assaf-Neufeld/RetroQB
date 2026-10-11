@@ -23,7 +23,8 @@ public sealed class GameplayHudTests
         var before = session.Clock.Snapshot();
         var timers = MatchHudPresentation.Timers(session);
         Assert.True(timers.PlayClock);
-        Assert.Equal("CPU SNAP", timers.CpuLabel);
+        Assert.Equal("SNAP IN", timers.CpuLabel);
+        Assert.Equal("SCARLET GUARD BALL  v", MatchHudPresentation.Possession(session));
         Assert.InRange(timers.CpuSeconds, 6, 8);
         Assert.Equal(before, session.Clock.Snapshot()); // Presentation never advances time.
         session.Update(0, new(Ready: true));
@@ -43,6 +44,7 @@ public sealed class GameplayHudTests
         session.Update(3);
         Assert.True(MatchHudPresentation.Timers(session).PlayClock);
         Assert.Null(MatchHudPresentation.Timers(session).CpuLabel);
+        Assert.Equal("YOUR BALL  ^", MatchHudPresentation.Possession(session));
         session.Update(0, new(Pause: true));
         var before = session.Clock.Snapshot();
         session.Update(5);
@@ -56,7 +58,8 @@ public sealed class GameplayHudTests
         var cpuKick = Session(kickoff: true);
         var timers = MatchHudPresentation.Timers(cpuKick);
         Assert.False(timers.PlayClock);
-        Assert.Equal("CPU KICK", timers.CpuLabel);
+        Assert.Equal("KICK IN", timers.CpuLabel);
+        Assert.Equal("YOUR KICK RETURN", MatchHudPresentation.Possession(cpuKick));
         Assert.Equal(6, timers.CpuSeconds);
         Assert.StartsWith("KICKOFF", MatchHudPresentation.Status(cpuKick));
         cpuKick.Update(0, new(Ready: true));
@@ -64,18 +67,26 @@ public sealed class GameplayHudTests
         var humanKick = Session(defense: true, kickoff: true);
         Assert.False(MatchHudPresentation.Timers(humanKick).PlayClock);
         Assert.Null(MatchHudPresentation.Timers(humanKick).CpuLabel);
+        Assert.Equal("YOUR KICK COVERAGE", MatchHudPresentation.Possession(humanKick));
     }
 
     [Fact]
     public void ReplayHidesCurrentCadenceAndPlaySelectionControls()
     {
         var session = Session(defense: true);
-        session.Replay.Load(new(1, PlayOutcome.Incomplete, 1, 60, [new ReplayFrame { ElapsedSeconds = 0 }]));
+        var clip = new ReplayClip(1, PlayOutcome.Incomplete, 1, 60, [new ReplayFrame { ElapsedSeconds = 0 }])
+        {
+            MatchContext = new(session.Match.User.Definition.Id, session.Match.Opponent.Definition.Id, session.Match.Stage,
+                session.Clock.Snapshot(), 0, 0, session.Match.User.Definition.Id, session.Match.Opponent.Definition.Id,
+                null, -1, session.Drive.SelectedDefense, "Recorded offense")
+        };
+        session.Replay.Load(clip);
         Assert.NotNull(session.Replay.CurrentFrame);
         Assert.False(MatchHudPresentation.Selecting(session));
         Assert.False(MatchHudPresentation.Timers(session).PlayClock);
         Assert.Null(MatchHudPresentation.Timers(session).CpuLabel);
         Assert.StartsWith("REPLAY", MatchHudPresentation.Status(session));
+        Assert.Equal("YOUR BALL  ^", MatchHudPresentation.Possession(session));
         Assert.DoesNotContain("switch defense", FullMatchRenderer.SidebarControls(session, true));
     }
 

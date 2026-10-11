@@ -51,11 +51,9 @@ public sealed class TimedScoreboardRenderer
         if (timers.CpuLabel is { } cpuLabel) Value(cpuLabel, $"{timers.CpuSeconds:0.0}s", Palette.White);
 
         string offenseId = replay?.OffenseId ?? session.Drive.PreparedOffenseId;
-        bool defending = offenseId != match.User.Definition.Id;
         content.Section("POSSESSION & FIELD");
         var special = frame == null ? session.SpecialTeams : null;
-        content.Line(special != null ? session.UserReceivingKick ? "YOUR KICK RETURN" : "YOUR KICK COVERAGE"
-            : defending ? "CPU BALL  v" : "YOUR BALL  ^");
+        content.Wrapped(MatchHudPresentation.Possession(session), maxLines: 2);
         if (special != null)
         {
             content.Line((special.IsKickoff ? "KICKOFF" : "PUNT") + " | " + special.Phase.ToString().ToUpperInvariant(), size: layout.Hint);

@@ -97,8 +97,19 @@ internal static class MatchHudPresentation
     {
         if (!Selecting(session)) return default;
         if (session.SpecialTeams is { IsKickoff: true })
-            return new(false, session.UserReceivingKick ? "CPU KICK" : null, Math.Max(0, session.SnapRemaining));
-        return new(true, session.HumanOnDefense ? "CPU SNAP" : null, Math.Max(0, session.SnapRemaining));
+            return new(false, session.UserReceivingKick ? "KICK IN" : null, Math.Max(0, session.SnapRemaining));
+        return new(true, session.HumanOnDefense ? "SNAP IN" : null, Math.Max(0, session.SnapRemaining));
+    }
+
+    public static string Possession(FullMatchSession session)
+    {
+        if (session.Replay.CurrentFrame == null && session.SpecialTeams != null)
+            return session.UserReceivingKick ? "YOUR KICK RETURN" : "YOUR KICK COVERAGE";
+        string offenseId = session.Replay.CurrentFrame != null
+            ? session.Replay.Clip?.MatchContext?.OffenseId ?? session.Drive.PreparedOffenseId
+            : session.Drive.PreparedOffenseId;
+        return offenseId == session.Match.User.Definition.Id ? "YOUR BALL  ^"
+            : session.Match.Team(offenseId).Definition.Name.ToUpperInvariant() + " BALL  v";
     }
 
     public static string Status(FullMatchSession session)
