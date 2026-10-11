@@ -79,79 +79,11 @@ public sealed class FullMatchRenderer
             foreach (var actor in d.Players) actor.Draw();
             d.Actors.Ball.Draw();
             Ring(defending ? d.Linebacker.Position : d.Actors.Ball.Holder?.Position ?? d.Actors.Qb.Position);
-            if (!defending) foreach (var receiver in d.Actors.Receivers.Where(r => r.Eligible))
-            {
-                var p = Constants.WorldToScreen(receiver.Position);
-                Raylib.DrawText(d.ReceiverLabel(receiver.Index), (int)p.X + 8, (int)p.Y - 12, 15, Palette.Gold);
-            }
+            if (!defending) DrawReceiverLabels(d);
         }
-        float scale = Math.Min(1, Raylib.GetScreenHeight() / 900f);
         if (defending && ShowsScrimmageCoverage(session)) DefensivePlayRenderer.DrawCoverage(recorded?.CompiledPlan ?? (frame == null ? d.CompiledPlan : null),
             frame?.DefensiveDecision ?? (frame == null ? d.Execution.DefenseRuntime?.Current : null));
-        int right = Raylib.GetScreenWidth() - 310;
-        void Text(string text, int x, int y, int size = 17, Color? color = null)
-        {
-            int fontSize = Math.Max(11, (int)(size * scale));
-            while (fontSize > 11 && text.Split('\n').Any(line => Raylib.MeasureText(line, fontSize) > 290)) fontSize--;
-            Raylib.DrawText(text, x, (int)(y * scale), fontSize, color ?? Palette.White);
-        }
-        Text(frame != null ? "REPLAY" : session.SpecialTeams is { } st ? st.IsKickoff ? "KICKOFF" : "PUNT" : defending ? "CALL DEFENSE" : "CALL OFFENSE", 20, 28, 25, Palette.Gold);
-        if (session.SpecialTeams is { } special && frame == null)
-        {
-            Text(session.UserReceivingKick ? "YOU: KICK RETURNER" : "YOU: COVERAGE LINEBACKER", 20, 100, 18, Palette.Gold);
-            Text(special.Phase.ToString().ToUpperInvariant(), 20, 155, 22);
-            Text("Space: snap / kick / ready\nWASD / arrows: move\nShift: sprint\nReturn the kick or make the tackle", 20, 215, 16);
-            if (special.Phase == SpecialTeamsPhase.Setup && !special.IsKickoff && !session.UserReceivingKick)
-                Text("Choose a pass/run to cancel punt", 20, 335, 15);
-            if (special.Result is { } kr) Text(kr.Touchback ? "TOUCHBACK" : $"RETURN: {kr.ReturnYards} YARDS", 20, 390, 20, Palette.Gold);
-        }
-        else if (session.Kick != null && frame == null)
-        {
-            if (!session.HumanOnDefense) FieldGoalRenderer.DrawHud(session.Kick, timedMatch: true);
-            else Text($"CPU FIELD GOAL\n{session.Kick.Distance:0} YARDS\n{session.Kick.Result}", 20, 100);
-        }
-        else if (defending)
-        {
-            if (frame == null) Text("1-9 / 0: switch defensive call", 20, 65, 14);
-            string selectedCall = recorded?.CompiledPlan?.RequestedCall.Id ?? (frame == null ? d.CompiledPlan?.RequestedCall.Id : null) ?? assignment.Definition.Id;
-            for (int i = 0; i < 10; i++)
-                Text($"{(i + 1) % 10} {d.Calls[i].Name}{(d.SupportsDefense(d.Calls[i].Id) ? "" : " (unavailable)")}", 20, 95 + i * 29, 16,
-                    selectedCall == d.Calls[i].Id ? Palette.Gold : d.SupportsDefense(d.Calls[i].Id) ? Palette.White : new Color(110, 110, 110, 255));
-            Text(assignment.Definition.Name, 20, 387, 14, Palette.Gold);
-            Text($"YOU: {assignment.ControlledSlot}", 20, 415, 20, Palette.Gold);
-            var cue = (frame?.DefensiveDecision ?? (frame == null ? d.Execution.DefenseRuntime?.Current : null))?.Decisions.Single(i => i.Actor == assignment.ControlledSlot);
-            Text(cue == null ? Gameplay.Defense.DefensivePlanPresentation.DescribeAssignment(recorded?.CompiledPlan ?? d.CompiledPlan, assignment.ControlledSlot,
-                assignment.Assignments.Single(a => a.Slot == assignment.ControlledSlot).Responsibility) : Gameplay.Defense.DefensivePlanPresentation.Describe(cue), 20, 450);
-            if (frame == null) Text($"CPU snap in {Math.Max(0, session.SnapRemaining):0.0}s", 20, 520);
-            var decision = frame?.DefensiveDecision ?? (frame == null ? d.Execution.DefenseRuntime?.Current : null);
-            var plan = recorded?.CompiledPlan ?? (frame == null ? d.CompiledPlan : null);
-            if (plan != null)
-            {
-                Text(Gameplay.Defense.DefensivePlanPresentation.PressureSummary(plan, decision), 20, 610, 14);
-            }
-            if (decision != null) Text(Gameplay.Defense.DefensivePlanPresentation.Describe(decision.Decisions.Single(x => x.Actor == assignment.ControlledSlot)), 20, 555, 14);
-            if (decision?.Coverage is { } board) Text(DefensivePlayRenderer.CoverageCue(board, assignment.ControlledSlot), 20, 590, 13);
-            if (decision?.Observation.ConfirmedCarrier == true && decision.Run is { } run) Text(DefensivePlayRenderer.RunCue(run), 20, 590, 13);
-        }
-        else if (frame != null)
-        {
-            Text(recorded?.OffensiveCall ?? "OFFENSIVE REPLAY", 20, 100);
-            Text("Recorded teams and clock\nSpace / F: return", 20, 170);
-        }
-        else
-        {
-            for (int i = 0; i < d.Plays.PassPlays.Count; i++) Text($"{(i + 1) % 10} {d.Plays.PassPlays[i].Name}", 20, 85 + i * 22, 13);
-            const string keys = "QWERTYUIOP";
-            for (int i = 0; i < d.Plays.RunPlays.Count; i++) Text($"{keys[i]} {d.Plays.RunPlays[i].Name}", 20, 320 + i * 22, 13);
-            Text(session.Action == MatchAction.Scrimmage ? d.Plays.SelectedPlay.Name : session.Action.ToString(), 20, 570, 16, Palette.Gold);
-            if (!d.Live && session.Action == MatchAction.Scrimmage) Text(d.Plays.GetSuggestedPlayLabel(), 20, 650, 13, Palette.Cyan);
-            if (session.Action == MatchAction.Scrimmage && d.Plays.SelectedPlay.Family == PlayType.Pass)
-            {
-                Text(PassingGuidance.Reads(d.Plays.SelectedPlay), 20, 596, 13, Palette.Gold);
-                Text(PassingGuidance.Protection(d.Plays.SelectedPlay), 20, 619, 13);
-            }
-        }
-        Text(SidebarControls(session, defending), 20, 695, 15);
+        MatchPlayPanelRenderer.Draw(session, defending, season != null);
         _scoreboard.Draw(session);
         bool superBowlVictory = season?.SuperBowlVictory == true && frame == null && c.Suspension == ClockSuspension.None;
         bool stageVictory = season?.StageVictory == true && frame == null && c.Suspension == ClockSuspension.None;
@@ -163,9 +95,17 @@ public sealed class FullMatchRenderer
                 m.User.Stats, season.PreviewResult(), season.Leaderboard);
         else if (frame == null && d.LastResult?.DriveEnded == true && !session.ShowStatistics) DrawDriveSummary(session);
         if (season?.Pregame == true || season?.Complete == true) DrawSeason(season, returnToMenu);
-        else if (!stageVictory && !superBowlVictory && season != null && session.Timed.Finished) Text("Enter: accept result\nZ: restart this matchup\nTab: inspect statistics", right, 820, 15, Palette.Gold);
         if (session.ShowStatistics) DrawStatistics(session, season);
         else if (session.Browser.IsOpen && frame == null) PlaybookBrowserRenderer.Draw(session.Browser, d.Plays.SelectedPlay);
+        if (!session.ShowStatistics && (c.Suspension & (ClockSuspension.Pause | ClockSuspension.FocusLoss)) != 0)
+        {
+            var pause = OverlayChromeRenderer.DrawWindowCentered(460, 190, Palette.PanelLine, OverlayVariant.Modal, 40, 40);
+            var text = new HudContent(new(pause.X + 8, pause.Y + 8, pause.Width - 16, pause.Height - 16), HudLayout.Current);
+            text.Y = pause.Y + 30;
+            text.Line("PAUSED", size: 26);
+            text.Wrapped((c.Suspension & ClockSuspension.FocusLoss) != 0 ? "Return to the game window to continue." : "Esc: resume | Tab: statistics", Palette.Muted);
+            text.Line("Game and preparation clocks are suspended.", Palette.Muted, HudLayout.Current.Hint);
+        }
     }
 
     internal static bool ShowsScrimmageCoverage(FullMatchSession session)
@@ -173,23 +113,13 @@ public sealed class FullMatchRenderer
             && session.SpecialTeams == null && session.Kick == null;
 
     internal static string SidebarControls(FullMatchSession session, bool defending)
-    {
-        if (session.Replay.CurrentFrame != null) return "Space / F: return\nTab: statistics | Esc: pause";
-        const string common = "WASD / arrows: move | Shift: sprint\nC: timeout | Esc: pause | Z: restart\nTab: statistics | F: replay\nPgUp/PgDn: history";
-        if (session.SpecialTeams != null) return "Space: kick / ready / continue\n" + common;
-        if (defending && session.Action == MatchAction.Scrimmage)
-            return (session.Drive.Live ? "Space: continue\n" : "1-9 / 0: switch defense\nQ/E: pressure variants | X: flip side\nH: personnel (" + session.Drive.PersonnelSelection + ")\nJ: front | Space: ready\n") + common;
-        return "L: full playbook\nSpace: snap / continue\n1-5 live: throw | X: flip\nK: kick  B: punt  V: kneel\n" + common;
-    }
+        => MatchPlayPanelRenderer.Controls(session, defending);
 
     private static void DrawDriveSummary(FullMatchSession session)
     {
         var summary = CompletedDriveSummary.From(session)!;
-        int width = Math.Min(600, Raylib.GetScreenWidth() - 40), height = 274;
-        int x = (Raylib.GetScreenWidth() - width) / 2, y = (Raylib.GetScreenHeight() - height) / 2;
-        Raylib.DrawRectangle(x + 5, y + 5, width, height, new Color(0, 0, 0, 150));
-        Raylib.DrawRectangle(x, y, width, height, new Color(12, 20, 30, 248));
-        Raylib.DrawRectangleLinesEx(new(x, y, width, height), 2, Palette.Gold);
+        var panel = OverlayChromeRenderer.DrawWindowCentered(620, 290, Palette.Gold, OverlayVariant.Modal, 40, 40);
+        int x = panel.X, y = panel.Y, width = panel.Width;
         void Line(string text, int offset, int size, Color color)
         {
             while (size > 12 && Raylib.MeasureText(text, size) > width - 40) size--;
@@ -208,6 +138,28 @@ public sealed class FullMatchRenderer
     private static void Ring(Vector2 world)
     {
         var p = Constants.WorldToScreen(world); Raylib.DrawCircleLines((int)p.X, (int)p.Y, 13, Palette.Gold);
+    }
+
+    private static void DrawReceiverLabels(DefensiveDrive drive)
+    {
+        var field = Constants.FieldRect;
+        var labels = new List<Rectangle>();
+        foreach (var receiver in drive.Actors.Receivers.Where(r => r.Eligible))
+        {
+            var point = Constants.WorldToScreen(receiver.Position);
+            string label = drive.ReceiverLabel(receiver.Index);
+            int width = Raylib.MeasureText(label, 14) + 6;
+            Rectangle box = default;
+            foreach (var offset in new[] { new Vector2(9, -23), new Vector2(-width - 9, -23), new Vector2(9, 12), new Vector2(-width - 9, 12), new Vector2(9, -43) })
+            {
+                box = new(Math.Clamp(point.X + offset.X, field.X + 2, field.X + field.Width - width - 2),
+                    Math.Clamp(point.Y + offset.Y, field.Y + 2, field.Y + field.Height - 20), width, 18);
+                if (!labels.Any(r => Raylib.CheckCollisionRecs(r, box))) break;
+            }
+            labels.Add(box);
+            Raylib.DrawRectangleRec(box, Palette.HudSurface);
+            Raylib.DrawText(label, (int)box.X + 3, (int)box.Y + 2, 14, Palette.Gold);
+        }
     }
 
     private static ReplayActorFrame? FindBallHolder(ReplayFrame frame)
@@ -231,30 +183,47 @@ public sealed class FullMatchRenderer
 
     private static void Panel(string heading)
     {
-        Raylib.DrawRectangle(15, 15, Raylib.GetScreenWidth() - 30, Raylib.GetScreenHeight() - 30, new Color(12, 20, 30, 248));
+        OverlayChromeRenderer.DrawWindowCentered(Raylib.GetScreenWidth() - 30, Raylib.GetScreenHeight() - 30,
+            Palette.PanelLine, OverlayVariant.Modal, 30, 30);
         Raylib.DrawText(heading, 40, 40, 25, Palette.Gold);
     }
 
     private static void DrawStatistics(FullMatchSession session, TimedSeason? season)
     {
-        Panel("MATCH STATISTICS | TAB: RETURN");
-        var m = session.Match;
-        int x = 40;
-        foreach (var team in new[] { m.User, m.Opponent })
+        var layout = HudLayout.Current;
+        var panel = OverlayChromeRenderer.DrawWindowCentered(Math.Min(1200, layout.ScreenWidth - 40),
+            Math.Min(800, layout.ScreenHeight - 40), Palette.PanelLine, OverlayVariant.Modal, 40, 40);
+        GameplayHud.Text("MATCH STATISTICS", panel.X + 24, panel.Y + 22, panel.Width - 48, 22);
+        int width = (panel.Width - 64) / 2;
+        int x = panel.X + 24;
+        foreach (var team in new[] { session.Match.User, session.Match.Opponent })
         {
-            var o = team.Stats; var d = team.DefenseStats;
-            Raylib.DrawText($"{team.Definition.Name}  {team.Score}\n\nOFFENSE\nPassing: {o.Qb.Completions}/{o.Qb.Attempts}, {o.Qb.PassYards} yd\nPass TD: {o.Qb.PassTds} | INT: {o.Qb.Interceptions}\nSacks allowed: {o.Qb.Sacks}\nQB rush: {o.Qb.RushAttempts} for {o.Qb.RushYards} yd\nRB rush: {o.Rb.Attempts} for {o.Rb.Yards} yd\n\nDEFENSE\nTackles: {d.Tackles} | Controlled LB: {d.ControlledTackles}\nSacks: {d.Sacks} | INT: {d.Interceptions}\nPass breakups: {d.PassesDefended}\nYards allowed: {d.YardsAllowed}\nPoints allowed: {d.PointsAllowed}\n3rd / 4th stops: {d.ThirdDownStops} / {d.FourthDownStops}", x, 100, 19, Palette.White);
-            Raylib.DrawText($"Controlled LB: {d.ControlledSacks} SK {d.ControlledInterceptions} INT {d.ControlledPassesDefended} PD", x, 460, 15, Palette.Gold);
-            int y = 500;
-            foreach (var player in d.Players.Where(p => p.Tackles + p.Sacks + p.Interceptions + p.PassesDefended > 0)
+            var offense = team.Stats; var defense = team.DefenseStats;
+            Raylib.DrawRectangle(x, panel.Y + 62, width, 3, team.Definition.PrimaryColor);
+            var text = new HudContent(new(x - 14, panel.Y + 62, width + 28, panel.Height - 120), layout) { Y = panel.Y + 76 };
+            text.Line($"{team.Definition.Name}  {team.Score}", size: 20);
+            text.Section("OFFENSE");
+            text.Line($"Passing: {offense.Qb.Completions}/{offense.Qb.Attempts}, {offense.Qb.PassYards} yd");
+            text.Line($"Pass TD: {offense.Qb.PassTds} | INT: {offense.Qb.Interceptions}");
+            text.Line($"Sacks allowed: {offense.Qb.Sacks}");
+            text.Line($"QB rush: {offense.Qb.RushAttempts} for {offense.Qb.RushYards} yd");
+            text.Line($"RB rush: {offense.Rb.Attempts} for {offense.Rb.Yards} yd");
+            text.Section("DEFENSE");
+            text.Line($"Tackles: {defense.Tackles} | Controlled LB: {defense.ControlledTackles}");
+            text.Line($"Sacks: {defense.Sacks} | INT: {defense.Interceptions} | PD: {defense.PassesDefended}");
+            text.Line($"Yards allowed: {defense.YardsAllowed}");
+            text.Line($"Points allowed: {defense.PointsAllowed}");
+            text.Line($"3rd / 4th stops: {defense.ThirdDownStops} / {defense.FourthDownStops}");
+            text.Section("CONTROLLED LINEBACKER");
+            text.Line($"{defense.ControlledSacks} SK | {defense.ControlledInterceptions} INT | {defense.ControlledPassesDefended} PD", Palette.Gold);
+            foreach (var player in defense.Players.Where(p => p.Tackles + p.Sacks + p.Interceptions + p.PassesDefended > 0)
                 .OrderByDescending(p => p.Tackles + p.Sacks + p.Interceptions + p.PassesDefended).Take(5))
-            {
-                Raylib.DrawText($"{player.Slot}: {player.Tackles} TKL {player.Sacks} SK {player.Interceptions} INT {player.PassesDefended} PD", x, y, 15, Palette.White); y += 22;
-            }
-            x += (Raylib.GetScreenWidth() - 80) / 2;
+                text.Line($"{player.Slot}: {player.Tackles} TKL | {player.Sacks} SK | {player.Interceptions} INT | {player.PassesDefended} PD", Palette.Muted, layout.Hint);
+            x += width + 16;
         }
         if (season != null)
-            Raylib.DrawText($"Accepted games: {season.Completed.Count} | {season.Summary.BuildThreeStageScoreHistory()}", 40, Raylib.GetScreenHeight() - 62, 17, Palette.Gold);
+            GameplayHud.Text($"Accepted games: {season.Completed.Count} | {season.Summary.BuildThreeStageScoreHistory()}", panel.X + 24, panel.Y + panel.Height - 58, panel.Width - 48, layout.Hint, Palette.Muted);
+        GameplayHud.Text("Tab: return", panel.X + 24, panel.Y + panel.Height - 34, panel.Width - 48, layout.Body, Palette.Gold);
     }
 
     private static void DrawSeason(TimedSeason season, bool returnToMenu)

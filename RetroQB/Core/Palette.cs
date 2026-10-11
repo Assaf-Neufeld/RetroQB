@@ -9,6 +9,8 @@ public static class Palette
     public static readonly Color Panel = new(10, 16, 26, 244);
     public static readonly Color PanelRaised = new(17, 25, 38, 244);
     public static readonly Color PanelLine = new(38, 72, 94, 220);
+    public static readonly Color HudSurface = new(10, 16, 26, 255);
+    public static readonly Color HudSelection = new(44, 40, 24, 255);
     public static readonly Color Ink = new(7, 9, 12, 255);
     public static readonly Color Muted = new(132, 154, 170, 255);
     public static readonly Color Field = new(15, 86, 39, 255);

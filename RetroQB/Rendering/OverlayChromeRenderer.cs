@@ -58,7 +58,7 @@ public static class OverlayChromeRenderer
 
         Raylib.DrawRectangle(x + spec.ShadowPad, y + spec.ShadowPad, width, height, new Color(0, 0, 0, 92));
         Raylib.DrawRectangle(x - spec.GlowPad, y - spec.GlowPad, width + (spec.GlowPad * 2), height + (spec.GlowPad * 2), new Color((int)accent.R, (int)accent.G, (int)accent.B, 74));
-        Raylib.DrawRectangle(x, y, width, height, new Color(10, 14, 22, 246));
+        Raylib.DrawRectangle(x, y, width, height, Palette.HudSurface);
         Raylib.DrawRectangleLinesEx(new Rectangle(x, y, width, height), 2f, accent);
         Raylib.DrawRectangle(x + spec.ShellInset, y + spec.ShellInset, width - (spec.ShellInset * 2), spec.AccentStripHeight, new Color((int)accent.R, (int)accent.G, (int)accent.B, 132));
 
@@ -67,7 +67,7 @@ public static class OverlayChromeRenderer
         int innerWidth = width - (spec.InnerInset * 2);
         int innerHeight = height - (spec.InnerInset * 2);
 
-        Raylib.DrawRectangle(innerX, innerY, innerWidth, innerHeight, new Color(18, 24, 36, 246));
+        Raylib.DrawRectangle(innerX, innerY, innerWidth, innerHeight, new Color(18, 24, 36, 255));
         Raylib.DrawRectangleLines(innerX, innerY, innerWidth, innerHeight, new Color(72, 92, 116, 168));
 
         return new OverlayFrame(x, y, width, height);

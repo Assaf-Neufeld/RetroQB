@@ -122,21 +122,27 @@ public static class FieldGoalRenderer
         else if (kick.Phase == KickPhase.Flight)
             Info("KICK IS AWAY...", Palette.Gold);
 
+        DrawMeter(kick, timedMatch);
+    }
+
+    public static void DrawMeter(FieldGoalAttempt kick, bool timedMatch = false)
+    {
         // The meter appears only after the holder receives the snap.
         if (!kick.ShowMeter) return;
 
         // Anchor beside the kicker, keeping the ball's path and both side panels clear.
         int left = (int)(Constants.OuterMargin + Constants.SidePanelWidth + Constants.ColumnGap + 4);
         int available = Raylib.GetScreenWidth() - left * 2;
+        if (available < 80) return;
         int panelWidth = Math.Min(270, available);
         Vector2 anchor = Constants.WorldToScreen(kick.KickerStart);
         int panelX = Math.Clamp((int)anchor.X - panelWidth / 2, left, Raylib.GetScreenWidth() - left - panelWidth);
         int top = Math.Clamp((int)anchor.Y + 22, 10, Raylib.GetScreenHeight() - 106);
-        Raylib.DrawRectangle(panelX, top, panelWidth, 96, new Color(12, 23, 29, 235));
+        Raylib.DrawRectangle(panelX, top, panelWidth, 96, Palette.HudSurface);
         Raylib.DrawRectangleLines(panelX, top, panelWidth, 96, Palette.PanelLine);
-        void Center(string text, int offset, Color color, int size = 13)
+        void Center(string text, int offset, Color color, int size = 14)
         {
-            while (size > 9 && Raylib.MeasureText(text, size) > panelWidth - 16) size--;
+            text = GameplayHud.Fit(text, panelWidth - 16, size);
             Raylib.DrawText(text, panelX + (panelWidth - Raylib.MeasureText(text, size)) / 2, top + offset, size, color);
         }
         bool accuracy = kick.Phase is KickPhase.Accuracy or KickPhase.Flight or KickPhase.Result;
@@ -160,6 +166,6 @@ public static class FieldGoalRenderer
         Center(prompt, 58, Palette.Gold);
         Center(kick.Phase == KickPhase.Result
             ? timedMatch ? "SPACE: CONTINUE" : $"AWAY +{kick.OpponentPoints}  |  ENTER: CONTINUE"
-            : timedMatch ? "LIVE KICK - TIME YOUR KICK" : "PLAY FROZEN - TIME YOUR KICK", 78, Palette.Muted, 10);
+            : timedMatch ? "LIVE KICK - TIME YOUR KICK" : "PLAY FROZEN - TIME YOUR KICK", 78, Palette.Muted, 12);
     }
 }

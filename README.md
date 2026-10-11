@@ -20,6 +20,8 @@ Teams have distinct offensive and defensive strengths, with permanent `*` roster
 
 Your team always attacks up-screen and defends the bottom end zone. The field stays fixed across possession changes, with screen-relative linebacker controls.
 
+The left **YOUR PLAY** panel holds calls, assignments, and controls. The right **GAME STATUS** panel holds scores, all clocks/countdowns, field position, and recent results. Both panels share the same styling; compact windows reserve more space for the field. See the [gameplay UI verification](docs/gameplay-ui-verification.md).
+
 Each game has two two-minute halves (H1 and H2), a 20-second play clock, and three timeouts per half. Possession changes put you on the other side of the ball. Touchdowns score seven, field goals three, and safeties two, only for the scoring team. Reaching 21 does not end the game. Tied regulation uses paired possessions from the opponent's 25; both teams get an attempt before a winner is decided.
 
 On offense, choose from ten situational pass calls and ten run calls drawn from the 108-call catalog. Route and blocking previews show the selected assignment, including run lanes, screen escorts, and moving QB paths. The CPU uses that catalog too. See the [playbook guide](docs/playbook-expansion.md).
@@ -96,7 +98,7 @@ dotnet run -- --scenario release-default --headless --output artifacts/phase6/ca
 dotnet run -- --scenario timed-layout --capture --output artifacts/phase6/layouts
 ```
 
-The release matrix freezes its seeds internally. Layout capture exports menu, pregame, offense, defense, statistics, kicking, halftime, overtime, final, replay, punt/kickoff sequences, and the end-of-season name screen at four sizes. README images use its 1440×900 captures.
+The release matrix freezes its seeds internally. Layout capture exports menu, pregame, offensive/defensive setup and live play, full playbook, pause, low clocks, statistics, kick meters, halftime, overtime, final, replay, punt/kickoff sequences, and the end-of-season name screen at five sizes. README images use its 1440×900 captures.
 
 Other fixtures include `timed-short`, `late-tying-kick`, `late-protect-lead`, `overtime-pairs`, and `timed-season-short`. Original `offense-*` fixtures retain isolated legacy regression adapters. Normal startup always uses timed two-sided seasons; Release builds reject scenario arguments.
 

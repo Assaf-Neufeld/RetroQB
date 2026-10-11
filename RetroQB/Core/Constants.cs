@@ -14,8 +14,8 @@ public static class Constants
     public const float EndZoneDepth = 10f;
 
     // UI column layout
-    public const float SidePanelWidth = 320f;
-    public const float ScoreboardPanelWidth = 320f;
+    public static float SidePanelWidth => HudLayout.Current.PanelWidth;
+    public static float ScoreboardPanelWidth => HudLayout.Current.PanelWidth;
     public const float ColumnGap = 10f;
     public const float OuterMargin = 10f;
 

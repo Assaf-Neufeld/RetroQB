@@ -46,7 +46,33 @@ internal static class TimedLayoutCapture
                     game.FullMatch.Update(0, new(Ready: true));
                 }
                 for (int tick = 0; game.FullMatch.Drive.Live && tick < 1800; tick++) game.FullMatch.Update(1f / 60);
-                game.FullMatch.Update(0, new(Ready: true)); Capture("offense");
+                var user = TeamCatalog.Get("ballers"); var cpu = TeamCatalog.ForStage(SeasonStage.RegularSeason);
+                // Isolate scrimmage from kickoff outcomes so capture names match their states.
+                void Scrimmage(bool defense = false, DriveStart? start = null, double seconds = 120)
+                    => game.StartTimedMatch(options.Seed, match: new TimedMatch(user, cpu, defense ? cpu.Id : user.Id,
+                        start: start, quarterSeconds: seconds, regulationPeriods: 2));
+                Scrimmage(); Capture("offense");
+                game.FullMatch!.Drive.SelectOffenseById(game.FullMatch.Drive.Plays.Catalog.Plays.OrderByDescending(p => p.Name.Length).First().Id, false);
+                Capture("offense-long-call");
+                Scrimmage();
+                game.FullMatch!.Update(0, new(Browser: new(Toggle: true))); Capture("playbook");
+                game.FullMatch.Update(0, new(Browser: new(Close: true)));
+                game.FullMatch.Update(0, new(Pause: true)); Capture("pause");
+                game.FullMatch.Update(0, new(Pause: true));
+                game.FullMatch.Update(15); Capture("offense-low-play-clock");
+                game.FullMatch.Update(0, new(Ready: true)); game.FullMatch.Update(.5f); Capture("offense-live");
+                Scrimmage(seconds: 10); game.FullMatch!.Update(0, new(Ready: true));
+                game.FullMatch.Update(.5f); Capture("offense-low-game-clock");
+                Scrimmage(defense: true); Capture("defense");
+                game.FullMatch!.Drive.SelectDefense("def.cover3"); Capture("defense-zone");
+                game.FullMatch.Drive.SelectDefense("def.cover1");
+                game.FullMatch!.Update(0, new(DefensivePersonnel: true, DefensiveFront: true)); Capture("defense-package");
+                game.FullMatch.Update(0, new(Ready: true)); game.FullMatch.Update(.5f); Capture("defense-live");
+                Scrimmage(start: new(70, 4, 5)); game.FullMatch!.SelectAction(RetroQB.AI.MatchAction.FieldGoal); Capture("human-kick-setup");
+                game.FullMatch.Update(0, new(Ready: true)); game.FullMatch.Update(FieldGoalAttempt.SnapDuration); Capture("human-kick-ready");
+                game.FullMatch.Update(.5f, new(Ready: true)); Capture("human-kick-power");
+                game.FullMatch.Update(.1f, new(Ready: true)); Capture("human-kick-accuracy");
+                Scrimmage();
                 var statsMatch = game.FullMatch!.Timed;
                 var first = statsMatch.Advance(0, "layout.pass")!;
                 statsMatch.Resolve(new(first.Id, first.OffenseId, PlayEndReason.Tackle, 26,
@@ -62,13 +88,12 @@ internal static class TimedLayoutCapture
                 game.FullMatch!.Drive.Snap(); game.FullMatch.Drive.ResolveSpecial(PlayEndReason.Incomplete, 35); Capture("drive-result");
                 game.StartTimedMatch(options.Seed, match: FullMatchScenarioLauncher.Create("late-tying-kick")); Capture("defense-kick");
                 game.StartTimedMatch(options.Seed, match: FullMatchScenarioLauncher.Create("overtime-pairs")); Capture("overtime");
-                var user = TeamCatalog.Get("ballers"); var cpu = TeamCatalog.ForStage(SeasonStage.RegularSeason);
-                var half = new TimedMatch(user, cpu, user.Id);
-                half.Clock.StartPeriod(3); half.Match.StartPossession(cpu.Id, new());
+                var half = new TimedMatch(user, cpu, user.Id, quarterSeconds: 120, regulationPeriods: 2);
+                half.Clock.StartPeriod(2); half.Match.StartPossession(cpu.Id, new());
                 game.StartTimedMatch(options.Seed, match: half); Capture("halftime");
-                game.FullMatch.Timed.Continue(); Capture("defense");
-                game.FullMatch.Match.User.Score = 7; game.FullMatch.Clock.StartPeriod(4); game.FullMatch.Timed.Continue();
-                game.FullMatch.Timed.Advance(0, "layout.final"); game.FullMatch.Timed.Advance(180);
+                game.FullMatch.Timed.Continue(); Capture("defense-after-halftime");
+                game.FullMatch.Match.User.Score = 7; game.FullMatch.Clock.StartPeriod(2); game.FullMatch.Timed.Continue();
+                game.FullMatch.Timed.Advance(0, "layout.final"); game.FullMatch.Timed.Advance(120);
                 game.FullMatch.Drive.ResolveSpecial(PlayEndReason.Kneel, 19); Capture("final");
                 game.StartTimedMatch(options.Seed, match: new TimedMatch(user, cpu, cpu.Id, start: new(99, 1, 1)));
                 game.FullMatch!.Drive.Snap(); game.FullMatch.Drive.Actors.Qb.Position = new(25, 111);
