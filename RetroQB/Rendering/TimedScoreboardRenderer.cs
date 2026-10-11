@@ -86,18 +86,19 @@ public sealed class TimedScoreboardRenderer
             content.Y += 4;
         }
         var stats = match.User.Stats; var defense = match.User.DefenseStats;
+        string statsTeam = match.User.Definition.Name.ToUpperInvariant();
         if (content.Y + 150 <= content.Bottom)
         {
-            content.Section("YOUR OFFENSE");
+            content.Section(statsTeam + " OFFENSE");
             Value("PASS", $"{stats.Qb.Completions}/{stats.Qb.Attempts} | {stats.Qb.PassYards} YD", Palette.White);
             Value("RUSH", $"{stats.Rb.Attempts + stats.Qb.RushAttempts} ATT | {stats.Rb.Yards + stats.Qb.RushYards} YD", Palette.White);
-            content.Section("YOUR DEFENSE");
+            content.Section(statsTeam + " DEFENSE");
             Value("TACKLES", $"{defense.Tackles} | YOUR LB {defense.ControlledTackles}", Palette.White);
             Value("SK / INT / PD", $"{defense.Sacks} / {defense.Interceptions} / {defense.PassesDefended}", Palette.White);
         }
         else if (content.Y + 66 <= content.Bottom)
         {
-            content.Section("YOUR TEAM");
+            content.Section(statsTeam + " STATS");
             content.Line($"PASS {stats.Qb.PassYards} YD | RUSH {stats.Rb.Yards + stats.Qb.RushYards} YD", size: layout.Hint);
             content.Line($"DEF: {defense.Sacks} SK | {defense.Interceptions} INT | {defense.Tackles} TKL", size: layout.Hint);
         }
